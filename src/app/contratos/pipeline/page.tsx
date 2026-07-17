@@ -1164,8 +1164,8 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const tabs = [
     { id: 'details', label: 'Detalhes', icon: <ExternalLink size={11} /> },
     ...(hasReq ? [{ id: 'req', label: 'Requisição', icon: <Layers size={11} /> }] : []),
-    // Comentários = histórico do canal do cliente (read-only); todos veem, inclusive o cliente.
-    ...(hasReq ? [{ id: 'comments', label: 'Comentários', icon: <MessageSquare size={11} /> }] : []),
+    // Comentários = histórico do canal do cliente (read-only); em TODOS os projetos (vazio se sem requisição).
+    { id: 'comments', label: 'Comentários', icon: <MessageSquare size={11} /> },
     // Diário do Projeto = interno; dá continuidade ao projeto e NÃO é visível ao cliente.
     ...(!isCliente ? [{ id: 'chat', label: 'Diário do Projeto', icon: <MessageSquare size={11} /> }] : []),
     { id: 'log', label: 'Histórico', icon: <Clock size={11} /> },
@@ -2082,6 +2082,7 @@ function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: bool
 interface ProjectFull {
   id: number; name: string; code: string; status: string; status_display?: string
   diary_access?: boolean
+  contract_request_id?: number | null
   customer?: { id: number; name: string }
   description?: string | null; start_date?: string | null; expected_end_date?: string | null
   delivery_percentage?: number | null
@@ -2136,7 +2137,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
   // Abas financeiras removidas desta tela: se abrir numa delas (initialTab), cai em Visão Geral.
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'chat'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'comments' | 'chat'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -2146,6 +2147,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [aportesList, setAportesList] = useState<any[]>([])
   const [aportesLoading, setAportesLoading] = useState(false)
   const [aportesLoaded, setAportesLoaded]   = useState(false)
+  // Comentários = histórico read-only do canal do cliente (trazido da requisição vinculada).
+  const [reqComments, setReqComments]           = useState<ContractRequestDetail | null>(null)
+  const [reqCommentsLoaded, setReqCommentsLoaded]   = useState(false)
+  const [reqCommentsLoading, setReqCommentsLoading] = useState(false)
 
   const reload = () => {
     setLoading(true)
@@ -2188,6 +2193,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
         .finally(() => setAportesLoading(false))
     }
   }, [tab, projectId, tsLoaded, aportesLoaded])
+
+  useEffect(() => {
+    if (tab === 'comments' && !reqCommentsLoaded && p?.contract_request_id) {
+      setReqCommentsLoading(true)
+      api.get<ContractRequestDetail>(`/projects/${projectId}/contract-request`)
+        .then(r => { setReqComments(r); setReqCommentsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setReqCommentsLoading(false))
+    }
+  }, [tab, projectId, reqCommentsLoaded, p?.contract_request_id])
 
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -2276,6 +2291,11 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
     // Diário do Projeto: só aparece se o usuário tem acesso (é coord/consultor do projeto ou
     // participante convidado) — senão a aba some (em vez de dar "Erro ao carregar mensagens").
+    // Comentários = histórico do cliente (read-only); p/ equipe interna em TODOS os projetos
+    // (fica vazio quando o projeto não veio de uma requisição).
+    ...(!isClienteViewer ? [
+      { id: 'comments'    as const, label: 'Comentários' },
+    ] : []),
     ...(isClienteViewer || !p?.diary_access ? [] : [
       { id: 'chat'        as const, label: 'Diário do Projeto' },
     ]),
@@ -2918,6 +2938,45 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </>
                   )
                 })()}
+              </div>
+            )}
+
+            {tab === 'comments' && !isClienteViewer && (
+              <div>
+                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
+                </div>
+                {reqCommentsLoading ? (
+                  <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+                ) : (reqComments?.messages?.length ?? 0) > 0 ? (
+                  <div className="space-y-3">
+                    {reqComments!.messages!.map(msg => (
+                      <div key={msg.id} className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>{msg.author?.name ?? '—'}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {msg.attachments.map(att => (
+                              <button key={att.id}
+                                onClick={async () => { try { const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' }); if (!res.ok) throw new Error(); window.open(URL.createObjectURL(await res.blob()), '_blank') } catch { toast.error('Erro ao abrir arquivo') } }}
+                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] hover:bg-[var(--surface-hover)]" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                                <Paperclip size={9} /><span className="max-w-[160px] truncate">{att.original_name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 gap-1">
+                    <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
+                  </div>
+                )}
               </div>
             )}
 
