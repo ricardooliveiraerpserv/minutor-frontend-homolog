@@ -6,7 +6,7 @@ import { ChevronDown, Search } from 'lucide-react'
 
 export interface SearchSelectOption { id: number | string; name: string }
 
-export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled, inline }: {
+export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled, inline, subtle }: {
   label?: string
   value: string | number
   onChange: (v: string) => void
@@ -20,7 +20,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
-  const [pos,   setPos]   = useState<{ top: number; left: number; width: number } | null>(null)
+  const [pos,   setPos]   = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null)
   const btnRef   = useRef<HTMLButtonElement>(null)
   const ref      = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -28,25 +28,42 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   const selected = options.find(o => String(o.id) === String(value))
   const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
 
+  // Recalcula a posição do painel ancorado no campo. Abre pra baixo por padrão;
+  // se faltar espaço embaixo (perto do rodapé) e houver mais espaço acima, inverte pra cima.
+  const MENU_H = 264
+  const computePos = () => {
+    if (!btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    const dropW = fullWidth ? r.width : Math.max(r.width, wide ? 240 : 200)
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - dropW - 8))
+    const spaceBelow = window.innerHeight - r.bottom
+    const openUp = spaceBelow < MENU_H && r.top > spaceBelow
+    if (openUp) setPos({ bottom: window.innerHeight - r.top + 4, left, width: dropW })
+    else        setPos({ top: r.bottom + 4, left, width: dropW })
+  }
+
   useEffect(() => {
     if (!open) return
     const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    const onScroll = () => setOpen(false)
     document.addEventListener('mousedown', h)
-    // Em telas de toque NÃO fechar no scroll: ao focar o input de busca o iOS
-    // rola a tela pra acomodar o teclado, o que fecharia o dropdown e impediria
-    // de digitar. No desktop mantém o fecha-ao-rolar.
-    // Inline: a lista está no fluxo (rola junto com o container) — não fechar no scroll.
-    const isCoarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
-    if (!isCoarse && !inline) window.addEventListener('scroll', onScroll, { passive: true })
+    // Mantém o painel COLADO no campo: ao rolar (qualquer container ancestral, por
+    // isso capture=true) ou redimensionar, reposiciona em vez de desgrudar/fechar.
+    const onMove = () => computePos()
+    if (!inline) {
+      window.addEventListener('scroll', onMove, { passive: true, capture: true })
+      window.addEventListener('resize', onMove)
+    }
     return () => {
       document.removeEventListener('mousedown', h)
-      if (!isCoarse && !inline) window.removeEventListener('scroll', onScroll)
+      if (!inline) {
+        window.removeEventListener('scroll', onMove, true)
+        window.removeEventListener('resize', onMove)
+      }
     }
-  }, [open])
+  }, [open, inline])
 
   useEffect(() => {
     if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50) }
@@ -54,11 +71,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
 
   const toggle = () => {
     if (open) { setOpen(false); return }
-    if (!btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const dropW = fullWidth ? r.width : Math.max(r.width, wide ? 240 : 200)
-    const left = Math.min(r.left, window.innerWidth - dropW - 8)
-    setPos({ top: r.bottom + 4, left: Math.max(8, left), width: dropW })
+    computePos()
     setOpen(true)
   }
 
@@ -76,15 +89,15 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         type="button"
         onClick={toggle}
         disabled={disabled}
-        className={`flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-sm outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
+        className={`flex items-center justify-between gap-1.5 outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed ${subtle ? 'px-2 py-1 text-xs rounded-lg' : 'px-4 py-2.5 text-sm rounded-xl'} ${fullWidth ? 'w-full' : subtle ? 'min-w-0 max-w-[168px]' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
           background: 'var(--field)',
           border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
-        <ChevronDown size={13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
+        <span className="truncate">{selected ? selected.name : placeholder}</span>
+        <ChevronDown size={subtle ? 12 : 13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
 
       {open && (() => {
@@ -142,7 +155,9 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
             ref={ref}
             className="rounded-xl shadow-2xl overflow-hidden"
             style={{
-              position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
+              position: 'fixed',
+              ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }),
+              left: pos.left, width: pos.width,
               zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)',
             }}
           >
