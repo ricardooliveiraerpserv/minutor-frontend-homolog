@@ -27,6 +27,7 @@ interface TicketRow {
   solicitante_nome?: string | null; requester_name?: string | null; created_at?: string | null
   scheduled_until?: string | null; scheduled_all_day?: boolean
   updated_at?: string | null; last_activity_at?: string | null; resolution_due_at?: string | null
+  last_agent_activity_at?: string | null // última interação DA EQUIPE (nota/resposta interna)
   dias_sem_interacao?: number | null // dias úteis sem interação da equipe (0 = interagiu hoje)
 }
 
@@ -134,9 +135,12 @@ export default function HelpDeskFilaPage() {
   // Só faz sentido oferecer "apenas meus chamados" se o agente enxerga chamados além dos dele.
   const canSeeOthers = viewScope === 'all' || viewScope === 'parent' || viewScope === 'assigned_or_parent'
   // Filtro rápido dos cards/chips do resumo: '' | mine | team | open | sla | status:<id>.
-  const [pendFilter, setPendFilter] = useState('') // filtro pelos cards de pendentes/indicadores/status
-  const [view, setView] = useState<'kanban' | 'lista'>('kanban')          // visão do board: Kanban ou Lista
+  const [pendFilter, setPendFilter] = useState('') // filtro pelos cards de pendentes/indicadores (mine/team/open/sla/scheduled)
+  const [statusSel, setStatusSel] = useState<number[]>([]) // chips de status — MULTI-seleção
+  const [listSort, setListSort] = useState<{ col: string; dir: 'asc' | 'desc' }>({ col: 'updated', dir: 'desc' }) // ordenação da Lista
+  const [view, setView] = useState<'kanban' | 'lista'>('lista')          // visão do board: abre sempre em Lista
   const [f, setF] = useState({ search: '', ticket: '' })
+  const [loaded, setLoaded] = useState('') // "<search> <ticket>" que o `local` já reflete (busca server-side concluída)
   const [mine, setMine] = useState(false)
   const [mobFiltros, setMobFiltros] = useState(false)   // no mobile os filtros rápidos ficam num painel colapsável
   // Filtro de data de ABERTURA — padrão do sistema: Mês/Ano ou Período (de/até).
@@ -154,6 +158,13 @@ export default function HelpDeskFilaPage() {
   const [resumoOpen, setResumoOpen] = useLocalBool('hd_fila_resumo', false)  // Resumo por coluna — recolhido por padrão
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
   const setMulti = (k: keyof typeof mf, v: string[]) => setMf(s => ({ ...s, [k]: v }))
+  // Limpar TODOS os filtros da página de uma vez.
+  const clearAll = () => {
+    setF({ search: '', ticket: '' })
+    setMf({ team: [], consultor: [], cliente: [], solicitante: [], priority: [] })
+    setDateMode('month'); setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('')
+    setSemInteracao([]); setPendFilter(''); setStatusSel([])
+  }
 
   // Opções derivadas dos chamados carregados.
   const opts = useMemo(() => {
@@ -182,14 +193,25 @@ export default function HelpDeskFilaPage() {
   }
 
   // Predicado categórico multi (data + equipe + consultor + cliente + solicitante + prioridade). Sem "sem interação".
-  const matchBase = useCallback((t: TicketRow) =>
-    matchesDate(t.created_at)
-    && (mf.team.length === 0 || (t.team_id != null && mf.team.includes(String(t.team_id))))
-    && (mf.consultor.length === 0 || (t.assignee ? mf.consultor.includes(t.assignee.name) : mf.consultor.includes('__none__')))
-    && (mf.cliente.length === 0 || (!!t.customer?.name && mf.cliente.includes(t.customer.name)))
-    && (mf.solicitante.length === 0 || (!!t.solicitante_nome && mf.solicitante.includes(t.solicitante_nome)))
-    && (mf.priority.length === 0 || mf.priority.includes(t.priority))
-  , [dateMode, refMonth, refYear, dateFrom, dateTo, mf]) // eslint-disable-line react-hooks/exhaustive-deps
+  const matchBase = useCallback((t: TicketRow) => {
+    // Feedback INSTANTÂNEO da busca/nº: enquanto o backend (que também varre o CONTEÚDO) ainda não
+    // respondeu o termo atual, filtra na hora pelos campos já carregados (assunto/cliente/pessoa/nº).
+    // Quando o servidor responde (loaded === termo), sai de cena e a lista passa a ser a do backend
+    // (incl. matches por conteúdo, que o client não enxerga). Vale ao digitar E ao apagar.
+    if (`${f.search} ${f.ticket}` !== loaded) {
+      if (f.search) {
+        const q = f.search.toLowerCase()
+        if (![t.subject, t.ticket_number, t.customer?.name, t.solicitante_nome, t.assignee?.name].some(x => (x || '').toLowerCase().includes(q))) return false
+      }
+      if (f.ticket && !(t.ticket_number || '').toLowerCase().includes(f.ticket.toLowerCase())) return false
+    }
+    return matchesDate(t.created_at)
+      && (mf.team.length === 0 || (t.team_id != null && mf.team.includes(String(t.team_id))))
+      && (mf.consultor.length === 0 || (t.assignee ? mf.consultor.includes(t.assignee.name) : mf.consultor.includes('__none__')))
+      && (mf.cliente.length === 0 || (!!t.customer?.name && mf.cliente.includes(t.customer.name)))
+      && (mf.solicitante.length === 0 || (!!t.solicitante_nome && mf.solicitante.includes(t.solicitante_nome)))
+      && (mf.priority.length === 0 || mf.priority.includes(t.priority))
+  }, [dateMode, refMonth, refYear, dateFrom, dateTo, mf, f.search, f.ticket, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
   // + "dias sem interação da equipe". Bate com a CONTAGEM/rótulo dos chips: '1'/'2' = EXATAMENTE
   // N dia(s); '3' = "3+ dias" = ≥ 3. (Antes filtrava ≥ N sempre → clicar "2 dias"=0 trazia os 3+.)
   const matchFilters = useCallback((t: TicketRow) => {
@@ -224,8 +246,9 @@ export default function HelpDeskFilaPage() {
   }, [f, mine, dateMode, refMonth, refYear, dateFrom, dateTo])
 
   const load = useCallback(() => {
-    api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => setLocal(r?.data ?? [])).catch(() => toast.error('Erro ao carregar'))
-  }, [qs])
+    const key = `${f.search} ${f.ticket}`
+    api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { setLocal(r?.data ?? []); setLoaded(key) }).catch(() => toast.error('Erro ao carregar'))
+  }, [qs, f.search, f.ticket])
   // Debounce: evita recarregar a fila a cada tecla da busca/nº (o backend dev é lento). 350ms.
   useEffect(() => { const t = setTimeout(() => load(), 350); return () => clearTimeout(t) }, [load])
   useEffect(() => {
@@ -279,17 +302,36 @@ export default function HelpDeskFilaPage() {
   const pendentesEquipe = local.filter(isNossaPendencia).length
   // Filtro aplicado ao clicar nos cards de pendentes (filtra o board; cards seguem contando o total).
   const pendPass = (t: TicketRow) => {
+    // Status: MULTI-seleção (independente dos cards). Vazio = todos.
+    if (statusSel.length > 0 && !(t.status_id != null && statusSel.includes(t.status_id))) return false
     if (pendFilter === '') return true
     if (pendFilter === 'mine') return t.assignee?.id === user?.id && isNossaPendencia(t)
     if (pendFilter === 'team') return isNossaPendencia(t)
     if (pendFilter === 'open') return isPendente(t)
     if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
     if (pendFilter === 'scheduled') return !!t.scheduled_until // reunião/agendamento marcado (Teams)
-    if (pendFilter.startsWith('status:')) return t.status_id === Number(pendFilter.slice(7))
     return true
   }
-  // Visão em LISTA — mesmos filtros do board, mais recente primeiro.
-  const listRows = flt.filter(pendPass).slice().sort((a, b) => new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime())
+  // Visão em LISTA — colunas ordenáveis. get() devolve o valor comparável de cada coluna.
+  const tt = (v?: string | null) => (v ? new Date(v).getTime() : 0)
+  const listCols: { key: string; label: string; num?: boolean; get: (t: TicketRow) => number | string }[] = [
+    { key: 'ticket', label: 'Nº', num: true, get: t => Number(t.ticket_number) || t.id },
+    { key: 'subject', label: 'Assunto', get: t => (t.subject || '').toLowerCase() },
+    { key: 'customer', label: 'Cliente', get: t => (t.customer?.name || '').toLowerCase() },
+    { key: 'solicitante', label: 'Solicitante', get: t => (t.solicitante_nome || '').toLowerCase() },
+    { key: 'assignee', label: 'Responsável', get: t => (t.assignee?.name || '').toLowerCase() },
+    { key: 'status', label: 'Status', num: true, get: t => statuses.find(s => s.id === t.status_id)?.sort_order ?? 999 },
+    { key: 'sla', label: 'SLA', num: true, get: t => t.resolution_due_at ? tt(t.resolution_due_at) : Number.MAX_SAFE_INTEGER },
+    { key: 'created', label: 'Abertura', num: true, get: t => tt(t.created_at) },
+    { key: 'lastint', label: 'Últ. interação interna', num: true, get: t => tt(t.last_agent_activity_at) },
+    { key: 'updated', label: 'Atualizado', num: true, get: t => tt(t.updated_at ?? t.created_at) },
+  ]
+  const listCol = listCols.find(c => c.key === listSort.col) ?? listCols[listCols.length - 1]
+  const listRows = flt.filter(pendPass).slice().sort((a, b) => {
+    const va = listCol.get(a), vb = listCol.get(b)
+    const r = listCol.num ? (va as number) - (vb as number) : String(va).localeCompare(String(vb))
+    return listSort.dir === 'asc' ? r : -r
+  })
   // Chamados sem interação da EQUIPE (resposta do cliente não zera). Buckets calculados SEM aplicar o
   // próprio filtro de sem-interação (senão zerariam ao filtrar) — os números do card são SELETORES:
   // clicar aplica o filtro ≥ N dias úteis. Principal = ≥ 3 dias; 1 e 2 dias detalham abaixo.
@@ -386,6 +428,14 @@ export default function HelpDeskFilaPage() {
               {/* Consultor · Cliente — filtros categóricos visíveis (Equipe/Solicitante/Prioridade em "Mais filtros") */}
               <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...opts.consultores.map(n => ({ id: n, name: n }))]} />
               <MultiSelect placeholder="Cliente" value={mf.cliente} onChange={v => setMulti('cliente', v)} options={opts.clientes.map(n => ({ id: n, name: n }))} />
+              {/* Limpar TODOS os filtros — aparece quando há qualquer filtro ativo */}
+              {(f.search || f.ticket || mf.team.length || mf.consultor.length || mf.cliente.length || mf.solicitante.length || mf.priority.length || semInteracao.length || statusSel.length || pendFilter || refMonth != null || dateFrom || dateTo) ? (
+                <button onClick={clearAll} title="Limpar todos os filtros da página"
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer shrink-0"
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+                  ✕ Limpar filtros
+                </button>
+              ) : null}
             </div>
             {/* Espaçador flexível — empurra as ações pra direita sem brigar com o wrap dos filtros
                 (evita o conflito flex-1 + ml-auto que colapsava/encavalava a barra). */}
@@ -442,12 +492,11 @@ export default function HelpDeskFilaPage() {
             {resumoOpen && (
               <div className="flex flex-wrap gap-1.5">
                 {statColumns.map((c) => {
-                  // Chip por STATUS = filtro clicável. Dinâmico: novo status já entra clicável.
-                  const key = `status:${c.id}`
-                  const on = pendFilter === key
+                  // Chip por STATUS = filtro clicável MULTI (marca mais de um). Dinâmico: novo status já entra clicável.
+                  const on = statusSel.includes(c.id)
                   return (
-                    <button key={c.id} onClick={() => setPendFilter(p => p === key ? '' : key)}
-                      title={on ? 'Filtrando por este status — clique para limpar' : `Filtrar por status: ${c.label}`}
+                    <button key={c.id} onClick={() => setStatusSel(sel => sel.includes(c.id) ? sel.filter(x => x !== c.id) : [...sel, c.id])}
+                      title={on ? 'Filtrando por este status — clique para remover' : `Filtrar por status: ${c.label} (pode marcar mais de um)`}
                       className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md cursor-pointer transition-colors ds-row-hover"
                       style={on
                         ? { border: `1px solid ${c.cor ?? 'var(--primary)'}`, background: 'var(--surface-hover)', boxShadow: `0 0 0 2px ${c.cor ?? 'var(--primary)'}` }
@@ -521,25 +570,36 @@ export default function HelpDeskFilaPage() {
             <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="text-left" style={{ color: 'var(--text-light)' }}>
-                  {['Nº', 'Assunto', 'Cliente', 'Responsável', 'Status', 'SLA', 'Atualizado'].map(h => (
-                    <th key={h} className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-b" style={{ borderColor: 'var(--border)' }}>{h}</th>
-                  ))}
+                  {listCols.map(c => {
+                    const active = listSort.col === c.key
+                    return (
+                      <th key={c.key} onClick={() => setListSort(s => s.col === c.key ? { col: c.key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col: c.key, dir: c.num ? 'desc' : 'asc' })}
+                        title="Clique para ordenar"
+                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-b cursor-pointer select-none whitespace-nowrap ds-row-hover" style={{ borderColor: 'var(--border)', color: active ? 'var(--primary)' : undefined }}>
+                        {c.label}{active ? (listSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {listRows.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum chamado.</td></tr>}
+                {listRows.length === 0 && <tr><td colSpan={listCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum chamado.</td></tr>}
                 {listRows.map(t => {
                   const st = statuses.find(s => s.id === t.status_id)
                   const sla = slaChip(t, st)
+                  const dt = (v?: string | null) => v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
                   return (
                     <tr key={t.id} onClick={() => openTicket(t.id)} className="cursor-pointer ds-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                       <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: t.assignee ? 'var(--text-muted)' : 'var(--text-light)' }}>{t.assignee?.name ?? 'Não atribuído'}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{st && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: st.color ?? 'var(--text)', background: (st.color ?? '').startsWith('#') ? `${st.color}22` : 'var(--surface-sunken)', border: `1px solid ${st.color ?? 'var(--border)'}` }}>{st.label}</span>}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: sla.color, background: sla.bg }}>{sla.icon} {sla.label}</span></td>
-                      <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{(t.updated_at || t.created_at) ? new Date((t.updated_at || t.created_at) as string).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{dt(t.created_at)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{dt(t.last_agent_activity_at)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{dt(t.updated_at || t.created_at)}</td>
                     </tr>
                   )
                 })}
