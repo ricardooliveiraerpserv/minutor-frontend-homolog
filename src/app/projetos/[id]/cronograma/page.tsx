@@ -6,7 +6,7 @@ import { ApiError, api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   Info, Plus, Eye, EyeOff, Settings,
-  Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, TrendingUp, Activity, Bell,
+  Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, Activity, Bell,
 } from 'lucide-react'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
 import { useApiQuery } from '@/hooks/use-query'
@@ -321,16 +321,7 @@ function InternalCronogramaPage() {
         {!isConsultor && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 2px', flexShrink: 0 }} />}
         {/* Grupo Gestão */}
         {!isConsultor && <MiniCard icon={<Users size={11} />} label="Equipe" value={teamLoad.length} sub="consultores" />}
-        {!isConsultor && (
-          <MiniCard
-            icon={<TrendingUp size={11} />}
-            label="Evolução"
-            value={`${Math.round(executiveSummary?.progress_pct ?? 0)}%`}
-            bar={executiveSummary?.progress_pct ?? 0}
-            sub={executiveSummary ? `${executiveSummary.done_deliveries}/${executiveSummary.total_deliveries} ativ.` : undefined}
-            tone="primary"
-          />
-        )}
+        {/* Evolução movida pra barra do header (abaixo do progresso de horas). */}
         {!isConsultor && (
           <MiniCard
             icon={<Activity size={11} />}

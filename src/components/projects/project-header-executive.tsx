@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { useDelayRisk } from '@/hooks/use-delay-risk'
+import { useProjectSchedule } from '@/hooks/use-project-schedule'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
 interface Project {
@@ -199,6 +200,9 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   // Risco de atraso (Pilar 2): última etapa termina depois do prazo macro?
   const { data: delayRisk } = useDelayRisk(project.id)
 
+  // Evolução das atividades — barra abaixo do progresso de horas.
+  const { executive: exec } = useProjectSchedule(project.id)
+
   // Risco geral do header (badge): compõe horas + risco de atraso.
   const riskLevel: 'baixo' | 'medio' | 'alto' =
     (pct >= 90 || (delayRisk?.has_risk === true && delayRisk.delay_days >= 14)) ? 'alto'
@@ -289,6 +293,19 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           </div>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             {formatHours(consumed)} consumidas · {formatHours(balance)} restantes
+          </span>
+        </div>
+      )}
+
+      {/* Evolução das atividades — barra logo abaixo do progresso de horas */}
+      {!isConsultor && exec && exec.total_deliveries > 0 && (
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)', minWidth: 38 }}>{Math.round(exec.progress_pct ?? 0)}%</span>
+          <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, exec.progress_pct ?? 0)}%`, background: 'var(--primary)', transition: 'width .3s ease' }} />
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            Evolução · {exec.done_deliveries}/{exec.total_deliveries} atividades
           </span>
         </div>
       )}
