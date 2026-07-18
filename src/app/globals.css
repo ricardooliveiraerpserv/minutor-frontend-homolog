@@ -1229,8 +1229,9 @@ html.dark .sidebar-erpserv-logo {
 .hd-bubble:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
 
 /* Hierarquia de cor por autor */
-.hd-bubble-client   { background: var(--surface);      border: 1px solid var(--border); color: var(--text); }
-.hd-bubble-agent    { background: var(--info-bg);       border: 1px solid transparent;   color: var(--text); }
+/* Balões de texto puro brancos (iguais aos de HTML/e-mail); autor se distingue pelo lado + chip de papel. */
+.hd-bubble-client   { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
+.hd-bubble-agent    { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
 .hd-bubble-internal { background: var(--warning-bg);    border: 1px solid var(--warning-border); color: var(--text); }
 /* Balão de e-mail (HTML) — sempre branco por baixo do iframe, nos dois temas */
 .hd-bubble-html     { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
