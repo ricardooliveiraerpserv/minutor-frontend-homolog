@@ -570,9 +570,11 @@ export interface ApprovalsScreenProps {
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
   extDate?: PortalDate
+  /** Trava a fila num único projeto (embed na tela de Projeto) e esconde o filtro de projeto. */
+  lockedProjectId?: number
 }
 
-export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: ApprovalsScreenProps = {}) {
+export function ApprovalsScreen({ scope, embedded, leadOptions, extDate, lockedProjectId }: ApprovalsScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
   // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
@@ -717,12 +719,13 @@ export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: Appro
       p.set('coordinator_id', String(user.id))
     }
     if (executiveId)   p.set('executive_id',   executiveId)
-    if (projectId)     p.set('project_id',     projectId)
+    if (lockedProjectId != null) p.set('project_id', String(lockedProjectId))
+    else if (projectId) p.set('project_id',     projectId)
     if (customerId)    p.set('customer_id',    customerId)
     if (scope === 'investimento') p.set('categoria_servico', 'investimento')
     else if (categoriaServico) p.set('categoria_servico', categoriaServico)
     return p.toString()
-  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, categoriaServico, isCoordenador, coordScope, user?.id, scope])
+  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, lockedProjectId, categoriaServico, isCoordenador, coordScope, user?.id, scope])
 
   const loadTs = useCallback(async () => {
     setTsLoading(true)
@@ -1057,12 +1060,14 @@ export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: Appro
                 onChange={v => { setCustomerId(v); setProjectId('') }}
                 options={customers}
               />
-              <SearchableSelect
-                label={scope === 'investimento' ? 'Lead' : 'Projeto'}
-                value={projectId}
-                onChange={setProjectId}
-                options={projects}
-              />
+              {lockedProjectId == null && (
+                <SearchableSelect
+                  label={scope === 'investimento' ? 'Lead' : 'Projeto'}
+                  value={projectId}
+                  onChange={setProjectId}
+                  options={projects}
+                />
+              )}
             </div>
             {hasFilters && (
               <button onClick={clearFilters}

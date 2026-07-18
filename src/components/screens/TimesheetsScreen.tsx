@@ -901,7 +901,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, extDate }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[]; extDate?: PortalDate } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, extDate, lockedProjectId }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[]; extDate?: PortalDate; lockedProjectId?: number } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -1205,14 +1205,18 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
     if (ticket)        p.set('ticket', ticket)
     if (requester)     p.set('requester', requester)
     if (ticketService) p.set('ticket_service', ticketService)
-    if (projectId)     p.set('project_id', projectId)
-    projectIds.forEach(v => p.append('project_id[]', v))
+    if (lockedProjectId != null) {
+      p.set('project_id', String(lockedProjectId))
+    } else {
+      if (projectId)   p.set('project_id', projectId)
+      projectIds.forEach(v => p.append('project_id[]', v))
+    }
     if (sortField)     p.set('order', sortDir === 'desc' ? `-${sortField}` : sortField)
     if (scope === 'sustentacao') p.set('scope', scope)
     if (triagemPadrao) p.set('triagem_padrao', '1')
     if (triagemPadrao && triagemField) p.set('triagem_field', triagemField)
     return p.toString()
-  }, [page, status, origins, serviceTypeIds, contractTypeIds, categoriaServico, customerIds, coordinatorIds, executiveIds, userIds, projectId, projectIds, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id, user?.id, scope, triagemPadrao, triagemField, isCoordenador, coordScope])
+  }, [page, status, origins, serviceTypeIds, contractTypeIds, categoriaServico, customerIds, coordinatorIds, executiveIds, userIds, projectId, projectIds, lockedProjectId, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id, user?.id, scope, triagemPadrao, triagemField, isCoordenador, coordScope])
 
   const { data, loading, error, refetch, setData } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
@@ -1235,8 +1239,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
       if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
       else customerIds.forEach(v => p.append('customer_id[]', v))
       userIds.forEach(v => p.append('user_id[]', v))
-      if (projectId)     p.set('project_id', projectId)
-      projectIds.forEach(v => p.append('project_id[]', v))
+      if (lockedProjectId != null) p.set('project_id', String(lockedProjectId))
+      else { if (projectId) p.set('project_id', projectId); projectIds.forEach(v => p.append('project_id[]', v)) }
       if (startDate)     p.set('start_date', startDate)
       if (endDate)       p.set('end_date', endDate)
       if (ticket)        p.set('ticket', ticket)
@@ -1419,12 +1423,14 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                   options={customers}
                   placeholder="Todos os clientes"
                 />
-                <MultiSelect
-                  value={projectIds}
-                  onChange={v => { setProjectIds(v); resetPage() }}
-                  options={projectTreeOptions}
-                  placeholder={scope === 'investimento' ? 'Todos os leads' : 'Todos os projetos'}
-                />
+                {lockedProjectId == null && (
+                  <MultiSelect
+                    value={projectIds}
+                    onChange={v => { setProjectIds(v); resetPage() }}
+                    options={projectTreeOptions}
+                    placeholder={scope === 'investimento' ? 'Todos os leads' : 'Todos os projetos'}
+                  />
+                )}
                 {!triagemPadrao && coordinators.length > 0 && (
                   <MultiSelect
                     value={coordinatorIds}
@@ -2195,12 +2201,14 @@ export interface TimesheetsScreenProps {
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
   extDate?: PortalDate
+  /** Trava a lista num único projeto (embed na tela de Projeto) e esconde o filtro de projeto. */
+  lockedProjectId?: number
 }
 
 export function TimesheetsScreen(props: TimesheetsScreenProps = {}) {
   return (
     <Suspense>
-      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} extDate={props.extDate} />
+      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} extDate={props.extDate} lockedProjectId={props.lockedProjectId} />
     </Suspense>
   )
 }
