@@ -36,15 +36,18 @@ function ProjectModuleNav({ projectId }: { projectId: number }) {
     { label: 'Gestão Operacional', href: `/projetos/${projectId}/gestao-operacional`, match: '/gestao-operacional' },
   ]
   return (
-    <div style={{ display: 'flex', gap: 2, padding: '0 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', gap: 6, padding: '0 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
       {items.map(it => {
         const active = pathname.includes(it.match)
         return (
           <Link key={it.href} href={it.href}
             style={{
-              padding: '8px 12px', fontSize: 13, fontWeight: active ? 600 : 500, textDecoration: 'none',
-              color: active ? 'var(--text)' : 'var(--text-muted)',
-              borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: -1,
+              padding: '11px 20px', fontSize: 14, fontWeight: active ? 700 : 500, textDecoration: 'none',
+              color: active ? 'var(--primary)' : 'var(--text-muted)',
+              background: active ? 'var(--primary-soft)' : 'transparent',
+              borderRadius: '8px 8px 0 0',
+              borderBottom: active ? '3px solid var(--primary)' : '3px solid transparent', marginBottom: -1,
+              transition: 'color .12s, background .12s',
             }}>
             {it.label}
           </Link>
