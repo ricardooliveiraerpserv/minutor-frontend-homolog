@@ -150,7 +150,7 @@ export default function HelpDeskFilaPage() {
   // Filtros categóricos — TODOS multi-seleção com busca (client-side). Equipe guarda team_id (string);
   // consultor/cliente/solicitante guardam o nome (consultor aceita '__none__' = não atribuído); prioridade a chave.
   const [mf, setMf] = useState<{ team: string[]; consultor: string[]; cliente: string[]; solicitante: string[]; priority: string[] }>({ team: [], consultor: [], cliente: [], solicitante: [], priority: [] })
-  const [semInteracao, setSemInteracao] = useState('') // dias úteis sem interação da equipe (≥ N)
+  const [semInteracao, setSemInteracao] = useState<string[]>([]) // faixas de dias úteis sem interação da equipe (multi: '1','2','3')
   // Painéis recolhíveis (progressive disclosure) — preferência salva no navegador.
   const [advOpen, setAdvOpen] = useLocalBool('hd_fila_adv', false)      // "Mais filtros" (Nível 3) — recolhido por padrão
   const [resumoOpen, setResumoOpen] = useLocalBool('hd_fila_resumo', false)  // Resumo por coluna — recolhido por padrão
@@ -196,10 +196,11 @@ export default function HelpDeskFilaPage() {
   // N dia(s); '3' = "3+ dias" = ≥ 3. (Antes filtrava ≥ N sempre → clicar "2 dias"=0 trazia os 3+.)
   const matchFilters = useCallback((t: TicketRow) => {
     if (!matchBase(t)) return false
-    if (!semInteracao) return true
+    if (semInteracao.length === 0) return true
     const d = t.dias_sem_interacao ?? 0
-    const n = Number(semInteracao)
-    return n >= 3 ? d >= 3 : d === n
+    // faixa do ticket: '1'/'2' = exatamente; '3' = ≥3. d===0 não pertence a nenhuma faixa.
+    const bucket = d >= 3 ? '3' : d === 2 ? '2' : d === 1 ? '1' : ''
+    return bucket !== '' && semInteracao.includes(bucket)
   }, [matchBase, semInteracao])
 
   const qs = useMemo(() => {
@@ -487,16 +488,16 @@ export default function HelpDeskFilaPage() {
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm leading-none">⏳</span>
                     <span className="text-[11px] font-semibold" style={{ color: semInt3 > 0 ? '#ef4444' : 'var(--text-muted)' }}>Sem interação da equipe</span>
-                    <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>— clique para filtrar por dias úteis sem resposta:</span>
-                    {semInteracao && <button onClick={() => setSemInteracao('')} className="text-[10px] ml-auto px-1.5 py-0.5 rounded inline-flex items-center gap-0.5" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }} title="Limpar filtro">✕ limpar</button>}
+                    <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>— clique para filtrar (pode marcar mais de uma faixa):</span>
+                    {semInteracao.length > 0 && <button onClick={() => setSemInteracao([])} className="text-[11px] font-semibold ml-auto px-2 py-0.5 rounded-md border inline-flex items-center gap-1 cursor-pointer" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-muted)' }} title="Limpar filtro">✕ Limpar filtro</button>}
                   </div>
                   {/* Três chips de filtro (parecem botões de verdade): 1 dia · 2 dias · 3+ dias */}
                   <div className="flex gap-1.5 mt-1">
                     {([['1', semInt1, '1 dia', 'var(--warning-border)', 'var(--warning-bg)'], ['2', semInt2, '2 dias', 'var(--warning-border)', 'var(--warning-bg)'], ['3', semInt3, '3+ dias', '#ef4444', '#ef444426']] as const).map(([v, n, lbl, color, bg]) => {
-                      const on = semInteracao === v          // SELECIONADO (filtrando) → chip preenchido sólido + ✓
+                      const on = semInteracao.includes(v)    // SELECIONADO (filtrando) → chip preenchido sólido + ✓
                       const critical = v === '3' && n > 0 && !on  // "3+ dias" com casos = alerta (só quando NÃO selecionado)
                       return (
-                        <button key={v} onClick={() => setSemInteracao(cur => cur === v ? '' : v)} title={on ? 'Filtrando — clique para remover' : `Filtrar: ${v === '3' ? '≥ 3 dias úteis' : `exatamente ${v} dia(s) útil(eis)`} sem interação da equipe`}
+                        <button key={v} onClick={() => setSemInteracao(cur => cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v])} title={on ? 'Filtrando — clique para remover' : `Filtrar: ${v === '3' ? '≥ 3 dias úteis' : `exatamente ${v} dia(s) útil(eis)`} sem interação da equipe`}
                           className={`inline-flex items-center gap-1.5 rounded-lg border cursor-pointer transition-colors ${on ? 'px-2.5 py-1 font-semibold' : 'px-2.5 py-1 ds-row-hover'} ${critical ? 'hd-pulse' : ''}`}
                           style={on
                             ? { borderColor: color, background: color, boxShadow: `0 0 0 2px ${color}44` }
