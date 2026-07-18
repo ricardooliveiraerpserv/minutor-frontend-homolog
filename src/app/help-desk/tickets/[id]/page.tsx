@@ -140,7 +140,9 @@ function EmailFrame({ html }: { html: string }) {
   // TRANSBORDAM — não são reduzidos nem cortados. Medimos scrollWidth (que inclui o transbordo) e o
   // iframe cresce até a assinatura inteira. Quem rola, se passar da coluna, é o BALÃO externo
   // (overflow-x:auto), nunca o iframe — nenhum elemento é escondido.
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:max-content;max-width:640px}</style></head><body>${html}</body></html>`
+  // Imagens NUNCA transbordam a coluna de leitura: escalam proporcionalmente (max-width:100% + height:auto),
+  // igual ao cliente de e-mail original. Só imagens são limitadas — texto/tabela seguem a regra de fidelidade.
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:max-content;max-width:640px}img{max-width:100%!important;height:auto!important}</style></head><body>${html}</body></html>`
   return (
     <iframe
       ref={ref}
