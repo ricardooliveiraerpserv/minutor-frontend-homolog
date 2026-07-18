@@ -187,6 +187,7 @@
   --surface:       var(--brand-surface);     /* Surface 2: cards */
   --surface-hover: #ECEDF1;                  /* hover */
   --surface-sunken:#F1F2F5;                  /* inputs, table header — superfície "afundada"/zebra */
+  --hd-thread-bg:  #D8DBE3;                  /* fundo da thread de chamado — 1 passo + escuro que --bg p/ os balões brancos destacarem */
   --field:         #F5F6F8;                  /* input — neutro sutil */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
@@ -276,6 +277,7 @@
   --panel:          var(--brand-panel);     /* Surface 1 dark */
   --surface-hover:  #1F1F23;
   --surface-sunken: #121215;   /* mais fundo que surface no dark */
+  --hd-thread-bg:   transparent;   /* dark: sem backdrop na thread — os balões já contrastam */
   --field:          var(--brand-surface);  /* campo de input no dark = superfície escura */
   --border-strong:  #3F3F46;
   --ring:           rgba(0, 245, 255, 0.35);
@@ -1228,6 +1230,8 @@ html.dark .sidebar-erpserv-logo {
 .hd-bubble { transition: box-shadow .15s ease, border-color .15s ease; }
 .hd-bubble:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
 
+/* Backdrop da thread de chamado: fundo cinza sutil atrás dos balões brancos (claro) / transparente (dark). */
+.hd-thread { background: var(--hd-thread-bg); }
 /* Hierarquia de cor por autor */
 /* Balões de texto puro brancos (iguais aos de HTML/e-mail); autor se distingue pelo lado + chip de papel. */
 .hd-bubble-client   { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }

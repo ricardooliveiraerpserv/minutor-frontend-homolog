@@ -763,6 +763,8 @@ export default function HelpDeskTicketDetailPage() {
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   )}
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
+                  {/* Backdrop cinza atrás dos balões (só a thread, não o compositor) */}
+                  <div className="hd-thread rounded-xl p-3 space-y-3">
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
                   {comments.slice().reverse().map(c => {
@@ -935,6 +937,7 @@ export default function HelpDeskTicketDetailPage() {
                     </div>
                     )
                   })()}
+                  </div>
                 </div>
               ) : (
                 <div className="p-4 space-y-2">
