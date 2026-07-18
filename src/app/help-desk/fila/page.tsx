@@ -400,11 +400,11 @@ export default function HelpDeskFilaPage() {
               style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
               <SlidersHorizontal size={14} /> Filtros <ChevronDown size={14} style={{ transform: mobFiltros ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
             </button>
-            <div className={`${mobFiltros ? 'flex' : 'hidden'} md:flex items-center gap-2 flex-wrap lg:flex-nowrap min-w-0`}>
+            <div className={`${mobFiltros ? 'flex' : 'hidden'} md:flex items-center gap-2 flex-wrap min-w-0`}>
               {/* Busca ÚNICA — respeita todos os filtros da página (assunto, cliente, pessoa, conteúdo) */}
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
-                <input className={`${fieldCls} pl-8 w-60`} style={inputStyle} placeholder="Buscar: assunto, cliente, pessoa, conteúdo…" value={f.search} onChange={e => set('search', e.target.value)} />
+                <input className={`${fieldCls} pl-8 w-52`} style={inputStyle} placeholder="Buscar: assunto, cliente, pessoa, conteúdo…" value={f.search} onChange={e => set('search', e.target.value)} />
               </div>
               {/* Filtro dedicado por NÚMERO do chamado */}
               <div className="relative">
