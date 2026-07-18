@@ -316,8 +316,7 @@ function ActivityGroups({ projectId, mode }: { projectId: number; mode: 'view' |
             const pending = all.filter(isPending).length
             return (
               <ActivityAccordion key={a.id} title={a.title} stageName={a.stageName} responsible={a.responsible?.name}
-                planned={a.planned} apontadas={apontadas} count={all.length} pending={pending}
-                defaultOpen={mode === 'approve'}>
+                planned={a.planned} apontadas={apontadas} count={all.length} pending={pending}>
                 {() => <RichTable rows={rows} hover={hover} buildMenu={buildMenu} onRowClick={setViewTs} />}
               </ActivityAccordion>
             )
@@ -347,6 +346,97 @@ function ActivityGroups({ projectId, mode }: { projectId: number; mode: 'view' |
         onClose={() => setReason(r => ({ ...r, open: false }))}
         onConfirm={submitReason}
       />
+    </div>
+  )
+}
+
+// ─── aprovação de despesas (flat — despesa é do projeto, sem atividade) ──────────
+function ExpenseApprovals({ projectId }: { projectId: number }) {
+  const { data, loading, refetch } = useApiQuery<{ items: any[] }>(
+    Number.isFinite(projectId) ? `/expenses?project_id=${projectId}&pageSize=100&order=-expense_date` : null
+  )
+  const items = data?.items ?? []
+  const pend = items.filter(e => e.status === 'pending' || e.status === 'adjustment_requested')
+  const [reason, setReason] = useState<{ open: boolean; id: number | null; kind: 'reject' | 'adjust' }>({ open: false, id: null, kind: 'reject' })
+  const [actioning, setActioning] = useState<number | null>(null)
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  async function approve(id: number, charge: boolean) {
+    setActioning(id)
+    try { await api.post(`/expenses/${id}/approve`, { charge_client: charge }); toast.success('Despesa aprovada'); refetch() }
+    catch { toast.error('Erro ao aprovar') }
+    finally { setActioning(null) }
+  }
+  async function submitReason(text: string) {
+    const { id, kind } = reason
+    if (!id || !text) return
+    setReason({ open: false, id: null, kind })
+    setActioning(id)
+    try { await api.post(`/expenses/${id}/${kind === 'reject' ? 'reject' : 'request-adjustment'}`, { reason: text }); toast.success(kind === 'reject' ? 'Despesa rejeitada' : 'Ajuste solicitado'); refetch() }
+    catch { toast.error('Erro ao processar') }
+    finally { setActioning(null) }
+  }
+
+  if (loading) return <div style={{ padding: 24, color: 'var(--text-muted)' }}>Carregando…</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <Kpi label="Despesas pendentes" value={pend.length} tone={pend.length > 0 ? 'warning' : 'success'} />
+      </div>
+      {pend.length === 0 ? (
+        <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Nenhuma despesa pendente neste projeto. ✅</div>
+      ) : (
+        <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          {pend.map((e, i) => (
+            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px', borderTop: i ? '1px solid var(--border)' : 'none' }}>
+              <div onClick={ev => ev.stopPropagation()}>
+                <RowMenu items={[
+                  { label: 'Aprovar (cobrar cliente)', icon: <Check size={12} />, onClick: () => approve(e.id, true), disabled: actioning === e.id },
+                  { label: 'Aprovar (não cobrar)', icon: <Check size={12} />, onClick: () => approve(e.id, false), disabled: actioning === e.id },
+                  { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => setReason({ open: true, id: e.id, kind: 'adjust' }) },
+                  { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => setReason({ open: true, id: e.id, kind: 'reject' }), danger: true },
+                ]} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description || '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{e.user?.name ?? '—'} · {fmtDate(e.expense_date)}{e.category?.name ? ` · ${e.category.name}` : ''}</div>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(n(e.amount))}</span>
+              <span className="ds-status ds-status-warning" style={{ fontSize: 11 }}>{e.status_display ?? e.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <ReasonModal open={reason.open}
+        title={reason.kind === 'reject' ? 'Rejeitar despesa' : 'Solicitar ajuste'}
+        confirmLabel={reason.kind === 'reject' ? 'Rejeitar' : 'Solicitar ajuste'}
+        danger={reason.kind === 'reject'}
+        onClose={() => setReason(r => ({ ...r, open: false }))}
+        onConfirm={submitReason} />
+    </div>
+  )
+}
+
+// ─── APROVAÇÕES — toggle Horas | Despesas ────────────────────────────────────────
+function AprovacoesView({ projectId }: { projectId: number }) {
+  const [sub, setSub] = useState<'horas' | 'despesas'>('horas')
+  const btn = (id: 'horas' | 'despesas', label: string, icon: React.ReactNode) => {
+    const active = sub === id
+    return (
+      <button type="button" onClick={() => setSub(id)}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: active ? 700 : 500, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: active ? 'var(--primary)' : 'transparent', color: active ? '#fff' : 'var(--text-muted)' }}>
+        {icon} {label}
+      </button>
+    )
+  }
+  return (
+    <div>
+      <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: 'var(--surface-sunken)', border: '1px solid var(--border)', marginBottom: 12 }}>
+        {btn('horas', 'Horas', <Clock size={13} />)}
+        {btn('despesas', 'Despesas', <Receipt size={13} />)}
+      </div>
+      {sub === 'horas' ? <ActivityGroups projectId={projectId} mode="approve" /> : <ExpenseApprovals projectId={projectId} />}
     </div>
   )
 }
@@ -408,7 +498,7 @@ export default function GestaoOperacionalPage() {
         <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Visão contextual deste projeto — reflete nas telas globais.</span>
       </div>
       {view === 'apontamentos' && <ActivityGroups projectId={projectId} mode="view" />}
-      {view === 'aprovacoes' && <ActivityGroups projectId={projectId} mode="approve" />}
+      {view === 'aprovacoes' && <AprovacoesView projectId={projectId} />}
       {view === 'despesas' && <DespesasView projectId={projectId} />}
     </div>
   )
