@@ -7,7 +7,9 @@ import DOMPurify from 'isomorphic-dompurify'
 export function sanitizeRich(html: string): string {
   // Imagens inline `cid:` (assinaturas do Outlook etc.) nunca resolvem no navegador →
   // viram ícone quebrado. Remove antes de sanitizar. Mantém data:/http(s) normalmente.
-  const withoutCid = html.replace(/<img\b[^>]*\bsrc=["']cid:[^"']*["'][^>]*>/gi, '')
+  // `(?<=[\s"'])src=` evita casar dentro de data-original-src="cid:..." (o \b batia no hífen e
+  // removia por engano imagens já rehospedadas que guardam o cid original num data-attr).
+  const withoutCid = html.replace(/<img\b[^>]*(?<=[\s"'])src=["']cid:[^"']*["'][^>]*>/gi, '')
   return DOMPurify.sanitize(withoutCid, {
     // Tags/atributos amplos o bastante p/ reproduzir a assinatura do e-mail (tabelas de
     // layout do Outlook, <font>, hr) — fiel ao recebido. javascript:/onload são bloqueados.
@@ -24,7 +26,9 @@ export function sanitizeRich(html: string): string {
 // p/ fidelidade total — seguro porque o iframe roda em sandbox SEM scripts. Remove só o
 // que é perigoso/externo (script, iframe aninhado, meta/base/link, handlers on*).
 export function sanitizeEmail(html: string): string {
-  const withoutCid = html.replace(/<img\b[^>]*\bsrc=["']cid:[^"']*["'][^>]*>/gi, '')
+  // `(?<=[\s"'])src=` evita casar dentro de data-original-src="cid:..." (o \b batia no hífen e
+  // removia por engano imagens já rehospedadas que guardam o cid original num data-attr).
+  const withoutCid = html.replace(/<img\b[^>]*(?<=[\s"'])src=["']cid:[^"']*["'][^>]*>/gi, '')
   return DOMPurify.sanitize(withoutCid, {
     ADD_TAGS: ['style'],
     FORBID_TAGS: ['script', 'noscript', 'iframe', 'object', 'embed', 'meta', 'base', 'link', 'form', 'input'],
