@@ -8,12 +8,11 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List } from 'lucide-react'
+import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash } from 'lucide-react'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { useColumnOrder } from '@/lib/kanban-column-order'
 import { NovoChamadoModal, type NovoChamadoMeta } from '@/components/help-desk/novo-chamado-modal'
-import { HelpDeskGlobalSearch } from '@/components/help-desk/global-search'
 import { MultiSelect } from '@/components/ui/multi-select'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
@@ -131,14 +130,13 @@ export default function HelpDeskFilaPage() {
   const [customers, setCustomers] = useState<Ref[]>([])
   // Perfil de acesso: se este agente enxerga a coluna "Novo" (tickets ainda não distribuídos).
   const [seeNewColumn, setSeeNewColumn] = useState(true)
-  const [canSearch, setCanSearch] = useState(true) // busca global (lupa) liberada?
   const [viewScope, setViewScope] = useState('all') // escopo de visão: 'all' vê de outros; 'assigned' só os próprios
   // Só faz sentido oferecer "apenas meus chamados" se o agente enxerga chamados além dos dele.
   const canSeeOthers = viewScope === 'all' || viewScope === 'parent' || viewScope === 'assigned_or_parent'
   // Filtro rápido dos cards/chips do resumo: '' | mine | team | open | sla | status:<id>.
   const [pendFilter, setPendFilter] = useState('') // filtro pelos cards de pendentes/indicadores/status
   const [view, setView] = useState<'kanban' | 'lista'>('kanban')          // visão do board: Kanban ou Lista
-  const [f, setF] = useState({ search: '' })
+  const [f, setF] = useState({ search: '', ticket: '' })
   const [mine, setMine] = useState(false)
   const [mobFiltros, setMobFiltros] = useState(false)   // no mobile os filtros rápidos ficam num painel colapsável
   // Filtro de data de ABERTURA — padrão do sistema: Mês/Ano ou Período (de/até).
@@ -228,10 +226,11 @@ export default function HelpDeskFilaPage() {
   const load = useCallback(() => {
     api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => setLocal(r?.data ?? [])).catch(() => toast.error('Erro ao carregar'))
   }, [qs])
-  useEffect(() => { load() }, [load])
+  // Debounce: evita recarregar a fila a cada tecla da busca/nº (o backend dev é lento). 350ms.
+  useEffect(() => { const t = setTimeout(() => load(), 350); return () => clearTimeout(t) }, [load])
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
-      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setCanSearch((r?.data as { can_search?: boolean })?.can_search !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
+      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
       .catch(() => {})
     // Clientes para o modal de novo chamado (mesma fonte da lista de Chamados).
     api.get<Ref[] | { data?: Ref[]; items?: Ref[] }>('/customers?pageSize=500')
@@ -349,9 +348,6 @@ export default function HelpDeskFilaPage() {
   return (
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
-        {/* ─── NÍVEL 1 — BUSCA GLOBAL: 1ª informação, largura total, isolada dos filtros. */}
-        {canSearch && <HelpDeskGlobalSearch onOpen={(tid) => router.push(`/help-desk/tickets/${tid}`)} />}
-
         {/* Barra fixa (sticky): filtros rápidos + ações. */}
         <div className="sticky top-0 z-20 space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
           {/* ─── NÍVEL 2 — filtros mais usados (esq.) · Modo isolado + Novo chamado (dir.) */}
@@ -363,10 +359,15 @@ export default function HelpDeskFilaPage() {
               <SlidersHorizontal size={14} /> Filtros <ChevronDown size={14} style={{ transform: mobFiltros ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
             </button>
             <div className={`${mobFiltros ? 'flex' : 'hidden'} md:flex items-center gap-2 flex-wrap lg:flex-nowrap min-w-0`}>
-              {/* Busca local (filtra só esta fila) */}
+              {/* Busca ÚNICA — respeita todos os filtros da página (assunto, cliente, pessoa, conteúdo) */}
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
-                <input className={`${fieldCls} pl-8 w-44`} style={inputStyle} placeholder="Filtrar nesta fila…" value={f.search} onChange={e => set('search', e.target.value)} />
+                <input className={`${fieldCls} pl-8 w-60`} style={inputStyle} placeholder="Buscar: assunto, cliente, pessoa, conteúdo…" value={f.search} onChange={e => set('search', e.target.value)} />
+              </div>
+              {/* Filtro dedicado por NÚMERO do chamado */}
+              <div className="relative">
+                <Hash size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+                <input className={`${fieldCls} pl-8 w-32`} style={inputStyle} placeholder="Nº do ticket" inputMode="numeric" value={f.ticket} onChange={e => set('ticket', e.target.value)} />
               </div>
               {/* Período (data de abertura): Mês/Ano ou intervalo */}
               <div className="inline-flex items-center gap-1.5">
