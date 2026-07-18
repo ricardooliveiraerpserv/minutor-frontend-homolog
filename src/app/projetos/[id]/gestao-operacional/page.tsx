@@ -6,6 +6,7 @@ import { ChevronRight, Clock, ClipboardCheck, Receipt } from 'lucide-react'
 import { useApiQuery } from '@/hooks/use-query'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
 import { ActivityTimesheets } from '@/components/projects/activity-timesheets'
+import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
 
 // ─── tipos leves ──────────────────────────────────────────────────────────────
 interface TSItem {
@@ -13,8 +14,20 @@ interface TSItem {
   user?: { id: number; name: string } | null
   user_id: number
   date: string
+  start_time?: string | null
+  end_time?: string | null
   effort_minutes?: number | null
   status: string
+  status_display?: string | null
+  ticket?: string | null
+  origin?: string | null
+  is_internal_action?: boolean
+  is_billable_only?: boolean
+  observation?: string | null
+  coordinator_label?: string | null
+  customer?: { id?: number; name?: string } | null
+  project?: { id?: number; name?: string; customer?: { name?: string; executive?: { name?: string } | null } | null } | null
+  reviewed_by?: { name?: string } | number | null
   stage_id?: number | null
   stage_delivery_id?: number | null
 }
@@ -158,11 +171,74 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   )
 }
 
+// ─── tabela read-only de apontamentos (mesmo formato da tela global /approvals) ──
+const hhmm = (t?: string | null) => t ? String(t).slice(0, 5) : '—'
+const decH = (min?: number | null) => (n(min) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+
+const TS_STATUS_LABEL: Record<string, string> = {
+  pending: 'Pendente', approved: 'Aprovado', rejected: 'Reprovado', adjustment_requested: 'Ajuste',
+  conflicted: 'Conflito', internal: 'Ação Interna', released: 'Liberado', late: 'Atrasado',
+}
+function tsStatusCls(s: string): string {
+  if (['approved', 'released'].includes(s)) return 'ds-status-success'
+  if (s === 'rejected') return 'ds-status-danger'
+  if (['pending', 'adjustment_requested', 'conflicted', 'late'].includes(s)) return 'ds-status-warning'
+  return ''
+}
+function StatusPill({ status, display }: { status: string; display?: string | null }) {
+  return <span className={`ds-status ${tsStatusCls(status)}`} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{display ?? TS_STATUS_LABEL[status] ?? status}</span>
+}
+const ORIGIN_LABEL: Record<string, string> = { manual: 'Manual', webhook: 'Webhook', integration: 'Integração', import: 'Importação' }
+function OriginTag({ t }: { t: TSItem }) {
+  if (t.is_internal_action) return <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Ação Interna</span>
+  if (t.is_billable_only) return <span style={{ fontSize: 10, color: 'var(--warning)' }}>Apenas Fatura</span>
+  return <span style={{ fontSize: 10, color: 'var(--text-light)' }}>{ORIGIN_LABEL[t.origin ?? ''] ?? (t.origin || '—')}</span>
+}
+
+const TH: React.CSSProperties = { textAlign: 'left', padding: '6px 10px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
+const TD: React.CSSProperties = { padding: '6px 10px', whiteSpace: 'nowrap', color: 'var(--text)' }
+
+function ApontamentosTable({ rows, hover }: { rows: TSItem[]; hover: ReturnType<typeof useTimesheetHover> }) {
+  if (rows.length === 0) return <div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted)' }}>Nenhum apontamento nesta atividade.</div>
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            {['Status', 'Colaborador', 'Data', 'Início', 'Fim', 'Tempo', 'Ticket #', 'Origem', 'Cliente'].map(c => (
+              <th key={c} style={c === 'Tempo' ? { ...TH, textAlign: 'right' } : TH}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(t => (
+            <tr key={t.id} {...hover.bind(t)}
+              style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+              <td style={TD}><StatusPill status={t.status} display={t.status_display} /></td>
+              <td style={{ ...TD, fontWeight: 500 }}>{t.user?.name ?? '—'}</td>
+              <td style={TD}>{fmtDate(t.date)}</td>
+              <td style={{ ...TD, color: 'var(--text-muted)' }}>{hhmm(t.start_time)}</td>
+              <td style={{ ...TD, color: 'var(--text-muted)' }}>{hhmm(t.end_time)}</td>
+              <td style={{ ...TD, textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{decH(t.effort_minutes)}</td>
+              <td style={{ ...TD, color: 'var(--text-muted)' }}>{t.ticket ? `#${t.ticket}` : '—'}</td>
+              <td style={TD}><OriginTag t={t} /></td>
+              <td style={{ ...TD, color: 'var(--text-muted)' }}>{t.customer?.name ?? t.project?.customer?.name ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ─── APONTAMENTOS ────────────────────────────────────────────────────────────────
 function ApontamentosView({ projectId }: { projectId: number }) {
   const { stages, loading: schedLoading } = useProjectSchedule(projectId)
-  const { items, loading: tsLoading, refetch } = useTimesheetsByActivity(projectId)
+  const { items, loading: tsLoading } = useTimesheetsByActivity(projectId)
 
+  const hover = useTimesheetHover()
   const [status, setStatus] = useState<'todos' | 'pending' | 'approved' | 'rejected'>('todos')
   const [range, setRange] = useState<'todos' | 'hoje' | 'semana' | 'mes'>('todos')
   const [consultor, setConsultor] = useState<number | 'todos'>('todos')
@@ -182,15 +258,16 @@ function ApontamentosView({ projectId }: { projectId: number }) {
     return true
   }), [items, status, range, consultor])
 
-  // agregados por atividade (stage_delivery_id)
+  // agregados por atividade (stage_delivery_id) + lista de apontamentos
   const byActivity = useMemo(() => {
-    const g = new Map<number, { apontadas: number; count: number; pending: number }>()
+    const g = new Map<number, { apontadas: number; count: number; pending: number; rows: TSItem[] }>()
     filtered.forEach(t => {
       if (!t.stage_delivery_id) return
-      const cur = g.get(t.stage_delivery_id) ?? { apontadas: 0, count: 0, pending: 0 }
+      const cur = g.get(t.stage_delivery_id) ?? { apontadas: 0, count: 0, pending: 0, rows: [] }
       cur.apontadas += n(t.effort_minutes) / 60
       cur.count += 1
       if (['pending', 'adjustment_requested'].includes(t.status)) cur.pending += 1
+      cur.rows.push(t)
       g.set(t.stage_delivery_id, cur)
     })
     return g
@@ -259,26 +336,25 @@ function ApontamentosView({ projectId }: { projectId: number }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {activities.length === 0 && <div style={{ padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Este projeto ainda não tem atividades no cronograma.</div>}
         {activities.map(a => {
-          const agg = byActivity.get(a.id) ?? { apontadas: 0, count: 0, pending: 0 }
+          const agg = byActivity.get(a.id) ?? { apontadas: 0, count: 0, pending: 0, rows: [] }
           return (
             <ActivityAccordion key={a.id} title={a.title} stageName={a.stageName} responsible={a.responsible?.name}
               planned={a.planned} apontadas={agg.apontadas} count={agg.count} pending={agg.pending}>
-              {() => (
-                <ActivityTimesheets projectId={projectId} stageId={a.stageId} deliveryId={a.id}
-                  responsible={a.responsible} previstas={a.planned}
-                  showSummary={false} onChanged={refetch} />
-              )}
+              {() => <ApontamentosTable rows={agg.rows} hover={hover} />}
             </ActivityAccordion>
           )
         })}
         {orfaos.length > 0 && (
-          <div style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: '10px 12px', background: 'var(--surface)' }}>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--warning)' }}>{orfaos.length}</strong> apontamento(s) sem atividade ({fmtH(orfaosH)}) — lançados antes do cronograma. Edite o apontamento e escolha a atividade para vinculá-los.
+          <div style={{ border: '1px dashed var(--border)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface)' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+              <strong style={{ color: 'var(--warning)' }}>{orfaos.length}</strong> apontamento(s) sem atividade ({fmtH(orfaosH)}) — lançados antes do cronograma.
             </div>
+            <ApontamentosTable rows={orfaos} hover={hover} />
           </div>
         )}
       </div>
+
+      <TimesheetHoverTooltip ts={hover.ts} />
     </div>
   )
 }
@@ -365,9 +441,6 @@ function DespesasView({ projectId }: { projectId: number }) {
         <Kpi label="Pendentes" value={pend.length} tone={pend.length > 0 ? 'warning' : 'default'} />
         <Kpi label="Aprovadas" value={aprov.length} tone="success" />
         <Kpi label="Reprovadas" value={rej.length} tone={rej.length > 0 ? 'danger' : 'default'} />
-      </div>
-      <div style={{ padding: '8px 12px', marginBottom: 10, borderRadius: 8, border: '1px solid var(--warning)', background: 'var(--warning-bg)', color: 'var(--warning)', fontSize: 12 }}>
-        Despesas ainda não têm vínculo com atividade no banco — por isso esta visão é por projeto (não por atividade). Para agrupar por atividade, é preciso um ajuste no backend (coluna <code>stage_delivery_id</code> em despesas) + seletor de atividade na criação.
       </div>
       <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
         {items.length === 0 ? (
