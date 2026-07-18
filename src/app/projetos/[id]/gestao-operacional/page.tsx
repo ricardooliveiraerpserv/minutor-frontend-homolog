@@ -74,8 +74,7 @@ function Seg({ current, onChange }: { current: View; onChange: (v: View) => void
         const active = current === it.id
         return (
           <button key={it.id} type="button" onClick={() => onChange(it.id)}
-            className={active ? 'ds-tab-active' : 'ds-tab-inactive'}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: active ? 600 : 500, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', background: active ? 'var(--surface)' : 'transparent', color: active ? 'var(--text)' : 'var(--text-muted)', boxShadow: active ? '0 1px 2px rgba(0,0,0,.06)' : 'none' }}>
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: active ? 700 : 500, padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: active ? 'var(--primary)' : 'transparent', color: active ? '#fff' : 'var(--text-muted)', boxShadow: active ? '0 1px 3px rgba(0,0,0,.18)' : 'none', transition: 'background .12s, color .12s' }}>
             {it.icon} {it.label}
           </button>
         )
