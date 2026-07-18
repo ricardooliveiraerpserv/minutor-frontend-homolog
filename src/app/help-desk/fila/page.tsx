@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash } from 'lucide-react'
+import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User } from 'lucide-react'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { useColumnOrder } from '@/lib/kanban-column-order'
@@ -163,7 +163,7 @@ export default function HelpDeskFilaPage() {
     setF({ search: '', ticket: '' })
     setMf({ team: [], consultor: [], cliente: [], solicitante: [], priority: [] })
     setDateMode('month'); setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('')
-    setSemInteracao([]); setPendFilter(''); setStatusSel([])
+    setSemInteracao([]); setPendFilter(''); setStatusSel([]); setMine(false)
   }
 
   // Opções derivadas dos chamados carregados.
@@ -425,11 +425,18 @@ export default function HelpDeskFilaPage() {
                   ? <MonthYearPicker month={refMonth} year={refYear} onChange={(m, y) => { if (!m) { setRefMonth(null); setRefYear(null) } else { setRefMonth(m); setRefYear(y) } }} />
                   : <DateRangePicker from={dateFrom} to={dateTo} onChange={(fr, to) => { setDateFrom(fr); setDateTo(to) }} />}
               </div>
-              {/* Consultor · Cliente — filtros categóricos visíveis (Equipe/Solicitante/Prioridade em "Mais filtros") */}
-              <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...opts.consultores.map(n => ({ id: n, name: n }))]} />
-              <MultiSelect placeholder="Cliente" value={mf.cliente} onChange={v => setMulti('cliente', v)} options={opts.clientes.map(n => ({ id: n, name: n }))} />
+              {/* Botão "Meus chamados" — só os atribuídos a mim (substitui o antigo checkbox do painel) */}
+              {canSeeOthers && (
+                <button onClick={() => setMine(m => !m)} title="Mostrar apenas os chamados atribuídos a mim"
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer shrink-0"
+                  style={mine
+                    ? { border: '1px solid var(--primary)', background: 'var(--primary)', color: 'var(--primary-fg)' }
+                    : { border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+                  <User size={13} /> Meus chamados
+                </button>
+              )}
               {/* Limpar TODOS os filtros — aparece quando há qualquer filtro ativo */}
-              {(f.search || f.ticket || mf.team.length || mf.consultor.length || mf.cliente.length || mf.solicitante.length || mf.priority.length || semInteracao.length || statusSel.length || pendFilter || refMonth != null || dateFrom || dateTo) ? (
+              {(f.search || f.ticket || mf.team.length || mf.consultor.length || mf.cliente.length || mf.solicitante.length || mf.priority.length || semInteracao.length || statusSel.length || pendFilter || mine || refMonth != null || dateFrom || dateTo) ? (
                 <button onClick={clearAll} title="Limpar todos os filtros da página"
                   className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer shrink-0"
                   style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
@@ -466,15 +473,11 @@ export default function HelpDeskFilaPage() {
           {advOpen && (
             <div className="flex items-center gap-2 flex-wrap p-2 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: 'var(--text-light)' }}>Mais filtros</span>
+              <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...opts.consultores.map(n => ({ id: n, name: n }))]} />
+              <MultiSelect placeholder="Cliente" value={mf.cliente} onChange={v => setMulti('cliente', v)} options={opts.clientes.map(n => ({ id: n, name: n }))} />
               <MultiSelect placeholder="Equipe" value={mf.team} onChange={v => setMulti('team', v)} options={teams.map(t => ({ id: t.id, name: t.name }))} />
               <MultiSelect placeholder="Solicitante" value={mf.solicitante} onChange={v => setMulti('solicitante', v)} options={opts.solicitantes.map(n => ({ id: n, name: n }))} />
               <MultiSelect placeholder="Prioridade" value={mf.priority} onChange={v => setMulti('priority', v)} options={Object.keys(PRIO).map(p => ({ id: p, name: PRIO[p].label }))} />
-              {canSeeOthers && (
-                <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer select-none ml-1" style={{ color: mine ? 'var(--primary)' : 'var(--text-muted)' }}>
-                  <input type="checkbox" checked={mine} onChange={e => setMine(e.target.checked)} style={{ accentColor: 'var(--primary)', width: 15, height: 15, cursor: 'pointer' }} />
-                  Mostrar apenas meus chamados
-                </label>
-              )}
               <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>Filtro de dias sem interação: use os números no card à direita.</span>
             </div>
           )}
