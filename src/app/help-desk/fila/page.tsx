@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -248,8 +248,12 @@ export default function HelpDeskFilaPage() {
     const key = `${f.search} ${f.ticket}`
     api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { setLocal(r?.data ?? []); setLoaded(key) }).catch(() => toast.error('Erro ao carregar'))
   }, [qs, f.search, f.ticket])
-  // Debounce: evita recarregar a fila a cada tecla da busca/nº (o backend dev é lento). 350ms.
-  useEffect(() => { const t = setTimeout(() => load(), 350); return () => clearTimeout(t) }, [load])
+  // Carga inicial IMEDIATA; depois debounce de 350ms (evita recarregar a cada tecla da busca/nº).
+  const firstLoad = useRef(true)
+  useEffect(() => {
+    if (firstLoad.current) { firstLoad.current = false; load(); return }
+    const t = setTimeout(() => load(), 350); return () => clearTimeout(t)
+  }, [load])
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
       .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
