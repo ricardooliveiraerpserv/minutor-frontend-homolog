@@ -262,6 +262,8 @@ export default function HelpDeskTicketDetailPage() {
   const [services, setServices] = useState<{ id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]>([])
   const [teams, setTeams] = useState<AgentTeam[]>([])
   const [comments, setComments] = useState<Comment[]>([])
+  const [commentsTotal, setCommentsTotal] = useState(0)   // total de interações (p/ "carregar mais antigas")
+  const [allComments, setAllComments] = useState(false)   // se já carregou TODAS (senão traz só as 40 recentes)
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
   const commentEditorRef = useRef<RichEditorHandle>(null)
   // Tempo trabalhado na EDIÇÃO da interação (mesmos campos do composer).
@@ -326,7 +328,16 @@ export default function HelpDeskTicketDetailPage() {
         else toast.error(e instanceof ApiError ? e.message : 'Erro ao carregar chamado')
       })
   }, [id])
-  const loadComments = useCallback(() => { if (id) api.get<{ data: Comment[] }>(`/help-desk/tickets/${id}/comments`).then(r => setComments(r?.data ?? [])).catch(() => {}) }, [id])
+  // Paginação: por padrão traz só as 40 interações mais recentes (tickets grandes custavam ~6s no backend free).
+  const loadComments = useCallback((all = false) => {
+    if (!id) return
+    api.get<{ data: Comment[]; total?: number; returned?: number }>(`/help-desk/tickets/${id}/comments?limit=${all ? 0 : 40}`)
+      .then(r => {
+        setComments(r?.data ?? [])
+        setCommentsTotal(r?.total ?? (r?.data?.length ?? 0))
+        setAllComments(all || (r?.total ?? 0) <= (r?.returned ?? r?.data?.length ?? 0))
+      }).catch(() => {})
+  }, [id])
   const loadEvents = useCallback(() => { if (id) api.get<{ data: Event[] }>(`/help-desk/tickets/${id}/timeline`).then(r => setEvents(r?.data ?? [])).catch(() => {}) }, [id])
   const loadAtts = useCallback(() => { if (id) api.get<{ data: Att[] }>(`/help-desk/tickets/${id}/attachments`).then(r => setAtts(r?.data ?? [])).catch(() => {}) }, [id])
   const loadTs = useCallback(() => { if (id) api.get<{ data: typeof apontamentos }>(`/help-desk/tickets/${id}/timesheets`).then(r => setApontamentos(r?.data ?? [])).catch(() => {}) }, [id])
@@ -892,6 +903,15 @@ export default function HelpDeskTicketDetailPage() {
                     </div>
                     )
                   })}
+                  {/* Interações mais antigas não carregadas (paginação) — botão para trazer todas. */}
+                  {!allComments && commentsTotal > comments.length && (
+                    <div className="flex justify-center py-1">
+                      <button onClick={() => loadComments(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer"
+                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--primary)' }}>
+                        ↑ Carregar {commentsTotal - comments.length} interações mais antigas
+                      </button>
+                    </div>
+                  )}
                   {/* Descrição = interação MAIS ANTIGA (do solicitante), sempre no fim da lista — bolha à esquerda. */}
                   {t.description && (() => {
                     const autor = t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'
