@@ -386,6 +386,10 @@ export default function HelpDeskFilaPage() {
     startSession({ source: 'kanban', label: 'Fila', ids: orderedIds(), filters: { ...f, mine } })
     router.push(`/help-desk/tickets/${ticketId}`)
   }
+  // Prefetch: aquece o bundle da tela de detalhe (o chunk é compartilhado entre todos os tickets) e o
+  // RSC do ticket — ao clicar, já está pronto (evita o download frio dos ~25 chunks na 1ª abertura).
+  const prefetchTicket = useCallback((ticketId: number) => { router.prefetch(`/help-desk/tickets/${ticketId}`) }, [router])
+  useEffect(() => { const fid = local[0]?.id; if (fid) prefetchTicket(fid) }, [local, prefetchTicket]) // aquece o bundle assim que a lista carrega
 
   const onDragEnd = async (r: DropResult) => {
     const { destination, source, draggableId } = r
@@ -602,7 +606,7 @@ export default function HelpDeskFilaPage() {
                   const sla = slaChip(t, st)
                   const dt = (v?: string | null) => v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
                   return (
-                    <tr key={t.id} onClick={() => openTicket(t.id)} className="cursor-pointer ds-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
+                    <tr key={t.id} onClick={() => openTicket(t.id)} onMouseEnter={() => prefetchTicket(t.id)} className="cursor-pointer ds-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                       <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
@@ -649,6 +653,7 @@ export default function HelpDeskFilaPage() {
                               {(prov, snap) => (
                                 <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps}
                                   onClick={() => openTicket(t.id)}
+                                  onMouseEnter={() => prefetchTicket(t.id)}
                                   className="ds-card cursor-pointer pl-2.5 pr-2 py-1.5 leading-tight space-y-0.5"
                                   title={`Prioridade: ${prio.label}`}
                                   style={{ ...prov.draggableProps.style, borderLeft: `3px solid ${prio.color}`, boxShadow: snap.isDragging ? '0 4px 12px rgba(0,0,0,.18)' : undefined }}>
