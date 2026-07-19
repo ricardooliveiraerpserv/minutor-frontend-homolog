@@ -223,7 +223,7 @@ export default function HelpDeskFilaPage() {
   }, [matchBase, semInteracao])
 
   const qs = useMemo(() => {
-    const p = new URLSearchParams({ limit: '500' })
+    const p = new URLSearchParams({ limit: '200' })
     Object.entries(f).forEach(([k, v]) => { if (v) p.set(k, v) })
     if (mine) p.set('mine', '1')
     // ESCALA: empurra o filtro de data pro backend (índice created_at) — a fila carrega só o período
