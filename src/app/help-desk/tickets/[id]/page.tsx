@@ -343,7 +343,13 @@ export default function HelpDeskTicketDetailPage() {
   const loadTs = useCallback(() => { if (id) api.get<{ data: typeof apontamentos }>(`/help-desk/tickets/${id}/timesheets`).then(r => setApontamentos(r?.data ?? [])).catch(() => {}) }, [id])
   const loadMerged = useCallback(() => { if (id) api.get<{ data: MergedRow[] }>(`/help-desk/tickets/${id}/merged`).then(r => setMerged(r?.data ?? [])).catch(() => {}) }, [id])
 
-  useEffect(() => { loadTicket(); loadComments(); loadEvents(); loadAtts(); loadTs(); loadMerged() }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged])
+  // CRÍTICO na abertura: só cabeçalho + conversa. O resto (anexos, timeline, apontamentos, merged) é
+  // adiado 500ms pra não competir pelos poucos workers do backend free — a tela aparece bem antes.
+  useEffect(() => {
+    loadTicket(); loadComments()
+    const t = setTimeout(() => { loadAtts(); loadEvents(); loadTs(); loadMerged() }, 500)
+    return () => clearTimeout(t)
+  }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged])
 
   const unmerge = async (sourceId: number, num: string | null) => {
     if (!confirm(`Desfazer a mescla do chamado ${num ?? sourceId}? As interações originais dele voltam pra ele e ele volta a ficar ativo.`)) return
