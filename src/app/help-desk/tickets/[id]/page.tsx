@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -350,6 +351,8 @@ export default function HelpDeskTicketDetailPage() {
     const t = setTimeout(() => { loadAtts(); loadEvents(); loadTs(); loadMerged() }, 500)
     return () => clearTimeout(t)
   }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged])
+  // Registra este chamado como ABA aberta (barra estilo Movidesk).
+  useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }) }, [t?.id, t?.ticket_number, t?.subject])
 
   const unmerge = async (sourceId: number, num: string | null) => {
     if (!confirm(`Desfazer a mescla do chamado ${num ?? sourceId}? As interações originais dele voltam pra ele e ele volta a ficar ativo.`)) return
@@ -581,6 +584,7 @@ export default function HelpDeskTicketDetailPage() {
   return (
     <AppLayout title={t.ticket_number ?? `Chamado #${t.id}`}>
       <div className="space-y-4">
+        <TicketTabs activeId={id} />
         {/* Modo Atendimento — barra de controles contínua */}
         {modoAtivo && final === null && <ModoAtendimentoBar currentId={id} onPrev={prevTicket} onSkip={skipTicket} onEnd={openFinal} />}
 

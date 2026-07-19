@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
 import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User } from 'lucide-react'
+import { TicketTabs } from '@/components/help-desk/ticket-tabs'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { useColumnOrder } from '@/lib/kanban-column-order'
@@ -397,6 +398,7 @@ export default function HelpDeskFilaPage() {
   return (
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
+        <TicketTabs />
         {/* Barra fixa (sticky): filtros rápidos + ações. */}
         <div className="sticky top-0 z-20 space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
           {/* ─── NÍVEL 2 — filtros mais usados (esq.) · Modo isolado + Novo chamado (dir.) */}
