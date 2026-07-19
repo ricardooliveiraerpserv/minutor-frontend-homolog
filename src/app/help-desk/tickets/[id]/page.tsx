@@ -197,14 +197,25 @@ function OptItem({ icon: Icon, children, onClick, danger }: { icon: LucideIcon; 
   )
 }
 
+// Cache por chamado (id): ao voltar numa aba já aberta, hidrata do cache e NÃO refaz o fetch (abas Movidesk).
+type ApontRow = { id: number; data: string | null; consultor: string | null; horas: number; status: string; observacao: string | null }
+type DetailCache = { t?: TicketDetail | null; notFound?: boolean; comments?: Comment[]; commentsTotal?: number; allComments?: boolean; events?: Event[]; atts?: Att[]; ts?: ApontRow[]; merged?: MergedRow[] }
+const detailCache = new Map<number, DetailCache>()
+const putCache = (id: number, patch: DetailCache) => detailCache.set(id, { ...detailCache.get(id), ...patch })
+
 export default function HelpDeskTicketDetailPage() {
-  const params = useParams()
+  const id = Number(useParams()?.id)
+  // key={id} = instância própria por chamado; o cache abaixo evita recarregar ao alternar entre abas.
+  return <TicketDetailInner key={id} id={id} />
+}
+
+function TicketDetailInner({ id }: { id: number }) {
   const router = useRouter()
   const { user } = useAuth()
-  const id = Number(params?.id)
+  const c0 = detailCache.get(id)   // snapshot do cache no mount (hidrata sem flash)
 
-  const [t, setT] = useState<TicketDetail | null>(null)
-  const [notFound, setNotFound] = useState(false)
+  const [t, setT] = useState<TicketDetail | null>(c0?.t ?? null)
+  const [notFound, setNotFound] = useState(c0?.notFound ?? false)
   const [mergeOpen, setMergeOpen] = useState(false)
   const [optOpen, setOptOpen] = useState(false)          // menu "Opções"
   const [detailsOpen, setDetailsOpen] = useState(false)  // painel "Detalhes do ticket"
@@ -255,16 +266,16 @@ export default function HelpDeskTicketDetailPage() {
       toast.dismiss(tid)
     } catch (e) { toast.dismiss(tid); toast.error((e as { message?: string })?.message ?? 'Erro ao gerar relatório') }
   }
-  const [merged, setMerged] = useState<MergedRow[]>([])
+  const [merged, setMerged] = useState<MergedRow[]>(c0?.merged ?? [])
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
   const [justifications, setJustifications] = useState<JustificationOpt[]>([])
   const [pendingStatus, setPendingStatus] = useState<string | null>(null) // status escolhido aguardando justificativa
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [services, setServices] = useState<{ id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]>([])
   const [teams, setTeams] = useState<AgentTeam[]>([])
-  const [comments, setComments] = useState<Comment[]>([])
-  const [commentsTotal, setCommentsTotal] = useState(0)   // total de interações (p/ "carregar mais antigas")
-  const [allComments, setAllComments] = useState(false)   // se já carregou TODAS (senão traz só as 40 recentes)
+  const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
+  const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
+  const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
   const commentEditorRef = useRef<RichEditorHandle>(null)
   // Tempo trabalhado na EDIÇÃO da interação (mesmos campos do composer).
@@ -305,8 +316,8 @@ export default function HelpDeskTicketDetailPage() {
       if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao editar') }
   }
-  const [events, setEvents] = useState<Event[]>([])
-  const [atts, setAtts] = useState<Att[]>([])
+  const [events, setEvents] = useState<Event[]>(c0?.events ?? [])
+  const [atts, setAtts] = useState<Att[]>(c0?.atts ?? [])
   const [tab, setTab] = useState<'conversa' | 'timeline'>('conversa')
 
   const [finalizing, setFinalizing] = useState(false)
@@ -316,12 +327,12 @@ export default function HelpDeskTicketDetailPage() {
   const [finalizeDefaults, setFinalizeDefaults] = useState<{ reply: string | null; status_id: number | null } | null>(null)
   const [final, setFinal] = useState<SessionSummary | 'loading' | null>(null)
   const modoAtivo = wsActive() && wsContains(id)
-  const [apontamentos, setApontamentos] = useState<{ id: number; data: string | null; consultor: string | null; horas: number; status: string; observacao: string | null }[]>([])
+  const [apontamentos, setApontamentos] = useState<ApontRow[]>(c0?.ts ?? [])
 
   const loadTicket = useCallback(() => {
     if (!id) return
     api.get<{ data: TicketDetail }>(`/help-desk/tickets/${id}`)
-      .then(r => { setT(r?.data ?? null); setNotFound(false) })
+      .then(r => { setT(r?.data ?? null); setNotFound(false); putCache(id, { t: r?.data ?? null, notFound: false }) })
       .catch(e => {
         // ModelNotFound vira 404 ou 422 ("No query results") no handler da API → tela de não encontrado.
         const nf = e instanceof ApiError && (e.status === 404 || (e.status === 422 && /No query results/i.test(e.message)))
@@ -334,23 +345,26 @@ export default function HelpDeskTicketDetailPage() {
     if (!id) return
     api.get<{ data: Comment[]; total?: number; returned?: number }>(`/help-desk/tickets/${id}/comments?limit=${all ? 0 : 40}`)
       .then(r => {
-        setComments(r?.data ?? [])
-        setCommentsTotal(r?.total ?? (r?.data?.length ?? 0))
-        setAllComments(all || (r?.total ?? 0) <= (r?.returned ?? r?.data?.length ?? 0))
+        const data = r?.data ?? []
+        const total = r?.total ?? data.length
+        const all_ = all || (r?.total ?? 0) <= (r?.returned ?? data.length)
+        setComments(data); setCommentsTotal(total); setAllComments(all_)
+        putCache(id, { comments: data, commentsTotal: total, allComments: all_ })
       }).catch(() => {})
   }, [id])
-  const loadEvents = useCallback(() => { if (id) api.get<{ data: Event[] }>(`/help-desk/tickets/${id}/timeline`).then(r => setEvents(r?.data ?? [])).catch(() => {}) }, [id])
-  const loadAtts = useCallback(() => { if (id) api.get<{ data: Att[] }>(`/help-desk/tickets/${id}/attachments`).then(r => setAtts(r?.data ?? [])).catch(() => {}) }, [id])
-  const loadTs = useCallback(() => { if (id) api.get<{ data: typeof apontamentos }>(`/help-desk/tickets/${id}/timesheets`).then(r => setApontamentos(r?.data ?? [])).catch(() => {}) }, [id])
-  const loadMerged = useCallback(() => { if (id) api.get<{ data: MergedRow[] }>(`/help-desk/tickets/${id}/merged`).then(r => setMerged(r?.data ?? [])).catch(() => {}) }, [id])
+  const loadEvents = useCallback(() => { if (id) api.get<{ data: Event[] }>(`/help-desk/tickets/${id}/timeline`).then(r => { setEvents(r?.data ?? []); putCache(id, { events: r?.data ?? [] }) }).catch(() => {}) }, [id])
+  const loadAtts = useCallback(() => { if (id) api.get<{ data: Att[] }>(`/help-desk/tickets/${id}/attachments`).then(r => { setAtts(r?.data ?? []); putCache(id, { atts: r?.data ?? [] }) }).catch(() => {}) }, [id])
+  const loadTs = useCallback(() => { if (id) api.get<{ data: ApontRow[] }>(`/help-desk/tickets/${id}/timesheets`).then(r => { setApontamentos(r?.data ?? []); putCache(id, { ts: r?.data ?? [] }) }).catch(() => {}) }, [id])
+  const loadMerged = useCallback(() => { if (id) api.get<{ data: MergedRow[] }>(`/help-desk/tickets/${id}/merged`).then(r => { setMerged(r?.data ?? []); putCache(id, { merged: r?.data ?? [] }) }).catch(() => {}) }, [id])
 
   // CRÍTICO na abertura: só cabeçalho + conversa. O resto (anexos, timeline, apontamentos, merged) é
   // adiado 500ms pra não competir pelos poucos workers do backend free — a tela aparece bem antes.
   useEffect(() => {
+    if (c0?.t) return // aba reaberta: já hidratou do cache — NÃO recarrega (o usuário atualiza manualmente se quiser)
     loadTicket(); loadComments()
     const t = setTimeout(() => { loadAtts(); loadEvents(); loadTs(); loadMerged() }, 500)
     return () => clearTimeout(t)
-  }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged])
+  }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
   // Registra este chamado como ABA aberta (barra estilo Movidesk).
   useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }) }, [t?.id, t?.ticket_number, t?.subject])
 
@@ -620,9 +634,6 @@ export default function HelpDeskTicketDetailPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.push(queueHref(getSession()?.source))} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary shrink-0" title="Voltar para a fila">
-              <ArrowLeft size={16} /> Voltar
-            </button>
             <div>
               <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.ticket_number ?? `#${t.id}`}</span>
               <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.subject}</h1>
