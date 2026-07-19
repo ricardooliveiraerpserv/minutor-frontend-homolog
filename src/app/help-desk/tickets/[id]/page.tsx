@@ -355,6 +355,25 @@ function TicketDetailInner({ id }: { id: number }) {
         putCache(id, { comments: data, commentsTotal: total, allComments: all_ })
       }).catch(() => {})
   }, [id])
+  // Abertura em UMA chamada (ticket + interações) — evita o backend free re-bootstrapar o Laravel 2x.
+  const loadDetail = useCallback(() => {
+    if (!id) return
+    api.get<{ data: { ticket: TicketDetail; comments: Comment[]; comments_total?: number; comments_returned?: number } }>(`/help-desk/tickets/${id}/detail`)
+      .then(r => {
+        const d = r?.data
+        if (d?.ticket) { setT(d.ticket); setNotFound(false) }
+        const cm = d?.comments ?? []
+        const total = d?.comments_total ?? cm.length
+        const all_ = total <= (d?.comments_returned ?? cm.length)
+        setComments(cm); setCommentsTotal(total); setAllComments(all_)
+        putCache(id, { t: d?.ticket ?? null, notFound: false, comments: cm, commentsTotal: total, allComments: all_ })
+      })
+      .catch(e => {
+        const nf = e instanceof ApiError && (e.status === 404 || (e.status === 422 && /No query results/i.test(e.message)))
+        if (nf) setNotFound(true)
+        else toast.error(e instanceof ApiError ? e.message : 'Erro ao carregar chamado')
+      })
+  }, [id])
   const loadEvents = useCallback(() => { if (id) api.get<{ data: Event[] }>(`/help-desk/tickets/${id}/timeline`).then(r => { setEvents(r?.data ?? []); putCache(id, { events: r?.data ?? [] }) }).catch(() => {}) }, [id])
   const loadAtts = useCallback(() => { if (id) api.get<{ data: Att[] }>(`/help-desk/tickets/${id}/attachments`).then(r => { setAtts(r?.data ?? []); putCache(id, { atts: r?.data ?? [] }) }).catch(() => {}) }, [id])
   const loadTs = useCallback(() => { if (id) api.get<{ data: ApontRow[] }>(`/help-desk/tickets/${id}/timesheets`).then(r => { setApontamentos(r?.data ?? []); putCache(id, { ts: r?.data ?? [] }) }).catch(() => {}) }, [id])
@@ -364,10 +383,10 @@ function TicketDetailInner({ id }: { id: number }) {
   // adiado 500ms pra não competir pelos poucos workers do backend free — a tela aparece bem antes.
   useEffect(() => {
     if (c0?.t) return // aba reaberta: já hidratou do cache — NÃO recarrega (o usuário atualiza manualmente se quiser)
-    loadTicket(); loadComments()
+    loadDetail() // ticket + interações em 1 chamada
     const t = setTimeout(() => { loadAtts(); loadTs(); loadMerged() }, 500) // timeline sai daqui → carrega só ao abrir a aba
     return () => clearTimeout(t)
-  }, [loadTicket, loadComments, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadDetail, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
   // Timeline: buscada só quando a aba é aberta (fora do burst inicial de chamadas).
   useEffect(() => { if (tab === 'timeline' && events.length === 0) loadEvents() }, [tab, events.length, loadEvents])
   // Card de reunião entra ~500ms depois → sua chamada /meetings não compete com ticket+comments na abertura.
