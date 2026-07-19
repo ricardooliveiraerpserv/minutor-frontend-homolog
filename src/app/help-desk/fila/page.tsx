@@ -254,14 +254,18 @@ export default function HelpDeskFilaPage() {
     api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
       .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
       .catch(() => {})
-    // Clientes para o modal de novo chamado (mesma fonte da lista de Chamados).
+  }, [])
+  // Clientes (p/ o modal "Novo chamado") — LAZY: só busca ao abrir o modal, fora do caminho crítico da carga
+  // inicial (o backend free processa as chamadas em fila; tirar 1 request acelera a abertura da fila).
+  const loadCustomers = useCallback(() => {
+    if (customers.length) return
     api.get<Ref[] | { data?: Ref[]; items?: Ref[] }>('/customers?pageSize=500')
       .then(r => {
         const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
         setCustomers(list.map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))
       })
       .catch(() => {})
-  }, [])
+  }, [customers.length])
 
   // Ordem das colunas por usuário (arrasta o cabeçalho p/ reordenar).
   const { ordered: colOrder, headerProps } = useColumnOrder('fila', statuses.map(s => String(s.id)), user?.id)
@@ -456,7 +460,7 @@ export default function HelpDeskFilaPage() {
                   </button>
                 ))}
               </div>
-              <button onClick={() => setNovo(true)} title="Abrir novo chamado"
+              <button onClick={() => { loadCustomers(); setNovo(true) }} title="Abrir novo chamado"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ml-1 transition hover:opacity-90"
                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Novo chamado</button>
             </div>
