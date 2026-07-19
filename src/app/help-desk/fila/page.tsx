@@ -470,7 +470,6 @@ export default function HelpDeskFilaPage() {
               <MultiSelect placeholder="Equipe" value={mf.team} onChange={v => setMulti('team', v)} options={teams.map(t => ({ id: t.id, name: t.name }))} />
               <MultiSelect placeholder="Solicitante" value={mf.solicitante} onChange={v => setMulti('solicitante', v)} options={opts.solicitantes.map(n => ({ id: n, name: n }))} />
               <MultiSelect placeholder="Prioridade" value={mf.priority} onChange={v => setMulti('priority', v)} options={Object.keys(PRIO).map(p => ({ id: p, name: PRIO[p].label }))} />
-              <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>Filtro de dias sem interação: use os números no card à direita.</span>
             </div>
           )}
         </div>
@@ -529,12 +528,10 @@ export default function HelpDeskFilaPage() {
                   style={semInt3 > 0
                     ? { border: '2px solid #ef4444', background: '#ef444426', boxShadow: '0 0 0 3px #ef444422' }
                     : { borderLeft: '3px solid #16a34a', background: '#16a34a12' }}>
-                  {/* Título + instrução clara de que os botões abaixo FILTRAM */}
+                  {/* Título — os chips abaixo filtram (o "Limpar filtros" principal zera também). */}
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm leading-none">⏳</span>
                     <span className="text-[11px] font-semibold" style={{ color: semInt3 > 0 ? '#ef4444' : 'var(--text-muted)' }}>Sem interação da equipe</span>
-                    <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>— clique para filtrar (pode marcar mais de uma faixa):</span>
-                    {semInteracao.length > 0 && <button onClick={() => setSemInteracao([])} className="text-[11px] font-semibold ml-auto px-2 py-0.5 rounded-md border inline-flex items-center gap-1 cursor-pointer" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-muted)' }} title="Limpar filtro">✕ Limpar filtro</button>}
                   </div>
                   {/* Três chips de filtro (parecem botões de verdade): 1 dia · 2 dias · 3+ dias */}
                   <div className="flex gap-1.5 mt-1">
