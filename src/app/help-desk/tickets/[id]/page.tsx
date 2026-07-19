@@ -321,6 +321,7 @@ function TicketDetailInner({ id }: { id: number }) {
   const [events, setEvents] = useState<Event[]>(c0?.events ?? [])
   const [atts, setAtts] = useState<Att[]>(c0?.atts ?? [])
   const [tab, setTab] = useState<'conversa' | 'timeline'>('conversa')
+  const [secondaryReady, setSecondaryReady] = useState(false) // adia card de reunião (fetch /meetings) pós-carga crítica
 
   const [finalizing, setFinalizing] = useState(false)
   const [concluido, setConcluido] = useState(false)
@@ -364,9 +365,13 @@ function TicketDetailInner({ id }: { id: number }) {
   useEffect(() => {
     if (c0?.t) return // aba reaberta: já hidratou do cache — NÃO recarrega (o usuário atualiza manualmente se quiser)
     loadTicket(); loadComments()
-    const t = setTimeout(() => { loadAtts(); loadEvents(); loadTs(); loadMerged() }, 500)
+    const t = setTimeout(() => { loadAtts(); loadTs(); loadMerged() }, 500) // timeline sai daqui → carrega só ao abrir a aba
     return () => clearTimeout(t)
-  }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadTicket, loadComments, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Timeline: buscada só quando a aba é aberta (fora do burst inicial de chamadas).
+  useEffect(() => { if (tab === 'timeline' && events.length === 0) loadEvents() }, [tab, events.length, loadEvents])
+  // Card de reunião entra ~500ms depois → sua chamada /meetings não compete com ticket+comments na abertura.
+  useEffect(() => { const t = setTimeout(() => setSecondaryReady(true), 500); return () => clearTimeout(t) }, [])
   // Registra este chamado como ABA aberta (barra estilo Movidesk).
   useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }) }, [t?.id, t?.ticket_number, t?.subject])
 
@@ -762,8 +767,8 @@ function TicketDetailInner({ id }: { id: number }) {
 
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-3">
-                  {/* Card de reunião (Central de Reuniões) — próxima acima da conversa; muda pós-realização. */}
-                  <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => { setEditMeeting(null); setReuniaoOpen(true) }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />
+                  {/* Card de reunião (Central de Reuniões) — adiado (secondaryReady) p/ não pesar na 1ª carga. */}
+                  {secondaryReady && <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => { setEditMeeting(null); setReuniaoOpen(true) }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />}
                   {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
                   {t.status?.is_terminal ? (
                     <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
