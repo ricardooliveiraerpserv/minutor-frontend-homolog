@@ -207,6 +207,12 @@ const putCache = (id: number, patch: DetailCache) => detailCache.set(id, { ...de
 
 export default function HelpDeskTicketDetailPage() {
   const id = Number(useParams()?.id)
+  // Conteúdo renderiza só no CLIENTE: o SSR na Vercel crashava (500) porque algo no render acessa
+  // localStorage/window (sessão de fila). O servidor rende só um shell leve → sem 500. Como os dados
+  // já vinham do cliente, não muda o tempo do conteúdo — e acaba com o full-reload em aba nova/F5.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return <AppLayout title="Chamado"><div className="py-10 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div></AppLayout>
   // key={id} = instância própria por chamado; o cache abaixo evita recarregar ao alternar entre abas.
   return <TicketDetailInner key={id} id={id} />
 }
