@@ -120,6 +120,11 @@ function useLocalBool(key: string, def: boolean): [boolean, (v: boolean) => void
   return [v, set]
 }
 
+// Cache dos tickets carregados por query (qs): ao VOLTAR pra fila (mesma visão) hidrata do cache e
+// NÃO refaz o fetch. Cap simples pra não crescer. Mudança de filtro (qs novo) busca normalmente.
+const filaCache = new Map<string, TicketRow[]>()
+function cacheFila(qs: string, d: TicketRow[]) { filaCache.set(qs, d); if (filaCache.size > 15) filaCache.delete(filaCache.keys().next().value as string) }
+
 export default function HelpDeskFilaPage() {
   const router = useRouter()
   const { user } = useAuth()
@@ -247,14 +252,20 @@ export default function HelpDeskFilaPage() {
 
   const load = useCallback(() => {
     const key = `${f.search} ${f.ticket}`
-    api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { setLocal(r?.data ?? []); setLoaded(key) }).catch(() => toast.error('Erro ao carregar'))
+    api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { const d = r?.data ?? []; setLocal(d); setLoaded(key); cacheFila(qs, d) }).catch(() => toast.error('Erro ao carregar'))
   }, [qs, f.search, f.ticket])
-  // Carga inicial IMEDIATA; depois debounce de 350ms (evita recarregar a cada tecla da busca/nº).
+  // 1ª carga: se voltamos pra uma visão já carregada (mesmo qs), hidrata do cache — instantâneo, sem refetch.
+  // Depois, mudanças de filtro recarregam com debounce de 350ms.
   const firstLoad = useRef(true)
   useEffect(() => {
-    if (firstLoad.current) { firstLoad.current = false; load(); return }
+    if (firstLoad.current) {
+      firstLoad.current = false
+      const cached = filaCache.get(qs)
+      if (cached) { setLocal(cached); setLoaded(`${f.search} ${f.ticket}`); return }
+      load(); return
+    }
     const t = setTimeout(() => load(), 350); return () => clearTimeout(t)
-  }, [load])
+  }, [load]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
       .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
