@@ -27,6 +27,8 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule,
   const [transcript, setTranscript] = useState('')
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)   // modal de confirmação de cancelamento
+  const [canceling, setCanceling] = useState(false)
 
   const load = useCallback(() => {
     api.get<{ data: Meeting[] }>(`/meetings?origin_type=HELPDESK_TICKET&origin_id=${ticketId}`)
@@ -70,10 +72,14 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule,
   const isPast = !isDone && now > endMs // agendada, mas o horário já passou (aguardando cancelar/realizar)
 
   const copyLink = () => { if (m.join_url) { navigator.clipboard.writeText(m.join_url); toast.success('Link copiado.') } else toast.message('Sem link do Teams — conecte sua conta Microsoft no Meu Dia para gerar automaticamente.') }
-  const cancelMeeting = async () => {
-    if (!confirm(`Cancelar a reunião "${m.title}"?`)) return
-    try { await api.post(`/meetings/${m.id}/cancel`, {}); toast.success('Reunião cancelada.'); load(); onTicketChange?.() }
-    catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') }
+  const cancelMeeting = () => setCancelOpen(true)   // abre o modal (antes era confirm() nativo)
+  const confirmCancel = async () => {
+    setCanceling(true)
+    try {
+      await api.post(`/meetings/${m.id}/cancel`, {})
+      toast.success('Reunião cancelada.'); setCancelOpen(false); load(); onTicketChange?.()
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') }
+    finally { setCanceling(false) }
   }
   const logHours = async () => {
     const mins = m.duration_minutes ?? 30
@@ -107,6 +113,7 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule,
   }
 
   return (
+    <>
     <div className="ds-card p-3" style={{ borderColor: isDone ? 'var(--border)' : 'var(--primary)', background: isDone ? 'var(--surface)' : 'var(--primary-soft)' }}>
       <div className="flex items-start gap-2.5">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: isDone ? 'var(--surface-sunken)' : 'var(--primary)' }}>
@@ -168,5 +175,29 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule,
         </div>
       </div>
     </div>
+    {cancelOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.45)' }} onClick={() => !canceling && setCancelOpen(false)}>
+        <div className="ds-card w-full max-w-sm p-5" onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)' }}>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}>
+              <X size={18} style={{ color: 'var(--danger-border)' }} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Cancelar reunião?</div>
+              <div className="text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                A reunião <b style={{ color: 'var(--text)' }}>{m.title}</b> ({fmt(m.starts_at)}) será cancelada. O chamado volta para <b style={{ color: 'var(--text)' }}>Em atendimento</b> e o atendimento (SLA) é retomado.
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setCancelOpen(false)} disabled={canceling} className="ds-btn-secondary text-sm px-4 py-2 rounded-lg">Voltar</button>
+            <button onClick={confirmCancel} disabled={canceling} className="text-sm font-semibold px-4 py-2 rounded-lg text-white disabled:opacity-60" style={{ background: 'var(--danger-border)' }}>
+              {canceling ? 'Cancelando…' : 'Cancelar reunião'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

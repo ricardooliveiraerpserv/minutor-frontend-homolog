@@ -1232,6 +1232,17 @@ html.dark .sidebar-erpserv-logo {
 
 /* Backdrop da thread de chamado: fundo cinza sutil atrás dos balões brancos (claro) / transparente (dark). */
 .hd-thread { background: var(--hd-thread-bg); }
+/* HTML SIMPLES inline (interações do sistema/texto formatado) — sem iframe. Margens contidas pra o
+   balão acompanhar o conteúdo (não inflar); herda a cor do balão. */
+.hd-rich { line-height: 1.45; }
+.hd-rich > :first-child { margin-top: 0; }
+.hd-rich > :last-child { margin-bottom: 0; }
+.hd-rich p { margin: 0 0 .5em; }
+.hd-rich ul, .hd-rich ol { margin: .25em 0; padding-left: 1.25em; }
+.hd-rich li { margin: .1em 0; }
+.hd-rich a { color: var(--primary); text-decoration: underline; }
+.hd-rich img { max-width: 100%; height: auto; }
+.hd-rich h1, .hd-rich h2, .hd-rich h3 { margin: .3em 0; font-weight: 700; }
 /* Hierarquia de cor por autor */
 /* Balões de texto puro brancos (iguais aos de HTML/e-mail); autor se distingue pelo lado + chip de papel. */
 .hd-bubble-client   { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }

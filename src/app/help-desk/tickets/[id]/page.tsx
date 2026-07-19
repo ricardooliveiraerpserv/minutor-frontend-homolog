@@ -797,6 +797,10 @@ export default function HelpDeskTicketDetailPage() {
                     const editing = editCommentId === c.id
                     const hasEffort = typeof c.effort_minutes === 'number' && c.effort_minutes > 0
                     const html = !!c.body && isHtmlBody(c.body)
+                    // Só e-mail com imagem/tabela precisa do iframe isolado (EmailFrame). HTML simples
+                    // (interações do sistema, texto formatado) renderiza INLINE — senão o iframe mede
+                    // altura errada e deixa o balão gigante e vazio.
+                    const complexHtml = html && /<(img|table)\b/i.test(c.body ?? '')
                     // ——— Evento de sistema: card central discreto (nunca parece e-mail) ———
                     if (isSystem && !editing) {
                       const txt = html ? stripTags(c.body) : c.body
@@ -882,10 +886,12 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${html ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
-                            {html
+                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                            {complexHtml
                               ? <EmailFrame html={sanitizeEmail(c.body)} />
-                              : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
+                              : html
+                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.body ?? '') }} />
+                                : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
                         {/* Anexos da interação — preview de imagem inline + arquivos */}
@@ -922,6 +928,7 @@ export default function HelpDeskTicketDetailPage() {
                   {t.description && (() => {
                     const autor = t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'
                     const descHtml = isHtmlBody(t.description ?? '')
+                    const complexDescHtml = descHtml && /<(img|table)\b/i.test(t.description ?? '')
                     return (
                     <div className="hd-msg flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
@@ -947,10 +954,12 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${descHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : 'hd-msg-body w-fit max-w-full px-3.5 py-2 hd-bubble-client'}`} style={{ borderTopLeftRadius: 4 }}>
-                            {descHtml
+                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexDescHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : 'hd-msg-body w-fit max-w-full px-3.5 py-2 hd-bubble-client'}`} style={{ borderTopLeftRadius: 4 }}>
+                            {complexDescHtml
                               ? <EmailFrame html={sanitizeEmail(t.description ?? '')} />
-                              : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
+                              : descHtml
+                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: sanitizeRich(t.description ?? '') }} />
+                                : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}
                         {atts.length > 0 && (
