@@ -154,7 +154,6 @@ export default function HelpDeskFilaPage() {
   const [mf, setMf] = useState<{ team: string[]; consultor: string[]; cliente: string[]; solicitante: string[]; priority: string[] }>({ team: [], consultor: [], cliente: [], solicitante: [], priority: [] })
   const [semInteracao, setSemInteracao] = useState<string[]>([]) // faixas de dias úteis sem interação da equipe (multi: '1','2','3')
   // Painéis recolhíveis (progressive disclosure) — preferência salva no navegador.
-  const [advOpen, setAdvOpen] = useLocalBool('hd_fila_adv', false)      // "Mais filtros" (Nível 3) — recolhido por padrão
   const [resumoOpen, setResumoOpen] = useLocalBool('hd_fila_resumo', false)  // Resumo por coluna — recolhido por padrão
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
   const setMulti = (k: keyof typeof mf, v: string[]) => setMf(s => ({ ...s, [k]: v }))
@@ -447,13 +446,8 @@ export default function HelpDeskFilaPage() {
             {/* Espaçador flexível — empurra as ações pra direita sem brigar com o wrap dos filtros
                 (evita o conflito flex-1 + ml-auto que colapsava/encavalava a barra). */}
             <div className="hidden lg:block flex-1" />
-            {/* Ações à direita — Mais filtros + visão (Kanban/Lista) + Novo chamado (extremo direito, destaque). */}
+            {/* Ações à direita — visão (Kanban/Lista) + Novo chamado (extremo direito, destaque). */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* NÍVEL 3 — Mais filtros (recolhido por padrão) — ocupa o espaço livre à direita, antes da visão */}
-              <button onClick={() => setAdvOpen(!advOpen)} className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded-lg shrink-0"
-                style={{ border: '1px solid var(--border)', background: advOpen ? 'var(--surface-hover)' : 'var(--surface)', color: 'var(--text-muted)' }}>
-                Mais filtros <ChevronDown size={14} style={{ transform: advOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-              </button>
               <div className="inline-flex rounded-lg overflow-hidden shrink-0" style={{ border: '1px solid var(--border)' }} title="Alternar visão">
                 {([['kanban', 'Kanban', LayoutGrid], ['lista', 'Lista', List]] as const).map(([v, lbl, Ic]) => (
                   <button key={v} onClick={() => setView(v)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 transition"
@@ -468,11 +462,9 @@ export default function HelpDeskFilaPage() {
             </div>
           </div>
 
-          {/* NÍVEL 3 — painel de filtros avançados (aberto sob demanda): Equipe + Cliente + Solicitante
-              + Prioridade + "apenas meus chamados". Recolhido por padrão → some da linha principal. */}
-          {advOpen && (
+          {/* Filtros FIXOS (sempre visíveis): Consultor + Cliente + Equipe + Solicitante + Prioridade. */}
+          {(
             <div className="flex items-center gap-2 flex-wrap p-2 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: 'var(--text-light)' }}>Mais filtros</span>
               <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...opts.consultores.map(n => ({ id: n, name: n }))]} />
               <MultiSelect placeholder="Cliente" value={mf.cliente} onChange={v => setMulti('cliente', v)} options={opts.clientes.map(n => ({ id: n, name: n }))} />
               <MultiSelect placeholder="Equipe" value={mf.team} onChange={v => setMulti('team', v)} options={teams.map(t => ({ id: t.id, name: t.name }))} />
