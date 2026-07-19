@@ -822,7 +822,9 @@ function TicketDetailInner({ id }: { id: number }) {
                     // Só e-mail com imagem/tabela precisa do iframe isolado (EmailFrame). HTML simples
                     // (interações do sistema, texto formatado) renderiza INLINE — senão o iframe mede
                     // altura errada e deixa o balão gigante e vazio.
-                    const complexHtml = html && /<(img|table)\b/i.test(c.body ?? '')
+                    // Só TABELA (layout de e-mail) precisa do iframe isolado. Imagem NÃO — renderiza inline
+                    // (.hd-rich img{max-width}). Muitas interações com imagem viravam dezenas de iframes → render lento.
+                    const complexHtml = html && /<table\b/i.test(c.body ?? '')
                     // ——— Evento de sistema: card central discreto (nunca parece e-mail) ———
                     if (isSystem && !editing) {
                       const txt = html ? stripTags(c.body) : c.body
@@ -950,7 +952,7 @@ function TicketDetailInner({ id }: { id: number }) {
                   {t.description && (() => {
                     const autor = t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'
                     const descHtml = isHtmlBody(t.description ?? '')
-                    const complexDescHtml = descHtml && /<(img|table)\b/i.test(t.description ?? '')
+                    const complexDescHtml = descHtml && /<table\b/i.test(t.description ?? '')
                     return (
                     <div className="hd-msg flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
