@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
 import { AppLayout } from '@/components/layout/app-layout'
+import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { ResumoOperacional } from '@/components/help-desk/resumo-operacional'
-import { FinalizarAtendimentoModal } from '@/components/help-desk/finalizar-atendimento-modal'
 import { InteracaoComposer, type ComposerHandle, type MacroItem } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
@@ -22,16 +23,17 @@ import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/compon
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
 import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, type LucideIcon } from 'lucide-react'
-import { MesclarModal } from '@/components/help-desk/mesclar-modal'
-import { TicketDetailsModal } from '@/components/help-desk/ticket-details-modal'
-import { SlaDetailsModal } from '@/components/help-desk/sla-details-modal'
-import { ApontamentosModal } from '@/components/help-desk/apontamentos-modal'
-import { CloneTicketModal } from '@/components/help-desk/clone-ticket-modal'
-import { ScheduleReopenModal } from '@/components/help-desk/schedule-reopen-modal'
-import { ReportOptionsModal } from '@/components/help-desk/report-options-modal'
-import { SendEmailModal } from '@/components/help-desk/send-email-modal'
-import { AgendarReuniaoModal } from '@/components/help-desk/agendar-reuniao-modal'
-import { ReunioesCard } from '@/components/help-desk/reunioes-card'
+// Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
+const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
+const MesclarModal = dynamic(() => import('@/components/help-desk/mesclar-modal').then(m => m.MesclarModal), { ssr: false })
+const TicketDetailsModal = dynamic(() => import('@/components/help-desk/ticket-details-modal').then(m => m.TicketDetailsModal), { ssr: false })
+const SlaDetailsModal = dynamic(() => import('@/components/help-desk/sla-details-modal').then(m => m.SlaDetailsModal), { ssr: false })
+const ApontamentosModal = dynamic(() => import('@/components/help-desk/apontamentos-modal').then(m => m.ApontamentosModal), { ssr: false })
+const CloneTicketModal = dynamic(() => import('@/components/help-desk/clone-ticket-modal').then(m => m.CloneTicketModal), { ssr: false })
+const ScheduleReopenModal = dynamic(() => import('@/components/help-desk/schedule-reopen-modal').then(m => m.ScheduleReopenModal), { ssr: false })
+const ReportOptionsModal = dynamic(() => import('@/components/help-desk/report-options-modal').then(m => m.ReportOptionsModal), { ssr: false })
+const SendEmailModal = dynamic(() => import('@/components/help-desk/send-email-modal').then(m => m.SendEmailModal), { ssr: false })
+const AgendarReuniaoModal = dynamic(() => import('@/components/help-desk/agendar-reuniao-modal').then(m => m.AgendarReuniaoModal), { ssr: false })
 
 interface Ref { id: number; name: string; email?: string | null; type?: string | null }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean; allows_scheduling?: boolean }
