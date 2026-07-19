@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { cachedGet } from '@/lib/cached-api'
 import { Bell, X, ArrowRight, BarChart3, Megaphone } from 'lucide-react'
 import { PollCard, type Poll } from '@/components/notifications/poll-card'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -32,9 +33,10 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null)
 
   const load = useCallback(() => {
-    api.get<{ data: { notifications: Notif[] } }>('/notifications').then(r => setItems(r?.data?.notifications ?? [])).catch(() => {})
-    api.get<{ data: ActionItem[] }>('/notifications/actions').then(r => setActions(r?.data ?? [])).catch(() => {})
-    api.get<{ data: Badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
+    // cachedGet (TTL 40s < POLL 45s): navegação reusa o dado recente; o poll ainda atualiza.
+    cachedGet<{ data: { notifications: Notif[] } }>('/notifications').then(r => setItems(r?.data?.notifications ?? [])).catch(() => {})
+    cachedGet<{ data: ActionItem[] }>('/notifications/actions').then(r => setActions(r?.data ?? [])).catch(() => {})
+    cachedGet<{ data: Badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
   }, [])
 
   useEffect(() => {

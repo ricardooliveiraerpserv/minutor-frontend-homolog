@@ -63,6 +63,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
+import { cachedGet } from '@/lib/cached-api'
 import { AuthedImg } from '@/components/ui/authed-img'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -629,7 +630,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, critical: false })
   useEffect(() => {
     if (isCliente) return
-    const fetchBadges = () => api.get<{ data: typeof badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
+    const fetchBadges = () => cachedGet<{ data: typeof badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {}) // compartilha cache com o sino de notificações (dedup /me/badges)
     fetchBadges()
     const t = setInterval(fetchBadges, 30000)
     const onFocus = () => fetchBadges()
