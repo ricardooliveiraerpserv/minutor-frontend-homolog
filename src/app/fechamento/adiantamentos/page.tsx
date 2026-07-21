@@ -35,6 +35,9 @@ interface Adiantamento {
   criado_por: string | null
   created_at: string | null
   parcelas: Parcela[]
+  parcelas_pagas: number
+  parcelas_restantes: number
+  encerrado: boolean
 }
 
 interface Benef { id: number; nome: string }
@@ -67,6 +70,7 @@ function gerarParcelas(total: number, n: number, startYM: string): Parcela[] {
 
 export default function AdiantamentosPage() {
   const [lista, setLista] = useState<Adiantamento[]>([])
+  const [aba, setAba] = useState<'ativos' | 'encerrados'>('ativos')
   const [loading, setLoading] = useState(true)
   const [benef, setBenef] = useState<{ consultores: Benef[]; parceiros: Benef[] }>({ consultores: [], parceiros: [] })
 
@@ -202,6 +206,10 @@ export default function AdiantamentosPage() {
   }, { onError: e => toast.error(apiMessage(e, 'Erro ao excluir')) })
   const excluir = (a: Adiantamento) => excluirAction.run(a)
 
+  const ativos = lista.filter(a => !a.encerrado)
+  const encerrados = lista.filter(a => a.encerrado)
+  const listaFiltrada = aba === 'encerrados' ? encerrados : ativos
+
   return (
     <AppLayout title="Adiantamentos e Empréstimos">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
@@ -218,11 +226,20 @@ export default function AdiantamentosPage() {
           <Button variant="primary" size="sm" icon={Plus} onClick={openNovo}>Incluir adiantamento ou empréstimo</Button>
         </div>
 
+        <div className="px-4 md:px-6 pt-4 flex items-center gap-1">
+          {([['ativos', 'Ativos', ativos.length], ['encerrados', 'Encerrados', encerrados.length]] as const).map(([k, label, n]) => (
+            <button key={k} type="button" onClick={() => setAba(k)}
+              className="flex items-center gap-2" style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, fontWeight: aba === k ? 600 : 400, background: aba === k ? 'var(--primary-soft)' : 'transparent', color: aba === k ? 'var(--primary)' : 'var(--text-muted)', border: 'none', cursor: 'pointer' }}>
+              {label} <span style={{ fontSize: 11, background: 'var(--surface-sunken)', borderRadius: 999, padding: '1px 8px' }}>{n}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="flex-1 overflow-auto p-4 md:p-6">
           {loading ? <SkeletonTable rows={6} cols={6} /> :
-            lista.length === 0 ? (
-              <EmptyState icon={Banknote} title="Nenhum adiantamento"
-                description="Cadastre um adiantamento para colaborador ou parceiro — as parcelas entram no fechamento." />
+            listaFiltrada.length === 0 ? (
+              <EmptyState icon={Banknote} title={aba === 'encerrados' ? 'Nenhum encerrado' : 'Nenhum adiantamento ativo'}
+                description={aba === 'encerrados' ? 'Adiantamentos/empréstimos totalmente quitados aparecem aqui.' : 'Cadastre um adiantamento para colaborador ou parceiro — as parcelas entram no fechamento.'} />
             ) : (
               <Table>
                 <Thead>
@@ -233,15 +250,17 @@ export default function AdiantamentosPage() {
                     <Th right>Valor total</Th>
                     <Th>Feito em</Th>
                     <Th>Parcelas</Th>
+                    <Th>Progresso</Th>
                     <Th>Período</Th>
                     <Th>Descrição</Th>
                     <Th right>Ações</Th>
                   </tr>
                 </Thead>
                 <Tbody>
-                  {lista.map(a => {
+                  {listaFiltrada.map(a => {
                     const ult = a.parcelas[a.parcelas.length - 1]
                     const isEmp = a.tipo === 'emprestimo'
+                    const pct = a.num_parcelas > 0 ? Math.round((a.parcelas_pagas / a.num_parcelas) * 100) : 0
                     return (
                       <Tr key={a.id}>
                         <Td className="text-sm font-medium">{a.beneficiario_nome}</Td>
@@ -263,6 +282,20 @@ export default function AdiantamentosPage() {
                         <Td right className="tabular-nums text-sm font-semibold">{formatBRL(a.valor_total)}</Td>
                         <Td className="text-xs" muted>{a.data_realizado ? fmtComp(a.data_realizado.slice(0, 7)) : '—'}</Td>
                         <Td className="text-xs" muted>{a.num_parcelas}x</Td>
+                        <Td>
+                          {a.encerrado ? (
+                            <Badge variant="success">Quitado</Badge>
+                          ) : (
+                            <div style={{ minWidth: 120 }}>
+                              <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                                <span><b style={{ color: 'var(--success)' }}>{a.parcelas_pagas}</b> pagas · <b style={{ color: 'var(--warning)' }}>{a.parcelas_restantes}</b> faltam</span>
+                              </div>
+                              <div style={{ height: 5, borderRadius: 999, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: 'var(--success)' }} />
+                              </div>
+                            </div>
+                          )}
+                        </Td>
                         <Td className="text-xs" muted>
                           {fmtComp(a.primeira_competencia)}{ult ? ` — ${fmtComp(ult.year_month)}` : ''}
                         </Td>
