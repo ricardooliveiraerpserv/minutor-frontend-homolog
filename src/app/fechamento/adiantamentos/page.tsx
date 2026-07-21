@@ -37,6 +37,8 @@ interface Adiantamento {
   parcelas: Parcela[]
   parcelas_pagas: number
   parcelas_restantes: number
+  valor_pago: number
+  valor_devido: number
   encerrado: boolean
 }
 
@@ -248,6 +250,7 @@ export default function AdiantamentosPage() {
                     <Th>Natureza</Th>
                     <Th>Perfil</Th>
                     <Th right>Valor total</Th>
+                    <Th right>Devido</Th>
                     <Th>Feito em</Th>
                     <Th>Parcelas</Th>
                     <Th>Progresso</Th>
@@ -280,6 +283,7 @@ export default function AdiantamentosPage() {
                           </Badge>
                         </Td>
                         <Td right className="tabular-nums text-sm font-semibold">{formatBRL(a.valor_total)}</Td>
+                        <Td right className="tabular-nums text-sm font-semibold" style={{ color: a.valor_devido > 0 ? 'var(--warning)' : 'var(--success)' }}>{formatBRL(a.valor_devido)}</Td>
                         <Td className="text-xs" muted>{a.data_realizado ? fmtComp(a.data_realizado.slice(0, 7)) : '—'}</Td>
                         <Td className="text-xs" muted>{a.num_parcelas}x</Td>
                         <Td>
