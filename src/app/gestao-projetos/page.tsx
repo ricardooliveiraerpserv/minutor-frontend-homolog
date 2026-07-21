@@ -1569,7 +1569,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         </button>
                       )}
                     </div>
-                    <input type="number" value={form.sold_hours} onChange={e => {
+                    {/* Com aporte: o campo MOSTRA o total (contratadas + aporte), read-only — não altera o
+                        sold_hours gravado (que segue = inicial). Sem aporte: editável normal. */}
+                    <input type="number" value={aporteHrs > 0 ? totalComAporte : form.sold_hours} readOnly={aporteHrs > 0}
+                      title={aporteHrs > 0 ? 'Total = contratadas iniciais + aporte' : undefined}
+                      onChange={e => {
                       const hrs = e.target.value
                       const hr = Number(form.hourly_rate)
                       setForm(prev => ({
@@ -1577,10 +1581,12 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         sold_hours: hrs,
                         project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
                       }))
-                    }} style={iStyle} placeholder="0" step="1" />
-                    <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
-                      {contratadasNum}h contratadas + {aporteHrs}h aporte = <strong style={{ color: 'var(--text)' }}>{totalComAporte}h</strong>
-                    </p>
+                    }} style={aporteHrs > 0 ? { ...iStyle, opacity: 0.7, cursor: 'default' } : iStyle} placeholder="0" step="1" />
+                    {aporteHrs > 0 && (
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                        inicial: <strong style={{ color: 'var(--text)' }}>{contratadasNum}h</strong> contratadas + {aporteHrs}h aporte
+                      </p>
+                    )}
                   </div>
                 )}
                 {showApontaveis && (
