@@ -17,6 +17,10 @@ interface MyProject {
   sold_hours?: number | string | null
   coordination_hours?: number | string | null
   consumed_hours?: number | string | null
+  // Horas DO CONSULTOR neste projeto (backend, modo activity_allocated): alocadas a ele e consumidas
+  // por ele. É o que "Meus Projetos" deve mostrar — não o total do projeto.
+  my_allocated_hours?: number | string | null
+  my_consumed_hours?: number | string | null
 }
 
 function n(v: unknown): number {
@@ -61,8 +65,10 @@ export default function MeusProjetosPage() {
   }, [projects, q, clientId])
 
   const metrics = (p: MyProject) => {
-    const pool = cronogramaPoolHours(p)
-    const consumed = n(p.consumed_hours)
+    // Perfil do consultor: mostra as horas DELE (alocadas/consumidas), com fallback pro total do
+    // projeto se o backend não mandar os campos por consultor (compat).
+    const pool = p.my_allocated_hours != null ? n(p.my_allocated_hours) : cronogramaPoolHours(p)
+    const consumed = p.my_consumed_hours != null ? n(p.my_consumed_hours) : n(p.consumed_hours)
     const pct = pool > 0 ? Math.min(100, Math.round((consumed / pool) * 100)) : 0
     return { pool, consumed, pct }
   }
