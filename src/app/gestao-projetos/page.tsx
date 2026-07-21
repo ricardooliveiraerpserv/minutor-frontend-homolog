@@ -1162,11 +1162,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       toast.error('Horas Apontáveis obrigatórias.')
       return
     }
-    // Horas apontáveis podem chegar até CONTRATADAS + APORTE (hour_contributions somam com as contratadas).
-    const aporteHrsSave = Math.max(0, Number((d as any).total_available_hours ?? d.sold_hours ?? 0) - Number(d.sold_hours ?? 0))
-    const maxApontSave = Math.round((Number(form.sold_hours || 0) + aporteHrsSave) * 100) / 100
-    if (!editIsBhMensal && form.coordination_hours !== '' && form.sold_hours !== '' && Number(form.coordination_hours) > maxApontSave) {
-      toast.error(`Horas apontáveis não podem exceder as horas disponíveis (${maxApontSave}h${aporteHrsSave > 0 ? ' = contratadas + aporte' : ''}).`)
+    // Horas de coordenação não podem exceder as horas vendidas (contratadas).
+    if (!editIsBhMensal && form.coordination_hours !== '' && form.sold_hours !== '' && Number(form.coordination_hours) > Number(form.sold_hours)) {
+      toast.error(`Horas de coordenação não podem ser maiores que as horas vendidas (${form.sold_hours}h).`)
       return
     }
     setSaving(true)
@@ -1581,7 +1579,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                       }))
                     }} style={iStyle} placeholder="0" step="1" />
                     <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
-                      {contratadasNum}h contratadas{aporteHrs > 0 ? ` + ${aporteHrs}h aporte` : ''} = <strong style={{ color: 'var(--text)' }}>{totalComAporte}h</strong> apontáveis
+                      {contratadasNum}h contratadas + {aporteHrs}h aporte = <strong style={{ color: 'var(--text)' }}>{totalComAporte}h</strong>
                     </p>
                   </div>
                 )}
@@ -1632,9 +1630,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 {showApontaveis && (
                   <div>
                     <label style={lStyle}>Horas Apontáveis <span style={{ color: 'var(--danger-border)' }}>*</span></label>
-                    <input type="number" required value={form.coordination_hours} onChange={setF('coordination_hours')} style={iStyle} placeholder="0" step="0.5" min="0" max={totalComAporte || undefined} />
-                    {form.coordination_hours !== '' && form.sold_hours !== '' && Number(form.coordination_hours) > totalComAporte && (
-                      <p className="text-[10px] mt-1" style={{ color: 'var(--danger-border)' }}>Não pode exceder as horas disponíveis ({totalComAporte}h{aporteHrs > 0 ? ' = contratadas + aporte' : ''}).</p>
+                    <input type="number" required value={form.coordination_hours} onChange={setF('coordination_hours')} style={iStyle} placeholder="0" step="0.5" min="0" max={form.sold_hours || undefined} />
+                    {form.coordination_hours !== '' && form.sold_hours !== '' && Number(form.coordination_hours) > Number(form.sold_hours) && (
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--danger-border)' }}>Não pode exceder as horas vendidas ({form.sold_hours}h).</p>
                     )}
                   </div>
                 )}
