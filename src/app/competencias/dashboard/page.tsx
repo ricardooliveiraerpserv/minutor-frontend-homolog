@@ -7,7 +7,8 @@ import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
-import { ClipboardList, Users, TrendingUp, TrendingDown, Filter, ChevronRight, AlertTriangle, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { ClipboardList, Users, TrendingUp, TrendingDown, Filter, ChevronRight, AlertTriangle, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { useConfirm } from '@/components/ui/use-confirm'
 
 interface SkillRow { skill_id: number; name: string; category: string; avg_weight: number; answers: number; with_knowledge_pct: number }
 interface Respondent { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; partner_id: string; partner_name: string | null; empresa: string | null; valor: string | null; last_at: string; top_weight: number | null; top_level: string | null; matches: number | null }
@@ -87,6 +88,7 @@ export default function DashboardCompetenciasPage() {
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkValue, setBulkValue] = useState('')
+  const { confirm, confirmDialog } = useConfirm()
   const [sort, setSort] = useState<Sort>({ key: '', dir: 1 })
   const clickSort = (k: string) => setSort(s => s.key === k ? { key: k, dir: (s.dir === 1 ? -1 : 1) } : { key: k, dir: 1 })
 
@@ -130,6 +132,27 @@ export default function DashboardCompetenciasPage() {
       toast.success(`${res.updated} classificação(ões) alterada(s)`)
       setSelected(new Set()); setBulkValue(''); load()
     } catch (e: unknown) { toast.error(apiMessage(e, 'Erro na alteração em massa')) }
+  }
+
+  async function deleteOne(id: number, name: string) {
+    if (!(await confirm({ title: 'Excluir usuário', message: <>Excluir <strong>{name}</strong> e todo o histórico de respostas (avaliações, convites)? Esta ação não pode ser desfeita.</>, danger: true, confirmLabel: 'Excluir' }))) return
+    try {
+      await api.delete(`/competencias/profissionais/${id}`)
+      toast.success('Usuário excluído')
+      setData(d => d ? { ...d, respondents: d.respondents.filter(r => r.id !== id), skill_rows: d.skill_rows.filter(r => r.respondent_id !== id) } : d)
+      setSelected(s => { const n = new Set(s); n.delete(id); return n })
+    } catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao excluir')) }
+  }
+
+  async function deleteBulk() {
+    const ids = [...selected]
+    if (!ids.length) return
+    if (!(await confirm({ title: 'Excluir selecionados', message: `Excluir ${ids.length} usuário(s) e todo o histórico de respostas? Esta ação não pode ser desfeita.`, danger: true, confirmLabel: `Excluir ${ids.length}` }))) return
+    try {
+      const res = await api.delete<{ deleted: number }>('/competencias/profissionais/bulk', { respondent_ids: ids })
+      toast.success(`${res.deleted} usuário(s) excluído(s)`)
+      setSelected(new Set()); load()
+    } catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao excluir em massa')) }
   }
 
   const currentListIds = (): number[] => !data ? [] : (detailed ? [...new Set(data.skill_rows.map(r => r.respondent_id))] : data.respondents.map(r => r.id))
@@ -205,6 +228,7 @@ export default function DashboardCompetenciasPage() {
                   {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <button className="ds-btn-primary" onClick={applyBulk}>Aplicar</button>
+                <button className="ds-btn-secondary flex items-center gap-1.5" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={deleteBulk}><Trash2 size={14} /> Excluir</button>
                 <button className="ds-btn-secondary" onClick={() => setSelected(new Set())}>Limpar</button>
               </div>
             )}
@@ -240,7 +264,12 @@ export default function DashboardCompetenciasPage() {
                             </select>
                           </td>
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{fmtValor(r.valor)}</td>
-                          <td className="py-2"><Link href={`/competencias/profissionais/${r.respondent_id}`}><ChevronRight size={15} style={{ color: 'var(--text-muted)' }} /></Link></td>
+                          <td className="py-2">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button type="button" onClick={() => deleteOne(r.respondent_id, r.name)} title="Excluir usuário" style={{ color: 'var(--text-light)', padding: 2, background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                              <Link href={`/competencias/profissionais/${r.respondent_id}`}><ChevronRight size={15} style={{ color: 'var(--text-muted)' }} /></Link>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -285,7 +314,12 @@ export default function DashboardCompetenciasPage() {
                           {filteredPersons && <td className="py-2 pr-3">{r.top_level ? <span className="ds-status-info" style={{ fontSize: 10 }}>{r.top_level}</span> : '—'}</td>}
                           {filteredPersons && <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{r.matches ?? '—'}</td>}
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmt(r.last_at)}</td>
-                          <td className="py-2"><Link href={`/competencias/profissionais/${r.id}`}><ChevronRight size={16} style={{ color: 'var(--text-muted)' }} /></Link></td>
+                          <td className="py-2">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button type="button" onClick={() => deleteOne(r.id, r.name)} title="Excluir usuário" style={{ color: 'var(--text-light)', padding: 2, background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                              <Link href={`/competencias/profissionais/${r.id}`}><ChevronRight size={16} style={{ color: 'var(--text-muted)' }} /></Link>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -296,6 +330,7 @@ export default function DashboardCompetenciasPage() {
           </div>
         </>)}
       </div>
+      {confirmDialog}
     </AppLayout>
   )
 }
