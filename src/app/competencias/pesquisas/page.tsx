@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { CompetenciasConsultaTabs } from '@/components/competencias/consulta-tabs'
 import { SectionLoader } from '@/components/ui/loading'
 import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -68,6 +69,7 @@ export default function PesquisasCompetenciasPage() {
   return (
     <AppLayout title="Pesquisas de Competências">
       <div className="space-y-4">
+        <CompetenciasConsultaTabs />
         <div className="flex items-center justify-between">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             {meta?.active_version
