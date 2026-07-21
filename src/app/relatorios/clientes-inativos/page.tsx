@@ -40,7 +40,6 @@ export default function ClientesInativosPage() {
   const [meses, setMeses] = useState(2)
   const [soMinutor, setSoMinutor] = useState(false)
   const [execFilter, setExecFilter] = useState<string[]>([])
-  const [mesesFilter, setMesesFilter] = useState<string[]>([])
   const [clienteFilter, setClienteFilter] = useState<string[]>([])
   const [sort, setSort] = useState<Sort>({ key: 'meses_inativo', dir: -1 })
   const clickSort = (k: string) => setSort(s => s.key === k ? { key: k, dir: (s.dir === 1 ? -1 : 1) } : { key: k, dir: 1 })
@@ -54,14 +53,12 @@ export default function ClientesInativosPage() {
 
   const all = data?.clientes ?? []
   const execOpts = useMemo(() => [...new Set(all.map(r => r.executivo).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(e => ({ id: e, name: e })), [all])
-  const mesesOpts = useMemo(() => [...new Set(all.map(r => r.meses_inativo))].sort((a, b) => b - a).map(m => ({ id: String(m), name: `${m} ${m === 1 ? 'mês' : 'meses'}` })), [all])
   const clienteOpts = useMemo(() => [...new Set(all.map(r => r.cliente))].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => ({ id: c, name: c })), [all])
 
   const rows = useMemo(() => {
     let r = all
     if (soMinutor) r = r.filter(x => x.no_minutor)
     if (execFilter.length) r = r.filter(x => x.executivo && execFilter.includes(x.executivo))
-    if (mesesFilter.length) r = r.filter(x => mesesFilter.includes(String(x.meses_inativo)))
     if (clienteFilter.length) r = r.filter(x => clienteFilter.includes(x.cliente))
     const acc: Record<string, (r: Row) => unknown> = {
       cliente: r => r.cliente, executivo: r => r.executivo, cnpj: r => r.cnpj,
@@ -70,7 +67,7 @@ export default function ClientesInativosPage() {
     }
     const f = acc[sort.key]
     return f ? [...r].sort((a, b) => cmp(f(a), f(b)) * sort.dir) : r
-  }, [all, soMinutor, execFilter, mesesFilter, clienteFilter, sort])
+  }, [all, soMinutor, execFilter, clienteFilter, sort])
 
   const potencial = useMemo(() => rows.reduce((s, r) => s + r.ultimo_valor, 0), [rows])
   const mesColor = (m: number) => m >= 6 ? 'var(--danger)' : m >= 3 ? 'var(--warning)' : 'var(--text)'
@@ -100,15 +97,11 @@ export default function ClientesInativosPage() {
             <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Executivo</div>
             <MultiSelect value={execFilter} onChange={setExecFilter} options={execOpts} placeholder="Todos os executivos" />
           </div>
-          <div style={{ minWidth: 160 }}>
-            <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Meses inativo</div>
-            <MultiSelect value={mesesFilter} onChange={setMesesFilter} options={mesesOpts} placeholder="Todos" />
-          </div>
           <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)', cursor: 'pointer', paddingBottom: 8 }}>
             <input type="checkbox" checked={soMinutor} onChange={e => setSoMinutor(e.target.checked)} /> Só clientes do Minutor
           </label>
-          {(execFilter.length > 0 || mesesFilter.length > 0 || clienteFilter.length > 0 || soMinutor) &&
-            <button type="button" onClick={() => { setExecFilter([]); setMesesFilter([]); setClienteFilter([]); setSoMinutor(false) }}
+          {(execFilter.length > 0 || clienteFilter.length > 0 || soMinutor) &&
+            <button type="button" onClick={() => { setExecFilter([]); setClienteFilter([]); setSoMinutor(false) }}
               style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', paddingBottom: 10 }}>limpar filtros</button>}
         </div>
 
