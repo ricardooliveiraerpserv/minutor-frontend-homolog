@@ -173,9 +173,9 @@ export default function PublicSkillsFormPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <header style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
         <div style={{ maxWidth: 820, margin: '0 auto', padding: '16px 20px' }} className="flex items-center gap-3">
-          <span style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid var(--border)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', borderRadius: 10, padding: '8px 14px', border: '1px solid var(--border)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ERPSERV" style={{ height: 26, width: 'auto', display: 'block' }} />
+            <img src="/logo.png" alt="ERPSERV" style={{ height: 46, width: 'auto', display: 'block' }} />
           </span>
           <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 12 }}>
             <div className="text-sm" style={{ fontWeight: 700, color: 'var(--text)' }}>{show?.survey.title ?? 'Banco de Competências'}</div>
