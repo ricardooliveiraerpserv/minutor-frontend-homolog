@@ -8,8 +8,7 @@ import {
   Info, Plus, Eye, EyeOff, Settings,
   Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, Activity, Bell,
 } from 'lucide-react'
-import { useProjectSchedule } from '@/hooks/use-project-schedule'
-import { useApiQuery } from '@/hooks/use-query'
+import { useProjectSchedule, type LastMovement } from '@/hooks/use-project-schedule'
 import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
@@ -76,6 +75,22 @@ function timeAgo(iso: string): string {
   return `há ${d} dia${d === 1 ? '' : 's'}`
 }
 
+// Rótulo por tipo de movimentação (apontamento OU evento de atividade).
+const MOV_COL_LABEL: Record<string, string> = {
+  backlog: 'A fazer', in_progress: 'Em andamento', review: 'Em revisão',
+  homologacao: 'Homologação', waiting_client: 'Aguardando cliente', blocked: 'Bloqueado', done: 'Concluído',
+}
+function fmtMovement(m: LastMovement): string {
+  const t = m.title ?? 'atividade'
+  switch (m.kind) {
+    case 'timesheet': return `Apontou +${Math.round(m.hours ?? 0)}h`
+    case 'delivery_completed': return `Concluiu ${t}`
+    case 'delivery_created': return `Criou ${t}`
+    case 'delivery_moved': return `Moveu ${t}${m.to ? ` → ${MOV_COL_LABEL[m.to] ?? m.to}` : ''}`
+    default: return 'Movimentou o cronograma'
+  }
+}
+
 // Mini card dos indicadores — ícone + rótulo em cima, valor embaixo, barra opcional.
 // NÃO trunca: rótulos curtos e quebra de linha se faltar largura (nunca "...").
 function MiniCard({ label, value, sub, tone = 'default', onClick, icon, bar }: {
@@ -126,14 +141,8 @@ function InternalCronogramaPage() {
 
   const view: ViewMode = normalizeView(searchParams.get('view')) ?? 'operacao'
 
-  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, loading, error, refetch } =
+  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
     useProjectSchedule(projectId)
-
-  // Último apontamento do projeto — "Última movimentação" (o projeto está parado?).
-  const { data: lastTsResp } = useApiQuery<{ items: Array<{ user?: { name?: string } | null; effort_minutes?: number; date: string }> }>(
-    Number.isFinite(projectId) ? `/timesheets?project_id=${projectId}&pageSize=1&order=-date,-created_at` : null
-  )
-  const lastTs = lastTsResp?.items?.[0]
 
   // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
   const saude = executiveSummary?.overall_risk === 'high'
@@ -378,14 +387,14 @@ function InternalCronogramaPage() {
           </div>
           <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Última movimentação</div>
-            {lastTs ? (
+            {lastMovement ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastTs.user?.name ?? '—'}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>Apontou +{Math.round((lastTs.effort_minutes ?? 0) / 60)}h</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(lastTs.date)}</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastMovement.user ?? '—'}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: lastMovement.kind === 'timesheet' ? 'var(--success)' : 'var(--primary)' }}>{fmtMovement(lastMovement)}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lastMovement.at ? timeAgo(lastMovement.at) : ''}</span>
               </div>
             ) : (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem apontamentos.</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem movimentações.</span>
             )}
           </div>
         </div>

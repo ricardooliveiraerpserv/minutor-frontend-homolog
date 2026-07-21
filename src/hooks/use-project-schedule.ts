@@ -49,6 +49,17 @@ export interface ScheduleResponse {
   team_load?: TeamLoadItem[]
   /** Etapas do cronograma (árvore plana com parent_stage_id). */
   stages: ScheduleStage[]
+  /** Última movimentação do projeto: apontamento OU evento de atividade (mover/concluir). */
+  last_movement?: LastMovement | null
+}
+
+export interface LastMovement {
+  kind: 'timesheet' | 'delivery_completed' | 'delivery_moved' | 'delivery_created'
+  user?: string | null
+  at?: string | null
+  hours?: number   // só timesheet
+  title?: string | null  // só eventos de atividade
+  to?: string | null     // só delivery_moved (coluna destino)
 }
 
 export interface ExecutiveSummary {
@@ -110,6 +121,7 @@ export function useProjectSchedule(projectId: number | null | undefined) {
     executive: data?.executive ?? null,
     alerts: data?.alerts ?? [],
     teamLoad: data?.team_load ?? [],
+    lastMovement: data?.last_movement ?? null,
     loading,
     error,
     refetch,
