@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, ClipboardList, Loader2, Paperclip, Check, X } from 'lucide-react'
+import { AlertTriangle, Loader2, Paperclip, Check, X } from 'lucide-react'
 
 interface ShowPayload {
   survey: { id: number; type: string; title: string; description: string | null; deadline: string | null }
@@ -172,11 +172,14 @@ export default function PublicSkillsFormPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <header style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <div style={{ maxWidth: 820, margin: '0 auto', padding: '16px 20px' }} className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><ClipboardList size={16} /></span>
-          <div>
+        <div style={{ maxWidth: 820, margin: '0 auto', padding: '16px 20px' }} className="flex items-center gap-3">
+          <span style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid var(--border)' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="ERPSERV" style={{ height: 26, width: 'auto', display: 'block' }} />
+          </span>
+          <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 12 }}>
             <div className="text-sm" style={{ fontWeight: 700, color: 'var(--text)' }}>{show?.survey.title ?? 'Banco de Competências'}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ERPSERV · Matriz de Conhecimento</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Matriz de Conhecimento</div>
           </div>
         </div>
       </header>
