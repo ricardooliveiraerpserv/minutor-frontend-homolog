@@ -133,6 +133,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/relatorios/contratos-sem-vencimento', 'administrativo'],
   ['/clientes', 'administrativo'],
   ['/partners', 'administrativo'],
+  ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
   ['/configuracoes', 'administrativo'],
   ['/users', 'administrativo'],
@@ -376,6 +377,17 @@ const NAV: NavEntry[] = [
           { label: 'Liberação de Visualização', href: '/liberacao-pipeline', icon: SlidersHorizontal },
         ],
       },
+    ],
+  },
+
+  // ── 🧠 Banco de Competências (matriz única, versionada) ──
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'banco_competencias', label: 'Banco de Competências', icon: Star,
+    items: [
+      { label: 'Consulta de Competências', href: '/competencias/dashboard',   icon: Search },
+      { label: 'Pesquisas de Competências', href: '/competencias/pesquisas',   icon: ListTodo },
+      { label: 'Contratação / Onboarding', href: '/competencias/contratacao',  icon: UserPlus },
+      { label: 'Matriz & Formulários',     href: '/competencias/matriz',       icon: GitBranch },
     ],
   },
 
