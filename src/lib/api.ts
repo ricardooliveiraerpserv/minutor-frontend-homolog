@@ -25,6 +25,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Mensagem amigável a partir de um erro desconhecido (ApiError/Error/fallback). */
+export function apiMessage(e: unknown, fallback = 'Ocorreu um erro'): string {
+  if (e instanceof ApiError) return e.message
+  if (e instanceof Error && e.message) return e.message
+  return fallback
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
