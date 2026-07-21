@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { CompetenciasConsultaTabs } from '@/components/competencias/consulta-tabs'
 import { SectionLoader } from '@/components/ui/loading'
 import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -138,6 +139,7 @@ export default function DashboardCompetenciasPage() {
   return (
     <AppLayout title="Consulta de Competências">
       <div className="space-y-4">
+        <CompetenciasConsultaTabs />
         {/* Filtros */}
         <div className="ds-card ds-card-pad space-y-3">
           <div className="flex items-center gap-2"><Filter size={15} style={{ color: 'var(--primary)' }} /><span className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>Filtros</span></div>

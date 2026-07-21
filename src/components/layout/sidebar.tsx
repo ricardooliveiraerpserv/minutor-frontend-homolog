@@ -385,7 +385,6 @@ const NAV: NavEntry[] = [
     type: 'group', module: 'administrativo', catalogKey: 'banco_competencias', label: 'Banco de Competências', icon: Star,
     items: [
       { label: 'Consulta de Competências', href: '/competencias/dashboard',   icon: Search },
-      { label: 'Pesquisas de Competências', href: '/competencias/pesquisas',   icon: ListTodo },
       { label: 'Contratação / Onboarding', href: '/competencias/contratacao',  icon: UserPlus },
       { label: 'Matriz & Formulários',     href: '/competencias/matriz',       icon: GitBranch },
     ],
