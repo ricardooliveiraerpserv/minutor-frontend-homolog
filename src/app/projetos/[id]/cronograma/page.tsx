@@ -378,7 +378,9 @@ function InternalCronogramaPage() {
                       <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
                       </div>
-                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(actual)}h / {Math.round(planned)}h</span>
+                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        Disp. <strong style={{ color: 'var(--text)' }}>{Math.round(planned)}h</strong> · Apont. <strong style={{ color: 'var(--text)' }}>{Math.round(actual)}h</strong> · Saldo <strong style={{ color: (planned - actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{Math.round(planned - actual)}h</strong>
+                      </span>
                     </div>
                   )
                 })}
