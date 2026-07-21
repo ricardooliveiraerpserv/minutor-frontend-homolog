@@ -65,12 +65,16 @@ export default function MeusProjetosPage() {
   }, [projects, q, clientId])
 
   const metrics = (p: MyProject) => {
-    // Perfil do consultor: mostra as horas DELE (alocadas/consumidas), com fallback pro total do
-    // projeto se o backend não mandar os campos por consultor (compat).
-    const pool = p.my_allocated_hours != null ? n(p.my_allocated_hours) : cronogramaPoolHours(p)
-    const consumed = p.my_consumed_hours != null ? n(p.my_consumed_hours) : n(p.consumed_hours)
-    const pct = pool > 0 ? Math.min(100, Math.round((consumed / pool) * 100)) : 0
-    return { pool, consumed, pct }
+    // Perfil do consultor: horas DELE neste projeto.
+    //  disponibilizadas = horas das atividades onde ele é responsável (backend my_allocated_hours)
+    //  apontadas        = horas que ele apontou (my_consumed_hours)
+    //  saldo            = disponibilizadas − apontadas
+    // Fallback pro total do projeto se o backend não mandar os campos por consultor (compat).
+    const available = p.my_allocated_hours != null ? n(p.my_allocated_hours) : cronogramaPoolHours(p)
+    const logged = p.my_consumed_hours != null ? n(p.my_consumed_hours) : n(p.consumed_hours)
+    const saldo = Math.round((available - logged) * 100) / 100
+    const pct = available > 0 ? Math.min(100, Math.round((logged / available) * 100)) : 0
+    return { available, logged, saldo, pct, pool: available, consumed: logged }
   }
 
   return (
@@ -156,7 +160,7 @@ export default function MeusProjetosPage() {
           /* Visão em LISTA */
           <div className="ds-card" style={{ overflow: 'hidden', padding: 0 }}>
             {filtered.map((p, i) => {
-              const { pool, consumed, pct } = metrics(p)
+              const { available, logged, saldo } = metrics(p)
               return (
                 <Link
                   key={p.id}
@@ -178,8 +182,10 @@ export default function MeusProjetosPage() {
                       {p.service_type?.name && <span className="ds-status ds-status-info" style={{ fontSize: 10, flexShrink: 0 }}>{p.service_type.name}</span>}
                     </div>
                   </div>
-                  <div style={{ flex: '1 1 160px', minWidth: 120, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                    <span style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(consumed)}</span> / {fmtHours(pool)} · {pct}%
+                  <div style={{ flex: '1 1 300px', minWidth: 210, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', display: 'flex', gap: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <span title="Horas disponibilizadas a você (atividades sob sua responsabilidade)">Disponibilizadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(available)}</strong></span>
+                    <span title="Horas que você apontou neste projeto">Apontadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(logged)}</strong></span>
+                    <span title="Saldo = disponibilizadas − apontadas">Saldo <strong style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtHours(saldo)}</strong></span>
                   </div>
                   <ArrowRight size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                 </Link>
