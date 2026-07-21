@@ -47,7 +47,7 @@ export default function AtividadeClientesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setData(await api.get<Resp>(`/relatorios/clientes-inativos?meses=${meses}`)) }
+    try { setData(await api.get<Resp>(`/relatorios/atividade-clientes?meses=${meses}`)) }
     catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao carregar')) } finally { setLoading(false) }
   }, [meses])
   useEffect(() => { load() }, [load])
