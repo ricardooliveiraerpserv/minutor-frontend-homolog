@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import { X, ExternalLink, Layers } from 'lucide-react'
+import { X, ExternalLink, Layers, Eye } from 'lucide-react'
 import { useProjectStages } from '@/hooks/use-project-stages'
 import { useApiQuery } from '@/hooks/use-query'
 import { useAuth } from '@/hooks/use-auth'
@@ -12,6 +12,8 @@ interface Props {
   projectName: string
   customerName?: string | null
   onClose: () => void
+  /** "Visualizar card" — abre o modal do projeto (o mesmo card usado em produção). */
+  onViewCard?: () => void
 }
 
 function n(v: unknown): number {
@@ -28,7 +30,7 @@ function formatHours(v: number): string {
  * Não duplica a lista detalhada de etapas — só dá pulo rápido pro workspace.
  */
 export function ProjectStagesSidePanel({
-  projectId, projectName, customerName, onClose,
+  projectId, projectName, customerName, onClose, onViewCard,
 }: Props) {
   const { user } = useAuth()
   const isClient = user?.type === 'cliente'
@@ -132,17 +134,33 @@ export function ProjectStagesSidePanel({
             </div>
           </div>
 
-          <Link
-            href={`/projetos/${projectId}/cronograma?from=pipeline`}
-            className="ds-btn-primary"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontSize: 13, padding: '10px 16px', textDecoration: 'none',
-              width: '100%', justifyContent: 'center',
-            }}
-          >
-            <ExternalLink size={14} /> Abrir Workspace
-          </Link>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {onViewCard && (
+              <button
+                type="button"
+                onClick={onViewCard}
+                className="ds-btn-secondary"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 13, padding: '10px 16px',
+                  width: '100%', justifyContent: 'center', cursor: 'pointer',
+                }}
+              >
+                <Eye size={14} /> Visualizar card
+              </button>
+            )}
+            <Link
+              href={`/projetos/${projectId}/cronograma?from=pipeline`}
+              className="ds-btn-primary"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: 13, padding: '10px 16px', textDecoration: 'none',
+                width: '100%', justifyContent: 'center',
+              }}
+            >
+              <ExternalLink size={14} /> Gestão de projetos
+            </Link>
+          </div>
 
           <p style={{
             marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,

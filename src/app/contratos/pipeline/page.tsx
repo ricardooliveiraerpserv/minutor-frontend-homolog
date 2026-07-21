@@ -5647,6 +5647,7 @@ function KanbanContent() {
           projectName={stagesPanelProject.project_name}
           customerName={stagesPanelProject.customer_name}
           onClose={() => setStagesPanelProject(null)}
+          onViewCard={() => { setSelectedProject(stagesPanelProject); setStagesPanelProject(null) }}
         />
       )}
       {selectedRequest && (
