@@ -139,7 +139,9 @@ function InternalCronogramaPage() {
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
 
-  const view: ViewMode = normalizeView(searchParams.get('view')) ?? 'operacao'
+  // Consultor só tem acesso à view Operação (kanban da própria atividade) — as outras (Planejamento,
+  // Linha do Tempo) são de gestão. Força operacao independentemente de ?view= / localStorage.
+  const view: ViewMode = isConsultor ? 'operacao' : (normalizeView(searchParams.get('view')) ?? 'operacao')
 
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
     useProjectSchedule(projectId)
@@ -181,6 +183,7 @@ function InternalCronogramaPage() {
   }, [projectId])
 
   function setView(v: ViewMode) {
+    if (isConsultor && v !== 'operacao') return // consultor fica preso na Operação
     const sp = new URLSearchParams(searchParams.toString())
     sp.set('view', v)
     router.replace(`?${sp.toString()}`)
@@ -413,7 +416,7 @@ function InternalCronogramaPage() {
         paddingTop: 8,
         paddingBottom: 8,
       }}>
-        <SegmentedControl current={view} onChange={setView} counts={{
+        <SegmentedControl current={view} onChange={setView} onlyOperacao={isConsultor} counts={{
           operacao: counts.inProgressCount,
           planejamento: counts.conflictsCount,
           timeline: counts.overdueCount,
@@ -629,17 +632,20 @@ function InternalCronogramaPage() {
 type SegmentedCounts = Record<ViewMode, number>
 
 function SegmentedControl({
-  current, onChange, counts,
+  current, onChange, counts, onlyOperacao = false,
 }: {
   current: ViewMode
   onChange: (v: ViewMode) => void
   counts: SegmentedCounts
+  onlyOperacao?: boolean
 }) {
-  const opts: { value: ViewMode; label: string; hintBase: string; countSuffix: (n: number) => string; countTone: 'primary' | 'warning' | 'danger' }[] = [
+  const allOpts: { value: ViewMode; label: string; hintBase: string; countSuffix: (n: number) => string; countTone: 'primary' | 'warning' | 'danger' }[] = [
     { value: 'planejamento', label: 'Planejamento',   hintBase: 'Atalho: 1', countSuffix: n => `${n} conflito${n === 1 ? '' : 's'}`, countTone: 'warning' },
     { value: 'timeline',     label: 'Linha do Tempo', hintBase: 'Atalho: 2', countSuffix: n => `${n} atrasada${n === 1 ? '' : 's'}`, countTone: 'danger' },
     { value: 'operacao',     label: 'Operação',       hintBase: 'Atalho: 3', countSuffix: n => `${n} em execução`,                  countTone: 'primary' },
   ]
+  // Consultor: só a Operação (as outras views são de gestão).
+  const opts = onlyOperacao ? allOpts.filter(o => o.value === 'operacao') : allOpts
   return (
     <div style={{
       display: 'inline-flex',

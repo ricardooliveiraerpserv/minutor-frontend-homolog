@@ -218,8 +218,8 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
                                 isDragging={snap.isDragging}
                                 onClick={() => setSelected(d)}
                                 predecessorTitle={d.depends_on_delivery_id ? titleById[d.depends_on_delivery_id] : undefined}
-                                columns={canEdit ? COLUMNS : undefined}
-                                onMove={canEdit ? (status => moveTo(d, status as DeliveryStatus, byColumn[status as DeliveryStatus]?.length ?? 0)) : undefined}
+                                columns={canDrag(d) ? COLUMNS : undefined}
+                                onMove={canDrag(d) ? (status => moveTo(d, status as DeliveryStatus, byColumn[status as DeliveryStatus]?.length ?? 0)) : undefined}
                               />
                             </div>
                           )}

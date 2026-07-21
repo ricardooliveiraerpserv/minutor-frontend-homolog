@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useApiQuery } from '@/hooks/use-query'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
+import { useAuth } from '@/hooks/use-auth'
 import { RowMenu, type RowMenuItem } from '@/components/ui/row-menu'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
@@ -62,12 +63,12 @@ function Kpi({ label, value, sub, tone = 'default' }: { label: string; value: st
 }
 
 // ─── SegmentedControl ────────────────────────────────────────────────────────────
-function Seg({ current, onChange }: { current: View; onChange: (v: View) => void }) {
+function Seg({ current, onChange, hideAprovacoes = false }: { current: View; onChange: (v: View) => void; hideAprovacoes?: boolean }) {
   const items: { id: View; label: string; icon: React.ReactNode }[] = [
     { id: 'apontamentos', label: 'Apontamentos', icon: <Clock size={13} /> },
     { id: 'aprovacoes', label: 'Aprovações', icon: <ClipboardCheck size={13} /> },
     { id: 'despesas', label: 'Despesas', icon: <Receipt size={13} /> },
-  ]
+  ].filter(it => !(hideAprovacoes && it.id === 'aprovacoes')) // consultor não vê Aprovações
   return (
     <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
       {items.map(it => {
@@ -488,17 +489,21 @@ export default function GestaoOperacionalPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = Number(params.id)
-  const view = normalizeView(searchParams.get('view'))
+  const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
+  const rawView = normalizeView(searchParams.get('view'))
+  // Consultor não acessa Aprovações — cai em Apontamentos (mesmo entrando pela URL ?view=aprovacoes).
+  const view = isConsultor && rawView === 'aprovacoes' ? 'apontamentos' : rawView
   const setView = (v: View) => router.replace(`/projetos/${projectId}/gestao-operacional?view=${v}`)
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
-        <Seg current={view} onChange={setView} />
+        <Seg current={view} onChange={setView} hideAprovacoes={isConsultor} />
         <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Visão contextual deste projeto — reflete nas telas globais.</span>
       </div>
       {view === 'apontamentos' && <ActivityGroups projectId={projectId} mode="view" />}
-      {view === 'aprovacoes' && <AprovacoesView projectId={projectId} />}
+      {view === 'aprovacoes' && !isConsultor && <AprovacoesView projectId={projectId} />}
       {view === 'despesas' && <DespesasView projectId={projectId} />}
     </div>
   )
