@@ -88,6 +88,7 @@ export default function DashboardCompetenciasPage() {
 
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkValue, setBulkValue] = useState('')
+  const [editValor, setEditValor] = useState<number | null>(null)
   const { confirm, confirmDialog } = useConfirm()
   const [sort, setSort] = useState<Sort>({ key: '', dir: 1 })
   const clickSort = (k: string) => setSort(s => s.key === k ? { key: k, dir: (s.dir === 1 ? -1 : 1) } : { key: k, dir: 1 })
@@ -132,6 +133,18 @@ export default function DashboardCompetenciasPage() {
       toast.success(`${res.updated} classificação(ões) alterada(s)`)
       setSelected(new Set()); setBulkValue(''); load()
     } catch (e: unknown) { toast.error(apiMessage(e, 'Erro na alteração em massa')) }
+  }
+
+  async function saveValor(id: number, raw: string) {
+    setEditValor(null)
+    const val = raw.trim() || null
+    setData(d => d ? {
+      ...d,
+      respondents: d.respondents.map(r => r.id === id ? { ...r, valor: val } : r),
+      skill_rows: d.skill_rows.map(r => r.respondent_id === id ? { ...r, valor: val } : r),
+    } : d)
+    try { await api.put(`/competencias/profissionais/${id}/valor`, { valor: val }) }
+    catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao salvar valor')); load() }
   }
 
   async function deleteOne(id: number, name: string) {
@@ -263,7 +276,13 @@ export default function DashboardCompetenciasPage() {
                               {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                             </select>
                           </td>
-                          <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{fmtValor(r.valor)}</td>
+                          <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>
+                            {editValor === r.respondent_id
+                              ? <input autoFocus className="ds-input" defaultValue={r.valor ?? ''} style={{ height: 28, width: 130, fontSize: 12, padding: '2px 6px' }}
+                                  onBlur={e => saveValor(r.respondent_id, e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); else if (e.key === 'Escape') setEditValor(null) }} />
+                              : <span onClick={() => setEditValor(r.respondent_id)} style={{ cursor: 'pointer', borderBottom: '1px dashed var(--border)' }} title="Clique para editar o valor">{fmtValor(r.valor)}</span>}
+                          </td>
                           <td className="py-2">
                             <div className="flex items-center gap-1.5 justify-end">
                               <button type="button" onClick={() => deleteOne(r.respondent_id, r.name)} title="Excluir usuário" style={{ color: 'var(--text-light)', padding: 2, background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
@@ -310,7 +329,13 @@ export default function DashboardCompetenciasPage() {
                               </select>
                             ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                           </td>
-                          <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{fmtValor(r.valor)}</td>
+                          <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>
+                            {editValor === r.id
+                              ? <input autoFocus className="ds-input" defaultValue={r.valor ?? ''} style={{ height: 28, width: 130, fontSize: 12, padding: '2px 6px' }}
+                                  onBlur={e => saveValor(r.id, e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); else if (e.key === 'Escape') setEditValor(null) }} />
+                              : <span onClick={() => setEditValor(r.id)} style={{ cursor: 'pointer', borderBottom: '1px dashed var(--border)' }} title="Clique para editar o valor">{fmtValor(r.valor)}</span>}
+                          </td>
                           {filteredPersons && <td className="py-2 pr-3">{r.top_level ? <span className="ds-status-info" style={{ fontSize: 10 }}>{r.top_level}</span> : '—'}</td>}
                           {filteredPersons && <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{r.matches ?? '—'}</td>}
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmt(r.last_at)}</td>
