@@ -1580,11 +1580,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
                       }))
                     }} style={iStyle} placeholder="0" step="1" />
-                    {aporteHrs > 0 && (
-                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
-                        {contratadasNum}h contratadas + {aporteHrs}h aporte = <strong style={{ color: 'var(--text)' }}>{totalComAporte}h</strong> apontáveis
-                      </p>
-                    )}
+                    <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                      {contratadasNum}h contratadas{aporteHrs > 0 ? ` + ${aporteHrs}h aporte` : ''} = <strong style={{ color: 'var(--text)' }}>{totalComAporte}h</strong> apontáveis
+                    </p>
                   </div>
                 )}
                 {showApontaveis && (
