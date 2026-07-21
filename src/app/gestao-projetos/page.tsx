@@ -1509,6 +1509,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 const editIsBhMensal = ctNameForm.includes('mensal')
                 const editIsMensalidade = ctNameForm === 'cloud' || ctNameForm === 'saas'
                 const showApontaveis = !isOnDemandForm && !editIsBhMensal && !editIsMensalidade
+                // Aporte de horas SOMA com as contratadas: campo mostra o total (read-only, computado —
+                // não altera o sold_hours gravado) e a legenda traz o valor inicial. Sem aporte: editável.
+                const aporteHrs = Math.max(0, Number((d as any).total_available_hours ?? d.sold_hours ?? 0) - Number(d.sold_hours ?? 0))
+                const contratadasNum = Number(form.sold_hours || 0)
+                const totalComAporte = Math.round((contratadasNum + aporteHrs) * 100) / 100
                 return (
               <>
               <div className="grid grid-cols-2 gap-3">
@@ -1557,7 +1562,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         </button>
                       )}
                     </div>
-                    <input type="number" value={form.sold_hours} onChange={e => {
+                    <input type="number" value={aporteHrs > 0 ? totalComAporte : form.sold_hours} readOnly={aporteHrs > 0}
+                      title={aporteHrs > 0 ? 'Total = contratadas iniciais + aporte' : undefined}
+                      onChange={e => {
                       const hrs = e.target.value
                       const hr = Number(form.hourly_rate)
                       setForm(prev => ({
@@ -1565,7 +1572,12 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         sold_hours: hrs,
                         project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
                       }))
-                    }} style={iStyle} placeholder="0" step="1" />
+                    }} style={aporteHrs > 0 ? { ...iStyle, opacity: 0.7, cursor: 'default' } : iStyle} placeholder="0" step="1" />
+                    {aporteHrs > 0 && (
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                        inicial: <strong style={{ color: 'var(--text)' }}>{contratadasNum}h</strong> contratadas + {aporteHrs}h aporte
+                      </p>
+                    )}
                   </div>
                 )}
                 {showApontaveis && (
