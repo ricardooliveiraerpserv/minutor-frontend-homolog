@@ -74,10 +74,10 @@ export default function AtividadeClientesPage() {
 
   const potencialInativos = useMemo(() => all.filter(r => !r.ativo).reduce((s, r) => s + r.ultimo_valor, 0), [all])
 
-  if (loading) return <AppLayout title="Atividade de Clientes"><div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div></AppLayout>
+  if (loading) return <AppLayout title="Status de Clientes"><div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div></AppLayout>
 
   return (
-    <AppLayout title="Atividade de Clientes">
+    <AppLayout title="Status de Clientes">
       <div className="space-y-4">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Todos os clientes com recebimento no Keruak. <span style={{ color: 'var(--success)', fontWeight: 600 }}>Ativo</span> = recebeu nos últimos {data?.meses} meses; <span style={{ color: 'var(--danger)', fontWeight: 600 }}>Inativo</span> = sem receber há {data?.meses}+ meses (oportunidade de reativação). Referência {data ? fmtMes(data.ref) : ''}.
