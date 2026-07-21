@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { X, ChevronDown, Search, Mail, PenLine } from 'lucide-react'
+import { X, ChevronDown, Search, Mail, PenLine, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { BotScopesEditor } from './BotScopesEditor'
 import { BotVisibilityEditor } from './BotVisibilityEditor'
@@ -50,6 +50,14 @@ interface UserData {
   cpf?: string | null
   matricula?: string | null
   birth_date?: string | null
+  phone?: string | null
+  cep?: string | null
+  address_street?: string | null
+  address_number?: string | null
+  address_complement?: string | null
+  neighborhood?: string | null
+  city?: string | null
+  state?: string | null
   payroll_status?: string | null
   signature?: SignatureData | null
 }
@@ -100,6 +108,9 @@ const formatCpf = (raw: string): string => {
     .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4')
 }
+
+// Máscara de CEP 00000-000.
+const formatCep = (raw: string): string => raw.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2')
 
 function resolveTypeForBackend(profile: ProfileType): string {
   if (profile === 'administrator') return 'admin'
@@ -342,7 +353,7 @@ const EMPTY_FORM = {
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
   is_bizify: false,
-  home_company_id: null,
+  home_company_id: null as number | null,
   is_diretor_projetos: false,
   is_coordinator: false,
   is_bizify_coordinator: false,
@@ -354,6 +365,15 @@ const EMPTY_FORM = {
   payroll_status: PAYROLL_STATUS_DEFAULT,
   // Assinatura padrão (estruturada)
   signature: {} as SignatureData,
+  // Endereço (busca automática por CEP)
+  phone: '',
+  cep: '',
+  address_street: '',
+  address_number: '',
+  address_complement: '',
+  neighborhood: '',
+  city: '',
+  state: '',
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -385,6 +405,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const [editItem, setEditItem] = useState<UserData | null>(null)
   const [loadingItem, setLoadingItem] = useState(false)
   const [saving,  setSaving]  = useState(false)
+  const [cepLoading, setCepLoading] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
   // Vigência do novo valor-hora: quando o hourly_rate muda, perguntamos a partir de qual mês passa a valer.
@@ -482,6 +503,14 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           birth_date:                 (item.birth_date ?? '').slice(0, 10),
           payroll_status:             item.payroll_status ?? PAYROLL_STATUS_DEFAULT,
           signature:                  (item.signature as SignatureData | undefined) ?? {},
+          phone:                      item.phone ?? '',
+          cep:                        item.cep ?? '',
+          address_street:             item.address_street ?? '',
+          address_number:             item.address_number ?? '',
+          address_complement:         item.address_complement ?? '',
+          neighborhood:               item.neighborhood ?? '',
+          city:                       item.city ?? '',
+          state:                      item.state ?? '',
         })
       })
       .catch(e => {
@@ -492,6 +521,25 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       .finally(() => { if (!cancelled) setLoadingItem(false) })
     return () => { cancelled = true }
   }, [open, userId])
+
+  // Busca automática de endereço (ViaCEP) ao preencher o CEP.
+  const lookupCep = async (cepRaw: string) => {
+    const d = cepRaw.replace(/\D/g, '')
+    if (d.length !== 8) return
+    setCepLoading(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${d}/json/`)
+      const data = await res.json()
+      if (data.erro) { toast.error('CEP não encontrado'); return }
+      setForm(f => ({
+        ...f,
+        address_street: data.logradouro || f.address_street || '',
+        neighborhood:   data.bairro     || f.neighborhood   || '',
+        city:           data.localidade || '',
+        state:          data.uf         || '',
+      }))
+    } catch { toast.error('Não foi possível buscar o CEP') } finally { setCepLoading(false) }
+  }
 
   const save = async (hourlyRateEffectiveFrom?: string) => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
@@ -557,6 +605,15 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       }
       // Assinatura padrão (estruturada) — vale p/ perfis internos (não-cliente).
       if (!form.profiles.includes('cliente')) payload.signature = form.signature ?? {}
+      // Contato + endereço (busca por CEP) — vale para todos os perfis.
+      payload.phone              = form.phone || null
+      payload.cep                = form.cep || null
+      payload.address_street     = form.address_street || null
+      payload.address_number     = form.address_number || null
+      payload.address_complement = form.address_complement || null
+      payload.neighborhood       = form.neighborhood || null
+      payload.city               = form.city || null
+      payload.state              = form.state || null
       if (!isEdit && form.password) payload.password = form.password
       // App Password (envio de fechamentos via O365 do próprio usuário): write-only.
       // Só envia quando preenchido — em branco mantém a senha já armazenada no BE.
@@ -1059,6 +1116,63 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 />
               </div>
             )}
+
+            {/* ── Contato + Endereço (busca automática por CEP) ── */}
+            <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-hover)] space-y-3">
+              <p className="text-xs font-semibold text-[var(--text)]">Contato e endereço</p>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Celular</Label>
+                  <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="(11) 98888-7777"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+                <div className="w-40 relative">
+                  <Label className="text-xs text-[var(--text-muted)]">CEP</Label>
+                  <Input value={form.cep} inputMode="numeric" placeholder="00000-000"
+                    onChange={e => setForm(f => ({ ...f, cep: formatCep(e.target.value) }))}
+                    onBlur={e => lookupCep(e.target.value)}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                  {cepLoading && <Loader2 size={14} className="animate-spin absolute right-2 top-[30px] text-[var(--text-muted)]" />}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Logradouro</Label>
+                  <Input value={form.address_street} onChange={e => setForm(f => ({ ...f, address_street: e.target.value }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+                <div className="w-24">
+                  <Label className="text-xs text-[var(--text-muted)]">Número</Label>
+                  <Input value={form.address_number} onChange={e => setForm(f => ({ ...f, address_number: e.target.value }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Complemento</Label>
+                  <Input value={form.address_complement} onChange={e => setForm(f => ({ ...f, address_complement: e.target.value }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Bairro</Label>
+                  <Input value={form.neighborhood} onChange={e => setForm(f => ({ ...f, neighborhood: e.target.value }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Cidade</Label>
+                  <Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+                <div className="w-20">
+                  <Label className="text-xs text-[var(--text-muted)]">UF</Label>
+                  <Input value={form.state} maxLength={2} onChange={e => setForm(f => ({ ...f, state: e.target.value.toUpperCase() }))}
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+              </div>
+            </div>
 
             {/* ── Sustentação: apontamento manual ── */}
             {(isConsultor || isParceiroAdm) && (

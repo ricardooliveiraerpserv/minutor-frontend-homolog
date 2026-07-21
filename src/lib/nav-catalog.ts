@@ -99,6 +99,14 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
   { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },
   { key: '/configuracoes/bot-minutor', label: 'BOT Minutor',      group: 'BOT Minutor' },
+
+  // Banco de Competências (Skills)
+  { key: '/competencias/dashboard',     label: 'Consulta de Competências',   group: 'Banco de Competências' },
+  { key: '/competencias/pesquisas',     label: 'Pesquisas de Competências',  group: 'Banco de Competências' },
+  { key: '/competencias/matriz',        label: 'Matriz & Formulários',       group: 'Banco de Competências' },
+  { key: '/competencias/contratacao',   label: 'Contratação / Onboarding',   group: 'Banco de Competências' },
+  { key: '/competencias/profissionais', label: 'Profissionais',              group: 'Banco de Competências' },
+  { key: '/competencias/responder',     label: 'Minhas Competências',        group: 'Banco de Competências' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))
