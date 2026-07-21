@@ -78,7 +78,7 @@ export default function ClientesInativosPage() {
     <AppLayout title="Clientes Inativos">
       <div className="space-y-4">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          Clientes sem faturamento (última emissão no Keruak) há <strong>{data?.meses}+ meses</strong> — referência {data ? fmtMes(data.ref) : ''}. Oportunidade de reativação.
+          Clientes sem recebimento (último recebimento no Keruak) há <strong>{data?.meses}+ meses</strong> — referência {data ? fmtMes(data.ref) : ''}. Oportunidade de reativação.
         </p>
 
         {/* Filtros */}
@@ -127,7 +127,7 @@ export default function ClientesInativosPage() {
                     <Th label="Cliente" sortKey="cliente" sort={sort} onSort={clickSort} />
                     <Th label="Executivo" sortKey="executivo" sort={sort} onSort={clickSort} />
                     <Th label="CNPJ" sortKey="cnpj" sort={sort} onSort={clickSort} />
-                    <Th label="Último faturamento" sortKey="ultimo_faturamento" sort={sort} onSort={clickSort} />
+                    <Th label="Último recebimento" sortKey="ultimo_faturamento" sort={sort} onSort={clickSort} />
                     <Th label="Meses inativo" sortKey="meses_inativo" sort={sort} onSort={clickSort} />
                     <Th label="Último valor" sortKey="ultimo_valor" sort={sort} onSort={clickSort} right />
                     <Th label="Total recebido" sortKey="total_recebido" sort={sort} onSort={clickSort} right />
