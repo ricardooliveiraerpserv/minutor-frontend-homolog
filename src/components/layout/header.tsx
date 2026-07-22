@@ -166,7 +166,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 min-w-0">
 
         {actions}
 
@@ -288,7 +288,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-[var(--text-muted)] dark:text-[var(--text)] max-w-[120px] truncate">
+              <span className="hidden sm:inline text-xs text-[var(--text-muted)] dark:text-[var(--text)] max-w-[120px] truncate">
                 {user?.name}
               </span>
             </span>

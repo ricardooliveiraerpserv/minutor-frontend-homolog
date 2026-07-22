@@ -61,7 +61,7 @@ export function CompanySelector() {
         style={{ color: 'var(--text)', border: `1.5px solid ${active?.color || 'var(--border)'}` }}
       >
         <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: active?.color || 'var(--primary)' }} />
-        <span className="truncate max-w-[120px]">{active?.name ?? 'Empresa'}</span>
+        <span className="hidden sm:inline truncate max-w-[120px]">{active?.name ?? 'Empresa'}</span>
         <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} />
       </button>
 
