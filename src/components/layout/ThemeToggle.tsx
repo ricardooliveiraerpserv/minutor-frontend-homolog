@@ -19,16 +19,16 @@ export function ThemeToggle() {
       type="button"
       aria-label={mounted ? `Mudar para tema ${next === 'dark' ? 'escuro' : 'claro'}` : 'Mudar tema'}
       onClick={() => setTheme(next)}
-      className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+      className="p-1 sm:p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
       style={{ color: 'var(--text-light)' }}
     >
       {/* Placeholder transparente até montar pra evitar flash de ícone errado */}
       {!mounted ? (
-        <Sun size={16} style={{ opacity: 0 }} />
+        <Sun size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ opacity: 0 }} />
       ) : isDark ? (
-        <Sun size={16} />
+        <Sun size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       ) : (
-        <Moon size={16} />
+        <Moon size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       )}
     </button>
   )

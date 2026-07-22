@@ -67,7 +67,7 @@ export function CompanySelector() {
 
       {open && (
         <div
-          className="absolute right-0 mt-1 w-60 rounded-lg shadow-lg z-50 py-1"
+          className="fixed left-2 right-2 top-[calc(var(--env-banner-h,0px)+3.5rem)] w-auto sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-60 rounded-lg shadow-lg z-50 py-1"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
           <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
