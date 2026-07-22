@@ -66,13 +66,17 @@ async function request<T>(
     const body = await res.json().catch(() => ({}))
     const message = body.message ?? 'Não autenticado'
 
-    // Só redireciona se: (1) não estamos no endpoint de login, (2) ainda não estamos
-    // na tela /login (evita loop infinito quando AuthProvider checa /user numa rota pública).
+    // Só redireciona se: (1) não estamos no endpoint de login, (2) NÃO estamos numa rota
+    // PÚBLICA (acessível deslogado). Um 401 numa rota pública — tipicamente o AuthProvider
+    // checando /user numa aba sem sessão — NÃO deve chutar o visitante pro /login: ele veio
+    // por um link aberto (formulário de competências/candidato, recuperação de senha). Só
+    // limpamos o estado (o caller trata o 401) e seguimos na própria página.
     const isLoginEndpoint = path === '/auth/login'
     const inBrowser = typeof window !== 'undefined'
-    const alreadyOnLoginPage = inBrowser && window.location.pathname.startsWith('/login')
+    const PUBLIC_PATH_PREFIXES = ['/login', '/esqueci-senha', '/skills/', '/candidato/']
+    const onPublicPage = inBrowser && PUBLIC_PATH_PREFIXES.some(p => window.location.pathname.startsWith(p))
 
-    if (!isLoginEndpoint && inBrowser && !alreadyOnLoginPage) {
+    if (!isLoginEndpoint && inBrowser && !onPublicPage) {
       // Limpa o token DESTA aba e revoga só ele (Authorization) — não mexe no cookie de outra aba.
       const stoken = window.sessionStorage.getItem('minutor_token')
       try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
