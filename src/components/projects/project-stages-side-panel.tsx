@@ -48,7 +48,10 @@ export function ProjectStagesSidePanel({
 
   const csStages = clientSched?.stages ?? []
   const total = isClient ? csStages.length : stages.length
-  const planned = stages.reduce((s, st) => s + n(st.hours_planned), 0)
+  // "Planejadas" = valor efetivo da etapa (hours_planned se preenchido, senão a soma das
+  // horas das atividades) — mesmo critério da tabela do cronograma. Usar hours_planned cru
+  // mostrava 0h quando as horas estão nas atividades e não no campo manual da etapa.
+  const planned = stages.reduce((s, st) => s + n(st.effective_hours_planned ?? st.deliveries_hours_planned_sum ?? st.hours_planned), 0)
   const totalDeliv = isClient
     ? csStages.reduce((s, st) => s + st.deliveries.length, 0)
     : stages.reduce((s, st) => s + (st.deliveries_count ?? 0), 0)

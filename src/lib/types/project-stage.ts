@@ -44,6 +44,8 @@ export interface ProjectStage {
   deliveries_review_count?: number
   deliveries_backlog_count?: number
   deliveries_hours_planned_sum?: string | number | null
+  /** Horas planejadas efetivas da etapa: hours_planned da etapa se >0, senão a soma das atividades (backend). */
+  effective_hours_planned?: string | number | null
   progress_pct?: number
   derived_status?: StageDerivedStatus
   team_overrun_count?: number
