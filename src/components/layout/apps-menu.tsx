@@ -31,14 +31,14 @@ export function AppsMenu() {
         onClick={() => setOpen(v => !v)}
         title="Aplicativos"
         aria-label="Aplicativos"
-        className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+        className="p-1 sm:p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--text)' }}
       >
-        <LayoutGrid size={18} />
+        <LayoutGrid size={18} className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
       </button>
       {open && (
         <div
-          className="absolute right-0 mt-2 z-50 rounded-xl p-3 shadow-xl grid grid-cols-2 gap-2 w-64"
+          className="fixed left-2 right-2 top-[calc(var(--env-banner-h,0px)+3.5rem)] w-auto sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-64 z-50 rounded-xl p-3 shadow-xl grid grid-cols-2 gap-2"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)' }}
         >
           {modules.map(m => {

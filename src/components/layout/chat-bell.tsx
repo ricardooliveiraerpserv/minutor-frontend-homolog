@@ -70,10 +70,10 @@ export function ChatBell() {
         onClick={() => setOpen(o => !o)}
         title="Mensagens"
         aria-label={total > 0 ? `Mensagens (${total} não lidas)` : 'Mensagens'}
-        className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        className="relative p-1 sm:p-1.5 rounded-md transition-colors hover:bg-zinc-800"
         style={{ color: total > 0 ? 'var(--primary)' : '#71717A' }}
       >
-        <MessageCircle size={16} />
+        <MessageCircle size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         {total > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"

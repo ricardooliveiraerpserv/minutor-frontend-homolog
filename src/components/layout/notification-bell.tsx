@@ -75,8 +75,8 @@ export function NotificationBell() {
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)} className="relative p-2 rounded-lg" style={{ color: 'var(--brand-text, var(--text))' }} title="Notificações" aria-label="Notificações">
-        <Bell size={18} />
+      <button onClick={() => setOpen(o => !o)} className="relative p-1.5 sm:p-2 rounded-lg" style={{ color: 'var(--brand-text, var(--text))' }} title="Notificações" aria-label="Notificações">
+        <Bell size={18} className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
         {(bellCount > 0 || pendCount > 0) && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: pendCount > 0 ? 'var(--danger-border)' : 'var(--warning-border)', color: '#fff' }}>
             {bellCount > 0 ? (bellCount > 9 ? '9+' : bellCount) : ''}

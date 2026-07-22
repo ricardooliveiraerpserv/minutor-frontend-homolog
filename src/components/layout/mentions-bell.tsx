@@ -94,11 +94,11 @@ export function MentionsBell() {
     <div ref={ref} className="relative">
       <button
         onClick={handleOpen}
-        className="relative p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+        className="relative p-1 sm:p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: open ? 'var(--primary)' : '#71717A' }}
         title="Mentions"
       >
-        <AtSign size={16} />
+        <AtSign size={16} className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         {unread > 0 && (
           <span
             className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
