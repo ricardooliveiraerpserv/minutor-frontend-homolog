@@ -157,7 +157,7 @@ export default function MeuDiaPage() {
       <div className="space-y-4 max-w-6xl">
         {/* ── HEADER: saudação + foco ── */}
         <div className="ds-card p-4" style={{ background: 'linear-gradient(135deg, var(--primary-soft), transparent)' }}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
               <GreetIcon size={18} style={{ color: 'var(--primary)' }} />
             </div>
@@ -169,7 +169,7 @@ export default function MeuDiaPage() {
               </div>
             </div>
             {canActions && (
-              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end shrink-0">
                 <button onClick={() => setTsOpen(true)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Clock size={14} /> Apontar horas</button>
                 <button onClick={() => setExpOpen(true)} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><DollarSign size={14} /> Apontar despesa</button>
               </div>

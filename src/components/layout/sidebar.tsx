@@ -805,23 +805,23 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       {/* Backdrop do drawer (só mobile, quando aberto) */}
       <div
         onClick={onClose}
-        className={cn('fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-200',
+        className={cn('fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-200',
           mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')}
         aria-hidden
       />
     {/* Container que CLIPA o drawer off-screen no mobile — é `fixed` (fora da
         cadeia de altura do conteúdo, então não quebra `h-full`/h:100% no iOS).
         No desktop vira `contents` e some, deixando o <aside> fluir normalmente. */}
-    <div className="fixed inset-0 z-50 overflow-x-hidden pointer-events-none md:static md:inset-auto md:z-auto md:overflow-visible md:pointer-events-auto md:contents">
+    <div className="fixed inset-0 z-50 overflow-x-hidden pointer-events-none lg:static lg:inset-auto lg:z-auto lg:overflow-visible lg:pointer-events-auto lg:contents">
     <aside
       className={cn(
         'flex flex-col border-r transition-transform duration-200',
         // Mobile: drawer off-canvas (absolute dentro do container fixo → clipado)
         'absolute inset-y-0 left-0 w-[248px] pointer-events-auto',
         mobileOpen ? 'translate-x-0' : '-translate-x-full',
-        // Desktop: estático no fluxo, altura cheia, colapso opcional
-        'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
-        collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
+        // Desktop (>=lg): estático no fluxo, altura cheia, colapso opcional
+        'lg:static lg:h-screen lg:shrink-0 lg:translate-x-0 lg:transition-all',
+        collapsedRaw ? 'lg:w-[60px]' : 'lg:w-[248px]',
       )}
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
@@ -829,7 +829,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       <button
         onClick={onClose}
         aria-label="Fechar menu"
-        className="md:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+        className="lg:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--text-muted)' }}
       >
         <ChevronLeft size={16} />
@@ -1111,10 +1111,10 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         </div>
       )}
 
-      {/* ── Collapse toggle (só desktop) ── */}
+      {/* ── Collapse toggle (só desktop >=lg) ── */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="hidden md:flex items-center justify-center h-10 border-t transition-colors"
+        className="hidden lg:flex items-center justify-center h-10 border-t transition-colors"
         style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
