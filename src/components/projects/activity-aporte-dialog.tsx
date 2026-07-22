@@ -15,7 +15,12 @@ interface Props {
   deliveryHoursPlanned: number
   projectId: number
   onClose: () => void
-  onCreated: () => void
+  /** Recebe o novo hours_planned da atividade após o aporte (pra o pai atualizar o card/painel). */
+  onCreated: (newHoursPlanned: number) => void
+  /** Pré-preenche o campo horas (ex.: devolução de sobra usa negativo). */
+  initialHours?: number
+  /** Pré-preenche a justificativa. */
+  initialReason?: string
 }
 
 interface ProjectBalance {
@@ -50,12 +55,13 @@ function timeAgo(iso: string): string {
 
 export function ActivityAporteDialog({
   deliveryId, deliveryName, deliveryHoursPlanned, projectId, onClose, onCreated,
+  initialHours, initialReason,
 }: Props) {
   const { items, totals, loading, refetch } = useActivityAportes(deliveryId)
   const { data: project } = useApiQuery<ProjectBalance>(`/projects/${projectId}`)
   const { stages } = useProjectStages(projectId)
-  const [hours, setHours] = useState('')
-  const [reason, setReason] = useState('')
+  const [hours, setHours] = useState(initialHours != null ? String(initialHours) : '')
+  const [reason, setReason] = useState(initialReason ?? '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -89,11 +95,12 @@ export function ActivityAporteDialog({
     setSaving(true)
     try {
       await api.post(`/activities/${deliveryId}/aportes`, { hours: aporteValue, reason: reason.trim() })
-      toast.success('Aporte registrado')
+      toast.success(aporteValue < 0 ? 'Horas devolvidas ao banco' : 'Aporte registrado')
+      const newPlanned = Math.round((deliveryHoursPlanned + aporteValue) * 100) / 100
       setHours('')
       setReason('')
       refetch()
-      onCreated()
+      onCreated(newPlanned)
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar aporte')
     } finally {

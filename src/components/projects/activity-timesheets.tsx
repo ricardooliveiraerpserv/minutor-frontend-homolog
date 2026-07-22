@@ -39,7 +39,7 @@ const fmtBR = (d: string) => { const [y, m, dd] = d.slice(0, 10).split('-'); ret
 const today = () => new Date().toISOString().slice(0, 10)
 const emptyForm = () => ({ user_id: '', date: today(), mode: 'time' as 'time' | 'total', start_time: '', end_time: '', total_hours: '', observation: '' })
 
-export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible, previstas = 0, showSummary = true, onChanged }: {
+export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible, previstas = 0, showSummary = true, onChanged, onSummary }: {
   projectId: number
   stageId?: number | null
   deliveryId: number
@@ -50,6 +50,8 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   /** Mostra o resumo Disponível/Apontadas/Saldo aqui (quando já está no cabeçalho, false). */
   showSummary?: boolean
   onChanged?: () => void
+  /** Reporta o resumo de horas ao pai (pra decidir "devolver sobra ao banco"). */
+  onSummary?: (s: { previstas: number; apontadas: number; saldo: number }) => void
 }) {
   const { user } = useAuth()
   const canActAsUser = user?.type === 'admin' || user?.type === 'coordenador'
@@ -188,6 +190,11 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   const saldo = Math.round((previstas - apontadas) * 100) / 100
   const overTs = apontadas > previstas + 0.001
   const pctTs = previstas > 0 ? Math.min(100, Math.round((apontadas / previstas) * 100)) : 0
+
+  // Reporta o resumo ao pai (o painel usa o saldo pra habilitar "devolver sobra ao banco").
+  useEffect(() => {
+    onSummary?.({ previstas, apontadas, saldo })
+  }, [previstas, apontadas, saldo, onSummary])
 
   return (
     <div>

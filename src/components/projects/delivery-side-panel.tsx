@@ -7,8 +7,10 @@ import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
 import { ActivityTimesheets } from './activity-timesheets'
+import { ActivityAporteDialog } from './activity-aporte-dialog'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
+import { Undo2 } from 'lucide-react'
 
 interface Props {
   delivery: StageDelivery
@@ -43,6 +45,9 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
   const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [timelineKey, setTimelineKey] = useState(0)
+  const [tsSummary, setTsSummary] = useState<{ previstas: number; apontadas: number; saldo: number } | null>(null)
+  const [aporteOpen, setAporteOpen] = useState(false)
+  const [aporteInitial, setAporteInitial] = useState<{ hours?: number; reason?: string }>({})
   const { user } = useAuth()
   const isConsultor = user?.type === 'consultor'
   const isOwn = String(delivery.responsible_user_id ?? '') === String(user?.id ?? '')
@@ -69,6 +74,8 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
     setStatus(delivery.status)
     setDue(delivery.due_date ?? '')
     setRespId(delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')
+    setTsSummary(null)
+    setAporteOpen(false)
   }, [delivery.id])
 
   // Esc fecha
@@ -273,11 +280,44 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               apontadas) vive nesta seção. */}
           <div style={{ marginTop: 28 }}>
             <div style={{
-              fontSize: 11, color: 'var(--text-muted)',
-              textTransform: 'uppercase', letterSpacing: '.04em',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
               marginBottom: 8,
             }}>
-              Horas apontadas
+              <div style={{
+                fontSize: 11, color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '.04em',
+              }}>
+                Horas apontadas
+              </div>
+              {canFullEdit && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {tsSummary && tsSummary.saldo > 0.05 && (
+                    <button
+                      type="button"
+                      className="ds-btn-primary"
+                      onClick={() => {
+                        setAporteInitial({
+                          hours: -tsSummary.saldo,
+                          reason: 'Devolução de sobra de horas ao banco do projeto',
+                        })
+                        setAporteOpen(true)
+                      }}
+                      title="Devolve as horas planejadas não usadas ao pool do projeto, liberando-as para outra etapa/atividade."
+                      style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Undo2 size={13} /> Devolver sobra ao banco ({tsSummary.saldo % 1 === 0 ? tsSummary.saldo : tsSummary.saldo.toFixed(1)}h)
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setAporteInitial({}); setAporteOpen(true) }}
+                    title="Aportar ou devolver horas desta atividade (ajuste manual com justificativa)."
+                    style={{ fontSize: 12, padding: '5px 8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    Aporte
+                  </button>
+                </div>
+              )}
             </div>
             <ActivityTimesheets
               projectId={projectId}
@@ -286,6 +326,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               responsible={delivery.responsible ?? null}
               previstas={Number(hours) || 0}
               onChanged={() => setTimelineKey(k => k + 1)}
+              onSummary={setTsSummary}
             />
           </div>
 
@@ -301,6 +342,23 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
           </div>
         </div>
       </aside>
+      {aporteOpen && (
+        <ActivityAporteDialog
+          deliveryId={delivery.id}
+          deliveryName={delivery.title}
+          deliveryHoursPlanned={Number(hours) || 0}
+          projectId={projectId}
+          initialHours={aporteInitial.hours}
+          initialReason={aporteInitial.reason}
+          onClose={() => setAporteOpen(false)}
+          onCreated={(newPlanned) => {
+            setHours(String(newPlanned))
+            onUpdated({ ...delivery, hours_planned: newPlanned })
+            setTimelineKey(k => k + 1)
+            setAporteOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }
