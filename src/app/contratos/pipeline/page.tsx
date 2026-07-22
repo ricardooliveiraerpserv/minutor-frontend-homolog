@@ -3688,9 +3688,14 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
       fd.append('message', text)
       fd.append('visibility', visibility)
       files.forEach(f => fd.append('files[]', f))
+      // Auth POR ABA: manda o token do sessionStorage (igual ao api client). Sem isso, o fetch cru caía
+      // só no cookie httpOnly — que sob "Ver como"/sessão por aba NÃO é do usuário atual, e o POST
+      // falhava (coordenador não conseguia comentar, embora o GET das mensagens usasse o token e funcionasse).
+      const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
       const res = await fetch(`/api/v1/contract-requests/${requestId}/messages`, {
         method: 'POST',
         credentials: 'same-origin',
+        headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
         body: fd,
       })
       if (!res.ok) {
@@ -3707,8 +3712,10 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
 
   const downloadAttachment = async (msgId: number, att: ReqAttachment) => {
     try {
+      const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
       const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${att.id}/download`, {
         credentials: 'same-origin',
+        headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
       })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
