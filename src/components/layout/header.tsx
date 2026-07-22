@@ -155,7 +155,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
           <button
             onClick={onMenuClick}
             aria-label="Abrir menu"
-            className="md:hidden p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)] shrink-0"
+            className="lg:hidden p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)] shrink-0"
             style={{ color: 'var(--text)' }}
           >
             <Menu size={18} />
