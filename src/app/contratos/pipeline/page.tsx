@@ -2291,14 +2291,15 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     { id: 'consultants' as const, label: `Consultores${consultantsCount > 0 ? ` (${consultantsCount})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
     // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
-    // Diário do Projeto: só aparece se o usuário tem acesso (é coord/consultor do projeto ou
-    // participante convidado) — senão a aba some (em vez de dar "Erro ao carregar mensagens").
+    // Diário do Projeto: aparece já no 1º render (otimista) e só some se o acesso vier
+    // EXPLICITAMENTE false — evita o bug do Safari em que a aba só surgia depois do `p`
+    // carregar (re-render adiado). O conteúdo continua protegido por p?.diary_access.
     // Comentários = histórico do cliente (read-only); p/ equipe interna em TODOS os projetos
     // (fica vazio quando o projeto não veio de uma requisição).
     ...(!isClienteViewer ? [
       { id: 'comments'    as const, label: 'Comentários' },
     ] : []),
-    ...(isClienteViewer || !p?.diary_access ? [] : [
+    ...(isClienteViewer || p?.diary_access === false ? [] : [
       { id: 'chat'        as const, label: 'Diário do Projeto' },
     ]),
   ]
