@@ -93,12 +93,26 @@ export default function StatusClientesPage() {
   const execOpts = useMemo(() => [...new Set(all.map(r => r.executivo).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(e => ({ id: e, name: e })), [all])
   const clienteOpts = useMemo(() => [...new Set(all.map(r => r.cliente))].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => ({ id: c, name: c })), [all])
 
-  const rows = useMemo(() => {
+  // População = filtros de recorte (cliente / executivo / "Só clientes do Minutor").
+  // Os cards resumem ESTA população. Antes usavam os totais fixos da API e ignoravam
+  // os filtros — por isso não mudavam. O filtro Situação abaixo é só drill-down da lista.
+  const pop = useMemo(() => {
     let r = all
-    if (situacao !== 'todos') r = r.filter(x => x.status === situacao)
     if (soMinutor) r = r.filter(x => x.no_minutor)
     if (execFilter.length) r = r.filter(x => x.executivo && execFilter.includes(x.executivo))
     if (clienteFilter.length) r = r.filter(x => clienteFilter.includes(x.cliente))
+    return r
+  }, [all, soMinutor, execFilter, clienteFilter])
+
+  const kpi = useMemo(() => ({
+    ativos:     pop.filter(r => r.status === 'ativo').length,
+    inativando: pop.filter(r => r.status === 'inativando').length,
+    inativos:   pop.filter(r => r.status === 'inativo').length,
+    potencial:  pop.filter(r => r.status !== 'ativo').reduce((s, r) => s + r.ultimo_valor, 0),
+  }), [pop])
+
+  const rows = useMemo(() => {
+    let r = situacao !== 'todos' ? pop.filter(x => x.status === situacao) : pop
     const acc: Record<string, (r: Row) => unknown> = {
       cliente: r => r.cliente, executivo: r => r.executivo, cnpj: r => r.cnpj,
       ultimo_faturamento: r => r.ultimo_faturamento, meses_inativo: r => r.meses_inativo,
@@ -106,10 +120,9 @@ export default function StatusClientesPage() {
     }
     const f = acc[sort.key]
     return f ? [...r].sort((a, b) => cmp(f(a), f(b)) * sort.dir) : r
-  }, [all, situacao, soMinutor, execFilter, clienteFilter, sort])
+  }, [pop, situacao, sort])
 
   const cfg = data?.config
-  const potencialInativos = useMemo(() => all.filter(r => r.status !== 'ativo').reduce((s, r) => s + r.ultimo_valor, 0), [all])
 
   if (loading) return <AppLayout title="Status de Clientes"><div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div></AppLayout>
 
@@ -152,10 +165,10 @@ export default function StatusClientesPage() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi icon={CheckCircle2} bg="var(--success-bg)" fg="var(--success)" value={data?.ativos ?? 0} label="ativos" />
-          <Kpi icon={AlertTriangle} bg="var(--warning-bg)" fg="var(--warning)" value={data?.inativando ?? 0} label="inativando" />
-          <Kpi icon={UserX} bg="var(--danger-bg)" fg="var(--danger)" value={data?.inativos ?? 0} label="inativos" />
-          <Kpi icon={Building2} bg="var(--primary-soft)" fg="var(--primary)" value={brl(potencialInativos)} label="potencial reativação" />
+          <Kpi icon={CheckCircle2} bg="var(--success-bg)" fg="var(--success)" value={kpi.ativos} label="ativos" />
+          <Kpi icon={AlertTriangle} bg="var(--warning-bg)" fg="var(--warning)" value={kpi.inativando} label="inativando" />
+          <Kpi icon={UserX} bg="var(--danger-bg)" fg="var(--danger)" value={kpi.inativos} label="inativos" />
+          <Kpi icon={Building2} bg="var(--primary-soft)" fg="var(--primary)" value={brl(kpi.potencial)} label="potencial reativação" />
         </div>
 
         {/* Tabela */}
