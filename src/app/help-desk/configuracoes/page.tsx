@@ -911,7 +911,7 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
 interface FRule { when?: string | null; value?: string | null }
 interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FRule | null }
-interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
+interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; locked?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
   { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
   { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' }, { v: 'user', label: 'Usuário (busca)' },
@@ -948,6 +948,8 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
   const [active, setActive] = useState(form.active ?? true)
   const [fields, setFields] = useState<FField[]>(form.fields ?? [])
   const [saving, setSaving] = useState(false)
+  // Formulário travado: as chaves carregadas do banco ficam IMUTÁVEIS (só dá p/ adicionar novas).
+  const lockedKeys = new Set(form.locked ? (form.fields ?? []).map(f => f.key) : [])
 
   const upd = (i: number, patch: Partial<FField>) => setFields(fs => fs.map((f, j) => j === i ? { ...f, ...patch } : f))
   const move = (i: number, dir: -1 | 1) => setFields(fs => { const j = i + dir; if (j < 0 || j >= fs.length) return fs; const c = [...fs]; [c[i], c[j]] = [c[j], c[i]]; return c })
@@ -1000,7 +1002,23 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
 
           <div className="space-y-1.5">
             <div className={lbl} style={{ color: 'var(--text-light)' }}>Campos</div>
-            {fields.map((f, i) => (
+            {form.locked && (
+              <p className="text-[11px] rounded-lg px-2.5 py-1.5" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+                🔒 Formulário protegido: os campos existentes não podem ser alterados nem removidos (preservam as regras configuradas). Você só pode <b>adicionar novos campos</b>.
+              </p>
+            )}
+            {fields.map((f, i) => {
+              const fLocked = lockedKeys.has(f.key)
+              if (fLocked) return (
+                <div key={i} className="rounded-lg p-2 flex items-center gap-2 flex-wrap" style={{ border: '1px dashed var(--border)', background: 'var(--surface-sunken)' }}>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded font-mono" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{FIELD_TYPES.find(t => t.v === f.ftype)?.label ?? f.ftype}</span>
+                  <span className="text-sm flex-1 min-w-[140px]" style={{ color: 'var(--text)' }}>{f.label}</span>
+                  {f.required && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>obrig.</span>}
+                  {f.min_chars ? <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>mín. {f.min_chars}</span> : null}
+                  <span className="text-[10px] ml-auto" style={{ color: 'var(--text-light)' }}>🔒 travado</span>
+                </div>
+              )
+              return (
               <div key={i} className="rounded-lg p-2 flex items-center gap-2 flex-wrap" style={{ border: '1px solid var(--border)' }}>
                 <div className="flex flex-col">
                   <button onClick={() => move(i, -1)} className="text-[10px]" style={{ color: 'var(--text-light)' }}>▲</button>
@@ -1026,7 +1044,8 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
             <div className="flex items-center gap-2 flex-wrap">
               <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('title', 'Detalhamento da Solução', true)}><Plus size={13} /> Título + logo</button>
               <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('section', 'Novo bloco')}><Plus size={13} /> Bloco (seção)</button>
