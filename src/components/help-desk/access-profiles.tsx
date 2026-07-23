@@ -86,7 +86,7 @@ const SCHEMA: Record<Kind, Tab[]> = {
       ] },
       { title: 'Listagem e visualização', controls: [
         { key: 'tickets.personal_views', label: 'Criar visualizações personalizadas', type: 'toggle' },
-        { key: 'tickets.view_tickets', label: 'Permitir que o cliente visualize tickets', type: 'radio', options: [{ value: 'any', label: 'Todos de qualquer cliente' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'own', label: 'Somente em seu nome' }, { value: 'none', label: 'Não permitir' }] },
+        { key: 'tickets.view_tickets', label: 'Permitir que o cliente visualize tickets', type: 'radio', options: [{ value: 'any', label: 'Todos de qualquer cliente' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'department', label: 'Somente do seu departamento' }, { value: 'own', label: 'Somente em seu nome' }, { value: 'none', label: 'Não permitir' }] },
         { key: 'tickets.view_in', label: 'Permitir que o cliente visualize NO ticket', type: 'toggles', items: [{ key: 'tickets.view_in.service', label: 'Serviço' }, { key: 'tickets.view_in.responsible', label: 'Responsável' }, { key: 'tickets.view_in.category', label: 'Categoria' }, { key: 'tickets.view_in.urgency', label: 'Urgência' }, { key: 'tickets.view_in.sla_due', label: 'SLA (vencimento)' }, { key: 'tickets.view_in.sla_first', label: 'SLA 1ª resposta' }, { key: 'tickets.view_in.status', label: 'Status' }, { key: 'tickets.view_in.justification', label: 'Justificativa' }, { key: 'tickets.view_in.subject', label: 'Assunto' }, { key: 'tickets.view_in.agent_times', label: 'Tempos apontados pelos agentes' }, { key: 'tickets.view_in.tags', label: 'TAGs' }] },
       ] },
     ] },
