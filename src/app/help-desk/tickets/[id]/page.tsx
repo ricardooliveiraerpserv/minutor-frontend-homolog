@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 import { api, ApiError } from '@/lib/api'
+import { cachedGet } from '@/lib/cached-api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { ResumoOperacional } from '@/components/help-desk/resumo-operacional'
@@ -285,6 +286,25 @@ function TicketDetailInner({ id }: { id: number }) {
   const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
   const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
+  // Sanitização (DOMPurify) é CARA e roda por interação. Memoiza p/ rodar 1× quando as interações
+  // mudam — não a cada re-render. Sem isso, os ~15 setState do mount re-sanitizavam as 40 interações
+  // (HTML pesado do Movidesk) a cada render, travando a main thread por segundos.
+  const renderedComments = useMemo(() => {
+    const m = new Map<number, { html: boolean; complexHtml: boolean; rich: string; email: string }>()
+    for (const c of comments) {
+      const body = c.body ?? ''
+      const html = !!c.body && isHtmlBody(body)
+      const complexHtml = html && /<table\b/i.test(body)
+      m.set(c.id, { html, complexHtml, rich: html && !complexHtml ? sanitizeRich(body) : '', email: complexHtml ? sanitizeEmail(body) : '' })
+    }
+    return m
+  }, [comments])
+  const descRendered = useMemo(() => {
+    const body = t?.description ?? ''
+    const html = isHtmlBody(body)
+    const complexHtml = html && /<table\b/i.test(body)
+    return { html, complexHtml, rich: html && !complexHtml ? sanitizeRich(body) : '', email: complexHtml ? sanitizeEmail(body) : '' }
+  }, [t?.description])
   const commentEditorRef = useRef<RichEditorHandle>(null)
   // Tempo trabalhado na EDIÇÃO da interação (mesmos campos do composer).
   const [editTime, setEditTime] = useState({ worked_date: '', start_time: '', end_time: '', total_hours: '', no_charge: false })
@@ -361,10 +381,15 @@ function TicketDetailInner({ id }: { id: number }) {
         putCache(id, { comments: data, commentsTotal: total, allComments: all_ })
       }).catch(() => {})
   }, [id])
+  // coreReady: vira true quando o /detail resolve. TODO o resto (anexos, apontamentos, merged, config,
+  // reuniões) só dispara DEPOIS disso — assim o /detail (query pesada, ~1,5s) roda SOZINHO e pega a CPU
+  // inteira do backend 0.5 CPU, em vez de competir com ~10 chamadas na rajada (que empurravam a abertura
+  // pra ~3,7s). A tela do chamado aparece bem antes; o secundário carrega logo atrás sem travar.
+  const [coreReady, setCoreReady] = useState(!!c0?.t)
   // Abertura em UMA chamada (ticket + interações) — evita o backend free re-bootstrapar o Laravel 2x.
   const loadDetail = useCallback(() => {
-    if (!id) return
-    api.get<{ data: { ticket: TicketDetail; comments: Comment[]; comments_total?: number; comments_returned?: number } }>(`/help-desk/tickets/${id}/detail`)
+    if (!id) return Promise.resolve()
+    return api.get<{ data: { ticket: TicketDetail; comments: Comment[]; comments_total?: number; comments_returned?: number } }>(`/help-desk/tickets/${id}/detail`)
       .then(r => {
         const d = r?.data
         if (d?.ticket) { setT(d.ticket); setNotFound(false) }
@@ -389,14 +414,17 @@ function TicketDetailInner({ id }: { id: number }) {
   // adiado 500ms pra não competir pelos poucos workers do backend free — a tela aparece bem antes.
   useEffect(() => {
     if (c0?.t) return // aba reaberta: já hidratou do cache — NÃO recarrega (o usuário atualiza manualmente se quiser)
-    loadDetail() // ticket + interações em 1 chamada
-    const t = setTimeout(() => { loadAtts(); loadTs(); loadMerged() }, 500) // timeline sai daqui → carrega só ao abrir a aba
-    return () => clearTimeout(t)
-  }, [loadDetail, loadAtts, loadTs, loadMerged]) // eslint-disable-line react-hooks/exhaustive-deps
+    loadDetail().finally(() => setCoreReady(true)) // /detail primeiro e SOZINHO; libera o resto ao terminar
+  }, [loadDetail]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Secundário (não-crítico): só depois do /detail, pra não competir pela CPU do backend na abertura.
+  useEffect(() => {
+    if (!coreReady) return
+    loadAtts(); loadTs(); loadMerged()
+  }, [coreReady, loadAtts, loadTs, loadMerged])
   // Timeline: buscada só quando a aba é aberta (fora do burst inicial de chamadas).
   useEffect(() => { if (tab === 'timeline' && events.length === 0) loadEvents() }, [tab, events.length, loadEvents])
   // Card de reunião entra ~500ms depois → sua chamada /meetings não compete com ticket+comments na abertura.
-  useEffect(() => { const t = setTimeout(() => setSecondaryReady(true), 500); return () => clearTimeout(t) }, [])
+  useEffect(() => { if (!coreReady) return; const t = setTimeout(() => setSecondaryReady(true), 300); return () => clearTimeout(t) }, [coreReady])
   // Registra este chamado como ABA aberta (barra estilo Movidesk).
   useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }) }, [t?.id, t?.ticket_number, t?.subject])
 
@@ -446,7 +474,9 @@ function TicketDetailInner({ id }: { id: number }) {
   // Macros (ex-playbooks): APENAS preenchem o texto da interação (client-side), gated pelo status.
   const [macros, setMacros] = useState<MacroItem[]>([])
   const composerRef = useRef<ComposerHandle>(null)
-  useEffect(() => { api.get<{ data: MacroItem[] }>('/help-desk/playbooks').then(r => setMacros(r?.data ?? [])).catch(() => {}) }, [])
+  // Config do Help Desk (playbooks/meta/teams/forms) é IGUAL p/ todo ticket → cachedGet (TTL 5min)
+  // evita rebuscar a cada abertura no fluxo de abas. cachedGet ainda dedupa requisições em voo.
+  useEffect(() => { if (!coreReady) return; cachedGet<{ data: MacroItem[] }>('/help-desk/playbooks', 300000).then(r => setMacros(r?.data ?? [])).catch(() => {}) }, [coreReady])
   // Assinatura das respostas ao cliente é montada no BACKEND (a MESMA do cadastro do usuário logado).
   const runPlaybook = (playbookId: number) => {
     const m = macros.find(x => x.id === playbookId)
@@ -454,13 +484,14 @@ function TicketDetailInner({ id }: { id: number }) {
     composerRef.current?.insertMacroReply(m?.reply ?? '')
   }
   useEffect(() => {
-    api.get<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta')
+    if (!coreReady) return
+    cachedGet<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta', 300000)
       .then(r => {
         setStatuses(r?.data?.statuses ?? []); setJustifications(r?.data?.justifications ?? [])
         setCategories(r?.data?.categories ?? []); setServices(r?.data?.services ?? [])
       }).catch(() => {})
-  }, [])
-  useEffect(() => { api.get<{ data: AgentTeam[] }>('/help-desk/teams?all=1').then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [])
+  }, [coreReady])
+  useEffect(() => { if (!coreReady) return; cachedGet<{ data: AgentTeam[] }>('/help-desk/teams?all=1', 300000).then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [coreReady])
 
   const changeStatus = async (statusId: string, justificationId?: number | null) => {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
@@ -477,7 +508,7 @@ function TicketDetailInner({ id }: { id: number }) {
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
   const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
 
-  useEffect(() => { api.get<{ data: HdForm[] }>('/help-desk/forms').then(r => setForms(r?.data ?? [])).catch(() => {}) }, [])
+  useEffect(() => { if (!coreReady) return; cachedGet<{ data: HdForm[] }>('/help-desk/forms', 300000).then(r => setForms(r?.data ?? [])).catch(() => {}) }, [coreReady])
 
   // Status SEM formulário: aplica direto (com justificativa se houver).
   const onStatusSelect = (statusId: string) => {
@@ -843,13 +874,14 @@ function TicketDetailInner({ id }: { id: number }) {
                     const autor = c.author?.name ?? c.contact?.name ?? 'Sistema'
                     const editing = editCommentId === c.id
                     const hasEffort = typeof c.effort_minutes === 'number' && c.effort_minutes > 0
-                    const html = !!c.body && isHtmlBody(c.body)
+                    const pc = renderedComments.get(c.id)
+                    const html = pc?.html ?? false
                     // Só e-mail com imagem/tabela precisa do iframe isolado (EmailFrame). HTML simples
                     // (interações do sistema, texto formatado) renderiza INLINE — senão o iframe mede
                     // altura errada e deixa o balão gigante e vazio.
                     // Só TABELA (layout de e-mail) precisa do iframe isolado. Imagem NÃO — renderiza inline
                     // (.hd-rich img{max-width}). Muitas interações com imagem viravam dezenas de iframes → render lento.
-                    const complexHtml = html && /<table\b/i.test(c.body ?? '')
+                    const complexHtml = pc?.complexHtml ?? false
                     // ——— Evento de sistema: card central discreto (nunca parece e-mail) ———
                     if (isSystem && !editing) {
                       const txt = html ? stripTags(c.body) : c.body
@@ -937,9 +969,9 @@ function TicketDetailInner({ id }: { id: number }) {
                         ) : c.body ? (
                           <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {complexHtml
-                              ? <EmailFrame html={sanitizeEmail(c.body)} />
+                              ? <EmailFrame html={pc?.email ?? ''} />
                               : html
-                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.body ?? '') }} />
+                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: pc?.rich ?? '' }} />
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
@@ -976,8 +1008,8 @@ function TicketDetailInner({ id }: { id: number }) {
                   {/* Descrição = interação MAIS ANTIGA (do solicitante), sempre no fim da lista — bolha à esquerda. */}
                   {t.description && (() => {
                     const autor = t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'
-                    const descHtml = isHtmlBody(t.description ?? '')
-                    const complexDescHtml = descHtml && /<table\b/i.test(t.description ?? '')
+                    const descHtml = descRendered.html
+                    const complexDescHtml = descRendered.complexHtml
                     return (
                     <div className="hd-msg flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
@@ -1005,9 +1037,9 @@ function TicketDetailInner({ id }: { id: number }) {
                         ) : (
                           <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexDescHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : 'hd-msg-body w-fit max-w-full px-3.5 py-2 hd-bubble-client'}`} style={{ borderTopLeftRadius: 4 }}>
                             {complexDescHtml
-                              ? <EmailFrame html={sanitizeEmail(t.description ?? '')} />
+                              ? <EmailFrame html={descRendered.email} />
                               : descHtml
-                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: sanitizeRich(t.description ?? '') }} />
+                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: descRendered.rich }} />
                                 : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}
