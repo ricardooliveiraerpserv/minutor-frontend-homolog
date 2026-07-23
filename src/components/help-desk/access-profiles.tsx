@@ -266,7 +266,7 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
 }
 
 // ── Pessoas do Help Desk — vínculo usuário ↔ perfil de acesso (+ departamento p/ clientes) ──
-interface Person { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; helpdesk_department_id?: number | null }
+interface Person { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; customer_name?: string | null; helpdesk_department_id?: number | null }
 interface Dept { id: number; name: string; active: boolean }
 export function HelpDeskPeople() {
   const [kind, setKind] = useState<Kind>('agent')
@@ -365,15 +365,20 @@ export function HelpDeskPeople() {
         <table className="w-full text-sm">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
             <th className="px-3 py-2 w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} title="Selecionar todos" /></th>
-            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de usuário</th><th className="px-3 py-2">Perfil de acesso</th>
+            <th className="px-3 py-2">Nome</th>
+            {kind === 'cliente' && <th className="px-3 py-2">Cliente</th>}
+            <th className="px-3 py-2">Perfil de usuário</th><th className="px-3 py-2">Perfil de acesso</th>
             {kind === 'cliente' && <th className="px-3 py-2">Departamento</th>}
           </tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={kind === 'cliente' ? 5 : 4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhuma pessoa.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={kind === 'cliente' ? 6 : 4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhuma pessoa.</td></tr>}
             {filtered.map(p => (
               <tr key={p.id} className="border-t" style={{ borderColor: selected.has(p.id) ? 'var(--primary)' : 'var(--border)', background: selected.has(p.id) ? 'var(--primary-soft)' : 'transparent' }}>
                 <td className="px-3 py-2"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} /></td>
                 <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{p.name}</td>
+                {kind === 'cliente' && (
+                  <td className="px-3 py-2" style={{ color: p.customer_name ? 'var(--text-muted)' : 'var(--text-light)' }}>{p.customer_name ?? <span className="text-[11px]">sem cliente</span>}</td>
+                )}
                 <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-light)' }}>{p.type}</td>
                 <td className="px-3 py-2">
                   <select className={`${fieldCls} max-w-xs`} style={inputStyle} value={p.helpdesk_access_profile_id ?? ''} onChange={e => setProfile(p.id, e.target.value)}>
