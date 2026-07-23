@@ -268,6 +268,8 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
 // ── Pessoas do Help Desk — vínculo usuário ↔ perfil de acesso (+ departamento p/ clientes) ──
 interface Person { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; customer_name?: string | null; helpdesk_department_id?: number | null }
 interface Dept { id: number; name: string; active: boolean }
+// Perfil cujo escopo de visão é "por departamento" — só faz sentido p/ cliente que TEM departamentos.
+const isDeptProfile = (pr: AccessProfile) => (pr.permissions as Record<string, unknown> | null)?.['tickets.view_tickets'] === 'department'
 export function HelpDeskPeople() {
   const [kind, setKind] = useState<Kind>('agent')
   const [people, setPeople] = useState<Person[]>([])
@@ -381,10 +383,18 @@ export function HelpDeskPeople() {
                 )}
                 <td className="px-3 py-2 text-[11px]" style={{ color: 'var(--text-light)' }}>{p.type}</td>
                 <td className="px-3 py-2">
-                  <select className={`${fieldCls} max-w-xs`} style={inputStyle} value={p.helpdesk_access_profile_id ?? ''} onChange={e => setProfile(p.id, e.target.value)}>
-                    <option value="">— sem perfil —</option>
-                    {profiles.map(pr => <option key={pr.id} value={pr.id}>{pr.name}{pr.is_default ? ' (padrão)' : ''}</option>)}
-                  </select>
+                  {(() => {
+                    // Sem departamentos no cliente da pessoa → esconde o perfil "por departamento"
+                    // (mantém o já vinculado, se for o caso, p/ não sumir a seleção atual).
+                    const hasDepts = !!(p.customer_id && (deptsByCustomer[p.customer_id]?.length))
+                    const opts = profiles.filter(pr => hasDepts || !isDeptProfile(pr) || pr.id === p.helpdesk_access_profile_id)
+                    return (
+                      <select className={`${fieldCls} max-w-xs`} style={inputStyle} value={p.helpdesk_access_profile_id ?? ''} onChange={e => setProfile(p.id, e.target.value)}>
+                        <option value="">— sem perfil —</option>
+                        {opts.map(pr => <option key={pr.id} value={pr.id}>{pr.name}{pr.is_default ? ' (padrão)' : ''}</option>)}
+                      </select>
+                    )
+                  })()}
                 </td>
                 {kind === 'cliente' && (
                   <td className="px-3 py-2">
