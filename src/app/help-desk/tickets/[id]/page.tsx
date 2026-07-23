@@ -523,19 +523,23 @@ function TicketDetailInner({ id }: { id: number }) {
     setDynEdit(null); setDynForm(form); setResolveStatusId(statusId); setDynOpen(true)
   }
 
-  const submitDynForm = async (inst: FormInstance, body: string, time: FormTime) => {
+  const submitDynForm = async (inst: FormInstance, body: string, time: FormTime, files: File[] = []) => {
     // Tempo da interação → vira apontamento quando o contrato tem a integração ligada.
     const timeFields: Record<string, unknown> = { worked_date: time.worked_date, no_charge: time.no_charge }
     if (time.start_time) timeFields.start_time = time.start_time
     if (time.end_time) timeFields.end_time = time.end_time
     if (time.total_hours) timeFields.total_hours = time.total_hours
+    // Sobe os anexos do formulário (ex.: fonte comprimido do Código Fonte) na interação criada/editada.
+    const uploadFiles = async (cid: number) => { for (const f of files) { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/tickets/${id}/comments/${cid}/attachments`, fd) } }
     try {
       if (dynEdit) {
         const resp = await api.patch<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic', ...timeFields })
+        await uploadFiles(dynEdit.commentId)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Formulário atualizado')
       } else {
-        const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic', ...timeFields })
+        const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic', ...timeFields })
+        if (resp?.data?.id) await uploadFiles(resp.data.id)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado atualizado')

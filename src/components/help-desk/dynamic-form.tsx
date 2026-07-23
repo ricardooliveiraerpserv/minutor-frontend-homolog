@@ -48,7 +48,10 @@ export const FORM_TAGS: { tag: string; label: string }[] = [
 // Nenhum dos dois gera input no preenchimento.
 export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
 // rule = automação condicional: quando o checkbox `when` está marcado, o campo recebe `value` e trava.
-export interface FieldRule { when?: string | null; value?: string | null }
+// require_attachment: checkbox que, ao ser marcado, EXIGE anexar arquivo comprimido antes de salvar.
+export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean }
+// Extensões de arquivo comprimido aceitas quando o anexo é obrigatório (Código Fonte etc.).
+const COMPRESSED_RE = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|z)$/i
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
 export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
 export interface FormValueField { key: string; label: string; hint?: string | null; ftype: FieldType; value: string | boolean }
@@ -108,7 +111,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   timeMode?: 'optional' | 'required' | 'hidden'
   submitLabel?: string
   onClose: () => void
-  onSubmit: (inst: FormInstance, body: string, time: FormTime) => Promise<void> | void
+  onSubmit: (inst: FormInstance, body: string, time: FormTime, files: File[]) => Promise<void> | void
 }) {
   // Tempo trabalhado da interação (obrigatório informar — é uma interação). Edição pré-preenche.
   const [workedDate, setWorkedDate] = useState(initialTime?.worked_date || localToday())
@@ -174,7 +177,15 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       }
       if (filled < sec.min_chars) errors.push(`${sec.label} — marque ao menos ${sec.min_chars}`)
     }
-    if (errors.length) { toast.error(`Preencha: ${errors.join(', ')}.`); return }
+    // Anexos coletados dos editores (botão "Anexar"). Hoje é a única via de arquivo do formulário.
+    const files = form.fields.filter(f => f.ftype === 'richtext').flatMap(f => richRefs.current[f.key]?.getFiles() ?? [])
+    // Checkbox com rule.require_attachment marcado → exige anexar arquivo COMPRIMIDO (ex.: Código Fonte).
+    for (const f of form.fields) {
+      if (f.ftype !== 'checkbox' || !f.rule?.require_attachment || !values[f.key]) continue
+      if (files.length === 0) errors.push(`${f.label}: anexe o arquivo (comprimido: .zip, .rar, .7z…) pelo botão “Anexar”`)
+      else if (!files.every(x => COMPRESSED_RE.test(x.name))) errors.push(`${f.label}: o anexo deve ser um arquivo comprimido (.zip, .rar, .7z, .tar, .gz)`)
+    }
+    if (errors.length) { toast.error(errors.join(' · ')); return }
 
     // Tempo da interação: 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta.
     if (timeMode !== 'hidden') {
@@ -192,7 +203,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     }
     const time: FormTime = { worked_date: workedDate, start_time: noCharge ? '' : startTime, end_time: noCharge ? '' : endTime, total_hours: noCharge ? '' : totalDisplay, no_charge: noCharge }
     setSaving(true)
-    try { await onSubmit(inst, composeFormBody(inst), time) } finally { setSaving(false) }
+    try { await onSubmit(inst, composeFormBody(inst), time, files) } finally { setSaving(false) }
   }
 
   const lbl = 'text-[15px] font-bold'
