@@ -93,34 +93,34 @@ export default function StatusClientesPage() {
   const execOpts = useMemo(() => [...new Set(all.map(r => r.executivo).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(e => ({ id: e, name: e })), [all])
   const clienteOpts = useMemo(() => [...new Set(all.map(r => r.cliente))].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => ({ id: c, name: c })), [all])
 
-  // População = filtros de recorte (cliente / executivo / "Só clientes do Minutor").
-  // Os cards resumem ESTA população. Antes usavam os totais fixos da API e ignoravam
-  // os filtros — por isso não mudavam. O filtro Situação abaixo é só drill-down da lista.
-  const pop = useMemo(() => {
+  // TODOS os filtros (cliente / executivo / "Só clientes do Minutor" / Situação) recortam
+  // a mesma base. Cards e tabela derivam dela — antes os cards usavam totais fixos da API
+  // e ignoravam os filtros, por isso não mudavam ao filtrar.
+  const filtered = useMemo(() => {
     let r = all
     if (soMinutor) r = r.filter(x => x.no_minutor)
     if (execFilter.length) r = r.filter(x => x.executivo && execFilter.includes(x.executivo))
     if (clienteFilter.length) r = r.filter(x => clienteFilter.includes(x.cliente))
+    if (situacao !== 'todos') r = r.filter(x => x.status === situacao)
     return r
-  }, [all, soMinutor, execFilter, clienteFilter])
+  }, [all, soMinutor, execFilter, clienteFilter, situacao])
 
   const kpi = useMemo(() => ({
-    ativos:     pop.filter(r => r.status === 'ativo').length,
-    inativando: pop.filter(r => r.status === 'inativando').length,
-    inativos:   pop.filter(r => r.status === 'inativo').length,
-    potencial:  pop.filter(r => r.status !== 'ativo').reduce((s, r) => s + r.ultimo_valor, 0),
-  }), [pop])
+    ativos:     filtered.filter(r => r.status === 'ativo').length,
+    inativando: filtered.filter(r => r.status === 'inativando').length,
+    inativos:   filtered.filter(r => r.status === 'inativo').length,
+    potencial:  filtered.filter(r => r.status !== 'ativo').reduce((s, r) => s + r.ultimo_valor, 0),
+  }), [filtered])
 
   const rows = useMemo(() => {
-    let r = situacao !== 'todos' ? pop.filter(x => x.status === situacao) : pop
     const acc: Record<string, (r: Row) => unknown> = {
       cliente: r => r.cliente, executivo: r => r.executivo, cnpj: r => r.cnpj,
       ultimo_faturamento: r => r.ultimo_faturamento, meses_inativo: r => r.meses_inativo,
       status: r => STATUS_ORD[r.status], ultimo_valor: r => r.ultimo_valor, total_recebido: r => r.total_recebido,
     }
     const f = acc[sort.key]
-    return f ? [...r].sort((a, b) => cmp(f(a), f(b)) * sort.dir) : r
-  }, [pop, situacao, sort])
+    return f ? [...filtered].sort((a, b) => cmp(f(a), f(b)) * sort.dir) : filtered
+  }, [filtered, sort])
 
   const cfg = data?.config
 
