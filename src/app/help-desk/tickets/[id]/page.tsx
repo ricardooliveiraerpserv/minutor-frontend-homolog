@@ -838,7 +838,8 @@ function TicketDetailInner({ id }: { id: number }) {
                   /* Compositor no TOPO — nova interação sempre em cima */
                   <InteracaoComposer ref={composerRef} ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     /* Encerrar (status terminal) só p/ quem tem permissão — coordenador/admin por padrão. */
-                    statuses={statuses.filter(s => t.can_close || !s.is_terminal).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, is_terminal: s.is_terminal, allows_scheduling: s.allows_scheduling }))}
+                    /* 'Reunião agendada' é definido automaticamente ao agendar a reunião — fora do seletor manual. */
+                    statuses={statuses.filter(s => s.key !== 'reuniao_agendada' && (t.can_close || !s.is_terminal)).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, is_terminal: s.is_terminal, allows_scheduling: s.allows_scheduling }))}
                     currentStatusId={t.status?.id}
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
