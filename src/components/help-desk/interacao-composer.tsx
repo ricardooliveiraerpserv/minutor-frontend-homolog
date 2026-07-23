@@ -89,7 +89,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     const rank = (s: ComposerStatus) => s.is_terminal ? 2 : (s.is_resolved ? 1 : 0)
     return rank(a) - rank(b)
   })
-  const statusColor = (s?: ComposerStatus) => !s ? 'var(--text-muted)' : (s.is_terminal ? 'var(--danger-border)' : (s.is_resolved ? 'var(--warning-border)' : 'var(--text)'))
+  const statusColor = (s?: ComposerStatus) => !s ? 'var(--text-muted)' : (s.is_terminal ? 'var(--danger-border)' : (s.is_resolved ? 'var(--success)' : 'var(--text)'))
   const pickStatus = (s: ComposerStatus) => {
     setStOpen(false)
     // Status com formulário: abre o form (o form é a própria interação).
@@ -364,7 +364,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                         style={{ color: statusColor(s), fontWeight: crit ? 700 : 500 }}>
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor(s) }} />
                         <span className="truncate">{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</span>
-                        {crit && <span className="ml-auto shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: s.is_terminal ? 'var(--danger-bg)' : 'var(--warning-bg)', color: statusColor(s) }}>{s.is_terminal ? 'ENCERRA' : 'CONCLUI'}</span>}
+                        {crit && <span className="ml-auto shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: s.is_terminal ? 'var(--danger-bg)' : 'var(--success-bg)', color: statusColor(s) }}>{s.is_terminal ? 'ENCERRA' : 'CONCLUI'}</span>}
                       </button>
                     )
                   })}
