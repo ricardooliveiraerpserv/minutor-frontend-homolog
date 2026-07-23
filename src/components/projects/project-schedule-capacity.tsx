@@ -97,8 +97,8 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                 onClick={() => onSelectUser(isSelected ? null : row.user.id)}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  flexDirection: 'column',
+                  gap: 4,
                   width: '100%',
                   padding: '8px 12px',
                   background: isSelected ? 'var(--primary-soft)' : 'transparent',
@@ -108,37 +108,37 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                   color: 'inherit',
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
-                      {row.user.name}
+                {/* Nome + selo de sobrecarga */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
+                    {row.user.name}
+                  </span>
+                  {row.overload && (
+                    <span
+                      title={row.overload_reasons.join(' · ') || 'Acima da capacidade'}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 3,
+                        fontSize: 9, fontWeight: 600,
+                        padding: '1px 5px', borderRadius: 3,
+                        background: 'var(--danger-bg)', color: 'var(--danger)',
+                        border: '1px solid var(--danger)',
+                      }}
+                    >
+                      <AlertTriangle size={8} /> Acima da capacidade
                     </span>
-                    {row.overload && (
-                      <span
-                        title={row.overload_reasons.join(' · ') || 'Sobrecarregado'}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 3,
-                          fontSize: 9, fontWeight: 600,
-                          padding: '1px 5px', borderRadius: 3,
-                          background: 'var(--danger-bg)', color: 'var(--danger)',
-                          border: '1px solid var(--danger)',
-                          textTransform: 'uppercase', letterSpacing: 0.3,
-                        }}
-                      >
-                        <AlertTriangle size={8} /> Sobrecarregado
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Neste projeto: <strong style={{ color: 'var(--text)' }}>{formatHours(inProjectHours)}</strong>
-                    {' · '}
-                    Total: <strong style={{ color: 'var(--text)' }}>{formatHours(row.planned_hours)}</strong> / {formatHours(row.capacity_hours)}
-                  </div>
+                  )}
                 </div>
 
-                <div style={{ flex: '0 0 140px' }}>
+                {/* Ocupação em % — headline claro + barra */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    title={`Capacidade de referência: ${formatHours(row.capacity_hours)}/mês`}
+                    style={{ fontSize: 11, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}
+                  >
+                    {usagePct}% da capacidade
+                  </span>
                   <div style={{
-                    height: 5, width: '100%',
+                    flex: 1, height: 5,
                     background: 'var(--surface-hover)',
                     borderRadius: 3, overflow: 'hidden',
                   }}>
@@ -149,14 +149,13 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                       transition: 'width .2s ease',
                     }} />
                   </div>
-                  <div style={{
-                    fontSize: 10, marginTop: 2,
-                    color: row.overload ? 'var(--danger)' : 'var(--text-muted)',
-                    fontWeight: row.overload ? 600 : 400,
-                    textAlign: 'right',
-                  }}>
-                    {usagePct}%
-                  </div>
+                </div>
+
+                {/* Detalhe: horas neste projeto vs em todos */}
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  Neste projeto: <strong style={{ color: 'var(--text)' }}>{formatHours(inProjectHours)}</strong>
+                  {' · '}
+                  No total: <strong style={{ color: 'var(--text)' }}>{formatHours(row.planned_hours)}</strong>
                 </div>
               </button>
             </li>
