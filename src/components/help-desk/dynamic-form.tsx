@@ -97,12 +97,15 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
-export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
+export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, timeMode = 'optional', submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
   initialTime?: FormTime | null
   tokens?: Record<string, string>   // preenchimento automático: {ticket.creator.name} etc.
   currentUserName?: string          // atalho "eu" nos campos de usuário
+  // Horas da interação: 'optional' (pode marcar "Sem apontamento"), 'required' (obrigatório informar,
+  // sem escape) ou 'hidden' (não aponta por aqui). Espelha o modo do compositor (sustentação).
+  timeMode?: 'optional' | 'required' | 'hidden'
   submitLabel?: string
   onClose: () => void
   onSubmit: (inst: FormInstance, body: string, time: FormTime) => Promise<void> | void
@@ -112,7 +115,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   const [startTime, setStartTime] = useState(initialTime?.start_time || '')
   const [endTime, setEndTime] = useState(initialTime?.end_time || '')
   const [totalHours, setTotalHours] = useState(initialTime?.total_hours || '')
-  const [noCharge, setNoCharge] = useState(!!initialTime?.no_charge)
+  // 'required' não permite "Sem apontamento"; 'hidden' não aponta (no_charge).
+  const [noCharge, setNoCharge] = useState(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : !!initialTime?.no_charge))
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
   // Campos do tipo "user" buscam do cadastro de usuários (internos).
@@ -157,11 +161,26 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       if (f.required && isBlank(v)) errors.push(f.label)
       else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`${f.label} (mín. ${f.min_chars})`)
     }
+    // Seção com `min_chars` = exige ao menos N itens (checkbox marcado ou campo preenchido) entre ela
+    // e a próxima seção/título. Ex.: "Anexos Obrigatórios" com min_chars=1 → pelo menos 1 marcado.
+    for (let i = 0; i < form.fields.length; i++) {
+      const sec = form.fields[i]
+      if (sec.ftype !== 'section' || !sec.min_chars || sec.min_chars < 1) continue
+      let filled = 0
+      for (let j = i + 1; j < form.fields.length; j++) {
+        const fj = form.fields[j]
+        if (fj.ftype === 'section' || fj.ftype === 'title') break
+        if (fj.ftype === 'checkbox' ? !!values[fj.key] : !isBlank(values[fj.key])) filled++
+      }
+      if (filled < sec.min_chars) errors.push(`${sec.label} — marque ao menos ${sec.min_chars}`)
+    }
     if (errors.length) { toast.error(`Preencha: ${errors.join(', ')}.`); return }
 
-    // Tempo da interação: ou "Sem apontamento", ou informar início→fim (fim > início) OU total.
-    if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
-    if (!noCharge && !totalDisplay) { toast.error('Informe as horas da interação (início→fim ou total) ou marque “Sem apontamento”.'); return }
+    // Tempo da interação: 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta.
+    if (timeMode !== 'hidden') {
+      if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
+      if (!noCharge && !totalDisplay) { toast.error(timeMode === 'required' ? 'Informe as horas da interação (início→fim ou total).' : 'Informe as horas da interação (início→fim ou total) ou marque “Sem apontamento”.'); return }
+    }
 
     // Tags resolvidas AGORA (grava o valor real na instância — o timeline/e-mail já saem prontos).
     const tk = (s: string | null | undefined) => applyTokens(s, tokens)
@@ -245,17 +264,18 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
           )
         })}
 
-        {/* Tempo da interação — o formulário É uma interação; movimenta horas quando o
-            contrato tem a integração ligada. "Sem apontamento" trava os campos. */}
+        {/* Tempo da interação — o formulário É uma interação; movimenta horas quando o contrato tem a
+            integração ligada. 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta aqui. */}
+        {timeMode !== 'hidden' && (
         <div className="rounded-lg px-2.5 py-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo{timeMode === 'required' ? ' *' : ''}</span>
             <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
               disabled={noCharge} aria-label="Data da interação"
               className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: noCharge ? 0.5 : 1 }} />
             <span style={{ color: 'var(--text-light)' }}>·</span>
             <TimeSelect5 value={startTime} onChange={v => { setStartTime(v); setNoCharge(false) }} ariaLabel="Hora início" maxBefore={endTime}
-              topOption={{ label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
+              topOption={timeMode === 'required' ? undefined : { label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
             <span style={{ color: 'var(--text-light)' }}>→</span>
             <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" minAfter={startTime} />
             <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
@@ -264,6 +284,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
               className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
           </div>
         </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>

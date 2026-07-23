@@ -1332,6 +1332,10 @@ function TicketDetailInner({ id }: { id: number }) {
             'data': new Date().toLocaleDateString('pt-BR'),
           }}
           currentUserName={user?.name}
+          /* Horas: em sustentação, quem não aponta manualmente é OBRIGADO a informar aqui (mesma regra do compositor). */
+          timeMode={t.contract?.categoria === 'sustentacao'
+            ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
+            : 'optional'}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
           onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
           onSubmit={submitDynForm}
