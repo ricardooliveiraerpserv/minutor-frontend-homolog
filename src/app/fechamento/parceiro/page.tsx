@@ -284,10 +284,18 @@ export default function FechamentoParceiroPage() {
     })
   }, [status?.partner_id])
 
+  // Sincroniza o status do parceiro selecionado sempre que a lista chega/muda.
   useEffect(() => {
     if (!partnerId) { setStatus(null); return }
     const found = parceiros.find(p => p.partner_id === partnerId)
     setStatus(found ?? null)
+  }, [partnerId, parceiros])
+
+  // TROCA de parceiro: limpa dados/filtros e volta pra aba Consultores.
+  // Depende SÓ de partnerId — senão o carregamento ASSÍNCRONO de `parceiros`
+  // re-disparava este effect e ZERAVA os consultores recém-carregados (a lista
+  // só reaparecia ao trocar de aba). Esse era o bug do 1º load.
+  useEffect(() => {
     setConsultores([])
     setDespesas([])
     setApontamentos([])
@@ -295,7 +303,7 @@ export default function FechamentoParceiroPage() {
     setFilterConsultor('')
     setFilterApConsultor('')
     setFilterApStatus('')
-  }, [partnerId, parceiros])
+  }, [partnerId])
 
   useEffect(() => {
     if (!partnerId || !yearMonth) return
@@ -1097,7 +1105,7 @@ export default function FechamentoParceiroPage() {
                       ) : (
                         <Table>
                           <Thead>
-                            <tr><Th>Consultor</Th><Th right>Horas</Th><Th right>Taxa/h</Th><Th right>Total</Th></tr>
+                            <tr><Th>Consultor</Th><Th className="text-center">Horas</Th><Th className="text-center">Taxa/h</Th><Th className="text-center">Total</Th></tr>
                           </Thead>
                           <Tbody>
                             {filteredConsultores.map(row => (
@@ -1108,8 +1116,8 @@ export default function FechamentoParceiroPage() {
                                     <div className="text-xs" style={{ color: 'var(--text-light)' }}>Mensalista · ÷160</div>
                                   )}
                                 </Td>
-                                <Td right className="tabular-nums text-xs">{row.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
-                                <Td right className="tabular-nums text-xs">{formatBRL(row.valor_hora)}/h</Td>
+                                <Td className="tabular-nums text-xs text-center">{row.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
+                                <Td className="tabular-nums text-xs text-center">{formatBRL(row.valor_hora)}/h</Td>
                                 <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--primary)' }}>{formatBRL(row.total)}</Td>
                               </Tr>
                             ))}
@@ -1166,14 +1174,14 @@ export default function FechamentoParceiroPage() {
                                 </div>
                                 <Table>
                                   <Thead>
-                                    <tr><Th>Consultor</Th><Th right>Horas</Th><Th right>Taxa/h</Th><Th right>Total</Th></tr>
+                                    <tr><Th>Consultor</Th><Th className="text-center">Horas</Th><Th className="text-center">Taxa/h</Th><Th className="text-center">Total</Th></tr>
                                   </Thead>
                                   <Tbody>
                                     {rows.map(r => (
                                       <Tr key={r.user_id}>
                                         <Td className="text-xs font-medium" style={{ color: 'var(--text)' }}>{r.consultor}</Td>
-                                        <Td right className="tabular-nums text-xs">{r.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
-                                        <Td right className="tabular-nums text-xs">{formatBRL(r.taxa)}/h</Td>
+                                        <Td className="tabular-nums text-xs text-center">{r.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
+                                        <Td className="tabular-nums text-xs text-center">{formatBRL(r.taxa)}/h</Td>
                                         <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--primary)' }}>{formatBRL(Math.round(r.total * 100) / 100)}</Td>
                                       </Tr>
                                     ))}
