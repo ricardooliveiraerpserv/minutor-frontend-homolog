@@ -26,6 +26,7 @@ interface PartnerItem {
   pricing_type: 'fixed' | 'variable'
   hourly_rate?: string | null
   contract_type?: 'cooperado' | 'clt' | 'pj' | null
+  folha_user_id?: number | null
 }
 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
@@ -55,7 +56,7 @@ function TableSkeleton() {
   )
 }
 
-const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '', contract_type: '' as '' | 'cooperado' | 'clt' | 'pj' }
+const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '', contract_type: '' as '' | 'cooperado' | 'clt' | 'pj', folha_user_id: null as number | null }
 
 export default function PartnersPage() {
   const { user } = useAuth()
@@ -89,6 +90,16 @@ export default function PartnersPage() {
   const [rateHistoryOpen, setRateHistoryOpen] = useState(false)
   const [rateHistory, setRateHistory] = useState<any[]>([])
   const [rateHistoryLoading, setRateHistoryLoading] = useState(false)
+  // Usuários do parceiro — p/ o seletor "Usuário na folha da cooperativa" (quem sobe pra folha).
+  const [partnerUsers, setPartnerUsers] = useState<{ id: number; name: string; is_executive?: boolean }[]>([])
+  const loadPartnerUsers = useCallback(async (partnerId: number) => {
+    try {
+      const r = await api.get<{ items: { id: number; name: string; is_executive?: boolean }[] }>(`/users?partner_id=${partnerId}&pageSize=200&order=name`)
+      setPartnerUsers(Array.isArray(r?.items) ? r.items : [])
+    } catch {
+      setPartnerUsers([])
+    }
+  }, [])
   const openRateHistory = async () => {
     if (!modal.item) return
     setRateHistoryOpen(true)
@@ -124,6 +135,7 @@ export default function PartnersPage() {
 
   const openCreate = () => {
     setForm({ ...EMPTY_FORM })
+    setPartnerUsers([])
     setModal({ open: true })
   }
 
@@ -137,7 +149,10 @@ export default function PartnersPage() {
       pricing_type: item.pricing_type ?? 'fixed',
       hourly_rate: item.hourly_rate ?? '',
       contract_type: item.contract_type ?? '',
+      folha_user_id: item.folha_user_id ?? null,
     })
+    setPartnerUsers([])
+    loadPartnerUsers(item.id)
     setModal({ open: true, item })
   }
 
@@ -153,6 +168,8 @@ export default function PartnersPage() {
         pricing_type:  form.pricing_type,
         hourly_rate:   form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
         contract_type: form.contract_type || null,
+        // Quem sobe pra Folha da Cooperativa — só faz sentido p/ parceiro cooperado.
+        folha_user_id: form.contract_type === 'cooperado' ? (form.folha_user_id || null) : null,
       }
       if (modal.item) {
         // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
@@ -346,6 +363,24 @@ export default function PartnersPage() {
                 </div>
                 <p className="text-[10px] text-[var(--text-light)] mt-1">Aplica a todos os consultores do parceiro.</p>
               </div>
+              {/* Usuário na Folha da Cooperativa — quem representa a apuração consolidada do
+                  parceiro (só cooperado; precisa do parceiro já salvo p/ ter os usuários). */}
+              {form.contract_type === 'cooperado' && modal.item && (
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Usuário na folha da cooperativa</Label>
+                  <select
+                    value={form.folha_user_id ?? ''}
+                    onChange={e => setForm(f => ({ ...f, folha_user_id: e.target.value ? Number(e.target.value) : null }))}
+                    className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-9 px-2"
+                  >
+                    <option value="">Automático (usuário executivo)</option>
+                    {partnerUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}{u.is_executive ? ' (executivo)' : ''}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-[var(--text-light)] mt-1">A apuração de todos os consultores do parceiro é somada nesta pessoa — a única que aparece na folha da cooperativa.</p>
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Tipo de precificação *</Label>
                 <div className="flex gap-2">
