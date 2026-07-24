@@ -111,8 +111,9 @@ function fmtYearMonth(ym: string): string {
 }
 
 // Número pt-BR sem símbolo de moeda (para Valor Hora com 4 casas).
-function fmtNum(value: number, decimals = 2): string {
-  return value.toLocaleString('pt-BR', {
+// Guarda contra undefined/null (linhas sem algum campo numérico não derrubam a tela).
+function fmtNum(value: number | null | undefined, decimals = 2): string {
+  return (Number(value) || 0).toLocaleString('pt-BR', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })
@@ -148,7 +149,7 @@ function MaskedNum({ value, onChange, decimals = 2, className, style }: {
   className?: string
   style?: React.CSSProperties
 }) {
-  const display = value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const display = (Number(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   return (
     <input
       type="text"
