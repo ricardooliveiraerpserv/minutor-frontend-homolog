@@ -331,9 +331,6 @@ function InternalCronogramaPage() {
 
   return (
     <div>
-      {/* CABEÇALHO FIXO (resumo + abas) — gruda logo abaixo do cabeçalho do layout
-          (top = altura do #proj-page-header). Só o conteúdo da view rola por baixo. */}
-      <div style={{ position: 'sticky', top: headerH, zIndex: 20, background: 'var(--bg)', boxShadow: '0 8px 10px -8px rgba(0,0,0,.18)', paddingBottom: 6, marginBottom: 6 }}>
       {/* Fase 10: header executivo + alertas (acima dos KPIs simples).
           Consultor NÃO vê o resumo/alertas do projeto (total, equipe, risco) —
           só o board com as atividades dele. */}
@@ -423,12 +420,14 @@ function InternalCronogramaPage() {
         </div>
       )}
 
-      {/* Toolbar: segmented control + ações (dentro do cabeçalho fixo) */}
+      {/* BLOCO 2 fixo — barra de abas + ações (gruda logo abaixo do Bloco 1) */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 10,
-        paddingTop: 6,
-        paddingBottom: 2,
+        position: 'sticky', top: headerH, zIndex: 20,
+        background: 'var(--bg)',
+        boxShadow: '0 6px 8px -6px rgba(0,0,0,.18)',
+        paddingTop: 6, paddingBottom: 6,
       }}>
         <SegmentedControl current={view} onChange={setView} onlyOperacao={isConsultor} counts={{
           operacao: counts.inProgressCount,
@@ -501,7 +500,6 @@ function InternalCronogramaPage() {
             </button>
           )}
         </div>
-      </div>
       </div>
 
       {creating && (

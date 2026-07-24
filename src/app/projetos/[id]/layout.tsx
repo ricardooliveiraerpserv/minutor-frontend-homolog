@@ -88,32 +88,24 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-        {/* CABEÇALHO DA PÁGINA fixo — Voltar + identidade/cards + navegação de módulo.
-            Fica sticky no topo; o conteúdo (view) rola por baixo. */}
-        <div id="proj-page-header" style={{
-          position: 'sticky', top: 0, zIndex: 30,
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', marginTop: -14 }}>
+        <div style={{
+          padding: '2px 24px 4px',
+          borderBottom: '1px solid var(--border)',
           background: 'var(--bg)',
-          boxShadow: '0 6px 10px -8px rgba(0,0,0,.18)',
         }}>
-          <div style={{
-            padding: '8px 24px',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg)',
-          }}>
-            <Link
-              href={back.href}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none',
-              }}
-            >
-              <ChevronLeft size={14} /> Voltar para {back.label}
-            </Link>
-          </div>
-          <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
-          <ProjectModuleNav projectId={project.id} />
+          <Link
+            href={back.href}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none',
+            }}
+          >
+            <ChevronLeft size={14} /> Voltar para {back.label}
+          </Link>
         </div>
+        <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
+        <ProjectModuleNav projectId={project.id} />
         <div style={{ flex: 1, padding: '12px 24px', background: 'var(--bg)' }}>
           {children}
         </div>
