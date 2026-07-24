@@ -29,6 +29,7 @@ interface UserData {
   rate_type?: string
   daily_hours?: number
   bank_hours_start_date?: string | null
+  bank_hours_initial_balance?: number | null
   consultant_type?: string | null
   contract_type?: 'cooperado' | 'clt' | 'pj' | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
@@ -339,6 +340,7 @@ const EMPTY_FORM = {
   rate_type: 'hourly' as 'hourly' | 'monthly',
   daily_hours: '8',
   bank_hours_start_date: '',
+  bank_hours_initial_balance: '',
   guaranteed_hours: '',
   profiles: [] as ProfileType[],
   consultant_type: 'horista' as ConsultantType | '',
@@ -480,6 +482,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
           daily_hours:            item.daily_hours != null ? String(item.daily_hours) : '8',
           bank_hours_start_date:  item.bank_hours_start_date ?? '',
+          bank_hours_initial_balance: item.bank_hours_initial_balance != null ? String(item.bank_hours_initial_balance) : '',
           guaranteed_hours:       item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
           profiles,
           consultant_type:      consultant_type as ConsultantType | '',
@@ -574,6 +577,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
+        if (form.consultant_type === 'banco_de_horas') {
+          payload.bank_hours_initial_balance = form.bank_hours_initial_balance !== '' ? parseFloat(form.bank_hours_initial_balance) : 0
+        }
         if (form.consultant_type === 'horista') {
           payload.guaranteed_hours = form.guaranteed_hours ? parseFloat(form.guaranteed_hours) : null
         }
@@ -895,6 +901,23 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                     className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
                   <span className="text-xs text-[var(--text-light)]">h/dia (padrão: 8h)</span>
                 </div>
+              </div>
+            )}
+
+            {/* ── Saldo inicial do banco (trazido de outro sistema) ── */}
+            {isConsultor && form.consultant_type === 'banco_de_horas' && (
+              <div>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Saldo inicial do banco (h)</Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" step="0.5" value={form.bank_hours_initial_balance}
+                    onChange={e => setForm(f => ({ ...f, bank_hours_initial_balance: e.target.value }))}
+                    placeholder="0"
+                    className="w-28 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
+                  <span className="text-xs text-[var(--text-light)]">h</span>
+                </div>
+                <p className="text-xs text-[var(--text-light)] mt-1">
+                  Saldo trazido de outro sistema — use <b>negativo</b> para saldo devedor (ex.: <b>-100</b>). Semeia o cálculo no mês de início.
+                </p>
               </div>
             )}
 
