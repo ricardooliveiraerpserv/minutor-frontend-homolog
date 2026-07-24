@@ -1479,6 +1479,11 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
   const selectProject = (id: number) => {
     setSelectedProjectId(id)
     setSubSeq('')
+    // Sugere o próximo número do subprojeto (maior filho + 1) — mesmo endpoint do
+    // ContractCreateModal. Sem isso o campo nascia vazio ("-??").
+    api.get<{ sub_seq?: string }>(`/projects/next-code?parent_project_id=${id}`)
+      .then(r => { if (r?.sub_seq) setSubSeq(r.sub_seq) })
+      .catch(() => {})
     setParentBalance(null)
     setParentBalanceLoading(true)
     api.get<{ general_hours_balance?: number; allow_negative_balance?: boolean; total_available_hours?: number; sold_hours?: number; consumed_hours?: number }>(`/projects/${id}`)
@@ -4687,6 +4692,13 @@ function KanbanContent() {
     }
 
     if (toCol === 'inicio_autorizado') {
+      // Obrigatório passar por "Aguardando Início (Req.)" antes: é lá que a decisão
+      // (novo projeto / subprojeto / aporte) GERA os contratos. Não pode pular direto
+      // de Em Revisão/Aprovado pra Início Autorizado (o card nasce em Início sem contrato).
+      if (fromCol !== 'req_inicio_autorizado') {
+        toast.error('Mova o card primeiro para "Aguardando Início (Req.)" — é lá que os contratos são gerados.')
+        return
+      }
       if (!card.is_complete) {
         toast.error('Contrato incompleto — preencha todos os campos obrigatórios antes de autorizar.')
         return

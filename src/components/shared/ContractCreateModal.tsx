@@ -187,6 +187,15 @@ export function ContractCreateModal({
     api.get<any>('/contract-types?pageSize=100').then(r => setContractTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
   }, [customerReadOnly])
 
+  // Modo read-only (subprojeto/aporte): a lista completa não é carregada — busca só o
+  // cliente fixo pra exibir o NOME (senão a linha cai em "Cliente #<id>").
+  useEffect(() => {
+    if (!customerReadOnly || !form.customer_id) return
+    api.get<any>(`/customers/${form.customer_id}`)
+      .then(c => { if (c?.id) setCustomers([{ id: c.id, name: c.name, code_prefix: c.code_prefix }]) })
+      .catch(() => {})
+  }, [customerReadOnly, form.customer_id])
+
   // When a parent project is selected, lock code fields to match the parent's code
   useEffect(() => {
     if (!form.is_subproject || !form.parent_project_id) return
