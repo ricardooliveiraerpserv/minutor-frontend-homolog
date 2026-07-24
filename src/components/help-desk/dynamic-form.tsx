@@ -53,6 +53,8 @@ export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' |
 export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean; counts_for_section?: boolean }
 // Extensões de arquivo comprimido aceitas quando o anexo é obrigatório (Código Fonte etc.).
 const COMPRESSED_RE = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|z)$/i
+// Rótulo sem o emoji/pontuação inicial — p/ mensagens de validação mais limpas.
+const cleanLabel = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
 export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
 export interface FormValueField { key: string; label: string; hint?: string | null; ftype: FieldType; value: string | boolean }
@@ -162,8 +164,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     for (const f of form.fields) {
       if (f.ftype === 'section' || f.ftype === 'title' || ruleLocked(f)) continue
       const v = values[f.key]
-      if (f.required && isBlank(v)) errors.push(f.label)
-      else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`${f.label} (mín. ${f.min_chars})`)
+      if (f.required && isBlank(v)) errors.push(`Preencha “${cleanLabel(f.label)}”`)
+      else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`“${cleanLabel(f.label)}” precisa de ao menos ${f.min_chars} caracteres`)
     }
     // Seção com `min_chars` = exige ao menos N CHECKBOXES marcados entre ela e a próxima
     // seção/título ("selecione pelo menos N"). Conta SÓ checkbox — campos de texto/richtext da
@@ -178,7 +180,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
         // Conta: checkbox marcado; ou campo marcado `counts_for_section` (ex.: "Outros") preenchido.
         if (fj.ftype === 'checkbox' ? !!values[fj.key] : (fj.rule?.counts_for_section && !isBlank(values[fj.key]))) count++
       }
-      if (count < sec.min_chars) errors.push(`${sec.label} — selecione ao menos ${sec.min_chars}`)
+      if (count < sec.min_chars) errors.push(`Selecione ao menos ${sec.min_chars} ${sec.min_chars > 1 ? 'itens' : 'item'} em “${cleanLabel(sec.label)}”`)
     }
     // Anexos coletados dos editores (botão "Anexar"). Hoje é a única via de arquivo do formulário.
     const files = form.fields.filter(f => f.ftype === 'richtext').flatMap(f => richRefs.current[f.key]?.getFiles() ?? [])
@@ -188,7 +190,13 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       if (files.length === 0) errors.push(`${f.label}: anexe o arquivo (comprimido: .zip, .rar, .7z…) pelo botão “Anexar”`)
       else if (!files.every(x => COMPRESSED_RE.test(x.name))) errors.push(`${f.label}: o anexo deve ser um arquivo comprimido (.zip, .rar, .7z, .tar, .gz)`)
     }
-    if (errors.length) { toast.error(errors.join(' · ')); return }
+    if (errors.length) {
+      toast.error(
+        errors.length === 1 ? errors[0] : `Faltam ${errors.length} campos obrigatórios`,
+        { description: errors.length > 1 ? errors.map(e => `• ${e}`).join('\n') : undefined, duration: 6000 },
+      )
+      return
+    }
 
     // Tempo da interação: 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta.
     if (timeMode !== 'hidden') {
@@ -232,7 +240,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
                 // eslint-disable-next-line @next/next/no-img-element
                 <div className="text-center mb-1.5"><img src="/logo.png" alt="ERPSERV" style={{ height: 40, display: 'inline-block' }} /></div>
               )}
-              <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{f.label}</div>
+              <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{f.label}{f.min_chars ? <span style={{ color: 'var(--danger)' }}> *</span> : null}</div>
+              {f.min_chars ? <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Selecione ao menos {f.min_chars}.</div> : null}
             </div>
           )
           const ok = !f.min_chars || (lens[f.key] ?? 0) >= f.min_chars
