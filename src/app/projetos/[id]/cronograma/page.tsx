@@ -17,6 +17,7 @@ import type { ProjectStage } from '@/lib/types/project-stage'
 import { OperacaoView } from './views/operacao'
 import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
+import { IndicadoresView } from './views/indicadores'
 import { CronogramaSettingsModal } from '@/components/projects/cronograma-settings-modal'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
@@ -24,8 +25,8 @@ import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos
 import { ClientSchedule } from '@/components/projects/client-schedule'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
-type ViewMode = 'operacao' | 'planejamento' | 'timeline'
-const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline']
+type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores'
+const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores']
 /** Compat permanente: bookmarks/links antigos continuam funcionando. */
 const LEGACY_MAP: Record<string, ViewMode> = {
   board: 'operacao',
@@ -201,6 +202,7 @@ function InternalCronogramaPage() {
       if (e.key === '1') { setView('planejamento'); e.preventDefault() }
       else if (e.key === '2') { setView('timeline'); e.preventDefault() }
       else if (e.key === '3') { setView('operacao'); e.preventDefault() }
+      else if (e.key === '4') { setView('indicadores'); e.preventDefault() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -420,6 +422,7 @@ function InternalCronogramaPage() {
           operacao: counts.inProgressCount,
           planejamento: counts.conflictsCount,
           timeline: counts.overdueCount,
+          indicadores: 0,
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* "Liberado à gestão" e "Modo executivo" são visão de gestão — o consultor
@@ -586,6 +589,9 @@ function InternalCronogramaPage() {
             onChanged={refresh}
           />
         )}
+        {view === 'indicadores' && (
+          <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
+        )}
       </div>
       <style jsx>{`
         .cronograma-view-fade {
@@ -643,6 +649,7 @@ function SegmentedControl({
     { value: 'planejamento', label: 'Planejamento',   hintBase: 'Atalho: 1', countSuffix: n => `${n} conflito${n === 1 ? '' : 's'}`, countTone: 'warning' },
     { value: 'timeline',     label: 'Linha do Tempo', hintBase: 'Atalho: 2', countSuffix: n => `${n} atrasada${n === 1 ? '' : 's'}`, countTone: 'danger' },
     { value: 'operacao',     label: 'Operação',       hintBase: 'Atalho: 3', countSuffix: n => `${n} em execução`,                  countTone: 'primary' },
+    { value: 'indicadores',  label: 'Indicadores',    hintBase: 'Atalho: 4', countSuffix: n => `${n}`,                              countTone: 'primary' },
   ]
   // Consultor: só a Operação (as outras views são de gestão).
   const opts = onlyOperacao ? allOpts.filter(o => o.value === 'operacao') : allOpts
