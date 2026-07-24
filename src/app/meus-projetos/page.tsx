@@ -14,6 +14,8 @@ interface MyProject {
   code?: string | null
   customer?: { id: number; name: string } | null
   service_type?: { id: number; name: string; code: string } | null
+  status?: string | null
+  status_display?: string | null
   sold_hours?: number | string | null
   coordination_hours?: number | string | null
   consumed_hours?: number | string | null
@@ -34,9 +36,12 @@ function fmtHours(v: number): string {
 }
 
 export default function MeusProjetosPage() {
+  // Aba: ativos (status=open) ou encerrados/cancelados (status=closed).
+  const [statusTab, setStatusTab] = useState<'open' | 'closed'>('open')
+  const isClosed = statusTab === 'closed'
   // activity_allocated: só projetos onde o consultor está alocado em ATIVIDADE.
   const { data, loading, error } = useApiQuery<{ items: MyProject[] }>(
-    '/my-projects?pageSize=200&status=open&activity_allocated=true'
+    `/my-projects?pageSize=200&status=${statusTab}&activity_allocated=true`
   )
   const projects = useMemo(() => data?.items ?? [], [data])
 
@@ -84,9 +89,26 @@ export default function MeusProjetosPage() {
           <FolderOpen size={20} style={{ color: 'var(--primary)' }} />
           <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Meus Projetos</h1>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0, marginBottom: 16 }}>
-          Abra um projeto para ver suas atividades no cronograma e apontar as horas.
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>
+          {isClosed
+            ? 'Projetos encerrados ou cancelados em que você atuou.'
+            : 'Abra um projeto para ver suas atividades no cronograma e apontar as horas.'}
         </p>
+
+        {/* Aba: ativos × encerrados/cancelados */}
+        <div style={{ display: 'inline-flex', gap: 4, marginBottom: 14, border: '1px solid var(--border)', borderRadius: 10, padding: 3, background: 'var(--surface)' }}>
+          {([['open', 'Ativos'], ['closed', 'Encerrados e cancelados']] as const).map(([val, label]) => (
+            <button key={val} type="button" onClick={() => setStatusTab(val)}
+              style={{
+                padding: '6px 14px', fontSize: 13, fontWeight: statusTab === val ? 700 : 500,
+                border: 'none', borderRadius: 7, cursor: 'pointer',
+                background: statusTab === val ? 'var(--primary)' : 'transparent',
+                color: statusTab === val ? 'var(--primary-fg)' : 'var(--text-muted)',
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Filtros + alternância de visão */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -137,6 +159,7 @@ export default function MeusProjetosPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)' }}>
                     {p.customer?.name && <span>{p.customer.name}</span>}
                     {p.service_type?.name && <span className="ds-status ds-status-info" style={{ fontSize: 10 }}>{p.service_type.name}</span>}
+                    {isClosed && p.status_display && <span className={`ds-status ${p.status === 'cancelled' ? 'ds-status-danger' : 'ds-status-warning'}`} style={{ fontSize: 10 }}>{p.status_display}</span>}
                   </div>
                   <div style={{ marginTop: 2 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -180,6 +203,7 @@ export default function MeusProjetosPage() {
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       {p.customer?.name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.customer.name}</span>}
                       {p.service_type?.name && <span className="ds-status ds-status-info" style={{ fontSize: 10, flexShrink: 0 }}>{p.service_type.name}</span>}
+                      {isClosed && p.status_display && <span className={`ds-status ${p.status === 'cancelled' ? 'ds-status-danger' : 'ds-status-warning'}`} style={{ fontSize: 10, flexShrink: 0 }}>{p.status_display}</span>}
                     </div>
                   </div>
                   <div style={{ flex: '1 1 300px', minWidth: 210, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', display: 'flex', gap: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
