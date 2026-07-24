@@ -218,9 +218,6 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
       padding: '10px 24px 10px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
     }}>
       {/* Linha 1 — identidade + pessoas + risco + alertas (barra superior) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
