@@ -49,7 +49,8 @@ export const FORM_TAGS: { tag: string; label: string }[] = [
 export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
 // rule = automação condicional: quando o checkbox `when` está marcado, o campo recebe `value` e trava.
 // require_attachment: checkbox que, ao ser marcado, EXIGE anexar arquivo comprimido antes de salvar.
-export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean }
+// counts_for_section: campo (ex.: "Outros") que, se PREENCHIDO, satisfaz o mínimo da seção como um checkbox.
+export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean; counts_for_section?: boolean }
 // Extensões de arquivo comprimido aceitas quando o anexo é obrigatório (Código Fonte etc.).
 const COMPRESSED_RE = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|z)$/i
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
@@ -170,13 +171,14 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     for (let i = 0; i < form.fields.length; i++) {
       const sec = form.fields[i]
       if (sec.ftype !== 'section' || !sec.min_chars || sec.min_chars < 1) continue
-      let checked = 0
+      let count = 0
       for (let j = i + 1; j < form.fields.length; j++) {
         const fj = form.fields[j]
         if (fj.ftype === 'section' || fj.ftype === 'title') break
-        if (fj.ftype === 'checkbox' && !!values[fj.key]) checked++
+        // Conta: checkbox marcado; ou campo marcado `counts_for_section` (ex.: "Outros") preenchido.
+        if (fj.ftype === 'checkbox' ? !!values[fj.key] : (fj.rule?.counts_for_section && !isBlank(values[fj.key]))) count++
       }
-      if (checked < sec.min_chars) errors.push(`${sec.label} — selecione ao menos ${sec.min_chars}`)
+      if (count < sec.min_chars) errors.push(`${sec.label} — selecione ao menos ${sec.min_chars}`)
     }
     // Anexos coletados dos editores (botão "Anexar"). Hoje é a única via de arquivo do formulário.
     const files = form.fields.filter(f => f.ftype === 'richtext').flatMap(f => richRefs.current[f.key]?.getFiles() ?? [])
