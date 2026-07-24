@@ -4754,6 +4754,14 @@ function KanbanContent() {
       return
     }
 
+    // Não pode arrastar a requisição direto pra Início Autorizado: ela só chega lá pela
+    // DECISÃO em "Aguardando Início (Req.)" (novo projeto / subprojeto / aporte), que é
+    // quem GERA os contratos. O move genérico abaixo pularia essa etapa.
+    if (toCol === 'inicio_autorizado') {
+      toast.error('Mova a requisição primeiro para "Aguardando Início (Req.)" — é lá que os contratos são gerados.')
+      return
+    }
+
     setRequestCards(prev => prev.map(r => r.id === cardId ? { ...r, kanban_column: toCol } : r))
     try {
       await api.patch(`/contract-requests/${cardId}/kanban-move`, { kanban_column: toCol })
