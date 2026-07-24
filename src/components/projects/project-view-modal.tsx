@@ -605,9 +605,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   <p className="text-center text-sm py-12" style={{ color: 'var(--text-light)' }}>Nenhum apontamento encontrado.</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { label: 'Total de Registros', value: String(timesheets.length), color: 'var(--text)' },
+                        { label: 'Total de Horas', value: fmt(timesheets.reduce((s, t) => s + (t.effort_minutes ?? 0), 0) / 60, 1) + 'h', color: 'var(--primary)' },
                         { label: 'Aprovados', value: String(timesheets.filter(t => t.status === 'approved').length), color: 'var(--success-border)' },
                         { label: 'Pendentes', value: String(timesheets.filter(t => t.status === 'pending').length),  color: 'var(--warning-border)' },
                       ].map(it => (
