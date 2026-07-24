@@ -407,16 +407,17 @@ function InternalCronogramaPage() {
         </div>
       )}
 
-      {/* Toolbar: segmented control + ações — sticky no topo */}
+      {/* Toolbar: segmented control + ações — sticky no topo, opaca (nada passa atrás) */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexWrap: 'wrap', gap: 12, marginBottom: 6,
+        flexWrap: 'wrap', gap: 10, marginBottom: 6,
         position: 'sticky',
         top: 0,
-        zIndex: 6,
+        zIndex: 20,
         background: 'var(--bg)',
-        paddingTop: 8,
-        paddingBottom: 8,
+        paddingTop: 6,
+        paddingBottom: 6,
+        boxShadow: '0 6px 8px -6px rgba(0,0,0,.22)',
       }}>
         <SegmentedControl current={view} onChange={setView} onlyOperacao={isConsultor} counts={{
           operacao: counts.inProgressCount,
@@ -657,11 +658,11 @@ function SegmentedControl({
     <div style={{
       display: 'inline-flex',
       border: '1px solid var(--primary)',
-      borderRadius: 12,
+      borderRadius: 9,
       overflow: 'hidden',
       background: 'var(--surface)',
-      padding: 4,
-      gap: 4,
+      padding: 3,
+      gap: 3,
     }}>
       {opts.map((opt) => {
         const active = current === opt.value
@@ -674,13 +675,13 @@ function SegmentedControl({
             onClick={() => onChange(opt.value)}
             className={active ? 'ds-tab-active' : 'ds-tab-inactive'}
             style={{
-              padding: '11px 24px',
-              fontSize: 15,
+              padding: '6px 14px',
+              fontSize: 13,
               fontWeight: active ? 700 : 600,
               background: active ? 'var(--primary)' : 'transparent',
               color: active ? 'var(--primary-fg)' : 'var(--text)',
               border: 'none',
-              borderRadius: 9,
+              borderRadius: 7,
               cursor: 'pointer',
               transition: 'background .15s ease, color .15s ease',
               display: 'inline-flex', alignItems: 'center', gap: 6,
