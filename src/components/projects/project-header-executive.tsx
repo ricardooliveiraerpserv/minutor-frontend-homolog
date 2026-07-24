@@ -214,14 +214,10 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   }[riskLevel]
 
   return (
-    <>
-    {/* CABEÇALHO DA PÁGINA — identidade + cards, fixo no topo (opaco, nada passa atrás) */}
-    <div id="proj-page-header" style={{
-      position: 'sticky', top: 0, zIndex: 30,
-      padding: '10px 24px',
+    <div style={{
+      padding: '10px 24px 10px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
-      boxShadow: '0 6px 8px -6px rgba(0,0,0,.16)',
     }}>
       {/* Linha 1 — identidade + pessoas + risco + alertas (barra superior) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -284,13 +280,9 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           onChange={onProjectChange}
         />
       </div>
-    </div>
 
-    {/* Barras de progresso — ROLAM com a página (não fixas) */}
-    {!isConsultor && (appointable > 0 || (exec && exec.total_deliveries > 0)) && (
-    <div style={{ padding: '6px 24px 10px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
       {/* Barra de progresso geral (com informação: % + consumidas/restantes) */}
-      {appointable > 0 && (
+      {!isConsultor && appointable > 0 && (
         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: healthColor, minWidth: 38 }}>{Math.round(pct)}%</span>
           <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
@@ -303,7 +295,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
       )}
 
       {/* Evolução das atividades — barra logo abaixo do progresso de horas */}
-      {exec && exec.total_deliveries > 0 && (
+      {!isConsultor && exec && exec.total_deliveries > 0 && (
         <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)', minWidth: 38 }}>{Math.round(exec.progress_pct ?? 0)}%</span>
           <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
@@ -315,7 +307,5 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         </div>
       )}
     </div>
-    )}
-    </>
   )
 }
