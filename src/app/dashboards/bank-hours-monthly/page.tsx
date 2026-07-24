@@ -78,6 +78,7 @@ interface ProjectItem {
   consumed_hours: number
   hours_balance: number
   start_date: string | null
+  client_follows_timesheets?: boolean | null
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -160,7 +161,9 @@ function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectIte
                       <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>
                         {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
+                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }} title={p.client_follows_timesheets === false ? 'Consumo não exposto ao cliente (chave do projeto desligada)' : undefined}>
+                        {p.client_follows_timesheets === false ? '—' : fmtH(p.consumed_hours ?? 0)}
+                      </td>
                       <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                       <td className="px-3 py-3.5 text-right">
                         <button

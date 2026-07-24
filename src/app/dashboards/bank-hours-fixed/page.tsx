@@ -78,6 +78,7 @@ interface ProjectItem {
   hours_balance: number
   start_date: string | null
   is_auster_frozen?: boolean
+  client_follows_timesheets?: boolean | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -627,7 +628,9 @@ export default function BankHoursFixedPage() {
                     <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>
                       {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
+                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }} title={p.client_follows_timesheets === false ? 'Consumo não exposto ao cliente (chave do projeto desligada)' : undefined}>
+                      {p.client_follows_timesheets === false ? '—' : fmtH(p.consumed_hours ?? 0)}
+                    </td>
                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                     <td className="px-3 py-3.5 text-right">
                       <div className="inline-flex items-center gap-1 justify-end">
