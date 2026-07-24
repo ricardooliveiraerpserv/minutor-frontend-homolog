@@ -164,18 +164,19 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       if (f.required && isBlank(v)) errors.push(f.label)
       else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`${f.label} (mín. ${f.min_chars})`)
     }
-    // Seção com `min_chars` = exige ao menos N itens (checkbox marcado ou campo preenchido) entre ela
-    // e a próxima seção/título. Ex.: "Anexos Obrigatórios" com min_chars=1 → pelo menos 1 marcado.
+    // Seção com `min_chars` = exige ao menos N CHECKBOXES marcados entre ela e a próxima
+    // seção/título ("selecione pelo menos N"). Conta SÓ checkbox — campos de texto/richtext da
+    // seção não satisfazem (senão um campo obrigatório seguinte já "cumpriria" o mínimo).
     for (let i = 0; i < form.fields.length; i++) {
       const sec = form.fields[i]
       if (sec.ftype !== 'section' || !sec.min_chars || sec.min_chars < 1) continue
-      let filled = 0
+      let checked = 0
       for (let j = i + 1; j < form.fields.length; j++) {
         const fj = form.fields[j]
         if (fj.ftype === 'section' || fj.ftype === 'title') break
-        if (fj.ftype === 'checkbox' ? !!values[fj.key] : !isBlank(values[fj.key])) filled++
+        if (fj.ftype === 'checkbox' && !!values[fj.key]) checked++
       }
-      if (filled < sec.min_chars) errors.push(`${sec.label} — marque ao menos ${sec.min_chars}`)
+      if (checked < sec.min_chars) errors.push(`${sec.label} — selecione ao menos ${sec.min_chars}`)
     }
     // Anexos coletados dos editores (botão "Anexar"). Hoje é a única via de arquivo do formulário.
     const files = form.fields.filter(f => f.ftype === 'richtext').flatMap(f => richRefs.current[f.key]?.getFiles() ?? [])
