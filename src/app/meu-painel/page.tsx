@@ -463,12 +463,16 @@ function ParceiroSimplesSection({
   )
 }
 
-function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = true }: { data: HourBankMonth; fixedSalary: number; expTotal: number; expPaid: number; showExtras?: boolean }) {
+function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = true, recebimento = null }: { data: HourBankMonth; fixedSalary: number; expTotal: number; expPaid: number; showExtras?: boolean; recebimento?: number | null }) {
   const hasExtra     = showExtras && data.accumulated_balance > 0
   const extraHours   = hasExtra ? data.accumulated_balance : 0
   const valorHoraExt = fixedSalary > 0 ? fixedSalary / 160 : 0
   const totalExtra   = hasExtra ? extraHours * valorHoraExt : 0
   const totalSalario = fixedSalary + totalExtra
+  // "Total a Receber" tem que bater com o "Recebimento do fechamento" (base + extras + adicional
+  // − descontos): usa o recebimento autoritativo do fechamento quando disponível.
+  const displayTotal = recebimento != null ? recebimento : totalSalario
+  const hasAdjust    = recebimento != null && Math.abs(recebimento - totalSalario) > 0.01
   const expAllTotal  = expTotal + expPaid
 
   return (
@@ -488,10 +492,10 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
       {/* CENTRO — valor (só serviços) */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
-          {fixedSalary > 0 ? formatBRL(totalSalario) : '—'}
+          {fixedSalary > 0 ? formatBRL(displayTotal) : '—'}
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
-          {hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal'}
+          {hasAdjust ? 'recebimento do fechamento' : (hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal')}
         </span>
       </div>
 
@@ -1662,6 +1666,11 @@ export default function MeuPainelPage() {
   const [hbKey,        setHbKey]        = useState(0)
   const [hbStartDate,  setHbStartDate]  = useState<string | null>(null)
 
+  // Não deixar o seletor voltar antes do mês de início do banco de horas do consultor
+  // (ex.: início em maio → abril fica bloqueado; antes do início não há competência).
+  const hbStartYMObj = hbStartDate ? { y: +hbStartDate.slice(0, 4), m: +hbStartDate.slice(5, 7) - 1 } : null
+  const isAtStartMonth = !!hbStartYMObj && (year < hbStartYMObj.y || (year === hbStartYMObj.y && month <= hbStartYMObj.m))
+
   // ── Recebimento do fechamento (mesmo valor que o admin vê) ──────────────────
   const [myClosing, setMyClosing] = useState<MyClosing | null>(null)
 
@@ -2379,9 +2388,9 @@ export default function MeuPainelPage() {
             className="flex items-center gap-1 rounded-lg border px-1.5 py-1"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
-            <button onClick={prevMonth}
+            <button onClick={prevMonth} disabled={isAtStartMonth}
               className="p-1.5 rounded transition-colors"
-              style={{ color: 'var(--text-muted)' }}>
+              style={{ color: isAtStartMonth ? 'var(--text-light)' : 'var(--text-muted)', cursor: isAtStartMonth ? 'not-allowed' : 'pointer' }}>
               <ChevronLeft size={14} />
             </button>
             <span className="text-sm font-semibold min-w-[148px] text-center select-none" style={{ color: 'var(--text)' }}>
