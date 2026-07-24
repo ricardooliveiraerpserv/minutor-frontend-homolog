@@ -28,6 +28,8 @@ interface Row {
   categoria?: 'sustentacao' | 'projeto' // Cloud/Bizify/Sustentação = sustentacao
 }
 interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number; nao_util?: boolean }
+// Consultor que recebe fixo SEM apontamento no período (custo do salário conta mesmo sem horas).
+interface FixoZerado { user_id: number; consultor: string; custo_fixo_mes: number }
 
 // Linha exibida na tabela. Na visão "consultor" é a própria Row; na visão
 // "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
@@ -235,7 +237,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (periodo) { setFromM(periodo.fromM); setFromY(periodo.fromY); setToM(periodo.toM); setToY(periodo.toY) }
   }, [periodo?.fromM, periodo?.fromY, periodo?.toM, periodo?.toY])
   const [rows, setRows]   = useState<Row[]>([])
-  const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[] }[]>([]) // dados crus por mês (gráficos + fixos)
+  const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[]; fixos: FixoZerado[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState(() => lf(sf, 'busca', ''))
   const [incluirErpserv, setIncluirErpserv] = useState(() => lf(sf, 'incluirErpserv', true)) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
@@ -328,8 +330,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       return `?from=${dateFrom > mStart ? dateFrom : mStart}&to=${dateTo < mEnd ? dateTo : mEnd}`
     }
     Promise.all(monthsToFetch.map(ym =>
-      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
-        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[] }))
+      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[]; fixos_zerados?: FixoZerado[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
+        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [], fixos: r?.data?.fixos_zerados ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[], fixos: [] as FixoZerado[] }))
     )).then(perMonth => {
       setMonthly(perMonth)
       const results = perMonth.map(x => x.rows)
@@ -596,6 +598,16 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
       if (r.custo_fixo_mes) e.salary = r.custo_fixo_mes
       byUser.set(r.user_id, e)
+    }
+    // Fixos SEM apontamento no período (vêm à parte do BE): o custo do salário conta
+    // mesmo sem horas → entram com receita/horas 0 e resultado negativo.
+    const zerados = new Map<number, FixoZerado>()
+    for (const { fixos } of monthly) for (const z of fixos) zerados.set(z.user_id, z)
+    for (const z of zerados.values()) {
+      if (fConsultor.length > 0 && !fConsultor.includes(String(z.user_id))) continue
+      const e = byUser.get(z.user_id)
+      if (!e) byUser.set(z.user_id, { user_id: z.user_id, consultor: z.consultor, receita: 0, custoHoras: 0, horas: 0, salary: z.custo_fixo_mes })
+      else if (!e.salary) e.salary = z.custo_fixo_mes
     }
     const nMeses = monthsToFetch.length || 1
     return [...byUser.values()].map(e => {
