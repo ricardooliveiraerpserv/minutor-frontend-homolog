@@ -4585,6 +4585,15 @@ function KanbanContent() {
     return filterExecutivos.includes(executivo ?? '')
   }
 
+  // Filtro por PROJETO (dropdown) — antes só valia p/ as colunas de Execução; sem isto,
+  // ao filtrar por um projeto específico as requisições/contratos de outros projetos
+  // continuavam aparecendo. Requisição sem contrato vinculado (logo, sem projeto) é
+  // ocultada quando há filtro de projeto ativo.
+  const passesProjectFilter = (projectId?: number | null): boolean =>
+    filterProjectNames.length === 0 || (projectId != null && filterProjectNames.includes(String(projectId)))
+  const requestProjectId = (r: RequestCard): number | null =>
+    r.linked_contract_id != null ? (contractToProjectId.get(r.linked_contract_id) ?? null) : null
+
   // IDs de projetos já visíveis em colunas de execução — evita duplicar contrato + projeto
   const visibleProjectIds = new Set(projectCards.map(p => p.id))
 
@@ -4600,6 +4609,7 @@ function KanbanContent() {
       .filter(c => passesClientScope(c.customer_id, 'demand'))
       .filter(c => matchFilter(c.customer_name, c.project_name))
       .filter(c => matchExecutivo(c.executivo_conta_name))
+      .filter(c => passesProjectFilter(c.project_id))
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
@@ -5537,7 +5547,7 @@ function KanbanContent() {
                     if ((r.kanban_column ?? 'backlog') !== col.id) return false
                     if (r.req_decision === 'novo_projeto' && r.linked_contract_id && authorizedContractIds.has(r.linked_contract_id)) return false
                     if (r.linked_contract_id && sustContractIds.has(r.linked_contract_id)) return false
-                    return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                    return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '') && passesProjectFilter(requestProjectId(r))
                   })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
@@ -5578,7 +5588,7 @@ function KanbanContent() {
                         const projId = contractToProjectId.get(r.linked_contract_id)
                         if (projId && visibleProjectIds.has(projId)) return false
                       }
-                      return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                      return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '') && passesProjectFilter(requestProjectId(r))
                     })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
