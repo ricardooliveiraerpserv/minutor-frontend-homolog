@@ -78,7 +78,7 @@ interface ProjectItem {
   hours_balance: number
   start_date: string | null
   is_auster_frozen?: boolean
-  client_follows_timesheets?: boolean | null
+  consumo_visivel_cliente?: boolean
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -628,11 +628,14 @@ export default function BankHoursFixedPage() {
                     <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>
                       {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }} title={p.client_follows_timesheets === false ? 'Consumo não exposto ao cliente (chave do projeto desligada)' : undefined}>
-                      {p.client_follows_timesheets === false ? '—' : fmtH(p.consumed_hours ?? 0)}
+                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }} title={p.consumo_visivel_cliente === false ? 'Consumo não exposto ao cliente (chave do projeto desligada)' : undefined}>
+                      {p.consumo_visivel_cliente === false ? '—' : fmtH(p.consumed_hours ?? 0)}
                     </td>
                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                     <td className="px-3 py-3.5 text-right">
+                      {/* Sem "Ver apontamentos" (olho + menu) quando o consumo está oculto
+                          ao cliente (chave do projeto desligada) — não expõe o detalhe. */}
+                      {p.consumo_visivel_cliente !== false && (
                       <div className="inline-flex items-center gap-1 justify-end">
                         <button
                           onClick={() => setTsModalProject(p)}
@@ -648,6 +651,7 @@ export default function BankHoursFixedPage() {
                           isClosed: String(p.contract_type_display ?? '').toLowerCase() === 'fechado',
                         })} />
                       </div>
+                      )}
                     </td>
                   </tr>
                 )
