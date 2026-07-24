@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState } from 'react'
 import { CalendarDays, Pencil, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -203,19 +203,6 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   // Evolução das atividades — barra abaixo do progresso de horas.
   const { executive: exec } = useProjectSchedule(project.id)
 
-  // Header (identidade + cards) fica sticky no topo. Expõe a própria altura numa CSS var
-  // pra a barra de abas do cronograma grudar LOGO ABAIXO dele (sem sobrepor).
-  const headerRef = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const el = headerRef.current
-    if (!el) return
-    const set = () => document.documentElement.style.setProperty('--proj-hdr-h', `${el.offsetHeight}px`)
-    set()
-    const ro = new ResizeObserver(set)
-    ro.observe(el)
-    return () => { ro.disconnect(); document.documentElement.style.removeProperty('--proj-hdr-h') }
-  }, [])
-
   // Risco geral do header (badge): compõe horas + risco de atraso.
   const riskLevel: 'baixo' | 'medio' | 'alto' =
     (pct >= 90 || (delayRisk?.has_risk === true && delayRisk.delay_days >= 14)) ? 'alto'
@@ -229,7 +216,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   return (
     <>
     {/* CABEÇALHO DA PÁGINA — identidade + cards, fixo no topo (opaco, nada passa atrás) */}
-    <div ref={headerRef} style={{
+    <div id="proj-page-header" style={{
       position: 'sticky', top: 0, zIndex: 30,
       padding: '10px 24px',
       borderBottom: '1px solid var(--border)',
