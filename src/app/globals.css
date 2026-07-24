@@ -1034,6 +1034,9 @@ html:not(.dark) [class*="rounded-2xl"][class*="bg-zinc-9"]:not([class*="shadow"]
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* Centralização opt-in do cabeçalho (o text-align:left acima vence o utilitário
+   .text-center por especificidade — esta regra o restaura só onde for pedido). */
+.ds-table th.text-center { text-align: center; }
 .ds-table td {
   padding: 14px 12px;
   color: var(--text);
