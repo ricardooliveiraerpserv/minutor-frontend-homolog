@@ -279,7 +279,7 @@ export default function FechamentoFolhaPage() {
     setRows([])
     setEdits({})
     try {
-      const res = await api.get<{ data: FolhaRow[]; company?: string | null; empresa?: 'erpserv' | 'bizify' | null }>(`/fechamento-folha/${yearMonth}`)
+      const res = await api.get<{ data: FolhaRow[]; company?: string | null; empresa?: 'erpserv' | 'bizify' | null }>(`/fechamento-folha/${yearMonth}?empresa=${empresa}`)
       const data = res.data ?? []
       setRows(data)
       // Multi-empresa: a folha é ÚNICA da empresa ativa — esconde as abas e alinha o modo.
@@ -316,7 +316,7 @@ export default function FechamentoFolhaPage() {
     } finally {
       setLoading(false)
     }
-  }, [yearMonth])
+  }, [yearMonth, empresa])
 
   useEffect(() => { load() }, [load])
 
@@ -722,7 +722,9 @@ export default function FechamentoFolhaPage() {
         </div>
         )}
 
-        {empresa === 'bizify' ? (
+        {/* Opção A: a folha Bizify usa a MESMA engrenagem da ERPSERV (cooperados do
+            cadastro, fechamento-based) — o BizifyFolha manual foi desativado. */}
+        {false ? (
           <BizifyFolha yearMonth={yearMonth} setYearMonth={setYearMonth} />
         ) : (<>
 
