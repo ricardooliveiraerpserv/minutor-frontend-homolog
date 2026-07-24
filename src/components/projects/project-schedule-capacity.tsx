@@ -16,6 +16,15 @@ function formatHours(n: number): string {
   return v >= 10 ? `${Math.round(v)}h` : `${v.toFixed(1)}h`
 }
 
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+// 'YYYY-MM' → 'jul/2026'
+function formatMonth(ym?: string | null): string {
+  if (!ym) return ''
+  const [y, m] = ym.split('-')
+  const mi = Number(m) - 1
+  return mi >= 0 && mi < 12 ? `${MESES[mi]}/${y}` : ym
+}
+
 /**
  * Painel de capacidade dos consultores envolvidos no projeto.
  * Mostra carga total (planned/capacity) consumindo /users/{id}/capacity já existente.
@@ -132,10 +141,10 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                 {/* Ocupação em % — headline claro + barra */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span
-                    title={`Capacidade de referência: ${formatHours(row.capacity_hours)}/mês`}
+                    title={`Ocupação do mês mais cheio${row.peak_month ? ` (${formatMonth(row.peak_month)})` : ''}: ${formatHours(row.peak_month_hours ?? 0)} de ${formatHours(row.capacity_hours)}/mês`}
                     style={{ fontSize: 11, fontWeight: 600, color: barColor, whiteSpace: 'nowrap' }}
                   >
-                    {usagePct}% da capacidade
+                    {usagePct}% no mês mais cheio
                   </span>
                   <div style={{
                     flex: 1, height: 5,
@@ -151,11 +160,14 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                   </div>
                 </div>
 
-                {/* Detalhe: horas neste projeto vs em todos */}
+                {/* Detalhe: mês mais cheio (base do %) + horas neste projeto vs backlog total */}
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                  {row.peak_month && (
+                    <>Mês mais cheio: <strong style={{ color: 'var(--text)' }}>{formatHours(row.peak_month_hours ?? 0)}</strong> em {formatMonth(row.peak_month)}{' · '}</>
+                  )}
                   Neste projeto: <strong style={{ color: 'var(--text)' }}>{formatHours(inProjectHours)}</strong>
                   {' · '}
-                  No total: <strong style={{ color: 'var(--text)' }}>{formatHours(row.planned_hours)}</strong>
+                  Backlog total: <strong style={{ color: 'var(--text)' }}>{formatHours(row.planned_hours)}</strong>
                 </div>
               </button>
             </li>
