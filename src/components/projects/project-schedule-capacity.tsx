@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, Users } from 'lucide-react'
 import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
 import type { ScheduleStage } from '@/hooks/use-project-schedule'
@@ -32,6 +32,7 @@ function formatMonth(ym?: string | null): string {
  */
 export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }: Props) {
   const { byUserId, loading } = useUserCapacityIndex()
+  const [hoverUser, setHoverUser] = useState<number | null>(null)
 
   // Quem aparece: consultores que têm atividade como responsável no projeto
   const userIds = useMemo(() => {
@@ -100,7 +101,9 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
               : 'var(--success)'
 
           return (
-            <li key={row.user.id} style={{ borderTop: '1px solid var(--border)' }}>
+            <li key={row.user.id} style={{ borderTop: '1px solid var(--border)', position: 'relative' }}
+              onMouseEnter={() => setHoverUser(row.user.id)}
+              onMouseLeave={() => setHoverUser(null)}>
               <button
                 type="button"
                 onClick={() => onSelectUser(isSelected ? null : row.user.id)}
@@ -170,6 +173,38 @@ export function ProjectScheduleCapacity({ stages, selectedUserId, onSelectUser }
                   Backlog total: <strong style={{ color: 'var(--text)' }}>{formatHours(row.planned_hours)}</strong>
                 </div>
               </button>
+
+              {/* Tooltip: distribuição mês a mês (ocupação por mês) */}
+              {hoverUser === row.user.id && (row.monthly?.length ?? 0) > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 12, zIndex: 20, marginTop: 2,
+                  minWidth: 220, maxWidth: 300, padding: '8px 10px',
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 6, boxShadow: '0 6px 24px rgba(0,0,0,.18)',
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Ocupação por mês · capacidade {formatHours(row.capacity_hours)}/mês
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {row.monthly!.map(m => {
+                      const pct = row.capacity_hours > 0 ? Math.round((m.hours / row.capacity_hours) * 100) : 0
+                      const over = m.hours > row.capacity_hours
+                      const c = over ? 'var(--danger)' : pct > 80 ? 'var(--warning)' : 'var(--success)'
+                      return (
+                        <div key={m.month} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', width: 56, whiteSpace: 'nowrap' }}>{formatMonth(m.month)}</span>
+                          <div style={{ flex: 1, height: 5, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: c }} />
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: c, width: 62, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {formatHours(m.hours)} · {pct}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </li>
           )
         })}
