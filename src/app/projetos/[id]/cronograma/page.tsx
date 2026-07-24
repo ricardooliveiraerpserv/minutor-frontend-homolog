@@ -412,7 +412,7 @@ function InternalCronogramaPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 10, marginBottom: 6,
         position: 'sticky',
-        top: 0,
+        top: 'var(--proj-hdr-h, 0px)',
         zIndex: 20,
         background: 'var(--bg)',
         paddingTop: 6,
