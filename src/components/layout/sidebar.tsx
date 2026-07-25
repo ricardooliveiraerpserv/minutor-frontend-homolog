@@ -61,6 +61,7 @@ import {
   SlidersHorizontal,
   Eye,
   KeyRound,
+  Server,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
@@ -145,6 +146,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/dashboards', 'administrativo'],
   ['/partner-dashboard', 'administrativo'],
   ['/cofre', 'administrativo'],
+  ['/ambientes', 'administrativo'],
   // 🤝 CRM
   ['/crm', 'crm'],
   // 🎫 Help Desk
@@ -373,6 +375,7 @@ const NAV: NavEntry[] = [
       // 🔐 Cofre de Senhas (zero-knowledge) — telas internas do módulo:
       // /cofre/configuracao e /cofre/auditoria são alcançadas de dentro do cofre.
       { label: 'Cofre de Senhas', href: '/cofre', icon: KeyRound },
+      { label: 'Cofre de Ambientes', href: '/ambientes', icon: Server },
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
         items: [

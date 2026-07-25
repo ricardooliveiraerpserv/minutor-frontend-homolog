@@ -101,6 +101,10 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/cofre/configuracao', label: 'Configuração do Cofre', group: 'Cofre' },
   { key: '/cofre/auditoria',    label: 'Auditoria do Cofre',    group: 'Cofre' },
 
+  // Cofre de Ambientes (infra Protheus)
+  { key: '/ambientes',           label: 'Cofre de Ambientes',    group: 'Cofre' },
+  { key: '/ambientes/auditoria', label: 'Auditoria de Ambientes', group: 'Cofre' },
+
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
   { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },
