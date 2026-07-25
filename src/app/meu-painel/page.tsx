@@ -548,15 +548,15 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
       {/* 4 cards operacionais */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {([
-          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours_full ?? data.expected_hours),   sub: (data.is_current_month ? `${data.working_days_full ?? data.working_days} dias úteis · ${fmtHours(data.expected_hours)} até hoje` : `${data.working_days_full ?? data.working_days} dias úteis`), neg: false, neutral: true },
-          { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),     sub: '',                                 neg: false, neutral: false },
-          { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: data.month_balance < 0 ? 'Déficit mensal' : data.month_balance > 0 ? 'Superávit' : 'Zerado', neg: data.month_balance < 0, neutral: false },
-          { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '',                                 neg: data.previous_balance < 0, neutral: data.previous_balance === 0 },
+          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours_full ?? data.expected_hours),   sub: (data.is_current_month ? `${data.working_days_full ?? data.working_days} dias úteis · ${fmtHours(data.expected_hours)} até hoje` : `${data.working_days_full ?? data.working_days} dias úteis`), neg: false, neutral: true, emphasizeSub: true },
+          { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),     sub: '',                                 neg: false, neutral: false, emphasizeSub: false },
+          { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: data.month_balance < 0 ? 'Déficit mensal' : data.month_balance > 0 ? 'Superávit' : 'Zerado', neg: data.month_balance < 0, neutral: false, emphasizeSub: false },
+          { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '',                                 neg: data.previous_balance < 0, neutral: data.previous_balance === 0, emphasizeSub: false },
         ] as const).map(item => (
           <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-[var(--danger-bg)]' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
             <p className="text-[10px] uppercase tracking-wider mb-2 text-[var(--text-light)]">{item.label}</p>
-            <p className={`text-xl font-bold ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>{item.value}</p>
-            {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-[var(--danger)]/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
+            <p className={`${item.emphasizeSub ? 'text-sm font-medium' : 'text-xl font-bold'} ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>{item.value}</p>
+            {item.sub && <p className={item.emphasizeSub ? 'text-base font-bold mt-1 text-[var(--text)]' : `text-[10px] mt-1 ${item.neg ? 'text-[var(--danger)]/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
           </div>
         ))}
       </div>
