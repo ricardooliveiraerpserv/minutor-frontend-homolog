@@ -2560,12 +2560,14 @@ export default function MeuPainelPage() {
                 {['banco_de_horas', 'bh_mensal'].includes((user as any)?.consultant_type ?? '') && (
                   <SummaryCard
                     label="Total a Receber"
-                    value={hbBeforeStart ? '—' : hourlyRate > 0 ? formatBRL(hbServiceVal) : '—'}
+                    value={hbBeforeStart ? '—' : (myClosing?.recebimento != null ? formatBRL(myClosing.recebimento) : (hourlyRate > 0 ? formatBRL(hbServiceVal) : '—'))}
                     sub={hbBeforeStart
                       ? `Inicia em ${hbStartYM ? fmtYearMonth(hbStartYM) : '—'}`
-                      : hbExtraHours > 0
-                        ? `Salário base + ${hbExtraHours.toFixed(1)}h extras`
-                        : 'Salário base mensal'}
+                      : (myClosing?.recebimento != null && Math.abs(myClosing.recebimento - hbServiceVal) > 0.01
+                        ? 'recebimento do fechamento'
+                        : hbExtraHours > 0
+                          ? `Salário base + ${hbExtraHours.toFixed(1)}h extras`
+                          : 'Salário base mensal')}
                     icon={TrendingUp}
                     accent="bg-[var(--success-bg)] text-[var(--success)]"
                   />
