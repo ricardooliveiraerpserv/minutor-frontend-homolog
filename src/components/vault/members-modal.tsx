@@ -84,7 +84,8 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
     if (!removeTarget) return
     setBusy(true)
     try {
-      const stepup = isMs ? { stepup_token: await requestMicrosoftStepUp() } : { totp_code: totp }
+      let stepup: Record<string, string> = {}
+      if (isMs) await requestMicrosoftStepUp(); else stepup = { totp_code: totp }
       await api.delete(`/vault/vaults/${vaultId}/members/${removeTarget.user_id}`, stepup)
       toast.warning('Membro removido — a chave do cofre precisa ser rotacionada.')
       setRemoveTarget(null)

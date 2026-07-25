@@ -27,8 +27,8 @@ export function UnlockScreen() {
     if (!canSubmit || busy) return
     setBusy(true)
     try {
-      const factor = isMs ? await requestMicrosoftStepUp() : totp
-      await unlock(masterPassword, factor)
+      if (isMs) await requestMicrosoftStepUp() // popup Microsoft grava o step-up no servidor
+      await unlock(masterPassword, isMs ? '' : totp)
       setMasterPassword('')
       setTotp('')
     } catch (err) {

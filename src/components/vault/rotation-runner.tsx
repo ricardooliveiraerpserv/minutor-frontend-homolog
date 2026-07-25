@@ -35,7 +35,8 @@ export function RotationRunner({ open, onClose, vaultId, vaultName, keyVersion, 
     setBusy(true)
     try {
       // step-up ANTES do trabalho pesado (o token vale 5 min, cobre a recifragem)
-      const stepup = isMs ? { stepup_token: await requestMicrosoftStepUp() } : { totp_code: totp }
+      let stepup: Record<string, string> = {}
+      if (isMs) await requestMicrosoftStepUp(); else stepup = { totp_code: totp }
       setProgress('Baixando itens…')
       const items = await api.get<{ id: number; data: string }[]>(`/vault/vaults/${vaultId}/items`)
       const members = await api.get<{ user_id: number; name: string }[]>(`/vault/vaults/${vaultId}/members`)

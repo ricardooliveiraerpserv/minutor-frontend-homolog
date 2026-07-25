@@ -43,9 +43,9 @@ export default function CofreConfiguracaoPage() {
   const kdf = profile?.kdf ?? KDF_DEFAULTS
   const isMs = profile?.second_factor === 'microsoft'
 
-  /** 2º fator conforme driver: popup Microsoft (stepup_token) ou código TOTP digitado. */
+  /** 2º fator conforme driver: popup Microsoft (validado server-side) ou código TOTP digitado. */
   const secondFactorPayload = async (totpValue: string) => {
-    if (isMs) return { stepup_token: await requestMicrosoftStepUp() }
+    if (isMs) { await requestMicrosoftStepUp(); return {} }
     return { totp_code: totpValue }
   }
 

@@ -54,12 +54,12 @@ export function OnboardingWizard() {
   const [totpCode, setTotpCode] = useState('')
   const [totpConfirmed, setTotpConfirmed] = useState(false)
   // passo 2 (Microsoft) — token do step-up guardado p/ mandar no setup
-  const [msToken, setMsToken] = useState<string | null>(null)
+  const [msVerified, setMsVerified] = useState(false)
   // passo 3
   const [recoveryDisplay, setRecoveryDisplay] = useState<string | null>(null)
   const [recoverySaved, setRecoverySaved] = useState(false)
 
-  const factorReady = isMs ? !!msToken : totpConfirmed
+  const factorReady = isMs ? msVerified : totpConfirmed
   const pwOk = passwordStrength(pw) >= 1 && pw.length >= 12 && pw === pw2
 
   // Avança do passo 1: no driver Microsoft não há QR — só segue pro passo de vínculo.
@@ -82,9 +82,9 @@ export function OnboardingWizard() {
   const linkMicrosoft = async () => {
     setBusy(true)
     try {
-      const token = await requestMicrosoftStepUp()
-      setMsToken(token)
-      toast.success('Conta Microsoft vinculada!')
+      await requestMicrosoftStepUp()
+      setMsVerified(true)
+      toast.success('Conta Microsoft verificada!')
     } catch (err) {
       if (err instanceof StepUpCancelled) toast.info('Verificação cancelada.')
       else toast.error(err instanceof Error ? err.message : 'Falha na verificação Microsoft.')
@@ -134,8 +134,7 @@ export function OnboardingWizard() {
         personal_vault: {
           encrypted_vault_key: await rsaWrap(publicKeySpkiB64, personalVaultKeyBytes),
         },
-        // driver Microsoft exige step-up fresco no próprio setup
-        ...(isMs && msToken ? { stepup_token: msToken } : {}),
+        // driver Microsoft: step-up já validado server-side pelo popup (consumido no setup)
       }
       await api.post('/vault/profile/setup', payload)
       setRecoveryDisplay(formatRecoveryKey(recoveryBytes))
@@ -216,14 +215,14 @@ export function OnboardingWizard() {
             </div>
 
             {isMs ? (
-              !msToken ? (
+              !msVerified ? (
                 <Button variant="primary" icon={ShieldCheck} loading={busy} onClick={linkMicrosoft}>
                   Verificar com a Microsoft
                 </Button>
               ) : (
                 <>
                   <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--success)' }}>
-                    <Check className="w-4 h-4" /> Conta Microsoft vinculada
+                    <Check className="w-4 h-4" /> Conta Microsoft verificada
                   </div>
                   <Button variant="primary" loading={busy} onClick={generateAndSetup}>Gerar chaves do cofre</Button>
                   <p className="text-xs text-center" style={{ color: 'var(--text-light)' }}>

@@ -101,7 +101,10 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
       const p = await api.get<VaultProfile>('/vault/profile')
       setProfile(p)
       setStatus(prev => {
-        if (!p.configured || !p.totp_confirmed) return 'unconfigured'
+        // `configured` (auth_hash + chaves) já implica que o 2º fator estava pronto
+        // no setup — não exigir totp_confirmed aqui (no driver Microsoft ele é sempre
+        // false e reabria o onboarding de um cofre já configurado).
+        if (!p.configured) return 'unconfigured'
         return prev === 'unlocked' ? 'unlocked' : 'locked'
       })
     } catch (e) {
@@ -141,8 +144,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const kdf = profile?.kdf ?? KDF_DEFAULTS
     const masterKey = await deriveMasterKey(masterPassword, user.id, user.email, kdf)
     const authHash = await computeAuthHash(masterKey, masterPassword)
+    // MS: step-up já foi validado no servidor pelo popup (consumido no unlock) — nada no payload.
     const factorField = profile?.second_factor === 'microsoft'
-      ? { stepup_token: secondFactor }
+      ? {}
       : { totp_code: secondFactor }
     const res = await api.post<{
       encrypted_symmetric_key: string
