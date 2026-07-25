@@ -2475,6 +2475,7 @@ export default function MeuPainelPage() {
                   expTotal={expTotal}
                   expPaid={expPaid}
                   showExtras={['banco_de_horas', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')}
+                  recebimento={myClosing?.recebimento ?? null}
                 />
               : <HeroTotal
                   period={heroPeriodLabel}
@@ -3818,7 +3819,7 @@ export default function MeuPainelPage() {
                   const showExtras = (user as any)?.consultant_type !== 'bh_fixo'
                   return (
                     <>
-                      <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} expPaid={expPaid} showExtras={showExtras} />
+                      <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} expPaid={expPaid} showExtras={showExtras} recebimento={myClosing?.recebimento ?? null} />
                       <HBCurrentMonthCard data={hbCurrent} isCurrentMonth={isCurrentMonth} />
                     </>
                   )
