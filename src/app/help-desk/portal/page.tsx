@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { PortalReunioes } from '@/components/help-desk/portal-reunioes'
 import { api } from '@/lib/api'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
+import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
 import { LifeBuoy, Plus, ArrowLeft, ArrowRight, Send, Paperclip, Trash2, CheckCircle2, Search, X, GripVertical, CalendarClock, LayoutGrid, List, MessageSquare, Clock, Download, FileText } from 'lucide-react'
@@ -729,7 +730,7 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
                         </div>
                         <div className="hd-msg-body rounded-2xl px-3.5 py-2.5 text-sm text-left w-fit max-w-full overflow-x-auto" style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                           {m.body ? (m.html
-                            ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(m.body) }} />
+                            ? <HdRichHtml className="hd-rich" html={sanitizeRich(m.body)} />
                             : <p className="whitespace-pre-wrap break-words">{m.body}</p>) : null}
                           {m.anexos && m.anexos.length > 0 && (
                             <div className="mt-2 space-y-2">

@@ -17,6 +17,7 @@ import { SolucaoModal, SolutionView, type Solution } from '@/components/help-des
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
+import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, sanitizeEmail, isHtmlBody } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
@@ -976,7 +977,7 @@ function TicketDetailInner({ id }: { id: number }) {
                             {complexHtml
                               ? <EmailFrame html={pc?.email ?? ''} />
                               : html
-                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: pc?.rich ?? '' }} />
+                                ? <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} />
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
@@ -1044,7 +1045,7 @@ function TicketDetailInner({ id }: { id: number }) {
                             {complexDescHtml
                               ? <EmailFrame html={descRendered.email} />
                               : descHtml
-                                ? <div className="hd-rich break-words" dangerouslySetInnerHTML={{ __html: descRendered.rich }} />
+                                ? <HdRichHtml className="hd-rich break-words" html={descRendered.rich} />
                                 : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}

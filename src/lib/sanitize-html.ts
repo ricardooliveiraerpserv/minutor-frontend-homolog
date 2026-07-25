@@ -34,7 +34,10 @@ export function sanitizeRich(html: string): string {
       'table', 'thead', 'tbody', 'tr', 'td', 'th', 'font', 'hr', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'pre', 'small', 'sup', 'sub'],
     ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'style',
       'width', 'height', 'align', 'valign', 'cellpadding', 'cellspacing', 'border', 'colspan', 'rowspan', 'bgcolor',
-      'color', 'face', 'size'],
+      'color', 'face', 'size',
+      // Anexos inline importados do Movidesk: o <img data-att-id> (sem src) e o chip <span data-att-id>
+      // são resolvidos p/ a imagem/download reais pelo HdRichHtml. `class` p/ estilizar o chip.
+      'class', 'data-att-id'],
   })
 }
 
