@@ -5,7 +5,7 @@
 // Remover membro exige TOTP fresco e marca o cofre p/ rotação de chave.
 
 import { useCallback, useEffect, useState } from 'react'
-import { ShieldCheck, Trash2, UserPlus } from 'lucide-react'
+import { ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Modal, TextInput } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -17,6 +17,7 @@ import { rsaWrap } from '@/lib/vault-crypto'
 
 interface MemberRow { user_id: number; name: string; email: string; role: 'admin' | 'write' | 'read'; key_version: number }
 interface PublicKeyRow { user_id: number; name: string; email: string; public_key: string }
+interface TeamRow { id: number; name: string; members: PublicKeyRow[]; total: number; not_configured: number }
 
 const ROLE_LABEL: Record<MemberRow['role'], string> = { admin: 'Admin', write: 'Edita', read: 'Lê' }
 
@@ -42,6 +43,11 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
   const [busy, setBusy] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<MemberRow | null>(null)
   const [totp, setTotp] = useState('')
+  // adicionar por equipe (Grupo de Consultores)
+  const [teams, setTeams] = useState<TeamRow[]>([])
+  const [teamPick, setTeamPick] = useState<number | ''>('')
+  const [teamRole, setTeamRole] = useState<MemberRow['role']>('read')
+  const [teamBusy, setTeamBusy] = useState(false)
 
   const load = useCallback(async () => {
     const rows = await api.get<MemberRow[]>(`/vault/vaults/${vaultId}/members`)
@@ -50,12 +56,50 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
       const keys = await api.get<PublicKeyRow[]>('/vault/public-keys')
       const memberIds = new Set(rows.map(r => r.user_id))
       setCandidates(keys.filter(k => !memberIds.has(k.user_id)))
+      setTeams(await api.get<TeamRow[]>('/vault/teams'))
     }
   }, [vaultId, isVaultAdmin])
 
   useEffect(() => {
-    if (open) { void load(); setPick(''); setRole('read'); setRemoveTarget(null); setTotp('') }
+    if (open) { void load(); setPick(''); setRole('read'); setRemoveTarget(null); setTotp(''); setTeamPick(''); setTeamRole('read') }
   }, [open, load])
+
+  /** Adiciona todos os membros aptos de uma equipe (que já configuraram o cofre). */
+  const addTeam = async () => {
+    const team = teams.find(t => t.id === teamPick)
+    if (!team) return
+    const memberIds = new Set(members.map(m => m.user_id))
+    const toAdd = team.members.filter(m => !memberIds.has(m.user_id))
+    if (toAdd.length === 0) {
+      toast.info('Todos os membros aptos desta equipe já estão no cofre.')
+      return
+    }
+    setTeamBusy(true)
+    try {
+      const keyBytes = await getVaultKeyBytes()
+      if (!keyBytes) throw new Error('Cofre travado')
+      let added = 0
+      for (const m of toAdd) {
+        try {
+          await api.post(`/vault/vaults/${vaultId}/members`, {
+            user_id: m.user_id,
+            role: teamRole,
+            encrypted_vault_key: await rsaWrap(m.public_key, keyBytes),
+          })
+          added++
+        } catch { /* pula o que falhar, continua o lote */ }
+      }
+      const skipped = team.not_configured
+      toast.success(`${added} membro(s) de "${team.name}" adicionado(s).` + (skipped > 0 ? ` ${skipped} sem cofre configurado ficaram de fora.` : ''))
+      setTeamPick('')
+      await load()
+      onChanged()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Falha ao adicionar a equipe.')
+    } finally {
+      setTeamBusy(false)
+    }
+  }
 
   const add = async () => {
     const target = candidates.find(c => c.user_id === pick)
@@ -168,9 +212,35 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
             <Button variant="primary" icon={UserPlus} loading={busy} disabled={pick === ''} onClick={add}>Adicionar</Button>
           </div>
         )}
+
+        {/* Adicionar por EQUIPE (Grupo de Consultores) — adiciona todos os aptos de uma vez */}
+        {isVaultAdmin && teams.length > 0 && (
+          <div className="flex items-end gap-2 flex-wrap pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="flex-1 min-w-[220px]">
+              <SearchSelect
+                label="Adicionar equipe (Grupo de Consultores)"
+                placeholder="Buscar equipe…"
+                value={teamPick}
+                onChange={v => setTeamPick(v === '' ? '' : Number(v))}
+                options={teams.map(t => ({
+                  id: t.id,
+                  name: `${t.name} — ${t.members.length} apto(s)${t.not_configured > 0 ? `, ${t.not_configured} sem cofre` : ''}`,
+                }))}
+                fullWidth
+              />
+            </div>
+            <select className="ds-input" value={teamRole} onChange={e => setTeamRole(e.target.value as MemberRow['role'])}>
+              <option value="read">Lê</option>
+              <option value="write">Edita</option>
+              <option value="admin">Admin</option>
+            </select>
+            <Button variant="secondary" icon={Users} loading={teamBusy} disabled={teamPick === ''} onClick={addTeam}>Adicionar equipe</Button>
+          </div>
+        )}
+
         {isVaultAdmin && candidates.length === 0 && members.length > 0 && (
           <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-            Só aparecem usuários internos que já configuraram o próprio cofre.
+            Só aparecem usuários internos que já configuraram o próprio cofre. Ao adicionar uma equipe, quem ainda não configurou fica de fora até fazer o setup.
           </p>
         )}
 

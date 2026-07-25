@@ -27,6 +27,7 @@ const ACTION_LABEL: Record<string, { label: string; variant: string }> = {
   unlock_success:         { label: 'Unlock', variant: 'success' },
   unlock_failed:          { label: 'Unlock FALHOU', variant: 'danger' },
   recovery_used:          { label: 'Recovery usada', variant: 'warning' },
+  recovery_regenerated:   { label: 'Recovery key regenerada', variant: 'default' },
   master_password_change: { label: 'Troca de master password', variant: 'warning' },
   vault_create:           { label: 'Cofre criado', variant: 'default' },
   vault_update:           { label: 'Cofre renomeado', variant: 'default' },

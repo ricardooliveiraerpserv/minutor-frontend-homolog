@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, KeyRound, LifeBuoy, ShieldCheck, Timer } from 'lucide-react'
+import { ArrowLeft, KeyRound, LifeBuoy, RefreshCw, ShieldCheck, Timer } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Button, Card, PageHeader, TextInput } from '@/components/ds'
@@ -39,6 +39,12 @@ export default function CofreConfiguracaoPage() {
   const [recNewPw2, setRecNewPw2] = useState('')
   const [recBusy, setRecBusy] = useState(false)
   const [recNextRecovery, setRecNextRecovery] = useState<string | null>(null)
+
+  // gerar nova recovery key (sem trocar a master password)
+  const [regPw, setRegPw] = useState('')
+  const [regTotp, setRegTotp] = useState('')
+  const [regBusy, setRegBusy] = useState(false)
+  const [regRecovery, setRegRecovery] = useState<string | null>(null)
 
   const kdf = profile?.kdf ?? KDF_DEFAULTS
   const isMs = profile?.second_factor === 'microsoft'
@@ -128,6 +134,39 @@ export default function CofreConfiguracaoPage() {
     }
   }
 
+  /**
+   * Gera uma nova recovery key SEM trocar a master password. Exige cofre destravado
+   * (blob da user key em memória) + master password atual + 2º fator. A antiga é invalidada.
+   */
+  const regenerateRecovery = async () => {
+    if (!user) return
+    const blob = getEncSymKeyBlob()
+    if (status !== 'unlocked' || !blob) {
+      toast.error('Destrave o cofre antes de gerar uma nova recovery key.')
+      return
+    }
+    setRegBusy(true)
+    try {
+      const master = await deriveMasterKey(regPw, user.id, user.email, kdf)
+      const authHash = await computeAuthHash(master, regPw)
+      const userKeyBytes = await aesGcmDecrypt(await importAesKey(master), blob) // lança se a senha estiver errada
+      const recoveryBytes = generateKey32()
+      await api.post('/vault/recovery/regenerate', {
+        current_auth_hash: authHash,
+        ...(await secondFactorPayload(regTotp)),
+        new_recovery_symmetric_key: await aesGcmEncrypt(await importAesKey(recoveryBytes), userKeyBytes),
+      })
+      setRegRecovery(formatRecoveryKey(recoveryBytes))
+      setRegPw(''); setRegTotp('')
+      toast.success('Nova recovery key gerada — a anterior foi invalidada!')
+    } catch (err) {
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else toast.error(err instanceof ApiError && err.status === 422 ? 'Master password ou 2º fator inválido.' : 'Master password incorreta ou falha ao gerar.')
+    } finally {
+      setRegBusy(false)
+    }
+  }
+
   return (
     <AppLayout>
       <PageHeader
@@ -179,6 +218,36 @@ export default function CofreConfiguracaoPage() {
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>
                 Seus itens não são recifrados — só a proteção da chave muda. Uma nova recovery key será gerada.
               </p>
+            </div>
+          )}
+        </Card>
+
+        {/* Gerar nova recovery key (sem trocar a master password) */}
+        <Card>
+          <h3 className="flex items-center gap-2 font-semibold mb-3" style={{ color: 'var(--text)' }}>
+            <RefreshCw className="w-4 h-4" style={{ color: 'var(--primary)' }} /> Gerar nova recovery key
+          </h3>
+          {regRecovery ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sua NOVA recovery key (a anterior foi invalidada) — exibida só agora:</p>
+              <div className="rounded-xl p-3 font-mono text-sm break-all select-all text-center" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)', color: 'var(--text)' }}>{regRecovery}</div>
+              <Button variant="primary" onClick={() => setRegRecovery(null)}>Guardei em local seguro</Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Perdeu a recovery key mas lembra a master password? Gere uma nova sem trocar a senha. Requer o cofre destravado.
+              </p>
+              <TextInput label="Master password atual" type="password" autoComplete="off" value={regPw} onChange={e => setRegPw(e.target.value)} />
+              {!isMs && (
+                <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={regTotp} onChange={e => setRegTotp(e.target.value.replace(/\D/g, ''))} />
+              )}
+              <Button variant="primary" icon={RefreshCw} loading={regBusy} disabled={!regPw || (!isMs && regTotp.length < 6) || status !== 'unlocked'} onClick={regenerateRecovery}>
+                {isMs ? 'Verificar com Microsoft e gerar' : 'Gerar nova recovery key'}
+              </Button>
+              {status !== 'unlocked' && (
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Destrave o cofre primeiro para usar esta opção.</p>
+              )}
             </div>
           )}
         </Card>
