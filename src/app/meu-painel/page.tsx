@@ -130,6 +130,9 @@ interface HourBankMonth {
   working_days: number
   holidays_count: number
   expected_hours: number
+  working_days_full?: number
+  expected_hours_full?: number
+  is_current_month?: boolean
   worked_hours: number
   month_balance: number
   previous_balance: number
@@ -545,7 +548,7 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
       {/* 4 cards operacionais */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {([
-          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours),   sub: `${data.working_days} dias úteis`, neg: false, neutral: true },
+          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours_full ?? data.expected_hours),   sub: (data.is_current_month ? `${data.working_days_full ?? data.working_days} dias úteis · ${fmtHours(data.expected_hours)} até hoje` : `${data.working_days_full ?? data.working_days} dias úteis`), neg: false, neutral: true },
           { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),     sub: '',                                 neg: false, neutral: false },
           { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: data.month_balance < 0 ? 'Déficit mensal' : data.month_balance > 0 ? 'Superávit' : 'Zerado', neg: data.month_balance < 0, neutral: false },
           { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '',                                 neg: data.previous_balance < 0, neutral: data.previous_balance === 0 },
