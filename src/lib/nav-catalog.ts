@@ -96,6 +96,11 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
   { key: '/help-desk/portal',    label: 'Central de Atendimento', group: 'Help Desk' },
 
+  // Cofre de Senhas (zero-knowledge)
+  { key: '/cofre',              label: 'Cofre de Senhas',       group: 'Cofre' },
+  { key: '/cofre/configuracao', label: 'Configuração do Cofre', group: 'Cofre' },
+  { key: '/cofre/auditoria',    label: 'Auditoria do Cofre',    group: 'Cofre' },
+
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
   { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },
