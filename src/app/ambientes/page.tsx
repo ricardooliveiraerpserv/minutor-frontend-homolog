@@ -119,8 +119,9 @@ function NewClientModal({ open, onClose, publicKey, existing, onCreated }: {
   useEffect(() => {
     if (open) {
       setPick('')
-      void api.get<{ data: CustomerOpt[] }>('/customers?per_page=1000&order=name')
-        .then(r => setCustomers((Array.isArray(r) ? r : r.data ?? []).map((c: CustomerOpt) => ({ id: c.id, name: c.name }))))
+      // O endpoint de clientes retorna { hasNext, items } e usa pageSize (máx 500).
+      void api.get<{ items: CustomerOpt[] }>('/customers?pageSize=500')
+        .then(r => setCustomers((r.items ?? []).map((c: CustomerOpt) => ({ id: c.id, name: c.name }))))
         .catch(() => setCustomers([]))
     }
   }, [open])
