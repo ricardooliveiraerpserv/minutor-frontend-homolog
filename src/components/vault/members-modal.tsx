@@ -11,6 +11,8 @@ import { Badge, Button, Modal, TextInput } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useVault } from '@/contexts/vault-context'
+import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 import { rsaWrap } from '@/lib/vault-crypto'
 
 interface MemberRow { user_id: number; name: string; email: string; role: 'admin' | 'write' | 'read'; key_version: number }
@@ -31,6 +33,8 @@ interface MembersModalProps {
 
 export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyBytes, isVaultAdmin, onChanged }: MembersModalProps) {
   const { user } = useAuth()
+  const { profile } = useVault()
+  const isMs = profile?.second_factor === 'microsoft'
   const [members, setMembers] = useState<MemberRow[]>([])
   const [candidates, setCandidates] = useState<PublicKeyRow[]>([])
   const [pick, setPick] = useState<number | ''>('')
@@ -80,14 +84,16 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
     if (!removeTarget) return
     setBusy(true)
     try {
-      await api.delete(`/vault/vaults/${vaultId}/members/${removeTarget.user_id}`, { totp_code: totp })
+      const stepup = isMs ? { stepup_token: await requestMicrosoftStepUp() } : { totp_code: totp }
+      await api.delete(`/vault/vaults/${vaultId}/members/${removeTarget.user_id}`, stepup)
       toast.warning('Membro removido — a chave do cofre precisa ser rotacionada.')
       setRemoveTarget(null)
       setTotp('')
       await load()
       onChanged()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Falha ao remover membro.')
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else toast.error(err instanceof ApiError ? err.message : 'Falha ao remover membro.')
     } finally {
       setBusy(false)
     }
@@ -174,10 +180,14 @@ export function MembersModal({ open, onClose, vaultId, vaultName, getVaultKeyByt
               Remover <b>{removeTarget?.name}</b>? Ele já conheceu a chave atual — após a remoção o cofre
               ficará marcado para <b>rotação de chave</b> (recifra todos os itens).
             </p>
-            <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totp} onChange={e => setTotp(e.target.value.replace(/\D/g, ''))} />
+            {!isMs && (
+              <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totp} onChange={e => setTotp(e.target.value.replace(/\D/g, ''))} />
+            )}
             <div className="flex justify-end gap-2">
               <Button onClick={() => setRemoveTarget(null)}>Cancelar</Button>
-              <Button variant="danger" loading={busy} disabled={totp.length < 6} onClick={remove}>Remover membro</Button>
+              <Button variant="danger" loading={busy} disabled={!isMs && totp.length < 6} onClick={remove}>
+                {isMs ? 'Verificar e remover' : 'Remover membro'}
+              </Button>
             </div>
           </div>
         </Modal>

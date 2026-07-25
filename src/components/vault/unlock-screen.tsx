@@ -6,28 +6,42 @@ import { toast } from 'sonner'
 import { Button, Card, TextInput } from '@/components/ds'
 import { useVault } from '@/contexts/vault-context'
 import { ApiError } from '@/lib/api'
+import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 
-/** Tela de destravamento: master password + código do autenticador (TOTP). */
+/**
+ * Tela de destravamento: master password + 2º fator.
+ * Driver microsoft → popup Entra (prompt=login, MFA corporativa) a cada unlock.
+ * Driver totp → código do app autenticador.
+ */
 export function UnlockScreen() {
-  const { unlock } = useVault()
+  const { unlock, profile } = useVault()
+  const isMs = profile?.second_factor === 'microsoft'
   const [masterPassword, setMasterPassword] = useState('')
   const [totp, setTotp] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const canSubmit = !!masterPassword && (isMs || totp.length >= 6)
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!masterPassword || totp.length < 6 || busy) return
+    if (!canSubmit || busy) return
     setBusy(true)
     try {
-      await unlock(masterPassword, totp)
+      const factor = isMs ? await requestMicrosoftStepUp() : totp
+      await unlock(masterPassword, factor)
       setMasterPassword('')
       setTotp('')
     } catch (err) {
-      // Erro GENÉRICO de propósito (não dizer se foi senha ou código)
-      const msg = err instanceof ApiError && err.status === 429
-        ? 'Muitas tentativas — aguarde um minuto.'
-        : 'Credenciais do cofre inválidas.'
-      toast.error(msg)
+      if (err instanceof StepUpCancelled) {
+        toast.info('Verificação Microsoft cancelada.')
+      } else if (err instanceof ApiError && err.status === 429) {
+        toast.error('Muitas tentativas — aguarde um minuto.')
+      } else if (err instanceof Error && !(err instanceof ApiError) && err.message.includes('Microsoft')) {
+        toast.error(err.message)
+      } else {
+        // Erro GENÉRICO de propósito (não dizer se foi senha ou 2º fator)
+        toast.error('Credenciais do cofre inválidas.')
+      }
     } finally {
       setBusy(false)
     }
@@ -42,7 +56,10 @@ export function UnlockScreen() {
           </div>
           <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Cofre travado</h2>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Digite sua master password e o código do autenticador. Nada disso é enviado em claro ao servidor.
+            {isMs
+              ? 'Digite sua master password — você confirmará sua identidade na Microsoft em seguida.'
+              : 'Digite sua master password e o código do autenticador.'}
+            {' '}Nada disso é enviado em claro ao servidor.
           </p>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-4">
@@ -55,18 +72,20 @@ export function UnlockScreen() {
             value={masterPassword}
             onChange={e => setMasterPassword(e.target.value)}
           />
-          <TextInput
-            label="Código do autenticador"
-            icon={ShieldCheck}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="000000"
-            maxLength={6}
-            value={totp}
-            onChange={e => setTotp(e.target.value.replace(/\D/g, ''))}
-          />
-          <Button type="submit" variant="primary" loading={busy} disabled={!masterPassword || totp.length < 6}>
-            Destravar cofre
+          {!isMs && (
+            <TextInput
+              label="Código do autenticador"
+              icon={ShieldCheck}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              maxLength={6}
+              value={totp}
+              onChange={e => setTotp(e.target.value.replace(/\D/g, ''))}
+            />
+          )}
+          <Button type="submit" variant="primary" loading={busy} disabled={!canSubmit}>
+            {isMs ? 'Verificar com Microsoft e destravar' : 'Destravar cofre'}
           </Button>
         </form>
         <p className="text-xs mt-4 text-center" style={{ color: 'var(--text-light)' }}>

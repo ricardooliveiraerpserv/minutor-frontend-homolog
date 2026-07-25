@@ -17,7 +17,10 @@ import {
 
 export interface VaultProfile {
   configured: boolean
+  /** driver do 2º fator: 'microsoft' (Entra, popup a cada unlock) ou 'totp' (app) */
+  second_factor: 'microsoft' | 'totp'
   totp_confirmed: boolean
+  ms_linked: boolean
   has_recovery: boolean
   kdf: KdfParams
 }
@@ -50,7 +53,7 @@ interface VaultCtx {
   lockTimeoutMin: number
   setLockTimeoutMin: (min: number) => void
   refreshProfile: () => Promise<void>
-  unlock: (masterPassword: string, totpCode: string) => Promise<void>
+  unlock: (masterPassword: string, secondFactor: string) => Promise<void>
   lock: () => void
   refreshVaults: () => Promise<void>
   getVaultKey: (vaultId: number) => CryptoKey | undefined
@@ -132,17 +135,21 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     await decryptVaultKeys(list)
   }, [decryptVaultKeys])
 
-  const unlock = useCallback(async (masterPassword: string, totpCode: string) => {
+  // secondFactor = código TOTP (driver totp) ou stepup_token Microsoft (driver microsoft)
+  const unlock = useCallback(async (masterPassword: string, secondFactor: string) => {
     if (!user) throw new Error('Sessão expirada')
     const kdf = profile?.kdf ?? KDF_DEFAULTS
     const masterKey = await deriveMasterKey(masterPassword, user.id, user.email, kdf)
     const authHash = await computeAuthHash(masterKey, masterPassword)
+    const factorField = profile?.second_factor === 'microsoft'
+      ? { stepup_token: secondFactor }
+      : { totp_code: secondFactor }
     const res = await api.post<{
       encrypted_symmetric_key: string
       encrypted_private_key: string
       public_key: string
       kdf: KdfParams
-    }>('/vault/unlock', { auth_hash: authHash, totp_code: totpCode })
+    }>('/vault/unlock', { auth_hash: authHash, ...factorField })
 
     // Decifra a cadeia local — falha de tag GCM = senha errada (defesa extra local)
     const masterCryptoKey = await importAesKey(masterKey)

@@ -16,6 +16,7 @@ import { Button, Card, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useVault } from '@/contexts/vault-context'
+import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 import {
   aesGcmEncrypt, computeAuthHash, deriveMasterKey, formatRecoveryKey, generateKey32,
   importAesKey, KDF_DEFAULTS, passwordStrength, rsaGenerate, rsaWrap,
@@ -39,25 +40,31 @@ function StrengthMeter({ password }: { password: string }) {
 
 export function OnboardingWizard() {
   const { user } = useAuth()
-  const { refreshProfile } = useVault()
+  const { profile, refreshProfile } = useVault()
+  const isMs = profile?.second_factor === 'microsoft'
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [busy, setBusy] = useState(false)
 
   // passo 1
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
-  // passo 2
+  // passo 2 (TOTP)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [totpSecret, setTotpSecret] = useState('')
   const [totpCode, setTotpCode] = useState('')
   const [totpConfirmed, setTotpConfirmed] = useState(false)
+  // passo 2 (Microsoft) — token do step-up guardado p/ mandar no setup
+  const [msToken, setMsToken] = useState<string | null>(null)
   // passo 3
   const [recoveryDisplay, setRecoveryDisplay] = useState<string | null>(null)
   const [recoverySaved, setRecoverySaved] = useState(false)
 
+  const factorReady = isMs ? !!msToken : totpConfirmed
   const pwOk = passwordStrength(pw) >= 1 && pw.length >= 12 && pw === pw2
 
-  const startTotp = async () => {
+  // Avança do passo 1: no driver Microsoft não há QR — só segue pro passo de vínculo.
+  const goToFactor = async () => {
+    if (isMs) { setStep(2); return }
     setBusy(true)
     try {
       const res = await api.post<{ otpauth_uri: string; secret_base32: string }>('/vault/totp/setup', {})
@@ -67,6 +74,20 @@ export function OnboardingWizard() {
       setStep(2)
     } catch {
       toast.error('Não foi possível iniciar o 2FA. Tente novamente.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const linkMicrosoft = async () => {
+    setBusy(true)
+    try {
+      const token = await requestMicrosoftStepUp()
+      setMsToken(token)
+      toast.success('Conta Microsoft vinculada!')
+    } catch (err) {
+      if (err instanceof StepUpCancelled) toast.info('Verificação cancelada.')
+      else toast.error(err instanceof Error ? err.message : 'Falha na verificação Microsoft.')
     } finally {
       setBusy(false)
     }
@@ -113,6 +134,8 @@ export function OnboardingWizard() {
         personal_vault: {
           encrypted_vault_key: await rsaWrap(publicKeySpkiB64, personalVaultKeyBytes),
         },
+        // driver Microsoft exige step-up fresco no próprio setup
+        ...(isMs && msToken ? { stepup_token: msToken } : {}),
       }
       await api.post('/vault/profile/setup', payload)
       setRecoveryDisplay(formatRecoveryKey(recoveryBytes))
@@ -175,43 +198,68 @@ export function OnboardingWizard() {
             <StrengthMeter password={pw} />
             <TextInput label="Confirme a master password" icon={KeyRound} type="password" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} />
             {pw2 && pw !== pw2 && <p className="text-xs" style={{ color: 'var(--danger)' }}>As senhas não conferem.</p>}
-            <Button variant="primary" loading={busy} disabled={!pwOk} onClick={startTotp}>Continuar</Button>
+            <Button variant="primary" loading={busy} disabled={!pwOk} onClick={goToFactor}>Continuar</Button>
           </div>
         )}
 
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div>
-              <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--text)' }}>Ative o 2FA (obrigatório)</h2>
+              <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                {isMs ? 'Vincule sua conta Microsoft' : 'Ative o 2FA (obrigatório)'}
+              </h2>
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Escaneie o QR no seu app autenticador (Google Authenticator, 1Password, Authy…).
+                {isMs
+                  ? 'Sua conta corporativa Microsoft é o 2º fator do cofre — você a confirmará a cada destravamento.'
+                  : 'Escaneie o QR no seu app autenticador (Google Authenticator, 1Password, Authy…).'}
               </p>
             </div>
-            {qrDataUrl && (
-              <div className="flex flex-col items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrDataUrl} alt="QR Code TOTP" className="rounded-xl" style={{ border: '1px solid var(--border)' }} />
-                <p className="text-xs font-mono break-all text-center" style={{ color: 'var(--text-light)' }}>{totpSecret}</p>
-              </div>
-            )}
-            {!totpConfirmed ? (
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <TextInput label="Código do app" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} />
-                </div>
-                <Button variant="primary" loading={busy} disabled={totpCode.length < 6} onClick={confirmTotp}>Confirmar</Button>
-              </div>
+
+            {isMs ? (
+              !msToken ? (
+                <Button variant="primary" icon={ShieldCheck} loading={busy} onClick={linkMicrosoft}>
+                  Verificar com a Microsoft
+                </Button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--success)' }}>
+                    <Check className="w-4 h-4" /> Conta Microsoft vinculada
+                  </div>
+                  <Button variant="primary" loading={busy} onClick={generateAndSetup}>Gerar chaves do cofre</Button>
+                  <p className="text-xs text-center" style={{ color: 'var(--text-light)' }}>
+                    A derivação leva ~1s — todo o processamento acontece no seu navegador.
+                  </p>
+                </>
+              )
             ) : (
               <>
-                <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--success)' }}>
-                  <Check className="w-4 h-4" /> Autenticador confirmado
-                </div>
-                <Button variant="primary" loading={busy} onClick={generateAndSetup}>
-                  Gerar chaves do cofre
-                </Button>
-                <p className="text-xs text-center" style={{ color: 'var(--text-light)' }}>
-                  A derivação leva ~1s — todo o processamento acontece no seu navegador.
-                </p>
+                {qrDataUrl && (
+                  <div className="flex flex-col items-center gap-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrDataUrl} alt="QR Code TOTP" className="rounded-xl" style={{ border: '1px solid var(--border)' }} />
+                    <p className="text-xs font-mono break-all text-center" style={{ color: 'var(--text-light)' }}>{totpSecret}</p>
+                  </div>
+                )}
+                {!totpConfirmed ? (
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <TextInput label="Código do app" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} />
+                    </div>
+                    <Button variant="primary" loading={busy} disabled={totpCode.length < 6} onClick={confirmTotp}>Confirmar</Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--success)' }}>
+                      <Check className="w-4 h-4" /> Autenticador confirmado
+                    </div>
+                    <Button variant="primary" loading={busy} onClick={generateAndSetup}>
+                      Gerar chaves do cofre
+                    </Button>
+                    <p className="text-xs text-center" style={{ color: 'var(--text-light)' }}>
+                      A derivação leva ~1s — todo o processamento acontece no seu navegador.
+                    </p>
+                  </>
+                )}
               </>
             )}
           </div>

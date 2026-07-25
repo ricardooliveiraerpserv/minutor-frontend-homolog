@@ -14,6 +14,7 @@ import { Button, Card, PageHeader, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { LOCK_TIMEOUT_OPTIONS, useVault } from '@/contexts/vault-context'
+import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 import {
   aesGcmDecrypt, aesGcmEncrypt, computeAuthHash, deriveMasterKey, formatRecoveryKey,
   generateKey32, importAesKey, KDF_DEFAULTS, parseRecoveryKey, passwordStrength,
@@ -40,6 +41,13 @@ export default function CofreConfiguracaoPage() {
   const [recNextRecovery, setRecNextRecovery] = useState<string | null>(null)
 
   const kdf = profile?.kdf ?? KDF_DEFAULTS
+  const isMs = profile?.second_factor === 'microsoft'
+
+  /** 2º fator conforme driver: popup Microsoft (stepup_token) ou código TOTP digitado. */
+  const secondFactorPayload = async (totpValue: string) => {
+    if (isMs) return { stepup_token: await requestMicrosoftStepUp() }
+    return { totp_code: totpValue }
+  }
 
   /**
    * Troca normal: exige cofre DESTRAVADO (o blob da user key já está em memória).
@@ -68,7 +76,7 @@ export default function CofreConfiguracaoPage() {
       const recoveryBytes = generateKey32()
       await api.post('/vault/master-password', {
         current_auth_hash: curAuthHash,
-        totp_code: totp,
+        ...(await secondFactorPayload(totp)),
         new_auth_hash: newAuthHash,
         new_encrypted_symmetric_key: await aesGcmEncrypt(await importAesKey(newMaster), userKeyBytes),
         new_recovery_symmetric_key: await aesGcmEncrypt(await importAesKey(recoveryBytes), userKeyBytes),
@@ -78,7 +86,8 @@ export default function CofreConfiguracaoPage() {
       lock()
       toast.success('Master password alterada — anote a NOVA recovery key!')
     } catch (err) {
-      toast.error(err instanceof ApiError && err.status === 422 ? 'Senha atual ou código inválido.' : 'Master password atual incorreta ou falha na troca.')
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else toast.error(err instanceof ApiError && err.status === 422 ? 'Senha atual ou 2º fator inválido.' : 'Master password atual incorreta ou falha na troca.')
     } finally {
       setBusy(false)
     }
@@ -93,8 +102,8 @@ export default function CofreConfiguracaoPage() {
     }
     setRecBusy(true)
     try {
-      // 1 código TOTP → blob + token efêmero; o token autoriza a troca (uso único, 10 min)
-      const res = await api.post<{ recovery_symmetric_key: string; recovery_token: string }>('/vault/recovery/unlock', { totp_code: recTotp })
+      // 1 verificação (TOTP ou Microsoft) → blob + token efêmero que autoriza a troca (10 min)
+      const res = await api.post<{ recovery_symmetric_key: string; recovery_token: string }>('/vault/recovery/unlock', await secondFactorPayload(recTotp))
       const recoveryKey = await importAesKey(parseRecoveryKey(recKey))
       const userKeyBytes = await aesGcmDecrypt(recoveryKey, res.recovery_symmetric_key) // lança se a key estiver errada
 
@@ -112,7 +121,8 @@ export default function CofreConfiguracaoPage() {
       await refreshProfile()
       toast.success('Acesso recuperado! Anote a NOVA recovery key (a antiga foi invalidada).')
     } catch (err) {
-      toast.error(err instanceof ApiError && err.status === 422 ? 'Código do autenticador inválido.' : 'Recovery key incorreta ou falha na recuperação.')
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else toast.error(err instanceof ApiError && err.status === 422 ? '2º fator inválido.' : 'Recovery key incorreta ou falha na recuperação.')
     } finally {
       setRecBusy(false)
     }
@@ -160,9 +170,11 @@ export default function CofreConfiguracaoPage() {
               <TextInput label="Master password atual" type="password" autoComplete="off" value={curPw} onChange={e => setCurPw(e.target.value)} />
               <TextInput label="Nova master password (mín. 12)" type="password" autoComplete="new-password" value={newPw} onChange={e => setNewPw(e.target.value)} />
               <TextInput label="Confirme a nova" type="password" autoComplete="new-password" value={newPw2} onChange={e => setNewPw2(e.target.value)} />
-              <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totp} onChange={e => setTotp(e.target.value.replace(/\D/g, ''))} />
-              <Button variant="primary" loading={busy} disabled={!curPw || !newPw || newPw !== newPw2 || totp.length < 6} onClick={changePassword}>
-                Trocar master password
+              {!isMs && (
+                <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totp} onChange={e => setTotp(e.target.value.replace(/\D/g, ''))} />
+              )}
+              <Button variant="primary" loading={busy} disabled={!curPw || !newPw || newPw !== newPw2 || (!isMs && totp.length < 6)} onClick={changePassword}>
+                {isMs ? 'Verificar com Microsoft e trocar' : 'Trocar master password'}
               </Button>
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>
                 Seus itens não são recifrados — só a proteção da chave muda. Uma nova recovery key será gerada.
@@ -185,12 +197,14 @@ export default function CofreConfiguracaoPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextInput label="Recovery key" placeholder="XXXX-XXXX-…" autoComplete="off" value={recKey} onChange={e => setRecKey(e.target.value)} />
-              <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={recTotp} onChange={e => setRecTotp(e.target.value.replace(/\D/g, ''))} />
+              {!isMs && (
+                <TextInput label="Código do autenticador" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={recTotp} onChange={e => setRecTotp(e.target.value.replace(/\D/g, ''))} />
+              )}
               <TextInput label="Nova master password (mín. 12)" type="password" autoComplete="new-password" value={recNewPw} onChange={e => setRecNewPw(e.target.value)} />
               <TextInput label="Confirme a nova" type="password" autoComplete="new-password" value={recNewPw2} onChange={e => setRecNewPw2(e.target.value)} />
               <div className="sm:col-span-2">
-                <Button variant="primary" loading={recBusy} disabled={!recKey || recTotp.length < 6 || !recNewPw || recNewPw !== recNewPw2} onClick={recover}>
-                  Recuperar acesso
+                <Button variant="primary" loading={recBusy} disabled={!recKey || (!isMs && recTotp.length < 6) || !recNewPw || recNewPw !== recNewPw2} onClick={recover}>
+                  {isMs ? 'Verificar com Microsoft e recuperar' : 'Recuperar acesso'}
                 </Button>
               </div>
             </div>
