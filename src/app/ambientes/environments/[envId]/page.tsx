@@ -9,11 +9,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import {
-  ArrowLeft, Database, KeyRound, Link2, Plus, Server, ShieldAlert, ShieldCheck, Trash2, Wifi,
+  ArrowLeft, Database, KeyRound, Link2, Pencil, Plus, Server, ShieldAlert, ShieldCheck, Trash2, Wifi,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
@@ -27,9 +27,10 @@ import { EnvEncryptedFile } from '@/components/environments/env-encrypted-file'
 import { EnvLinkModal } from '@/components/environments/env-link-modal'
 import { EnvDocs } from '@/components/environments/env-docs'
 import { EnvPermissionsModal } from '@/components/environments/env-permissions-modal'
+import { EnvQuickAccess } from '@/components/environments/env-quick-access'
 
 interface EnvPerms { view: boolean; reveal: boolean; copy: boolean; manage: boolean; admin: boolean; source: string }
-interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; permissions?: EnvPerms }
+interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; rdp_host: string | null; rdp_port: number | null; is_favorite?: boolean; permissions?: EnvPerms }
 interface CredRow { id: number; category: string; label: string; username: string | null; has_secret: boolean; secret_id: number | null; critical: boolean }
 interface DbRow { id: number; engine: string; server: string; port: number | null; instance: string | null; database: string | null; username: string | null; has_password: boolean; secret_id: number | null; always_on: boolean; critical: boolean }
 interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null; ini_attachment_id: number | null }
@@ -74,6 +75,7 @@ export default function AmbienteDetailPage() {
   const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn' | 'cert' | 'link'>(null)
   const [del, setDel] = useState<null | { kind: string; id: number; label: string; path: string }>(null)
   const [showPerms, setShowPerms] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -120,11 +122,17 @@ export default function AmbienteDetailPage() {
         subtitle={TYPE_LABEL[env.type] ?? env.type}
         actions={
           <div className="flex gap-2">
+            {perms.manage && <Button icon={Pencil} onClick={() => setEditOpen(true)}>Editar</Button>}
             {perms.admin && <Button icon={ShieldCheck} onClick={() => setShowPerms(true)}>Permissões</Button>}
             <Button icon={ArrowLeft} onClick={() => history.back()}>Voltar</Button>
           </div>
         }
       />
+
+      {/* ⚡ Acesso Rápido ao Ambiente */}
+      <div className="mb-4">
+        <EnvQuickAccess env={env} creds={creds} dbs={dbs} apps={apps} vpns={vpns} links={links} vaultKey={vaultKey} perms={perms} />
+      </div>
 
       <div className="flex flex-col gap-4">
         {/* Credenciais */}
@@ -284,6 +292,7 @@ export default function AmbienteDetailPage() {
       <EnvLinkModal open={modal === 'link'} onClose={() => setModal(null)} onSaved={load} envId={env.id} />
 
       <EnvPermissionsModal open={showPerms} onClose={() => setShowPerms(false)} envId={env.id} />
+      <EditEnvModal open={editOpen} onClose={() => setEditOpen(false)} env={env} onSaved={load} />
 
       <Modal open={del !== null} onClose={() => setDel(null)} title={`Excluir ${del?.kind ?? ''}`}>
         <div className="flex flex-col gap-4">
@@ -295,6 +304,63 @@ export default function AmbienteDetailPage() {
         </div>
       </Modal>
     </AppLayout>
+  )
+}
+
+const STATUS_OPTS: { v: string; l: string }[] = [
+  { v: 'unknown', l: '—' }, { v: 'online', l: 'Online' }, { v: 'offline', l: 'Offline' }, { v: 'maintenance', l: 'Manutenção' },
+]
+
+function EditEnvModal({ open, onClose, env, onSaved }: { open: boolean; onClose: () => void; env: EnvDetail; onSaved: () => void }) {
+  const [name, setName] = useState(env.name)
+  const [type, setType] = useState(env.type)
+  const [statusV, setStatusV] = useState(env.status)
+  const [rdpHost, setRdpHost] = useState(env.rdp_host ?? '')
+  const [rdpPort, setRdpPort] = useState(env.rdp_port ? String(env.rdp_port) : '')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (open) { setName(env.name); setType(env.type); setStatusV(env.status); setRdpHost(env.rdp_host ?? ''); setRdpPort(env.rdp_port ? String(env.rdp_port) : '') }
+  }, [open, env])
+
+  const save = async () => {
+    if (!name.trim()) return
+    setBusy(true)
+    try {
+      await api.put(`/environments/environments/${env.id}`, {
+        name: name.trim(), type, status: statusV,
+        rdp_host: rdpHost.trim() || null,
+        rdp_port: rdpPort.trim() ? Number(rdpPort) : null,
+      })
+      toast.success('Ambiente atualizado.'); onSaved(); onClose()
+    } catch (err) { toast.error(err instanceof ApiError ? err.message : 'Falha ao salvar.') } finally { setBusy(false) }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar ambiente">
+      <div className="flex flex-col gap-4">
+        <TextInput label="Nome" value={name} onChange={e => setName(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Tipo" value={type} onChange={e => setType(e.target.value)}>
+            {Object.entries(TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Select label="Status" value={statusV} onChange={e => setStatusV(e.target.value)}>
+            {STATUS_OPTS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+          </Select>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <TextInput label="Host RDP" placeholder="10.0.0.5 ou srv.cliente.com" value={rdpHost} onChange={e => setRdpHost(e.target.value)} />
+          </div>
+          <TextInput label="Porta RDP" inputMode="numeric" placeholder="3389" value={rdpPort} onChange={e => setRdpPort(e.target.value.replace(/\D/g, ''))} />
+        </div>
+        <p className="text-xs" style={{ color: 'var(--text-light)' }}>O host RDP habilita o "Abrir RDP" no Acesso Rápido (gera um .rdp). É metadado — nunca a senha.</p>
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button variant="primary" loading={busy} disabled={!name.trim()} onClick={save}>Salvar</Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

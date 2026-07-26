@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, KeyRound, Lock, Plus, Search, Server, ShieldAlert, ShieldCheck, Users, Wifi } from 'lucide-react'
+import { AlertTriangle, KeyRound, Lock, Plus, Search, Server, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
@@ -24,12 +24,16 @@ interface CustomerOpt { id: number; name: string }
 interface Dashboard { clientes: number; ambientes: number; credenciais: number; certificados: number; vpns: number; itens_criticos: number; compartilhados: number; alertas: number; ultimo_acesso: string | null }
 interface SearchResult { environments: { id: number; name: string; type: string; customer: string | null }[]; credentials: { id: number; label: string; username: string | null; environment_id: number; environment: string | null }[] }
 interface Alerts { certificates: { id: number; name: string; valid_to: string; days_to_expire: number; environment_id: number; environment: string | null; customer: string | null }[]; passwords: { id: number; label: string; next_rotation: string; days_to_expire: number; environment_id: number; environment: string | null }[] }
+interface FavRow { id: number; name: string; type: string; status: string; customer: string | null }
+
+const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 
 export default function AmbientesPage() {
   const { status, publicKey, lock } = useVault()
   const [clients, setClients] = useState<ClientRow[]>([])
   const [dash, setDash] = useState<Dashboard | null>(null)
   const [alerts, setAlerts] = useState<Alerts | null>(null)
+  const [favorites, setFavorites] = useState<FavRow[]>([])
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -38,12 +42,13 @@ export default function AmbientesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [c, d, al] = await Promise.all([
+      const [c, d, al, fv] = await Promise.all([
         api.get<ClientRow[]>('/environments/clients'),
         api.get<Dashboard>('/environments/dashboard'),
         api.get<Alerts>('/environments/alerts'),
+        api.get<FavRow[]>('/environments/favorites'),
       ])
-      setClients(c); setDash(d); setAlerts(al)
+      setClients(c); setDash(d); setAlerts(al); setFavorites(fv)
     } finally {
       setLoading(false)
     }
@@ -106,6 +111,26 @@ export default function AmbientesPage() {
               <KpiCard label="Compartilhados" value={dash.compartilhados} icon={Users} />
               <KpiCard label="Alertas" value={dash.alertas} icon={AlertTriangle} accent={dash.alertas > 0 ? 'warning' : 'default'} />
             </div>
+          )}
+
+          {/* Acesso rápido — favoritos */}
+          {favorites.length > 0 && (
+            <Card className="mb-4" padding="sm">
+              <h3 className="flex items-center gap-2 font-semibold mb-2 text-sm" style={{ color: 'var(--warning)' }}>
+                <Star className="w-4 h-4" fill="currentColor" /> Favoritos
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {favorites.map(f => (
+                  <Link key={f.id} href={`/ambientes/environments/${f.id}`} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:opacity-80" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <Server className="w-4 h-4 shrink-0" style={{ color: 'var(--primary)' }} />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</span>
+                      <span className="block text-xs truncate" style={{ color: 'var(--text-light)' }}>{f.customer} · {TYPE_LABEL[f.type] ?? f.type}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </Card>
           )}
 
           {/* Painel de alertas de vencimento */}

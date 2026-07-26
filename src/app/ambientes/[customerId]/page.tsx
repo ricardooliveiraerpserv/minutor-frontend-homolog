@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Plus, Server } from 'lucide-react'
+import { ArrowLeft, Plus, Server, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput, Select } from '@/components/ds'
@@ -12,7 +12,7 @@ import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
 
-interface EnvRow { id: number; name: string; type: string; status: string; credentials_count: number; vault_id: number }
+interface EnvRow { id: number; name: string; type: string; status: string; credentials_count: number; vault_id: number; is_favorite: boolean }
 
 const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 const STATUS_VARIANT: Record<string, string> = { online: 'success', offline: 'danger', maintenance: 'warning', unknown: 'default' }
@@ -40,6 +40,13 @@ export default function ClienteAmbientesPage() {
   useEffect(() => {
     if (status === 'unlocked') void load()
   }, [status, load])
+
+  const toggleFav = async (e: React.MouseEvent, env: EnvRow) => {
+    e.preventDefault(); e.stopPropagation()
+    setEnvs(rows => rows.map(r => r.id === env.id ? { ...r, is_favorite: !r.is_favorite } : r))
+    try { await api.post(`/environments/environments/${env.id}/favorite`, {}) }
+    catch { setEnvs(rows => rows.map(r => r.id === env.id ? { ...r, is_favorite: env.is_favorite } : r)); toast.error('Falha ao favoritar.') }
+  }
 
   if (status === 'locked') return <AppLayout><UnlockScreen /></AppLayout>
   if (status !== 'unlocked') return <AppLayout><Skeleton className="h-64" /></AppLayout>
@@ -71,7 +78,12 @@ export default function ClienteAmbientesPage() {
                     <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>{e.name}</div>
                     <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{TYPE_LABEL[e.type] ?? e.type}</div>
                   </div>
-                  <Badge variant={STATUS_VARIANT[e.status] ?? 'default'}>{STATUS_LABEL[e.status] ?? e.status}</Badge>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onClick={ev => toggleFav(ev, e)} title={e.is_favorite ? 'Remover dos favoritos' : 'Favoritar'} className="p-1 rounded hover:opacity-80" style={{ color: e.is_favorite ? 'var(--warning)' : 'var(--text-light)' }}>
+                      <Star className="w-4 h-4" fill={e.is_favorite ? 'currentColor' : 'none'} />
+                    </button>
+                    <Badge variant={STATUS_VARIANT[e.status] ?? 'default'}>{STATUS_LABEL[e.status] ?? e.status}</Badge>
+                  </div>
                 </div>
                 <div className="text-xs mt-3" style={{ color: 'var(--text-light)' }}>{e.credentials_count} credencial(is)</div>
               </Card>
