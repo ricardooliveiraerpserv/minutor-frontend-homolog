@@ -22,12 +22,15 @@ import { EnvCredentialModal } from '@/components/environments/env-credential-mod
 import { EnvDatabaseModal } from '@/components/environments/env-database-modal'
 import { EnvAppserverModal } from '@/components/environments/env-appserver-modal'
 import { EnvVpnModal } from '@/components/environments/env-vpn-modal'
+import { EnvCertificateModal } from '@/components/environments/env-certificate-modal'
+import { EnvEncryptedFile } from '@/components/environments/env-encrypted-file'
 
 interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number }
 interface CredRow { id: number; category: string; label: string; username: string | null; has_secret: boolean; secret_id: number | null; critical: boolean }
 interface DbRow { id: number; engine: string; server: string; port: number | null; instance: string | null; database: string | null; username: string | null; has_password: boolean; secret_id: number | null; always_on: boolean; critical: boolean }
-interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null }
-interface VpnRow { id: number; provider: string; server: string | null; group: string | null; username: string | null; has_password: boolean; secret_id: number | null; critical: boolean }
+interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null; ini_attachment_id: number | null }
+interface VpnRow { id: number; provider: string; server: string | null; group: string | null; username: string | null; has_password: boolean; secret_id: number | null; critical: boolean; ovpn_attachment_id: number | null }
+interface CertRow { id: number; name: string; type: string; valid_to: string | null; days_to_expire: number | null; has_pfx_password: boolean; pfx_pass_secret_id: number | null; pfx_attachment_id: number | null; critical: boolean }
 
 const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 const CAT_LABEL: Record<string, string> = {
@@ -60,21 +63,23 @@ export default function AmbienteDetailPage() {
   const [dbs, setDbs] = useState<DbRow[]>([])
   const [apps, setApps] = useState<AppRow[]>([])
   const [vpns, setVpns] = useState<VpnRow[]>([])
+  const [certs, setCerts] = useState<CertRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn'>(null)
+  const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn' | 'cert'>(null)
   const [del, setDel] = useState<null | { kind: string; id: number; label: string; path: string }>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [e, c, d, a, v] = await Promise.all([
+      const [e, c, d, a, v, ce] = await Promise.all([
         api.get<EnvDetail>(`/environments/environments/${envId}`),
         api.get<CredRow[]>(`/environments/environments/${envId}/credentials`),
         api.get<DbRow[]>(`/environments/environments/${envId}/databases`),
         api.get<AppRow[]>(`/environments/environments/${envId}/appservers`),
         api.get<VpnRow[]>(`/environments/environments/${envId}/vpns`),
+        api.get<CertRow[]>(`/environments/environments/${envId}/certificates`),
       ])
-      setEnv(e); setCreds(c); setDbs(d); setApps(a); setVpns(v)
+      setEnv(e); setCreds(c); setDbs(d); setApps(a); setVpns(v); setCerts(ce)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) toast.error('Ambiente sem acesso.')
     } finally { setLoading(false) }
@@ -98,7 +103,6 @@ export default function AmbienteDetailPage() {
   if (!env) return <AppLayout><Card><EmptyState icon={Server} title="Ambiente não encontrado" /></Card></AppLayout>
 
   const notReady = [
-    { key: 'cert', label: 'Certificados', icon: ShieldAlert },
     { key: 'links', label: 'Links', icon: Link2 },
     { key: 'docs', label: 'Documentação', icon: FileText },
   ]
@@ -164,7 +168,7 @@ export default function AmbienteDetailPage() {
             <div className="p-6"><EmptyState icon={Server} title="Sem AppServers" /></div>
           ) : (
             <table className="ds-table w-full">
-              <thead><tr><th>Nome</th><th>Versão</th><th>Build</th><th>RootPath</th><th>Porta</th><th /></tr></thead>
+              <thead><tr><th>Nome</th><th>Versão</th><th>Build</th><th>RootPath</th><th>appserver.ini</th><th /></tr></thead>
               <tbody>
                 {apps.map(a => (
                   <tr key={a.id}>
@@ -172,7 +176,7 @@ export default function AmbienteDetailPage() {
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{a.version ?? '—'}</td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{a.build ?? '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{a.root_path ?? '—'}</td>
-                    <td className="text-sm" style={{ color: 'var(--text)' }}>{a.port ?? '—'}</td>
+                    <td><EnvEncryptedFile entityType="ENV_APPSERVER_INI" entityId={a.id} category="ini" vaultKey={vaultKey} attachmentId={a.ini_attachment_id} originalName="appserver.ini" onChanged={load} /></td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'AppServer', id: a.id, label: a.name, path: `/environments/appservers/${a.id}` })} /></td>
                   </tr>
                 ))}
@@ -187,16 +191,46 @@ export default function AmbienteDetailPage() {
             <div className="p-6"><EmptyState icon={Wifi} title="Sem VPNs" /></div>
           ) : (
             <table className="ds-table w-full">
-              <thead><tr><th>Provedor</th><th>Servidor</th><th>Grupo</th><th>Usuário</th><th>Senha</th><th /></tr></thead>
+              <thead><tr><th>Provedor</th><th>Servidor</th><th>Usuário</th><th>Senha</th><th>.ovpn</th><th /></tr></thead>
               <tbody>
                 {vpns.map(v => (
                   <tr key={v.id}>
                     <td><Badge variant={v.critical ? 'danger' : 'default'}>{v.provider}</Badge></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{v.server ?? '—'}</td>
-                    <td className="text-sm" style={{ color: 'var(--text)' }}>{v.group ?? '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{v.username ?? '—'}</td>
                     <td>{v.has_password && v.secret_id ? <EnvRevealField secretId={v.secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td><EnvEncryptedFile entityType="ENV_VPN_OVPN" entityId={v.id} category="ovpn" vaultKey={vaultKey} attachmentId={v.ovpn_attachment_id} originalName={`${v.provider}.ovpn`} onChanged={load} /></td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'VPN', id: v.id, label: v.provider, path: `/environments/vpns/${v.id}` })} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </SectionCard>
+
+        {/* Certificados */}
+        <SectionCard icon={ShieldAlert} title="Certificados" count={certs.length} onAdd={() => setModal('cert')}>
+          {certs.length === 0 ? (
+            <div className="p-6"><EmptyState icon={ShieldAlert} title="Sem certificados" description="Cadastre o A1 da Receita — o .pfx é cifrado no seu navegador." /></div>
+          ) : (
+            <table className="ds-table w-full">
+              <thead><tr><th>Nome</th><th>Tipo</th><th>Validade</th><th>Senha PFX</th><th>Arquivo .pfx</th><th /></tr></thead>
+              <tbody>
+                {certs.map(c => (
+                  <tr key={c.id}>
+                    <td className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</td>
+                    <td><Badge variant={c.critical ? 'danger' : 'default'}>{c.type}</Badge></td>
+                    <td className="text-sm">
+                      {c.valid_to ? (
+                        <span style={{ color: c.days_to_expire !== null && c.days_to_expire <= 30 ? 'var(--danger)' : 'var(--text)' }}>
+                          {new Date(c.valid_to).toLocaleDateString('pt-BR')}
+                          {c.days_to_expire !== null && c.days_to_expire <= 30 && <span className="text-xs"> ({Math.max(0, Math.round(c.days_to_expire))}d)</span>}
+                        </span>
+                      ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                    </td>
+                    <td>{c.has_pfx_password && c.pfx_pass_secret_id ? <EnvRevealField secretId={c.pfx_pass_secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td><EnvEncryptedFile entityType="ENV_CERT_PFX" entityId={c.id} category="pfx" vaultKey={vaultKey} attachmentId={c.pfx_attachment_id} originalName={`${c.name}.pfx`} onChanged={load} /></td>
+                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Certificado', id: c.id, label: c.name, path: `/environments/certificates/${c.id}` })} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -219,6 +253,7 @@ export default function AmbienteDetailPage() {
       <EnvDatabaseModal open={modal === 'db'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
       <EnvAppserverModal open={modal === 'app'} onClose={() => setModal(null)} onSaved={load} envId={env.id} />
       <EnvVpnModal open={modal === 'vpn'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
+      <EnvCertificateModal open={modal === 'cert'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
 
       <Modal open={del !== null} onClose={() => setDel(null)} title={`Excluir ${del?.kind ?? ''}`}>
         <div className="flex flex-col gap-4">
