@@ -130,7 +130,7 @@ export default function AmbienteDetailPage() {
                     <td><Badge variant={c.critical ? 'danger' : 'default'}>{CAT_LABEL[c.category] ?? c.category}</Badge></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{c.label}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{c.username ?? '—'}</td>
-                    <td>{c.has_secret && c.secret_id ? <EnvRevealField secretId={c.secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td>{c.has_secret && c.secret_id ? <EnvRevealField secretId={c.secret_id} critical={c.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Credencial', id: c.id, label: c.label, path: `/environments/credentials/${c.id}` })} /></td>
                   </tr>
                 ))}
@@ -152,7 +152,7 @@ export default function AmbienteDetailPage() {
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{d.server}{d.port ? `:${d.port}` : ''} <span className="text-xs" style={{ color: 'var(--text-light)' }}>{d.engine}</span></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{[d.instance, d.database].filter(Boolean).join(' / ') || '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{d.username ?? '—'}</td>
-                    <td>{d.has_password && d.secret_id ? <EnvRevealField secretId={d.secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td>{d.has_password && d.secret_id ? <EnvRevealField secretId={d.secret_id} critical={d.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td>{d.always_on ? <Badge variant="success">Sim</Badge> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Banco', id: d.id, label: d.server, path: `/environments/databases/${d.id}` })} /></td>
                   </tr>
@@ -198,7 +198,7 @@ export default function AmbienteDetailPage() {
                     <td><Badge variant={v.critical ? 'danger' : 'default'}>{v.provider}</Badge></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{v.server ?? '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{v.username ?? '—'}</td>
-                    <td>{v.has_password && v.secret_id ? <EnvRevealField secretId={v.secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td>{v.has_password && v.secret_id ? <EnvRevealField secretId={v.secret_id} critical={v.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td><EnvEncryptedFile entityType="ENV_VPN_OVPN" entityId={v.id} category="ovpn" vaultKey={vaultKey} attachmentId={v.ovpn_attachment_id} originalName={`${v.provider}.ovpn`} onChanged={load} /></td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'VPN', id: v.id, label: v.provider, path: `/environments/vpns/${v.id}` })} /></td>
                   </tr>
@@ -228,7 +228,7 @@ export default function AmbienteDetailPage() {
                         </span>
                       ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
                     </td>
-                    <td>{c.has_pfx_password && c.pfx_pass_secret_id ? <EnvRevealField secretId={c.pfx_pass_secret_id} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td>{c.has_pfx_password && c.pfx_pass_secret_id ? <EnvRevealField secretId={c.pfx_pass_secret_id} critical={c.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td><EnvEncryptedFile entityType="ENV_CERT_PFX" entityId={c.id} category="pfx" vaultKey={vaultKey} attachmentId={c.pfx_attachment_id} originalName={`${c.name}.pfx`} onChanged={load} /></td>
                     <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Certificado', id: c.id, label: c.name, path: `/environments/certificates/${c.id}` })} /></td>
                   </tr>
