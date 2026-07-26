@@ -13,6 +13,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { escapeHtml } from '@/lib/sanitize'
 import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -826,7 +827,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const exportPdf = () => {
     if (visao === 'clientes') {
       const linhas = clientesExport.map(r => `
-        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
+        <tr><td>${escapeHtml(r.cliente)}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
         <td class="r">${formatBRL(r.recebido)}</td>
         <td class="r">${formatBRL(r.custo)}${r.margem_real_pct == null ? '' : `<br><span style="color:${mgOpColor(r.margem_real_pct)}">Mg op. ${r.margem_real_pct}%</span>`}</td>
         <td class="r">${formatBRL(r.custo40)}${r.custo40_pct == null ? '' : `<br><span style="color:${pct40Color(r.custo40_pct)}">(${r.custo40_pct}%)</span>`}</td><td class="r">${formatBRL(r.custo_total)}</td>
@@ -851,7 +852,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const src = visao === 'projeto' ? sorted : detalheConsultor()
     const linhas = src.map(r => `
       <tr>
-        ${visao === 'consultor' ? `<td>${r.consultor}</td>` : ''}<td>${r.projeto}</td><td>${r.cliente}</td>
+        ${visao === 'consultor' ? `<td>${escapeHtml(r.consultor)}</td>` : ''}<td>${escapeHtml(r.projeto)}</td><td>${escapeHtml(r.cliente)}</td>
         ${visao === 'projeto' ? `<td class="r">${(r as DisplayRow).n_consultores}</td>` : ''}
         <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.valor_hora_projeto)}</td><td class="r">${formatBRL(r.valor_hora_consultor)}</td>
         <td class="r">${formatBRL(r.receita)}</td><td class="r">${formatBRL(r.custo)}</td><td class="r">${formatBRL(r.margem)}</td>

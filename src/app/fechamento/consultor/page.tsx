@@ -7,6 +7,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { escapeHtml } from '@/lib/sanitize'
 import { RefreshCw, Printer, FileText, Users, Search, X, Mail, FileSpreadsheet, Send, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
@@ -282,10 +283,10 @@ function buildReport(
         const rowsHtml = clienteRows.map(r => `
           <tr class="main-row">
             <td>${fmtDate(r.data)}</td>
-            <td>${r.cliente || '—'}</td>
-            <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
-            <td>${r.ticket ?? '—'}</td>
-            <td>${r.titulo ?? '—'}</td>
+            <td>${escapeHtml(r.cliente) || '—'}</td>
+            <td><span style="color:#888;margin-right:4px">${escapeHtml(r.projeto_codigo)}</span>${escapeHtml(r.projeto)}</td>
+            <td>${escapeHtml(r.ticket) || '—'}</td>
+            <td>${escapeHtml(r.titulo) || '—'}</td>
             <td class="center">${r.start_time ? (r.start_time.includes('T') ? r.start_time.slice(11, 16) : r.start_time.slice(0, 5)) : '—'}</td>
             <td class="center">${r.end_time   ? (r.end_time.includes('T')   ? r.end_time.slice(11, 16)   : r.end_time.slice(0, 5))   : '—'}</td>
             <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? (r.valor_extra != null ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}% (${formatBRL(r.valor_extra)})</span>` : `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}% base ${fmtH(r.horas_base ?? r.horas)}</span>`) : ''}</td>
@@ -293,7 +294,7 @@ function buildReport(
         `).join('')
         clienteBlocksHtml += `
           <div class="client-header">
-            <span class="client-name">${cliente}</span>
+            <span class="client-name">${escapeHtml(cliente)}</span>
             <span class="client-total">${fmtH(clienteHoras)}</span>
           </div>
           <table>
@@ -306,7 +307,7 @@ function buildReport(
       sectionsHtml += `
         <div class="section">
           <div class="section-header">
-            <span class="section-title">${tipo}</span>
+            <span class="section-title">${escapeHtml(tipo)}</span>
             <span class="section-total">${fmtH(totalHoras)}</span>
           </div>
           ${clienteBlocksHtml}
@@ -327,10 +328,10 @@ function buildReport(
         <tbody>${despesas.map(d => `
           <tr class="main-row">
             <td>${fmtDate(d.data)}</td>
-            <td>${d.descricao || '—'}</td>
-            <td>${d.categoria}</td>
-            <td>${d.cliente}</td>
-            <td>${d.projeto}</td>
+            <td>${escapeHtml(d.descricao) || '—'}</td>
+            <td>${escapeHtml(d.categoria)}</td>
+            <td>${escapeHtml(d.cliente)}</td>
+            <td>${escapeHtml(d.projeto)}</td>
             <td>${d.is_paid ? (d.paid_at ? 'Pago em ' + new Date(d.paid_at).toLocaleDateString('pt-BR') : 'Pago') : '<span style="color:#7c3aed">No fechamento</span>'}</td>
             <td class="right">${formatBRL(d.valor)}</td>
           </tr>`).join('')}
@@ -377,10 +378,10 @@ function buildReport(
         <tbody>
           <tr class="main-row"><td>Serviço</td><td>—</td><td class="right">${formatBRL(servTotal)}</td></tr>
           ${isDesp && despTot > 0 ? `<tr class="main-row"><td>Despesa</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(despTot)}</td></tr>` : ''}
-          <tr class="main-row"><td>Desconto</td><td>${consultor.desconto_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(desconto)}</td></tr>
-          <tr class="main-row"><td>Adiantamento</td><td>${consultor.adiantamento_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(adiantamento)}</td></tr>
+          <tr class="main-row"><td>Desconto</td><td>${escapeHtml(consultor.desconto_desc) || '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(desconto)}</td></tr>
+          <tr class="main-row"><td>Adiantamento</td><td>${escapeHtml(consultor.adiantamento_desc) || '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(adiantamento)}</td></tr>
           ${emprestimo !== 0 ? `<tr class="main-row"><td>Empréstimo</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(emprestimo)}</td></tr>` : ''}
-          <tr class="main-row"><td>Adicional</td><td>${consultor.adicional_desc ?? '—'}</td><td class="right" style="color:#16a34a">+ ${formatBRL(adicional)}</td></tr>
+          <tr class="main-row"><td>Adicional</td><td>${escapeHtml(consultor.adicional_desc) || '—'}</td><td class="right" style="color:#16a34a">+ ${formatBRL(adicional)}</td></tr>
         </tbody>
       </table>
     </div>
@@ -400,7 +401,7 @@ function buildReport(
       <div class="header">
         <div class="logo"><img src="${window.location.origin}/${consultor.is_bizify ? 'logo-bizify.png' : 'logo.png'}" alt="${consultor.is_bizify ? 'Bizify' : 'ERPServ Consultoria'}" /></div>
         <div class="meta">
-          <strong>${consultor.nome}</strong>
+          <strong>${escapeHtml(consultor.nome)}</strong>
           Fechamento de Consultores &nbsp;·&nbsp; ${fmtYearMonth(yearMonth)} &nbsp;·&nbsp; ${modeLabel}
         </div>
       </div>
@@ -737,8 +738,8 @@ export default function FechamentoConsultorPage() {
 
     const rowsHtml = todos.map(c => `
       <tr>
-        <td>${c.nome}</td>
-        <td>${c.email ?? '—'}</td>
+        <td>${escapeHtml(c.nome)}</td>
+        <td>${escapeHtml(c.email) || '—'}</td>
         <td class="right">${formatBRL(c.total + (c.total_despesas || 0))}</td>
       </tr>
     `).join('')

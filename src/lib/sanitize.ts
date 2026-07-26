@@ -14,6 +14,21 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = ['href', 'src', 'alt', 'title', 'target', 'rel', 'class', 'colspan', 'rowspan', 'align', 'valign', 'style']
 
+/**
+ * A6 (segurança): escapa caracteres HTML. Use para injetar texto vindo do banco
+ * (nomes de consultor/cliente/empresa etc.) em HTML montado por template string —
+ * relatórios de impressão. O texto aparece como TEXTO, nunca executa como código.
+ */
+export function escapeHtml(input: string | number | null | undefined): string {
+  if (input === null || input === undefined) return ''
+  return String(input)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function sanitizeHtml(input: string | null | undefined): string {
   if (!input) return ''
   return DOMPurify.sanitize(input, {

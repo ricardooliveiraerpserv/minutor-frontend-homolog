@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { previewText } from '@/lib/sanitize'
+import { previewText, escapeHtml } from '@/lib/sanitize'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
@@ -410,7 +410,7 @@ export default function FechamentoParceiroPage() {
           <thead><tr><th>Consultor</th><th class="right">Horas</th><th class="right">Valor</th></tr></thead>
           <tbody>
             ${Array.from(resumoMap.values()).map(c => `
-              <tr class="main-row"><td>${c.consultor}</td><td class="right">${c.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</td><td class="right">${formatBRL(Math.round(c.total * 100) / 100)}</td></tr>`).join('')}
+              <tr class="main-row"><td>${escapeHtml(c.consultor)}</td><td class="right">${c.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</td><td class="right">${formatBRL(Math.round(c.total * 100) / 100)}</td></tr>`).join('')}
           </tbody>
         </table>
       </div>`
@@ -419,17 +419,17 @@ export default function FechamentoParceiroPage() {
       const rowsHtml = rows.map(r => `
         <tr class="main-row">
           <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-          <td>${r.cliente ?? '—'}</td>
-          <td>${r.projeto}</td>
-          <td>${r.solicitante ?? '—'}</td>
-          <td>${r.ticket ?? '0'}</td>
-          <td>${r.titulo ?? '—'}</td>
+          <td>${escapeHtml(r.cliente) || '—'}</td>
+          <td>${escapeHtml(r.projeto)}</td>
+          <td>${escapeHtml(r.solicitante) || '—'}</td>
+          <td>${escapeHtml(r.ticket) || '0'}</td>
+          <td>${escapeHtml(r.titulo) || '—'}</td>
           <td class="right">${r.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</td>
         </tr>`).join('')
       return `
         <div class="section" style="margin-bottom:20px">
           <div class="section-header" style="border-bottom:2px solid #7c3aed;padding-bottom:6px;margin-bottom:10px">
-            <div><span class="section-title" style="font-size:15px;color:#111">${consultor}</span> <span style="font-size:12px;color:#7c3aed;font-weight:700">· ${horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</span></div>
+            <div><span class="section-title" style="font-size:15px;color:#111">${escapeHtml(consultor)}</span> <span style="font-size:12px;color:#7c3aed;font-weight:700">· ${horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</span></div>
             <div class="section-rate">Valor/hora: <b>${formatBRL(taxa)}/h</b></div>
           </div>
           <table>
@@ -453,10 +453,10 @@ export default function FechamentoParceiroPage() {
           <tbody>${despesas.map(d => `
             <tr class="main-row">
               <td>${new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-              <td>${d.colaborador}</td>
-              <td>${d.categoria}</td>
-              <td>${d.cliente ?? '—'}</td>
-              <td>${d.projeto}</td>
+              <td>${escapeHtml(d.colaborador)}</td>
+              <td>${escapeHtml(d.categoria)}</td>
+              <td>${escapeHtml(d.cliente) || '—'}</td>
+              <td>${escapeHtml(d.projeto)}</td>
               <td>${d.is_paid ? (d.paid_at ? 'Pago em ' + new Date(d.paid_at).toLocaleDateString('pt-BR') : 'Pago') : '<span style="color:#0e7490">No fechamento</span>'}</td>
               <td class="right">${formatBRL(d.valor)}</td>
             </tr>`).join('')}
@@ -482,9 +482,9 @@ export default function FechamentoParceiroPage() {
           <tbody>
             <tr class="main-row"><td>Serviço</td><td>—</td><td class="right">${formatBRL(totalServicos)}</td></tr>
             ${mode !== 'servicos' && saldoDesp > 0 ? `<tr class="main-row"><td>Despesa</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(saldoDesp)}</td></tr>` : ''}
-            ${ajDesconto !== 0 ? `<tr class="main-row"><td>Desconto</td><td>${status.desconto_desc ?? '—'}</td><td class="right">− ${formatBRL(ajDesconto)}</td></tr>` : ''}
-            ${ajAdiantamento !== 0 ? `<tr class="main-row"><td>Adiantamento</td><td>${status.adiantamento_desc ?? '—'}</td><td class="right">− ${formatBRL(ajAdiantamento)}</td></tr>` : ''}
-            ${ajAdicional !== 0 ? `<tr class="main-row"><td>Adicional</td><td>${status.adicional_desc ?? '—'}</td><td class="right">+ ${formatBRL(ajAdicional)}</td></tr>` : ''}
+            ${ajDesconto !== 0 ? `<tr class="main-row"><td>Desconto</td><td>${escapeHtml(status.desconto_desc) || '—'}</td><td class="right">− ${formatBRL(ajDesconto)}</td></tr>` : ''}
+            ${ajAdiantamento !== 0 ? `<tr class="main-row"><td>Adiantamento</td><td>${escapeHtml(status.adiantamento_desc) || '—'}</td><td class="right">− ${formatBRL(ajAdiantamento)}</td></tr>` : ''}
+            ${ajAdicional !== 0 ? `<tr class="main-row"><td>Adicional</td><td>${escapeHtml(status.adicional_desc) || '—'}</td><td class="right">+ ${formatBRL(ajAdicional)}</td></tr>` : ''}
             <tr><td colspan="2" class="right" style="font-weight:bold">Recebimento</td><td class="right" style="font-weight:bold;color:#7c3aed">${formatBRL(Math.round(recebimentoRep * 100) / 100)}</td></tr>
           </tbody>
         </table>
@@ -503,7 +503,7 @@ export default function FechamentoParceiroPage() {
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"/>
-<title>${h1Label} — ${status.nome} — ${competencia}</title>
+<title>${h1Label} — ${escapeHtml(status.nome)} — ${competencia}</title>
 <style>${printStyles}</style>
 </head>
 <body>
@@ -512,7 +512,7 @@ export default function FechamentoParceiroPage() {
     <div class="page-header-right">
       <h1>${h1Label}</h1>
       <div class="subtitle">${tipoPrec}</div>
-      <div class="meta"><b>Parceiro:</b> ${status.nome}</div>
+      <div class="meta"><b>Parceiro:</b> ${escapeHtml(status.nome)}</div>
       <div class="meta"><b>Competência:</b> ${competencia}</div>
     </div>
   </div>
@@ -565,10 +565,10 @@ export default function FechamentoParceiroPage() {
       const rowsHtml = rows.map(r => `
         <tr>
           <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-          <td>${r.descricao}</td>
-          <td>${r.categoria}</td>
-          <td>${r.cliente ?? '—'}</td>
-          <td>${r.projeto}</td>
+          <td>${escapeHtml(r.descricao)}</td>
+          <td>${escapeHtml(r.categoria)}</td>
+          <td>${escapeHtml(r.cliente) || '—'}</td>
+          <td>${escapeHtml(r.projeto)}</td>
           <td>${r.is_paid ? (r.paid_at ? 'Pago em ' + new Date(r.paid_at).toLocaleDateString('pt-BR') : 'Pago') : '<span style="color:#0e7490">No fechamento</span>'}</td>
           <td class="right" style="color:#0e7490;font-weight:600">${formatBRL(r.valor)}</td>
         </tr>`).join('')
@@ -576,7 +576,7 @@ export default function FechamentoParceiroPage() {
       return `
         <div class="section">
           <div class="section-header" style="background:#cffafe;border-left:3px solid #0891b2;padding:6px 10px;border-radius:0 4px 4px 0;">
-            <div><span class="section-title" style="color:#0e7490">${consultor}</span></div>
+            <div><span class="section-title" style="color:#0e7490">${escapeHtml(consultor)}</span></div>
             <div class="section-rate" style="color:#0e7490">Subtotal: <b>${formatBRL(sub)}</b></div>
           </div>
           <table>
@@ -590,7 +590,7 @@ export default function FechamentoParceiroPage() {
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"/>
-<title>Relatório de Despesas — ${status.nome} — ${competencia}</title>
+<title>Relatório de Despesas — ${escapeHtml(status.nome)} — ${competencia}</title>
 <style>${printStyles}</style>
 </head>
 <body>
@@ -599,7 +599,7 @@ export default function FechamentoParceiroPage() {
     <div class="page-header-right">
       <h1>Relatório de Despesas</h1>
       <div class="subtitle">Fechamento — Parceiros</div>
-      <div class="meta"><b>Parceiro:</b> ${status.nome}</div>
+      <div class="meta"><b>Parceiro:</b> ${escapeHtml(status.nome)}</div>
       <div class="meta"><b>Competência:</b> ${competencia}</div>
     </div>
   </div>
