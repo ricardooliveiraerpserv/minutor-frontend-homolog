@@ -12,7 +12,7 @@ import { fetchEncryptedAttachment, triggerDownload } from '@/lib/env-file-crypto
 
 interface DocRow { id: number; original_name: string; extension: string; size_bytes: number; created_at: string }
 
-export function EnvDocs({ envId }: { envId: number }) {
+export function EnvDocs({ envId, canManage = true }: { envId: number; canManage?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [docs, setDocs] = useState<DocRow[]>([])
   const [busy, setBusy] = useState(false)
@@ -58,7 +58,7 @@ export function EnvDocs({ envId }: { envId: number }) {
           <FileText className="w-4 h-4" style={{ color: 'var(--primary)' }} /> Documentação
           <span className="text-xs font-normal" style={{ color: 'var(--text-light)' }}>({docs.length})</span>
         </h3>
-        <Button variant="primary" size="sm" icon={Upload} loading={busy} onClick={() => inputRef.current?.click()}>Enviar documento</Button>
+        {canManage && <Button variant="primary" size="sm" icon={Upload} loading={busy} onClick={() => inputRef.current?.click()}>Enviar documento</Button>}
         <input ref={inputRef} type="file" className="hidden" onChange={upload} />
       </div>
       {docs.length === 0 ? (
@@ -73,7 +73,7 @@ export function EnvDocs({ envId }: { envId: number }) {
                 <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{(d.size_bytes / 1024).toFixed(0)} KB</td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="p-1.5 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }} title="Baixar" onClick={() => download(d)}><Download className="w-4 h-4" /></button>
-                  <button type="button" className="p-1.5 rounded hover:opacity-80" style={{ color: 'var(--danger)' }} title="Excluir" onClick={() => remove(d.id)}><Trash2 className="w-4 h-4" /></button>
+                  {canManage && <button type="button" className="p-1.5 rounded hover:opacity-80" style={{ color: 'var(--danger)' }} title="Excluir" onClick={() => remove(d.id)}><Trash2 className="w-4 h-4" /></button>}
                 </td>
               </tr>
             ))}

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import {
-  ArrowLeft, Database, KeyRound, Link2, Plus, Server, ShieldAlert, Trash2, Wifi,
+  ArrowLeft, Database, KeyRound, Link2, Plus, Server, ShieldAlert, ShieldCheck, Trash2, Wifi,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -26,8 +26,10 @@ import { EnvCertificateModal } from '@/components/environments/env-certificate-m
 import { EnvEncryptedFile } from '@/components/environments/env-encrypted-file'
 import { EnvLinkModal } from '@/components/environments/env-link-modal'
 import { EnvDocs } from '@/components/environments/env-docs'
+import { EnvPermissionsModal } from '@/components/environments/env-permissions-modal'
 
-interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number }
+interface EnvPerms { view: boolean; reveal: boolean; copy: boolean; manage: boolean; admin: boolean; source: string }
+interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; permissions?: EnvPerms }
 interface CredRow { id: number; category: string; label: string; username: string | null; has_secret: boolean; secret_id: number | null; critical: boolean }
 interface DbRow { id: number; engine: string; server: string; port: number | null; instance: string | null; database: string | null; username: string | null; has_password: boolean; secret_id: number | null; always_on: boolean; critical: boolean }
 interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null; ini_attachment_id: number | null }
@@ -41,8 +43,8 @@ const CAT_LABEL: Record<string, string> = {
   totvs_license: 'TOTVS License', smtp: 'SMTP', ftp: 'FTP', azure: 'Azure', aws: 'AWS', gcp: 'GCP', o365: 'Office 365', portal: 'Portal',
 }
 
-function SectionCard({ icon: Icon, title, count, onAdd, children }: {
-  icon: typeof KeyRound; title: string; count: number; onAdd: () => void; children: React.ReactNode
+function SectionCard({ icon: Icon, title, count, onAdd, canManage, children }: {
+  icon: typeof KeyRound; title: string; count: number; onAdd: () => void; canManage: boolean; children: React.ReactNode
 }) {
   return (
     <Card padding="none" className="overflow-x-auto">
@@ -51,7 +53,7 @@ function SectionCard({ icon: Icon, title, count, onAdd, children }: {
           <Icon className="w-4 h-4" style={{ color: 'var(--primary)' }} /> {title}
           <span className="text-xs font-normal" style={{ color: 'var(--text-light)' }}>({count})</span>
         </h3>
-        <Button variant="primary" size="sm" icon={Plus} onClick={onAdd}>Adicionar</Button>
+        {canManage && <Button variant="primary" size="sm" icon={Plus} onClick={onAdd}>Adicionar</Button>}
       </div>
       {children}
     </Card>
@@ -71,6 +73,7 @@ export default function AmbienteDetailPage() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn' | 'cert' | 'link'>(null)
   const [del, setDel] = useState<null | { kind: string; id: number; label: string; path: string }>(null)
+  const [showPerms, setShowPerms] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,6 +96,8 @@ export default function AmbienteDetailPage() {
   useEffect(() => { if (status === 'unlocked') void load() }, [status, load])
 
   const vaultKey = useMemo(() => env ? getVaultKey(env.vault_id) : undefined, [env, getVaultKey])
+  // Sem `permissions` no payload (compat), assume tudo liberado — o BE ainda enforça.
+  const perms: EnvPerms = env?.permissions ?? { view: true, reveal: true, copy: true, manage: true, admin: false, source: 'default' }
 
   const confirmDelete = async () => {
     if (!del) return
@@ -113,12 +118,17 @@ export default function AmbienteDetailPage() {
         icon={Server}
         title={env.name}
         subtitle={TYPE_LABEL[env.type] ?? env.type}
-        actions={<Button icon={ArrowLeft} onClick={() => history.back()}>Voltar</Button>}
+        actions={
+          <div className="flex gap-2">
+            {perms.admin && <Button icon={ShieldCheck} onClick={() => setShowPerms(true)}>Permissões</Button>}
+            <Button icon={ArrowLeft} onClick={() => history.back()}>Voltar</Button>
+          </div>
+        }
       />
 
       <div className="flex flex-col gap-4">
         {/* Credenciais */}
-        <SectionCard icon={KeyRound} title="Credenciais" count={creds.length} onAdd={() => setModal('cred')}>
+        <SectionCard icon={KeyRound} title="Credenciais" count={creds.length} onAdd={() => setModal('cred')} canManage={perms.manage}>
           {creds.length === 0 ? (
             <div className="p-6"><EmptyState icon={KeyRound} title="Sem credenciais" /></div>
           ) : (
@@ -130,8 +140,8 @@ export default function AmbienteDetailPage() {
                     <td><Badge variant={c.critical ? 'danger' : 'default'}>{CAT_LABEL[c.category] ?? c.category}</Badge></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{c.label}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{c.username ?? '—'}</td>
-                    <td>{c.has_secret && c.secret_id ? <EnvRevealField secretId={c.secret_id} critical={c.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Credencial', id: c.id, label: c.label, path: `/environments/credentials/${c.id}` })} /></td>
+                    <td>{c.has_secret && c.secret_id ? <EnvRevealField secretId={c.secret_id} critical={c.critical} canReveal={perms.reveal} canCopy={perms.copy} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'Credencial', id: c.id, label: c.label, path: `/environments/credentials/${c.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -140,7 +150,7 @@ export default function AmbienteDetailPage() {
         </SectionCard>
 
         {/* Banco */}
-        <SectionCard icon={Database} title="Banco de Dados" count={dbs.length} onAdd={() => setModal('db')}>
+        <SectionCard icon={Database} title="Banco de Dados" count={dbs.length} onAdd={() => setModal('db')} canManage={perms.manage}>
           {dbs.length === 0 ? (
             <div className="p-6"><EmptyState icon={Database} title="Sem bancos" /></div>
           ) : (
@@ -152,9 +162,9 @@ export default function AmbienteDetailPage() {
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{d.server}{d.port ? `:${d.port}` : ''} <span className="text-xs" style={{ color: 'var(--text-light)' }}>{d.engine}</span></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{[d.instance, d.database].filter(Boolean).join(' / ') || '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{d.username ?? '—'}</td>
-                    <td>{d.has_password && d.secret_id ? <EnvRevealField secretId={d.secret_id} critical={d.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td>{d.has_password && d.secret_id ? <EnvRevealField secretId={d.secret_id} critical={d.critical} canReveal={perms.reveal} canCopy={perms.copy} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td>{d.always_on ? <Badge variant="success">Sim</Badge> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Banco', id: d.id, label: d.server, path: `/environments/databases/${d.id}` })} /></td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'Banco', id: d.id, label: d.server, path: `/environments/databases/${d.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -163,7 +173,7 @@ export default function AmbienteDetailPage() {
         </SectionCard>
 
         {/* AppServer */}
-        <SectionCard icon={Server} title="AppServer" count={apps.length} onAdd={() => setModal('app')}>
+        <SectionCard icon={Server} title="AppServer" count={apps.length} onAdd={() => setModal('app')} canManage={perms.manage}>
           {apps.length === 0 ? (
             <div className="p-6"><EmptyState icon={Server} title="Sem AppServers" /></div>
           ) : (
@@ -176,8 +186,8 @@ export default function AmbienteDetailPage() {
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{a.version ?? '—'}</td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{a.build ?? '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{a.root_path ?? '—'}</td>
-                    <td><EnvEncryptedFile entityType="ENV_APPSERVER_INI" entityId={a.id} category="ini" vaultKey={vaultKey} attachmentId={a.ini_attachment_id} originalName="appserver.ini" onChanged={load} /></td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'AppServer', id: a.id, label: a.name, path: `/environments/appservers/${a.id}` })} /></td>
+                    <td><EnvEncryptedFile entityType="ENV_APPSERVER_INI" entityId={a.id} category="ini" vaultKey={vaultKey} attachmentId={a.ini_attachment_id} originalName="appserver.ini" onChanged={load} canManage={perms.manage} /></td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'AppServer', id: a.id, label: a.name, path: `/environments/appservers/${a.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -186,7 +196,7 @@ export default function AmbienteDetailPage() {
         </SectionCard>
 
         {/* VPN */}
-        <SectionCard icon={Wifi} title="VPN" count={vpns.length} onAdd={() => setModal('vpn')}>
+        <SectionCard icon={Wifi} title="VPN" count={vpns.length} onAdd={() => setModal('vpn')} canManage={perms.manage}>
           {vpns.length === 0 ? (
             <div className="p-6"><EmptyState icon={Wifi} title="Sem VPNs" /></div>
           ) : (
@@ -198,9 +208,9 @@ export default function AmbienteDetailPage() {
                     <td><Badge variant={v.critical ? 'danger' : 'default'}>{v.provider}</Badge></td>
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{v.server ?? '—'}</td>
                     <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{v.username ?? '—'}</td>
-                    <td>{v.has_password && v.secret_id ? <EnvRevealField secretId={v.secret_id} critical={v.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
-                    <td><EnvEncryptedFile entityType="ENV_VPN_OVPN" entityId={v.id} category="ovpn" vaultKey={vaultKey} attachmentId={v.ovpn_attachment_id} originalName={`${v.provider}.ovpn`} onChanged={load} /></td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'VPN', id: v.id, label: v.provider, path: `/environments/vpns/${v.id}` })} /></td>
+                    <td>{v.has_password && v.secret_id ? <EnvRevealField secretId={v.secret_id} critical={v.critical} canReveal={perms.reveal} canCopy={perms.copy} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td><EnvEncryptedFile entityType="ENV_VPN_OVPN" entityId={v.id} category="ovpn" vaultKey={vaultKey} attachmentId={v.ovpn_attachment_id} originalName={`${v.provider}.ovpn`} onChanged={load} canManage={perms.manage} /></td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'VPN', id: v.id, label: v.provider, path: `/environments/vpns/${v.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -209,7 +219,7 @@ export default function AmbienteDetailPage() {
         </SectionCard>
 
         {/* Certificados */}
-        <SectionCard icon={ShieldAlert} title="Certificados" count={certs.length} onAdd={() => setModal('cert')}>
+        <SectionCard icon={ShieldAlert} title="Certificados" count={certs.length} onAdd={() => setModal('cert')} canManage={perms.manage}>
           {certs.length === 0 ? (
             <div className="p-6"><EmptyState icon={ShieldAlert} title="Sem certificados" description="Cadastre o A1 da Receita — o .pfx é cifrado no seu navegador." /></div>
           ) : (
@@ -228,9 +238,9 @@ export default function AmbienteDetailPage() {
                         </span>
                       ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
                     </td>
-                    <td>{c.has_pfx_password && c.pfx_pass_secret_id ? <EnvRevealField secretId={c.pfx_pass_secret_id} critical={c.critical} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
-                    <td><EnvEncryptedFile entityType="ENV_CERT_PFX" entityId={c.id} category="pfx" vaultKey={vaultKey} attachmentId={c.pfx_attachment_id} originalName={`${c.name}.pfx`} onChanged={load} /></td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Certificado', id: c.id, label: c.name, path: `/environments/certificates/${c.id}` })} /></td>
+                    <td>{c.has_pfx_password && c.pfx_pass_secret_id ? <EnvRevealField secretId={c.pfx_pass_secret_id} critical={c.critical} canReveal={perms.reveal} canCopy={perms.copy} /> : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
+                    <td><EnvEncryptedFile entityType="ENV_CERT_PFX" entityId={c.id} category="pfx" vaultKey={vaultKey} attachmentId={c.pfx_attachment_id} originalName={`${c.name}.pfx`} onChanged={load} canManage={perms.manage} /></td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'Certificado', id: c.id, label: c.name, path: `/environments/certificates/${c.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -239,7 +249,7 @@ export default function AmbienteDetailPage() {
         </SectionCard>
 
         {/* Links */}
-        <SectionCard icon={Link2} title="Links" count={links.length} onAdd={() => setModal('link')}>
+        <SectionCard icon={Link2} title="Links" count={links.length} onAdd={() => setModal('link')} canManage={perms.manage}>
           {links.length === 0 ? (
             <div className="p-6"><EmptyState icon={Link2} title="Sem links" description="Portais Fluig/TSS/Portal TOTVS/Power BI/RDP…" /></div>
           ) : (
@@ -251,7 +261,7 @@ export default function AmbienteDetailPage() {
                     <td className="text-sm" style={{ color: 'var(--text)' }}>{l.label}</td>
                     <td><Badge>{l.kind}</Badge></td>
                     <td><a href={l.url.startsWith('http') ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline" style={{ color: 'var(--primary)' }}>{l.url}</a></td>
-                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Link', id: l.id, label: l.label, path: `/environments/links/${l.id}` })} /></td>
+                    <td className="text-right">{perms.manage && <DelBtn onClick={() => setDel({ kind: 'Link', id: l.id, label: l.label, path: `/environments/links/${l.id}` })} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -261,7 +271,7 @@ export default function AmbienteDetailPage() {
 
         {/* Documentação */}
         <Card padding="none" className="overflow-x-auto">
-          <EnvDocs envId={env.id} />
+          <EnvDocs envId={env.id} canManage={perms.manage} />
         </Card>
       </div>
 
@@ -272,6 +282,8 @@ export default function AmbienteDetailPage() {
       <EnvVpnModal open={modal === 'vpn'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
       <EnvCertificateModal open={modal === 'cert'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
       <EnvLinkModal open={modal === 'link'} onClose={() => setModal(null)} onSaved={load} envId={env.id} />
+
+      <EnvPermissionsModal open={showPerms} onClose={() => setShowPerms(false)} envId={env.id} />
 
       <Modal open={del !== null} onClose={() => setDel(null)} title={`Excluir ${del?.kind ?? ''}`}>
         <div className="flex flex-col gap-4">

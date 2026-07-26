@@ -20,9 +20,10 @@ interface Props {
   originalName: string              // nome sugerido no download (ex.: cert.pfx)
   label?: string
   onChanged?: () => void
+  canManage?: boolean               // sem gerenciar: só baixa, não envia/substitui
 }
 
-export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, attachmentId, originalName, label, onChanged }: Props) {
+export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, attachmentId, originalName, label, onChanged, canManage = true }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
@@ -68,12 +69,14 @@ export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, att
         <Button size="sm" icon={busy ? undefined : Download} loading={busy} onClick={download}>
           {label ?? 'Baixar'}
         </Button>
-      ) : (
+      ) : canManage ? (
         <Button size="sm" icon={busy ? undefined : Upload} loading={busy} disabled={!vaultKey} onClick={() => inputRef.current?.click()}>
           {label ?? 'Enviar arquivo'}
         </Button>
+      ) : (
+        <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
       )}
-      {attachmentId && (
+      {attachmentId && canManage && (
         <button type="button" className="text-xs hover:underline" style={{ color: 'var(--text-muted)' }} onClick={() => inputRef.current?.click()} disabled={busy}>
           substituir
         </button>

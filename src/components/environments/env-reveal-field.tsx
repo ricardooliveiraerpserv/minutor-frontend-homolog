@@ -15,7 +15,7 @@ import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 
 const CLIPBOARD_CLEAR_MS = 30_000
 
-export function EnvRevealField({ secretId, critical = false }: { secretId: number; critical?: boolean }) {
+export function EnvRevealField({ secretId, critical = false, canReveal = true, canCopy = true }: { secretId: number; critical?: boolean; canReveal?: boolean; canCopy?: boolean }) {
   const { getVaultKey, profile } = useVault()
   const isMs = profile?.second_factor === 'microsoft'
   const [value, setValue] = useState<string | null>(null)
@@ -86,12 +86,17 @@ export function EnvRevealField({ secretId, critical = false }: { secretId: numbe
       <span className="font-mono text-sm select-all" style={{ color: 'var(--text)' }}>
         {shown && value !== null ? value : '••••••••'}
       </span>
-      <button type="button" className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }} title={shown ? 'Esconder' : 'Revelar'} onClick={() => start('reveal')} disabled={busy}>
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : shown ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
-      <button type="button" className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }} title="Copiar" onClick={() => start('copy')} disabled={busy}>
-        <Copy className="w-4 h-4" />
-      </button>
+      {canReveal && (
+        <button type="button" className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }} title={shown ? 'Esconder' : 'Revelar'} onClick={() => start('reveal')} disabled={busy}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : shown ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      )}
+      {canCopy && (
+        <button type="button" className="p-1 rounded hover:opacity-80" style={{ color: 'var(--text-muted)' }} title="Copiar" onClick={() => start('copy')} disabled={busy}>
+          <Copy className="w-4 h-4" />
+        </button>
+      )}
+      {!canReveal && !canCopy && <span className="text-xs" style={{ color: 'var(--text-light)' }}>sem permissão</span>}
 
       <Modal open={ask !== null} onClose={() => { setAsk(null); setBusy(false) }} title="Item crítico — justifique o acesso">
         <div className="flex flex-col gap-4">
