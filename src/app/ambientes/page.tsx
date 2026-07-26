@@ -23,11 +23,13 @@ interface ClientRow { customer_id: number; customer_name: string; vault_id: numb
 interface CustomerOpt { id: number; name: string }
 interface Dashboard { clientes: number; ambientes: number; credenciais: number; certificados: number; vpns: number; itens_criticos: number; compartilhados: number; alertas: number; ultimo_acesso: string | null }
 interface SearchResult { environments: { id: number; name: string; type: string; customer: string | null }[]; credentials: { id: number; label: string; username: string | null; environment_id: number; environment: string | null }[] }
+interface Alerts { certificates: { id: number; name: string; valid_to: string; days_to_expire: number; environment_id: number; environment: string | null; customer: string | null }[]; passwords: { id: number; label: string; next_rotation: string; days_to_expire: number; environment_id: number; environment: string | null }[] }
 
 export default function AmbientesPage() {
   const { status, publicKey, lock } = useVault()
   const [clients, setClients] = useState<ClientRow[]>([])
   const [dash, setDash] = useState<Dashboard | null>(null)
+  const [alerts, setAlerts] = useState<Alerts | null>(null)
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -36,11 +38,12 @@ export default function AmbientesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [c, d] = await Promise.all([
+      const [c, d, al] = await Promise.all([
         api.get<ClientRow[]>('/environments/clients'),
         api.get<Dashboard>('/environments/dashboard'),
+        api.get<Alerts>('/environments/alerts'),
       ])
-      setClients(c); setDash(d)
+      setClients(c); setDash(d); setAlerts(al)
     } finally {
       setLoading(false)
     }
@@ -103,6 +106,39 @@ export default function AmbientesPage() {
               <KpiCard label="Compartilhados" value={dash.compartilhados} icon={Users} />
               <KpiCard label="Alertas" value={dash.alertas} icon={AlertTriangle} accent={dash.alertas > 0 ? 'warning' : 'default'} />
             </div>
+          )}
+
+          {/* Painel de alertas de vencimento */}
+          {alerts && (alerts.certificates.length > 0 || alerts.passwords.length > 0) && (
+            <Card className="mb-4" padding="sm">
+              <h3 className="flex items-center gap-2 font-semibold mb-2 text-sm" style={{ color: 'var(--warning)' }}>
+                <AlertTriangle className="w-4 h-4" /> Vencimentos próximos
+              </h3>
+              <div className="flex flex-col gap-1">
+                {alerts.certificates.map(c => (
+                  <Link key={`ac${c.id}`} href={`/ambientes/environments/${c.environment_id}`} className="flex items-center justify-between px-2 py-1.5 rounded-lg text-sm hover:opacity-80">
+                    <span style={{ color: 'var(--text)' }}>
+                      <ShieldAlert className="w-3.5 h-3.5 inline mr-2" style={{ color: 'var(--warning)' }} />
+                      {c.name} <span style={{ color: 'var(--text-light)' }}>· {c.customer} / {c.environment}</span>
+                    </span>
+                    <span className="text-xs font-medium" style={{ color: c.days_to_expire <= 0 ? 'var(--danger)' : 'var(--warning)' }}>
+                      {c.days_to_expire <= 0 ? 'VENCIDO' : `${c.days_to_expire}d`} · {new Date(c.valid_to).toLocaleDateString('pt-BR')}
+                    </span>
+                  </Link>
+                ))}
+                {alerts.passwords.map(p => (
+                  <Link key={`ap${p.id}`} href={`/ambientes/environments/${p.environment_id}`} className="flex items-center justify-between px-2 py-1.5 rounded-lg text-sm hover:opacity-80">
+                    <span style={{ color: 'var(--text)' }}>
+                      <KeyRound className="w-3.5 h-3.5 inline mr-2" style={{ color: 'var(--warning)' }} />
+                      Trocar senha: {p.label} <span style={{ color: 'var(--text-light)' }}>· {p.environment}</span>
+                    </span>
+                    <span className="text-xs font-medium" style={{ color: p.days_to_expire <= 0 ? 'var(--danger)' : 'var(--warning)' }}>
+                      {p.days_to_expire <= 0 ? 'VENCIDA' : `${p.days_to_expire}d`}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </Card>
           )}
 
           {/* Busca global por metadados */}
