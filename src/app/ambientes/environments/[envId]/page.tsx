@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import {
-  ArrowLeft, Database, FileText, KeyRound, Link2, Plus, Server, ShieldAlert, Trash2, Wifi,
+  ArrowLeft, Database, KeyRound, Link2, Plus, Server, ShieldAlert, Trash2, Wifi,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -24,6 +24,8 @@ import { EnvAppserverModal } from '@/components/environments/env-appserver-modal
 import { EnvVpnModal } from '@/components/environments/env-vpn-modal'
 import { EnvCertificateModal } from '@/components/environments/env-certificate-modal'
 import { EnvEncryptedFile } from '@/components/environments/env-encrypted-file'
+import { EnvLinkModal } from '@/components/environments/env-link-modal'
+import { EnvDocs } from '@/components/environments/env-docs'
 
 interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number }
 interface CredRow { id: number; category: string; label: string; username: string | null; has_secret: boolean; secret_id: number | null; critical: boolean }
@@ -31,6 +33,7 @@ interface DbRow { id: number; engine: string; server: string; port: number | nul
 interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null; ini_attachment_id: number | null }
 interface VpnRow { id: number; provider: string; server: string | null; group: string | null; username: string | null; has_password: boolean; secret_id: number | null; critical: boolean; ovpn_attachment_id: number | null }
 interface CertRow { id: number; name: string; type: string; valid_to: string | null; days_to_expire: number | null; has_pfx_password: boolean; pfx_pass_secret_id: number | null; pfx_attachment_id: number | null; critical: boolean }
+interface LinkRow { id: number; label: string; url: string; kind: string }
 
 const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 const CAT_LABEL: Record<string, string> = {
@@ -64,22 +67,24 @@ export default function AmbienteDetailPage() {
   const [apps, setApps] = useState<AppRow[]>([])
   const [vpns, setVpns] = useState<VpnRow[]>([])
   const [certs, setCerts] = useState<CertRow[]>([])
+  const [links, setLinks] = useState<LinkRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn' | 'cert'>(null)
+  const [modal, setModal] = useState<null | 'cred' | 'db' | 'app' | 'vpn' | 'cert' | 'link'>(null)
   const [del, setDel] = useState<null | { kind: string; id: number; label: string; path: string }>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [e, c, d, a, v, ce] = await Promise.all([
+      const [e, c, d, a, v, ce, l] = await Promise.all([
         api.get<EnvDetail>(`/environments/environments/${envId}`),
         api.get<CredRow[]>(`/environments/environments/${envId}/credentials`),
         api.get<DbRow[]>(`/environments/environments/${envId}/databases`),
         api.get<AppRow[]>(`/environments/environments/${envId}/appservers`),
         api.get<VpnRow[]>(`/environments/environments/${envId}/vpns`),
         api.get<CertRow[]>(`/environments/environments/${envId}/certificates`),
+        api.get<LinkRow[]>(`/environments/environments/${envId}/links`),
       ])
-      setEnv(e); setCreds(c); setDbs(d); setApps(a); setVpns(v); setCerts(ce)
+      setEnv(e); setCreds(c); setDbs(d); setApps(a); setVpns(v); setCerts(ce); setLinks(l)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) toast.error('Ambiente sem acesso.')
     } finally { setLoading(false) }
@@ -101,11 +106,6 @@ export default function AmbienteDetailPage() {
   if (status === 'locked') return <AppLayout><UnlockScreen /></AppLayout>
   if (status !== 'unlocked' || loading) return <AppLayout><Skeleton className="h-64" /></AppLayout>
   if (!env) return <AppLayout><Card><EmptyState icon={Server} title="Ambiente não encontrado" /></Card></AppLayout>
-
-  const notReady = [
-    { key: 'links', label: 'Links', icon: Link2 },
-    { key: 'docs', label: 'Documentação', icon: FileText },
-  ]
 
   return (
     <AppLayout>
@@ -238,14 +238,31 @@ export default function AmbienteDetailPage() {
           )}
         </SectionCard>
 
-        {/* Em breve */}
-        <div className="flex flex-wrap gap-2">
-          {notReady.map(s => (
-            <div key={s.key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm" style={{ border: '1px solid var(--border)', color: 'var(--text-light)', opacity: 0.6 }}>
-              <s.icon className="w-4 h-4" />{s.label} <span className="text-[10px]">em breve</span>
-            </div>
-          ))}
-        </div>
+        {/* Links */}
+        <SectionCard icon={Link2} title="Links" count={links.length} onAdd={() => setModal('link')}>
+          {links.length === 0 ? (
+            <div className="p-6"><EmptyState icon={Link2} title="Sem links" description="Portais Fluig/TSS/Portal TOTVS/Power BI/RDP…" /></div>
+          ) : (
+            <table className="ds-table w-full">
+              <thead><tr><th>Rótulo</th><th>Tipo</th><th>URL</th><th /></tr></thead>
+              <tbody>
+                {links.map(l => (
+                  <tr key={l.id}>
+                    <td className="text-sm" style={{ color: 'var(--text)' }}>{l.label}</td>
+                    <td><Badge>{l.kind}</Badge></td>
+                    <td><a href={l.url.startsWith('http') ? l.url : `https://${l.url}`} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline" style={{ color: 'var(--primary)' }}>{l.url}</a></td>
+                    <td className="text-right"><DelBtn onClick={() => setDel({ kind: 'Link', id: l.id, label: l.label, path: `/environments/links/${l.id}` })} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </SectionCard>
+
+        {/* Documentação */}
+        <Card padding="none" className="overflow-x-auto">
+          <EnvDocs envId={env.id} />
+        </Card>
       </div>
 
       {/* Modais */}
@@ -254,6 +271,7 @@ export default function AmbienteDetailPage() {
       <EnvAppserverModal open={modal === 'app'} onClose={() => setModal(null)} onSaved={load} envId={env.id} />
       <EnvVpnModal open={modal === 'vpn'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
       <EnvCertificateModal open={modal === 'cert'} onClose={() => setModal(null)} onSaved={load} envId={env.id} vaultKey={vaultKey} />
+      <EnvLinkModal open={modal === 'link'} onClose={() => setModal(null)} onSaved={load} envId={env.id} />
 
       <Modal open={del !== null} onClose={() => setDel(null)} title={`Excluir ${del?.kind ?? ''}`}>
         <div className="flex flex-col gap-4">

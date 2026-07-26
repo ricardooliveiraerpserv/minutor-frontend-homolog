@@ -8,10 +8,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { KeyRound, Lock, Plus, Server, Users, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, KeyRound, Lock, Plus, Search, Server, ShieldAlert, ShieldCheck, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Button, Card, EmptyState, Modal, PageHeader, Skeleton } from '@/components/ds'
+import { Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
+import { KpiCard } from '@/components/ui/kpi-card'
 import { SearchSelect } from '@/components/ui/search-select'
 import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
@@ -20,17 +21,26 @@ import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
 
 interface ClientRow { customer_id: number; customer_name: string; vault_id: number; environments_count: number; role: string }
 interface CustomerOpt { id: number; name: string }
+interface Dashboard { clientes: number; ambientes: number; credenciais: number; certificados: number; vpns: number; itens_criticos: number; compartilhados: number; alertas: number; ultimo_acesso: string | null }
+interface SearchResult { environments: { id: number; name: string; type: string; customer: string | null }[]; credentials: { id: number; label: string; username: string | null; environment_id: number; environment: string | null }[] }
 
 export default function AmbientesPage() {
   const { status, publicKey, lock } = useVault()
   const [clients, setClients] = useState<ClientRow[]>([])
+  const [dash, setDash] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<SearchResult | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setClients(await api.get<ClientRow[]>('/environments/clients'))
+      const [c, d] = await Promise.all([
+        api.get<ClientRow[]>('/environments/clients'),
+        api.get<Dashboard>('/environments/dashboard'),
+      ])
+      setClients(c); setDash(d)
     } finally {
       setLoading(false)
     }
@@ -39,6 +49,15 @@ export default function AmbientesPage() {
   useEffect(() => {
     if (status === 'unlocked') void load()
   }, [status, load])
+
+  // Busca com debounce simples
+  useEffect(() => {
+    if (status !== 'unlocked' || q.trim().length < 2) { setResults(null); return }
+    const t = setTimeout(() => {
+      void api.get<SearchResult>(`/environments/search?q=${encodeURIComponent(q.trim())}`).then(setResults).catch(() => setResults(null))
+    }, 300)
+    return () => clearTimeout(t)
+  }, [q, status])
 
   return (
     <AppLayout>
@@ -72,6 +91,42 @@ export default function AmbientesPage() {
 
       {status === 'unlocked' && (
         <>
+          {/* Dashboard (indicadores do cofre — só metadados) */}
+          {dash && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <KpiCard label="Clientes" value={dash.clientes} icon={Users} accent="primary" />
+              <KpiCard label="Ambientes" value={dash.ambientes} icon={Server} accent="info" />
+              <KpiCard label="Credenciais" value={dash.credenciais} icon={KeyRound} />
+              <KpiCard label="Certificados" value={dash.certificados} icon={ShieldAlert} accent={dash.alertas > 0 ? 'warning' : 'default'} hint={dash.alertas > 0 ? `${dash.alertas} vencendo` : undefined} />
+              <KpiCard label="VPNs" value={dash.vpns} icon={Wifi} />
+              <KpiCard label="Itens críticos" value={dash.itens_criticos} icon={AlertTriangle} accent={dash.itens_criticos > 0 ? 'danger' : 'default'} />
+              <KpiCard label="Compartilhados" value={dash.compartilhados} icon={Users} />
+              <KpiCard label="Alertas" value={dash.alertas} icon={AlertTriangle} accent={dash.alertas > 0 ? 'warning' : 'default'} />
+            </div>
+          )}
+
+          {/* Busca global por metadados */}
+          <div className="mb-4">
+            <TextInput icon={Search} placeholder="Buscar ambiente, credencial, usuário…" value={q} onChange={e => setQ(e.target.value)} />
+            {results && (results.environments.length > 0 || results.credentials.length > 0) && (
+              <Card className="mt-2" padding="sm">
+                {results.environments.map(e => (
+                  <Link key={`e${e.id}`} href={`/ambientes/environments/${e.id}`} className="block px-2 py-1.5 rounded-lg text-sm hover:opacity-80" style={{ color: 'var(--text)' }}>
+                    <Server className="w-3.5 h-3.5 inline mr-2" style={{ color: 'var(--text-muted)' }} />{e.name} <span style={{ color: 'var(--text-light)' }}>· {e.customer}</span>
+                  </Link>
+                ))}
+                {results.credentials.map(c => (
+                  <Link key={`c${c.id}`} href={`/ambientes/environments/${c.environment_id}`} className="block px-2 py-1.5 rounded-lg text-sm hover:opacity-80" style={{ color: 'var(--text)' }}>
+                    <KeyRound className="w-3.5 h-3.5 inline mr-2" style={{ color: 'var(--text-muted)' }} />{c.label} {c.username && <span style={{ color: 'var(--text-light)' }}>({c.username})</span>} <span style={{ color: 'var(--text-light)' }}>· {c.environment}</span>
+                  </Link>
+                ))}
+              </Card>
+            )}
+            {results && results.environments.length === 0 && results.credentials.length === 0 && (
+              <p className="text-xs mt-2 px-2" style={{ color: 'var(--text-light)' }}>Nenhum resultado.</p>
+            )}
+          </div>
+
           <div className="flex justify-end mb-4">
             <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
           </div>
