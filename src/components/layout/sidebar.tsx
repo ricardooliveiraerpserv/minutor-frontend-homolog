@@ -375,7 +375,7 @@ const NAV: NavEntry[] = [
       // 🔐 Cofre de Senhas (zero-knowledge) — telas internas do módulo:
       // /cofre/configuracao e /cofre/auditoria são alcançadas de dentro do cofre.
       { label: 'Cofre de Senhas', href: '/cofre', icon: KeyRound },
-      { label: 'Cofre de Ambientes', href: '/ambientes', icon: Server },
+      // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
         items: [
@@ -608,6 +608,9 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
+// Preserva a rolagem do menu entre navegações (o sidebar remonta a cada rota).
+const navScroll = { top: 0 }
+
 function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -615,6 +618,16 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
   const [query, setQuery]             = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  // Restaura a posição do scroll do menu ao montar; salva ao rolar (evita o "menu pular").
+  const navRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    nav.scrollTop = navScroll.top
+    const onScroll = () => { navScroll.top = nav.scrollTop }
+    nav.addEventListener('scroll', onScroll, { passive: true })
+    return () => nav.removeEventListener('scroll', onScroll)
+  }, [])
   // Atalho Ctrl/Cmd+K foca a busca do menu de qualquer lugar
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1163,7 +1176,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       )}
 
       {/* ── Nav ── */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
+      <nav ref={navRef} className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
         {!collapsed && isSearching && navToRender.length === 0 && (
           <p className="px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>
             Nenhum item encontrado

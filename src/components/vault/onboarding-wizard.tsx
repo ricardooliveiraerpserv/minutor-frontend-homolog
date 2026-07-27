@@ -19,7 +19,7 @@ import { useVault } from '@/contexts/vault-context'
 import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 import {
   aesGcmEncrypt, computeAuthHash, deriveMasterKey, formatRecoveryKey, generateKey32,
-  importAesKey, KDF_DEFAULTS, passwordStrength, rsaGenerate, rsaWrap,
+  generatePassword, importAesKey, KDF_DEFAULTS, passwordStrength, PASSWORD_DEFAULTS, rsaGenerate, rsaWrap,
 } from '@/lib/vault-crypto'
 
 const STRENGTH_LABEL = ['Fraca demais', 'Razoável', 'Forte', 'Excelente'] as const
@@ -48,6 +48,15 @@ export function OnboardingWizard() {
   // passo 1
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
+  const [showMaster, setShowMaster] = useState(false)
+
+  // Gera uma master password forte, preenche os dois campos, revela e copia.
+  const generateMaster = async () => {
+    const g = generatePassword({ ...PASSWORD_DEFAULTS, length: 20 })
+    setPw(g); setPw2(g); setShowMaster(true)
+    try { await navigator.clipboard.writeText(g) } catch { /* noop */ }
+    toast.success('Senha forte gerada e copiada. GUARDE-A — ninguém consegue recuperá-la.')
+  }
   // passo 2 (TOTP)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
   const [totpSecret, setTotpSecret] = useState('')
@@ -193,9 +202,17 @@ export function OnboardingWizard() {
                 password E perder a recovery key (próximo passo), o cofre pessoal é <b>perdido para sempre</b>.
               </span>
             </div>
-            <TextInput label="Master password (mín. 12 caracteres)" icon={KeyRound} type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} />
+            <TextInput label="Master password (mín. 12 caracteres)" icon={KeyRound} type={showMaster ? 'text' : 'password'} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} />
+            <div className="flex items-center gap-3 -mt-1">
+              <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline" style={{ color: 'var(--primary)' }} onClick={generateMaster}>
+                <ShieldCheck className="w-3.5 h-3.5" /> Gerar senha forte
+              </button>
+              <button type="button" className="text-xs hover:underline" style={{ color: 'var(--text-muted)' }} onClick={() => setShowMaster(s => !s)}>
+                {showMaster ? 'Esconder' : 'Mostrar'}
+              </button>
+            </div>
             <StrengthMeter password={pw} />
-            <TextInput label="Confirme a master password" icon={KeyRound} type="password" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} />
+            <TextInput label="Confirme a master password" icon={KeyRound} type={showMaster ? 'text' : 'password'} autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} />
             {pw2 && pw !== pw2 && <p className="text-xs" style={{ color: 'var(--danger)' }}>As senhas não conferem.</p>}
             <Button variant="primary" loading={busy} disabled={!pwOk} onClick={goToFactor}>Continuar</Button>
           </div>
