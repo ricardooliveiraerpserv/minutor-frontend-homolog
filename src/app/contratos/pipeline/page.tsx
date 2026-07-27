@@ -3732,9 +3732,15 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
       // só no cookie httpOnly — que sob "Ver como"/sessão por aba NÃO é do usuário atual, e o POST
       // falhava (coordenador não conseguia comentar, embora o GET das mensagens usasse o token e funcionasse).
       const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
-      const res = await fetch(`/api/v1/contract-requests/${requestId}/messages`, {
+      // Upload com anexo vai DIRETO pro backend em prod: o rewrite do Vercel tem
+      // teto de body ~4.5MB e barra arquivos maiores antes de chegar no backend
+      // (ver ProjectMessages.tsx). CORS do backend libera app.minutor.com.br.
+      const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
+        ? 'https://api.minutor.com.br/api/v1'
+        : '/api/v1'
+      const res = await fetch(`${uploadBase}/contract-requests/${requestId}/messages`, {
         method: 'POST',
-        credentials: 'same-origin',
+        credentials: 'include',
         headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
         body: fd,
       })
