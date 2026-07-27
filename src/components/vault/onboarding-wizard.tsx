@@ -156,6 +156,12 @@ export function OnboardingWizard() {
     }
   }
 
+  const copyMaster = async () => {
+    if (!pw) return
+    await navigator.clipboard.writeText(pw)
+    toast.success('Master password copiada — guarde no seu gerenciador!')
+  }
+
   const copyRecovery = async () => {
     if (!recoveryDisplay) return
     await navigator.clipboard.writeText(recoveryDisplay)
@@ -204,7 +210,10 @@ export function OnboardingWizard() {
             </div>
             <TextInput label="Master password (mín. 12 caracteres)" icon={KeyRound} type={showMaster ? 'text' : 'password'} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} />
             <div className="flex items-center justify-between gap-3 -mt-1">
-              <Button variant="secondary" size="sm" icon={ShieldCheck} onClick={generateMaster}>Gerar senha forte</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" icon={ShieldCheck} onClick={generateMaster}>Gerar senha forte</Button>
+                <Button variant="ghost" size="sm" icon={Copy} disabled={!pw} onClick={copyMaster}>Copiar</Button>
+              </div>
               <button type="button" className="text-xs font-medium hover:underline" style={{ color: 'var(--text-muted)' }} onClick={() => setShowMaster(s => !s)}>
                 {showMaster ? 'Esconder senha' : 'Mostrar senha'}
               </button>

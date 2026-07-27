@@ -22,6 +22,10 @@ export interface VaultProfile {
   totp_confirmed: boolean
   ms_linked: boolean
   has_recovery: boolean
+  /** Auto-lock GLOBAL (minutos) definido pelo admin — regra única para todos. */
+  lock_timeout_min: number
+  /** Só admin pode alterar o auto-lock global (mostra/oculta o card de config). */
+  is_vault_admin: boolean
   kdf: KdfParams
 }
 
@@ -100,6 +104,11 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     try {
       const p = await api.get<VaultProfile>('/vault/profile')
       setProfile(p)
+      // Auto-lock é regra GLOBAL do admin — o profile é a fonte de verdade; LS só acelera o boot.
+      if (LOCK_TIMEOUT_OPTIONS.includes(p.lock_timeout_min as 1 | 5 | 15 | 30)) {
+        setLockTimeoutMinState(p.lock_timeout_min)
+        try { window.localStorage.setItem(LS_TIMEOUT_KEY, String(p.lock_timeout_min)) } catch { /* noop */ }
+      }
       setStatus(prev => {
         // `configured` (auth_hash + chaves) já implica que o 2º fator estava pronto
         // no setup — não exigir totp_confirmed aqui (no driver Microsoft ele é sempre
@@ -183,9 +192,12 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, profile])
 
+  // Auto-lock GLOBAL — só admin altera (backend re-checa isAdmin e devolve 403 se não for).
+  // Otimista: aplica local na hora e persiste no servidor; em falha, o próximo refreshProfile corrige.
   const setLockTimeoutMin = useCallback((min: number) => {
     setLockTimeoutMinState(min)
     try { window.localStorage.setItem(LS_TIMEOUT_KEY, String(min)) } catch { /* noop */ }
+    void api.put('/vault/lock-timeout', { minutes: min }).catch(() => { /* refreshProfile reconcilia */ })
   }, [])
 
   // ── Auto-lock ──────────────────────────────────────────────────────────────
