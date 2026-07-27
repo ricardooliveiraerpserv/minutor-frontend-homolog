@@ -82,3 +82,18 @@ export function previewText(input: string | null | undefined): string {
     .join('\n')
     .trim()
 }
+
+/**
+ * Escapa texto para interpolação SEGURA em HTML montado por template string
+ * (ex.: relatórios de impressão via document.write). Nome vira texto, nunca código.
+ * (auditoria cofre, item 2 / A6).
+ */
+export function escapeHtml(input: string | number | null | undefined): string {
+  if (input === null || input === undefined) return ''
+  return String(input)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}

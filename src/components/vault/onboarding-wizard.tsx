@@ -14,6 +14,7 @@ import { AlertTriangle, Check, Copy, KeyRound, Printer, ShieldCheck } from 'luci
 import { toast } from 'sonner'
 import { Button, Card, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { escapeHtml } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useVault } from '@/contexts/vault-context'
 import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
@@ -69,7 +70,9 @@ export function OnboardingWizard() {
   const [recoverySaved, setRecoverySaved] = useState(false)
 
   const factorReady = isMs ? msVerified : totpConfirmed
-  const pwOk = passwordStrength(pw) >= 1 && pw.length >= 12 && pw === pw2
+  // Segurança (auditoria cofre, item 5): master password forte é a última barreira se o
+  // banco vazar (Argon2id no piso). Exige força >= 2 (≥80 bits) além do mínimo de 12 chars.
+  const pwOk = passwordStrength(pw) >= 2 && pw.length >= 12 && pw === pw2
 
   // Avança do passo 1: no driver Microsoft não há QR — só segue pro passo de vínculo.
   const goToFactor = async () => {
@@ -172,7 +175,8 @@ export function OnboardingWizard() {
     if (!recoveryDisplay) return
     const w = window.open('', '_blank', 'width=600,height=400')
     if (!w) return
-    w.document.write(`<pre style="font-size:16px;padding:24px">Minutor — Recovery Key do Cofre\nUsuário: ${user?.email ?? ''}\n\n${recoveryDisplay}\n\nGuarde impresso em local seguro. Sem ela + master password, o cofre pessoal é IRRECUPERÁVEL.</pre>`)
+    // Reauditoria (obs. 1): escapa e-mail/recovery antes do document.write (self-XSS).
+    w.document.write(`<pre style="font-size:16px;padding:24px">Minutor — Recovery Key do Cofre\nUsuário: ${escapeHtml(user?.email ?? '')}\n\n${escapeHtml(recoveryDisplay)}\n\nGuarde impresso em local seguro. Sem ela + master password, o cofre pessoal é IRRECUPERÁVEL.</pre>`)
     w.document.close()
     w.print()
   }

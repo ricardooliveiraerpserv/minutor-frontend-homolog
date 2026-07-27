@@ -10,7 +10,7 @@ import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { ChatNotifier } from '@/components/inbox/chat-notifier'
 import { useState } from 'react'
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -27,6 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultTheme="dark"
         enableSystem
         disableTransitionOnChange
+        nonce={nonce}
       >
         <TooltipProvider>
           <AuthProvider>

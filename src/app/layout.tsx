@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Geist } from 'next/font/google'
 import './globals.css'
+import { headers } from 'next/headers'
 import { Providers } from './providers'
 import { ImpersonationBanner } from '@/components/impersonation-banner'
+
+// CSP com nonce (auditoria cofre, item 1) exige render dinâmico: só assim o Next injeta o
+// nonce por-requisição nos <script>. Sem isto, páginas estáticas ficam sem nonce e o
+// 'strict-dynamic' bloquearia todos os scripts. App é autenticado (já quase todo dinâmico).
+export const dynamic = 'force-dynamic'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 // Geist Sans — usada em headings (h1/h2/h3) e KPIs via --font-display.
@@ -47,7 +53,10 @@ const ENV_BANNER_TEXT =
   APP_ENV === 'local'   ? 'REPLICA — DADOS COPIADOS DE PROD • localhost:3001' :
                           null
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Nonce da CSP (setado pelo proxy) — repassado ao next-themes p/ o script inline de tema
+  // não ser bloqueado pelo 'strict-dynamic'.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     <html lang="pt-BR" className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="h-full" style={{ '--env-banner-h': ENV_BANNER_TEXT ? '24px' : '0px' } as React.CSSProperties}>
@@ -78,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         )}
         <div style={{ paddingTop: 'var(--env-banner-h, 0px)' }}>
-          <Providers>{children}</Providers>
+          <Providers nonce={nonce}>{children}</Providers>
         </div>
         <ImpersonationBanner />
       </body>

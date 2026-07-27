@@ -41,7 +41,8 @@ const cspDev = [
 ].join('; ')
 
 const securityHeaders = [
-  { key: 'Content-Security-Policy', value: isProd ? cspProd : cspDev },
+  // CSP movida para o proxy (src/proxy.ts) — nonce por requisição (auditoria cofre, item 1).
+
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

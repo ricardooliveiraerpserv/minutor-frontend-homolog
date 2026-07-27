@@ -6,6 +6,7 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { escapeHtml } from '@/lib/sanitize'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { DollarSign, Users, Download, FileText, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -143,11 +144,11 @@ export default function PagamentosPage() {
   const exportPdf = () => {
     const linhas = sorted.map(r => `
       <tr>
-        <td>${r.nome}</td>
+        <td>${escapeHtml(r.nome)}</td>
         <td>${r.tipo === 'parceiro' ? 'Parceiro' : 'Consultor'}</td>
-        <td>${r.empresa}</td>
-        <td>${r.vinculo_label}</td>
-        <td>${r.contract_type_label}</td>
+        <td>${escapeHtml(r.empresa)}</td>
+        <td>${escapeHtml(r.vinculo_label)}</td>
+        <td>${escapeHtml(r.contract_type_label)}</td>
         <td class="r">${formatBRL(r.valor)}</td>
       </tr>`).join('')
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pagamentos — ${fmtMes()}</title>

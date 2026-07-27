@@ -60,7 +60,12 @@ export function RevealField({ itemId, value, reprompt, mode, masked = '•••
 
   const doReveal = () => {
     setShown(s => !s)
-    if (!shown) void api.post(`/vault/items/${itemId}/log`, { action: 'reveal' }).catch(() => { /* auditoria best-effort */ })
+    // Auditoria (item 4 do laudo): este log é INDICATIVO, não um controle infalível.
+    // No modelo zero-knowledge o navegador já detém o bloco decifrado, então quem já
+    // destravou o cofre consegue ler/copiar sem gerar este registro (é enviado pelo
+    // próprio cliente, best-effort). Para segredos que exijam trilha FORTE de acesso,
+    // usar o Cofre de Ambientes (revelação validada NO SERVIDOR + justificativa + 2FA).
+    if (!shown) void api.post(`/vault/items/${itemId}/log`, { action: 'reveal' }).catch(() => { /* best-effort */ })
   }
 
   const doCopy = () => {
