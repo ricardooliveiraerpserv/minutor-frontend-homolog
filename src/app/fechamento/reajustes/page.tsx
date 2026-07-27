@@ -1035,7 +1035,7 @@ function AvisoModal({ row, onClose }: { row: Row; onClose: () => void }) {
       <ModalHeader icon={CalendarClock} title="Avisar reajuste do próximo mês"
         subtitle={`${row.cliente_nome ?? '—'} · ${row.codigo ?? '—'}`} onClose={() => { if (!sending) onClose() }} />
       <ModalBody>
-        <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Índice (estimativa até o momento)</label>
+        <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Índice (12 meses fechados)</label>
         <div className="flex gap-2 mt-1.5 mb-3">
           {(['IGPM', 'IPCA'] as const).map(opt => (
             <button key={opt} onClick={() => setIdx(opt)}
@@ -1046,8 +1046,8 @@ function AvisoModal({ row, onClose }: { row: Row; onClose: () => void }) {
           ))}
         </div>
         {est && (
-          <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text)' }}>
-            Estimativa: <b>+{est.pct}%</b> → <b>{formatBRL(est.valor)}</b> <span style={{ color: 'var(--text-muted)' }}>(valor NÃO definitivo — depende do índice fechado do próximo mês)</span>
+          <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--text)' }}>
+            Reajuste: <b>+{est.pct}%</b> → <b>{formatBRL(est.valor)}</b> <span style={{ color: 'var(--text-muted)' }}>(valor consolidado — 12 meses fechados)</span>
           </div>
         )}
         <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}><Mail size={14} /> Destinatários</label>
