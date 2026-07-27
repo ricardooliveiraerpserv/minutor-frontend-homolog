@@ -203,14 +203,13 @@ export function OnboardingWizard() {
               </span>
             </div>
             <TextInput label="Master password (mín. 12 caracteres)" icon={KeyRound} type={showMaster ? 'text' : 'password'} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} />
-            <div className="flex items-center gap-3 -mt-1">
-              <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline" style={{ color: 'var(--primary)' }} onClick={generateMaster}>
-                <ShieldCheck className="w-3.5 h-3.5" /> Gerar senha forte
-              </button>
-              <button type="button" className="text-xs hover:underline" style={{ color: 'var(--text-muted)' }} onClick={() => setShowMaster(s => !s)}>
-                {showMaster ? 'Esconder' : 'Mostrar'}
+            <div className="flex items-center justify-between gap-3 -mt-1">
+              <Button variant="secondary" size="sm" icon={ShieldCheck} onClick={generateMaster}>Gerar senha forte</Button>
+              <button type="button" className="text-xs font-medium hover:underline" style={{ color: 'var(--text-muted)' }} onClick={() => setShowMaster(s => !s)}>
+                {showMaster ? 'Esconder senha' : 'Mostrar senha'}
               </button>
             </div>
+            <p className="text-xs -mt-1" style={{ color: 'var(--text-light)' }}>Dica: gere uma senha forte e guarde-a no seu gerenciador — ela não pode ser recuperada.</p>
             <StrengthMeter password={pw} />
             <TextInput label="Confirme a master password" icon={KeyRound} type={showMaster ? 'text' : 'password'} autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} />
             {pw2 && pw !== pw2 && <p className="text-xs" style={{ color: 'var(--danger)' }}>As senhas não conferem.</p>}
