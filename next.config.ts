@@ -15,9 +15,12 @@ const APP_ENV =
 const isProd = process.env.NODE_ENV === 'production'
 
 // CSP: dev precisa 'unsafe-eval' para hot reload do React/Turbopack; prod usa política restritiva.
+// 'wasm-unsafe-eval': libera SÓ a instanciação de WebAssembly (Argon2id via hash-wasm no Cofre),
+// sem liberar eval() de JS — muito mais estreito que 'unsafe-eval'. Sem ele o navegador bloqueia
+// o WASM e o setup do cofre falha ("Falha ao configurar o cofre").
 const cspProd = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
