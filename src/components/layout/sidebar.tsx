@@ -627,7 +627,18 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     const nav = navRef.current
     if (!nav) return
     restoringRef.current = true
-    const apply = () => { nav.scrollTop = navScroll.top }
+    const apply = () => {
+      nav.scrollTop = navScroll.top
+      // Garante o item ATIVO visível dentro do menu (cobre falha de timing na restauração).
+      // Ajusta só o scroll do próprio menu — nunca rola a página.
+      const actives = nav.querySelectorAll('.sidebar-item-active')
+      const active = actives[actives.length - 1] as HTMLElement | undefined
+      if (active) {
+        const nr = nav.getBoundingClientRect(), ar = active.getBoundingClientRect()
+        if (ar.top < nr.top) nav.scrollTop -= (nr.top - ar.top) + 8
+        else if (ar.bottom > nr.bottom) nav.scrollTop += (ar.bottom - nr.bottom) + 8
+      }
+    }
     apply()
     const raf1 = requestAnimationFrame(apply)
     const raf2 = requestAnimationFrame(() => { apply(); restoringRef.current = false })
