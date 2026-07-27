@@ -4,13 +4,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Plus, Server, Star } from 'lucide-react'
+import { ArrowLeft, Plus, Server, Star, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput, Select } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
+import { rsaUnwrap } from '@/lib/vault-crypto'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
+import { EnvMembersModal } from '@/components/environments/env-members-modal'
 
 interface EnvRow { id: number; name: string; type: string; status: string; credentials_count: number; vault_id: number; is_favorite: boolean }
 
@@ -20,22 +22,33 @@ const STATUS_LABEL: Record<string, string> = { online: 'Online', offline: 'Offli
 
 export default function ClienteAmbientesPage() {
   const { customerId } = useParams<{ customerId: string }>()
-  const { status } = useVault()
+  const { status, vaults, getPrivateKey } = useVault()
   const [envs, setEnvs] = useState<EnvRow[]>([])
+  const [vaultId, setVaultId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await api.get<{ vault_id: number; environments: EnvRow[] }>(`/environments/clients/${customerId}/environments`)
-      setEnvs(res.environments)
+      setEnvs(res.environments); setVaultId(res.vault_id)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) toast.error('Cliente sem cofre ou sem acesso.')
     } finally {
       setLoading(false)
     }
   }, [customerId])
+
+  // Cofre do cliente na lista de cofres do usuário (traz papel + chave embrulhada).
+  const clientVault = vaults.find(v => v.id === vaultId)
+  const isVaultAdmin = clientVault?.role === 'admin'
+  const getVaultKeyBytes = useCallback(async () => {
+    const priv = getPrivateKey()
+    if (!priv || !clientVault) return null
+    try { return await rsaUnwrap(priv, clientVault.encrypted_vault_key) } catch { return null }
+  }, [getPrivateKey, clientVault])
 
   useEffect(() => {
     if (status === 'unlocked') void load()
@@ -59,6 +72,7 @@ export default function ClienteAmbientesPage() {
         actions={
           <div className="flex gap-2">
             <Link href="/ambientes"><Button icon={ArrowLeft}>Voltar</Button></Link>
+            {vaultId && <Button icon={Users} onClick={() => setMembersOpen(true)}>Compartilhar</Button>}
             <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo ambiente</Button>
           </div>
         }
@@ -93,6 +107,14 @@ export default function ClienteAmbientesPage() {
       )}
 
       <NewEnvModal open={newOpen} onClose={() => setNewOpen(false)} customerId={Number(customerId)} onCreated={() => void load()} />
+
+      {vaultId && (
+        <EnvMembersModal
+          open={membersOpen} onClose={() => setMembersOpen(false)}
+          vaultId={vaultId} customerId={Number(customerId)} vaultName={clientVault?.name ?? 'Cliente'}
+          getVaultKeyBytes={getVaultKeyBytes} isVaultAdmin={!!isVaultAdmin} onChanged={() => void load()}
+        />
+      )}
     </AppLayout>
   )
 }

@@ -2,9 +2,9 @@
 
 // VPN (Fortinet/OpenVPN). Senha cifrada no client (arquivo .ovpn cifrado entra na F1c).
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
+import { CopyableInput } from '@/components/environments/env-copyable-input'
 import { api, ApiError } from '@/lib/api'
 import { aesGcmEncrypt } from '@/lib/vault-crypto'
 
@@ -14,9 +14,8 @@ export function EnvVpnModal({ open, onClose, onSaved, envId, vaultKey }: {
   const [f, setF] = useState({ provider: 'fortinet', server: '', port: '', group: '', username: '' })
   const [password, setPassword] = useState('')
   const [critical, setCritical] = useState(false)
-  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (open) { setF({ provider: 'fortinet', server: '', port: '', group: '', username: '' }); setPassword(''); setCritical(false); setShowPw(false) } }, [open])
+  useEffect(() => { if (open) { setF({ provider: 'fortinet', server: '', port: '', group: '', username: '' }); setPassword(''); setCritical(false) } }, [open])
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
 
   const save = async () => {
@@ -43,15 +42,9 @@ export function EnvVpnModal({ open, onClose, onSaved, envId, vaultKey }: {
           <TextInput label="Servidor" placeholder="vpn.cliente.com" value={f.server} onChange={e => set('server', e.target.value)} />
           <TextInput label="Porta" inputMode="numeric" value={f.port} onChange={e => set('port', e.target.value.replace(/\D/g, ''))} />
           <TextInput label="Grupo" value={f.group} onChange={e => set('group', e.target.value)} />
-          <TextInput label="Usuário" autoComplete="off" value={f.username} onChange={e => set('username', e.target.value)} />
+          <CopyableInput label="Usuário" value={f.username} onChange={v => set('username', v)} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Senha</label>
-          <div className="relative">
-            <input className="ds-input w-full pr-10 font-mono" type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} />
-            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: 'var(--text-muted)' }} onClick={() => setShowPw(v => !v)}>{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-          </div>
-        </div>
+        <CopyableInput label="Senha" password value={password} onChange={setPassword} />
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}><input type="checkbox" checked={critical} onChange={e => setCritical(e.target.checked)} /> Crítico</label>
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>O arquivo .ovpn (cifrado no client) entra na próxima fase.</p>
         <div className="flex justify-end gap-2">

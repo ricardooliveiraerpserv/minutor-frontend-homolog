@@ -4,11 +4,11 @@
 // ir pra API (formato v1.); username/URL vão em claro. Servidor nunca vê a senha.
 
 import { useEffect, useState } from 'react'
-import { Dices, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
+import { CopyableInput } from '@/components/environments/env-copyable-input'
 import { api, ApiError } from '@/lib/api'
-import { aesGcmEncrypt, generatePassword, PASSWORD_DEFAULTS } from '@/lib/vault-crypto'
+import { aesGcmEncrypt } from '@/lib/vault-crypto'
 
 const CATEGORIES: { v: string; label: string }[] = [
   { v: 'win_admin', label: 'Administrador Windows' },
@@ -37,11 +37,10 @@ export function EnvCredentialModal({ open, onClose, onSaved, envId, vaultKey }: 
   const [url, setUrl] = useState('')
   const [password, setPassword] = useState('')
   const [critical, setCritical] = useState(false)
-  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (open) { setCategory('win_admin'); setLabel(''); setUsername(''); setUrl(''); setPassword(''); setCritical(false); setShowPw(false) }
+    if (open) { setCategory('win_admin'); setLabel(''); setUsername(''); setUrl(''); setPassword(''); setCritical(false) }
   }, [open])
 
   const save = async () => {
@@ -76,21 +75,10 @@ export function EnvCredentialModal({ open, onClose, onSaved, envId, vaultKey }: 
           <TextInput label="Rótulo" placeholder="Ex.: sa / administrador" value={label} onChange={e => setLabel(e.target.value)} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <TextInput label="Usuário" autoComplete="off" value={username} onChange={e => setUsername(e.target.value)} />
-          <TextInput label="URL (opcional)" placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} />
+          <CopyableInput label="Usuário" value={username} onChange={setUsername} />
+          <CopyableInput label="URL (opcional)" placeholder="https://…" value={url} onChange={setUrl} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Senha</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input className="ds-input w-full pr-10 font-mono" type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} />
-              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: 'var(--text-muted)' }} onClick={() => setShowPw(v => !v)}>
-                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <Button icon={Dices} onClick={() => { setPassword(generatePassword(PASSWORD_DEFAULTS)); setShowPw(true) }}>Gerar</Button>
-          </div>
-        </div>
+        <CopyableInput label="Senha" password value={password} onChange={setPassword} />
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
           <input type="checkbox" checked={critical} onChange={e => setCritical(e.target.checked)} />
           Item crítico (SQL admin, root, etc. — reforço de auditoria)

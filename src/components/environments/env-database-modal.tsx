@@ -2,11 +2,11 @@
 
 // Banco de dados. Senha cifrada no client com a vaultKey antes de ir pra API.
 import { useEffect, useState } from 'react'
-import { Dices, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
+import { CopyableInput } from '@/components/environments/env-copyable-input'
 import { api, ApiError } from '@/lib/api'
-import { aesGcmEncrypt, generatePassword, PASSWORD_DEFAULTS } from '@/lib/vault-crypto'
+import { aesGcmEncrypt } from '@/lib/vault-crypto'
 
 export function EnvDatabaseModal({ open, onClose, onSaved, envId, vaultKey }: {
   open: boolean; onClose: () => void; onSaved: () => void; envId: number; vaultKey: CryptoKey | undefined
@@ -15,10 +15,9 @@ export function EnvDatabaseModal({ open, onClose, onSaved, envId, vaultKey }: {
   const [password, setPassword] = useState('')
   const [alwaysOn, setAlwaysOn] = useState(false)
   const [critical, setCritical] = useState(false)
-  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { if (open) { setF({ engine: 'sqlserver', server: '', port: '', instance: '', database: '', username: '' }); setPassword(''); setAlwaysOn(false); setCritical(false); setShowPw(false) } }, [open])
+  useEffect(() => { if (open) { setF({ engine: 'sqlserver', server: '', port: '', instance: '', database: '', username: '' }); setPassword(''); setAlwaysOn(false); setCritical(false) } }, [open])
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
 
   const save = async () => {
@@ -49,18 +48,9 @@ export function EnvDatabaseModal({ open, onClose, onSaved, envId, vaultKey }: {
           <TextInput label="Porta" inputMode="numeric" placeholder="1433" value={f.port} onChange={e => set('port', e.target.value.replace(/\D/g, ''))} />
           <TextInput label="Instância" value={f.instance} onChange={e => set('instance', e.target.value)} />
           <TextInput label="Database" value={f.database} onChange={e => set('database', e.target.value)} />
-          <TextInput label="Usuário" autoComplete="off" value={f.username} onChange={e => set('username', e.target.value)} />
+          <CopyableInput label="Usuário" value={f.username} onChange={v => set('username', v)} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Senha</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input className="ds-input w-full pr-10 font-mono" type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} />
-              <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: 'var(--text-muted)' }} onClick={() => setShowPw(v => !v)}>{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-            </div>
-            <Button icon={Dices} onClick={() => { setPassword(generatePassword(PASSWORD_DEFAULTS)); setShowPw(true) }}>Gerar</Button>
-          </div>
-        </div>
+        <CopyableInput label="Senha" password value={password} onChange={setPassword} />
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}><input type="checkbox" checked={alwaysOn} onChange={e => setAlwaysOn(e.target.checked)} /> AlwaysOn</label>
           <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}><input type="checkbox" checked={critical} onChange={e => setCritical(e.target.checked)} /> Crítico</label>

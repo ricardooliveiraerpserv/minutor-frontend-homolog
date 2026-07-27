@@ -3,9 +3,9 @@
 // Certificado A1. Senha do PFX cifrada no client (env_secrets). O ARQUIVO .pfx é
 // enviado depois, também cifrado no client (componente EnvEncryptedFile na tabela).
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
+import { CopyableInput } from '@/components/environments/env-copyable-input'
 import { api, ApiError } from '@/lib/api'
 import { aesGcmEncrypt } from '@/lib/vault-crypto'
 
@@ -15,9 +15,8 @@ export function EnvCertificateModal({ open, onClose, onSaved, envId, vaultKey }:
   const [f, setF] = useState({ name: '', type: 'A1', issuer: '', valid_from: '', valid_to: '' })
   const [pfxPass, setPfxPass] = useState('')
   const [critical, setCritical] = useState(false)
-  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (open) { setF({ name: '', type: 'A1', issuer: '', valid_from: '', valid_to: '' }); setPfxPass(''); setCritical(false); setShowPw(false) } }, [open])
+  useEffect(() => { if (open) { setF({ name: '', type: 'A1', issuer: '', valid_from: '', valid_to: '' }); setPfxPass(''); setCritical(false) } }, [open])
   const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }))
 
   const save = async () => {
@@ -48,13 +47,7 @@ export function EnvCertificateModal({ open, onClose, onSaved, envId, vaultKey }:
           <TextInput label="Validade (início)" type="date" value={f.valid_from} onChange={e => set('valid_from', e.target.value)} />
           <TextInput label="Validade (fim)" type="date" value={f.valid_to} onChange={e => set('valid_to', e.target.value)} />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Senha do PFX</label>
-          <div className="relative">
-            <input className="ds-input w-full pr-10 font-mono" type={showPw ? 'text' : 'password'} autoComplete="new-password" value={pfxPass} onChange={e => setPfxPass(e.target.value)} />
-            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 p-1" style={{ color: 'var(--text-muted)' }} onClick={() => setShowPw(v => !v)}>{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-          </div>
-        </div>
+        <CopyableInput label="Senha do PFX" password value={pfxPass} onChange={setPfxPass} />
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}><input type="checkbox" checked={critical} onChange={e => setCritical(e.target.checked)} /> Crítico (ex.: cert Receita)</label>
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>O arquivo .pfx é enviado depois pela tabela — cifrado no seu navegador antes do upload.</p>
         <div className="flex justify-end gap-2">

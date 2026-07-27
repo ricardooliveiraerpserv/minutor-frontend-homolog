@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
+import { CopyableInput } from '@/components/environments/env-copyable-input'
 import { api, ApiError } from '@/lib/api'
 
 const KINDS: { v: string; label: string }[] = [
@@ -31,7 +32,7 @@ export function EnvLinkModal({ open, onClose, onSaved, envId }: { open: boolean;
     <Modal open={open} onClose={onClose} title="Novo link">
       <div className="flex flex-col gap-4">
         <TextInput label="Rótulo" placeholder="Portal Fluig" value={label} onChange={e => setLabel(e.target.value)} />
-        <TextInput label="URL" placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} />
+        <CopyableInput label="URL" placeholder="https://…" value={url} onChange={setUrl} />
         <Select label="Tipo" value={kind} onChange={e => setKind(e.target.value)}>
           {KINDS.map(k => <option key={k.v} value={k.v}>{k.label}</option>)}
         </Select>

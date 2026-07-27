@@ -21,16 +21,19 @@ interface Props {
   label?: string
   onChanged?: () => void
   canManage?: boolean               // sem gerenciar: só baixa, não envia/substitui
+  demo?: boolean                    // preview: não chama a API, só simula
 }
 
-export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, attachmentId, originalName, label, onChanged, canManage = true }: Props) {
+export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, attachmentId, originalName, label, onChanged, canManage = true, demo = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = '' // permite re-selecionar o mesmo arquivo
-    if (!file || !vaultKey) return
+    if (!file) return
+    if (demo) { toast.info('Preview — o arquivo não é enviado de verdade aqui.'); return }
+    if (!vaultKey) return
     setBusy(true)
     try {
       const enc = await encryptFileToEnc(vaultKey, await file.arrayBuffer())
@@ -51,6 +54,7 @@ export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, att
   }
 
   const download = async () => {
+    if (demo) { toast.info('Preview — download indisponível.'); return }
     if (!attachmentId || !vaultKey) return
     setBusy(true)
     try {
@@ -70,7 +74,7 @@ export function EnvEncryptedFile({ entityType, entityId, category, vaultKey, att
           {label ?? 'Baixar'}
         </Button>
       ) : canManage ? (
-        <Button size="sm" icon={busy ? undefined : Upload} loading={busy} disabled={!vaultKey} onClick={() => inputRef.current?.click()}>
+        <Button size="sm" icon={busy ? undefined : Upload} loading={busy} disabled={!vaultKey && !demo} onClick={() => inputRef.current?.click()}>
           {label ?? 'Enviar arquivo'}
         </Button>
       ) : (

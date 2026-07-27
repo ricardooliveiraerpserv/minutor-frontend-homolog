@@ -12,20 +12,23 @@ import { fetchEncryptedAttachment, triggerDownload } from '@/lib/env-file-crypto
 
 interface DocRow { id: number; original_name: string; extension: string; size_bytes: number; created_at: string }
 
-export function EnvDocs({ envId, canManage = true }: { envId: number; canManage?: boolean }) {
+export function EnvDocs({ envId, canManage = true, demo = false }: { envId: number; canManage?: boolean; demo?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [docs, setDocs] = useState<DocRow[]>([])
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
-    setDocs(await api.get<DocRow[]>(`/environments/environments/${envId}/docs`))
-  }, [envId])
+    if (demo) { setDocs([]); return }
+    try { setDocs(await api.get<DocRow[]>(`/environments/environments/${envId}/docs`)) }
+    catch { setDocs([]) }
+  }, [envId, demo])
   useEffect(() => { void load() }, [load])
 
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    if (demo) { toast.info('Preview — o documento não é enviado de verdade aqui.'); return }
     setBusy(true)
     try {
       const fd = new FormData()
