@@ -618,15 +618,22 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
   const [query, setQuery]             = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
-  // Restaura a posição do scroll do menu ao montar; salva ao rolar (evita o "menu pular").
+  // Restaura a posição do scroll do menu ao montar (o sidebar remonta a cada rota).
+  // Reaplica após o layout (rAF) porque no 1º paint o menu ainda não tem altura total,
+  // e não salva enquanto restaura (senão gravaria 0). Evita o "menu pular pro topo".
   const navRef = useRef<HTMLElement>(null)
+  const restoringRef = useRef(false)
   useEffect(() => {
     const nav = navRef.current
     if (!nav) return
-    nav.scrollTop = navScroll.top
-    const onScroll = () => { navScroll.top = nav.scrollTop }
+    restoringRef.current = true
+    const apply = () => { nav.scrollTop = navScroll.top }
+    apply()
+    const raf1 = requestAnimationFrame(apply)
+    const raf2 = requestAnimationFrame(() => { apply(); restoringRef.current = false })
+    const onScroll = () => { if (!restoringRef.current) navScroll.top = nav.scrollTop }
     nav.addEventListener('scroll', onScroll, { passive: true })
-    return () => nav.removeEventListener('scroll', onScroll)
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); nav.removeEventListener('scroll', onScroll) }
   }, [])
   // Atalho Ctrl/Cmd+K foca a busca do menu de qualquer lugar
   useEffect(() => {
