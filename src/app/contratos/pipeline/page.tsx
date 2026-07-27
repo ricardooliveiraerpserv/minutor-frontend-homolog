@@ -4765,8 +4765,24 @@ function KanbanContent() {
       return
     }
 
+    // Início Autorizado → fase Projeto: só pela FINALIZAÇÃO, e apenas quando o coordenador
+    // já foi definido (req_decision). Sem a definição, a requisição não avança.
     if (fromCol === 'inicio_autorizado' && PROJECT_COL_TO_STATUS[toCol]) {
+      if (!reqCard.req_decision) {
+        toast.error('É preciso a definição do coordenador antes de avançar a requisição para a fase de Projeto.')
+        return
+      }
       setFinalizeCard(reqCard)
+      return
+    }
+
+    // Uma requisição NUNCA é gravada numa coluna da fase Projeto por move genérico.
+    // Bug corrigido em 2026-07-27: arrastar de uma coluna de demanda (ex.: "Em Revisão")
+    // direto para o "Backlog" da fase Projeto gravava kanban_column='proj_backlog' e o card
+    // SUMIA (requisição não é renderizada em colunas de projeto). A requisição só vira
+    // projeto pela definição do coordenador em "Aguardando Início (Req.)".
+    if (PROJECT_COL_TO_STATUS[toCol]) {
+      toast.error('Requisição não pode ir direto para a fase de Projeto. Passe por "Aguardando Início (Req.)" para a definição do coordenador.')
       return
     }
 
