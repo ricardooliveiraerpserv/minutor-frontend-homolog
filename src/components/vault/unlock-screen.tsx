@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { KeyRound, Lock, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Card, TextInput } from '@/components/ds'
@@ -89,7 +90,10 @@ export function UnlockScreen() {
           </Button>
         </form>
         <p className="text-xs mt-4 text-center" style={{ color: 'var(--text-light)' }}>
-          Esqueceu a master password? Use sua recovery key em Configuração do Cofre.
+          Esqueceu a master password? Use sua recovery key em{' '}
+          <Link href="/cofre/configuracao" className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+            Configuração do Cofre
+          </Link>.
         </p>
       </Card>
     </div>
