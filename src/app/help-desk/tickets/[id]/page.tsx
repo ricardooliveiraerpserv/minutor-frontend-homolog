@@ -885,7 +885,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
-                    classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level }}
+                    classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id }}
                     isManager={user?.type === 'admin' || user?.type === 'coordenador'}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
