@@ -84,21 +84,22 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     }
   }
   const selStatus = statuses.find(s => s.id === sendStatus)
-  // TRAVA DE CLASSIFICAÇÃO: só libera o envio com os campos preenchidos. Serviço/Urgência/Nível
-  // são obrigatórios p/ TODOS; Categoria p/ agente sempre e p/ gestor só ao CONCLUIR (resolvido/
-  // terminal). "Manter" um status aberto (resposta simples) não exige classificação.
-  const classBlock = (() => {
-    if (!selStatus) return ''
-    const concluir = !!selStatus.is_resolved || !!selStatus.is_terminal
-    if (selStatus.id === currentStatusId && !concluir) return ''
+  // TRAVA DE CLASSIFICAÇÃO: bloqueia ENVIAR e ABRIR formulário sem a triagem. Serviço/Urgência/Nível
+  // p/ TODOS; Categoria p/ agente sempre e p/ gestor só ao CONCLUIR (resolvido/terminal). "Manter"
+  // um status aberto (resposta simples) não exige classificação.
+  const blockFor = (s?: ComposerStatus): string => {
+    if (!s) return ''
+    const concluir = !!s.is_resolved || !!s.is_terminal
+    if (s.id === currentStatusId && !concluir) return ''
     const cf = classFilled ?? { category: true, service: true, priority: true, level: true }
     const m: string[] = []
     if (!cf.service) m.push('Serviço')
     if (!cf.priority) m.push('Urgência')
     if (!cf.level) m.push('Nível')
     if ((!isManager || concluir) && !cf.category) m.push('Categoria')
-    return m.length ? `Preencha para enviar: ${m.join(', ')}.` : ''
-  })()
+    return m.length ? `Preencha a triagem antes: ${m.join(', ')}.` : ''
+  }
+  const classBlock = blockFor(selStatus)
   // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
   const isCritical = (s?: ComposerStatus) => !!s && (!!s.is_terminal || !!s.is_resolved)
   // Ordena: normais primeiro (bloco de cima), depois CONCLUI (resolvido), por fim ENCERRA (terminal).
@@ -110,7 +111,11 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   const pickStatus = (s: ComposerStatus) => {
     setStOpen(false)
     // Status com formulário: abre o form (o form é a própria interação).
-    if (formStatusIds.includes(s.id)) { onFormStatus?.(s.id); setSendStatus(undefined); return }
+    if (formStatusIds.includes(s.id)) {
+      const blk = blockFor(s)
+      if (blk) { toast.error(blk); return } // NÃO abre o formulário (GMUD/Solução/justificativa) sem a triagem
+      onFormStatus?.(s.id); setSendStatus(undefined); return
+    }
     // Crítico → pede confirmação antes de armar o status.
     if (isCritical(s) && s.id !== currentStatusId) {
       const msg = s.is_terminal
