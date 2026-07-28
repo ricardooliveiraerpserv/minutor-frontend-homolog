@@ -215,6 +215,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (!idemRef.current) idemRef.current = (crypto?.randomUUID?.() ?? String(Date.now()) + Math.random())
     setSending(true)
     try {
+      // Aplica o status ANTES de postar a interação → o e-mail gerado pelo backend reflete o
+      // status NOVO (senão sairia com o status antigo). "Manter" (== atual) não faz nada.
+      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
       fd.append('visibility', visibility)
@@ -235,8 +238,6 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday()); setNoCharge(false)
       if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
       onSent()
-      // Aplica o status escolhido (só quando MUDA — manter não faz nada).
-      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
       // Status "agendável" + data informada → agenda (pausa o SLA). Feito APÓS aplicar o status.
       if (canSchedule && schedDate && onSchedule) { await onSchedule(schedDate, schedTime); toast.success('Chamado agendado — SLA pausado') }
       setSchedDate(''); setSchedTime('')

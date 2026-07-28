@@ -506,6 +506,25 @@ function TicketDetailInner({ id }: { id: number }) {
   const [dynForm, setDynForm] = useState<HdForm | null>(null)
   const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance; time?: FormTime | null } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
+  const [totvs, setTotvs] = useState<{ statusId: string; justId: number } | null>(null)
+  const [totvsNum, setTotvsNum] = useState('')
+  // "Pendente TOTVS": pede o nº do chamado no fornecedor, salva no chamado, muda o status ANTES
+  // do e-mail e envia ao cliente a mensagem automática de acompanhamento (interação pública).
+  const submitTotvs = async () => {
+    if (!totvs || !totvsNum.trim()) return
+    const num = totvsNum.trim().replace(/[<>]/g, '')
+    try {
+      await api.put(`/help-desk/tickets/${id}`, { external_ticket_ref: num })
+      await changeStatus(totvs.statusId, totvs.justId)
+      await api.post(`/help-desk/tickets/${id}/comments`, {
+        body: `<p>Foi aberto o chamado nº <strong>${num}</strong> na TOTVS. Iremos acompanhar e enviar o status assim que houver retorno.</p>`,
+        visibility: 'customer',
+      })
+      toast.success('Pendente TOTVS registrado e cliente avisado.')
+      setTotvs(null); setTotvsNum('')
+      loadComments(); loadEvents(); loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar Pendente TOTVS') }
+  }
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
   const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
 
@@ -539,10 +558,10 @@ function TicketDetailInner({ id }: { id: number }) {
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Formulário atualizado')
       } else {
+        if (resolveStatusId) await changeStatus(resolveStatusId) // status ANTES do post → e-mail reflete o novo status
         const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic', ...timeFields })
         if (resp?.data?.id) await uploadFiles(resp.data.id)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
-        if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado atualizado')
       }
       setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
@@ -574,8 +593,8 @@ function TicketDetailInner({ id }: { id: number }) {
         await api.patch(`/help-desk/tickets/${id}/comments/${editSolution.commentId}`, { body, solution: s, form_kind: 'solution' })
         toast.success('Solução atualizada')
       } else {
+        if (resolveStatusId) await changeStatus(resolveStatusId) // status ANTES do post → e-mail reflete o novo status
         await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: s, form_kind: 'solution' })
-        if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado resolvido')
       }
       setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null)
@@ -589,8 +608,8 @@ function TicketDetailInner({ id }: { id: number }) {
         await api.patch(`/help-desk/tickets/${id}/comments/${editGmud.commentId}`, { body, solution: gm, form_kind: 'gmud' })
         toast.success('GMUD atualizada')
       } else {
+        if (resolveStatusId) await changeStatus(resolveStatusId) // status ANTES do post → e-mail reflete o novo status
         await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: gm, form_kind: 'gmud' })
-        if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado resolvido com GMUD')
       }
       setGmudOpen(false); setEditGmud(null); setResolveStatusId(null)
@@ -1358,12 +1377,31 @@ function TicketDetailInner({ id }: { id: number }) {
             <div className="space-y-1.5 max-h-64 overflow-y-auto">
               {justifications.filter(j => j.status_id === Number(pendingStatus)).map(j => (
                 <button key={j.id} className="w-full text-left text-sm px-3 py-2 rounded-lg ds-row-hover" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
-                  onClick={() => { changeStatus(pendingStatus, j.id); setPendingStatus(null) }}>{j.name}</button>
+                  onClick={() => {
+                    if (/totvs/i.test(j.name)) { setTotvs({ statusId: pendingStatus, justId: j.id }); setTotvsNum(''); setPendingStatus(null) }
+                    else { changeStatus(pendingStatus, j.id); setPendingStatus(null) }
+                  }}>{j.name}</button>
               ))}
             </div>
             <div className="flex justify-between pt-1">
               <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { changeStatus(pendingStatus); setPendingStatus(null) }}>Mudar sem justificativa</button>
               <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setPendingStatus(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pendente TOTVS: nº do chamado no fornecedor → salva no chamado + avisa o cliente */}
+      {totvs && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setTotvs(null)}>
+          <div className="ds-card max-w-sm w-full p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Pendente TOTVS</h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Informe o número do chamado aberto na TOTVS. O cliente será avisado por e-mail de que estamos acompanhando.</p>
+            <input autoFocus className="ds-input w-full" value={totvsNum} onChange={e => setTotvsNum(e.target.value)} placeholder="Nº do chamado TOTVS"
+              onKeyDown={e => { if (e.key === 'Enter' && totvsNum.trim()) submitTotvs() }} />
+            <div className="flex justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setTotvs(null)}>Cancelar</button>
+              <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" disabled={!totvsNum.trim()} onClick={submitTotvs}>Confirmar e avisar cliente</button>
             </div>
           </div>
         </div>
