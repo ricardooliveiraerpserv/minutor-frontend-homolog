@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { KbSuggestions } from '@/components/help-desk/kb-suggestions'
+// import { KbSuggestions } from '@/components/help-desk/kb-suggestions' // desativado por enquanto (painel "Talvez isto já resolva")
 import { X } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
@@ -62,7 +62,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated }: { meta
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label>
             <input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus />
           </div>
-          <KbSuggestions query={subject} />
+          {/* <KbSuggestions query={subject} /> */}
         </div>
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição</label>
