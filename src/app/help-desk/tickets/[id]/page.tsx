@@ -520,9 +520,9 @@ function TicketDetailInner({ id }: { id: number }) {
     if (supplier.mode === 'other' && !name) { toast.error('Informe o nome do fornecedor.'); return }
     const fornecedor = supplier.mode === 'totvs' ? 'TOTVS' : name
     const ref = num ? `${fornecedor} #${num}` : fornecedor
-    const msg = supplier.mode === 'totvs'
-      ? `<p>Foi aberto o chamado nº <strong>${num}</strong> na TOTVS. Iremos acompanhar e enviar o status assim que houver retorno.</p>`
-      : `<p>Sua solicitação foi encaminhada ao fornecedor <strong>${name}</strong>${num ? ` (chamado nº <strong>${num}</strong>)` : ''}. Iremos acompanhar e enviar o status assim que houver retorno.</p>`
+    // Mensagem ÚNICA em caixa destacada (mesmo padrão dos avisos por status), já com o nº do ticket.
+    const boxStyle = 'font-size:14px;color:#374151;background:#f5f3ff;border-left:3px solid #7c3aed;padding:10px 12px;border-radius:6px;margin:0 0 8px'
+    const msg = `<div style="${boxStyle}">🤝 Sua solicitação está sendo <strong>tratada junto ao fornecedor ${fornecedor}</strong>${num ? ` (chamado nº <strong>${num}</strong>)` : ''}. Assim que houver retorno, atualizaremos o status do seu chamado.</div>`
     try {
       await api.put(`/help-desk/tickets/${id}`, { external_ticket_ref: ref })
       await changeStatus(supplier.statusId, supplier.justId)
