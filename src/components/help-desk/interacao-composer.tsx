@@ -290,11 +290,11 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           </span>
         )}
         {!sendStatus ? (
-          <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
             ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
           </span>
         ) : classBlock ? (
-          <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
             ⚠️ {classBlock}
           </span>
         ) : empty && (
