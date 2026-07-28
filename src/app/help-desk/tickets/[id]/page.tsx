@@ -506,24 +506,31 @@ function TicketDetailInner({ id }: { id: number }) {
   const [dynForm, setDynForm] = useState<HdForm | null>(null)
   const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance; time?: FormTime | null } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
-  const [totvs, setTotvs] = useState<{ statusId: string; justId: number } | null>(null)
-  const [totvsNum, setTotvsNum] = useState('')
-  // "Pendente TOTVS": pede o nº do chamado no fornecedor, salva no chamado, muda o status ANTES
-  // do e-mail e envia ao cliente a mensagem automática de acompanhamento (interação pública).
-  const submitTotvs = async () => {
-    if (!totvs || !totvsNum.trim()) return
-    const num = totvsNum.trim().replace(/[<>]/g, '')
+  const [supplier, setSupplier] = useState<{ statusId: string; justId: number; mode: 'totvs' | 'other' } | null>(null)
+  const [supName, setSupName] = useState('') // nome do fornecedor (modo 'other')
+  const [supNum, setSupNum] = useState('')   // nº do chamado no fornecedor
+  // Pendência em fornecedor: TOTVS (nº do chamado OBRIGATÓRIO) ou outro fornecedor (nome
+  // OBRIGATÓRIO, nº opcional). Salva a referência no chamado, muda o status ANTES do e-mail e
+  // avisa o cliente com a mensagem automática (interação pública).
+  const submitSupplier = async () => {
+    if (!supplier) return
+    const num = supNum.trim().replace(/[<>]/g, '')
+    const name = supName.trim().replace(/[<>]/g, '')
+    if (supplier.mode === 'totvs' && !num) { toast.error('Informe o nº do chamado na TOTVS.'); return }
+    if (supplier.mode === 'other' && !name) { toast.error('Informe o nome do fornecedor.'); return }
+    const fornecedor = supplier.mode === 'totvs' ? 'TOTVS' : name
+    const ref = num ? `${fornecedor} #${num}` : fornecedor
+    const msg = supplier.mode === 'totvs'
+      ? `<p>Foi aberto o chamado nº <strong>${num}</strong> na TOTVS. Iremos acompanhar e enviar o status assim que houver retorno.</p>`
+      : `<p>Sua solicitação foi encaminhada ao fornecedor <strong>${name}</strong>${num ? ` (chamado nº <strong>${num}</strong>)` : ''}. Iremos acompanhar e enviar o status assim que houver retorno.</p>`
     try {
-      await api.put(`/help-desk/tickets/${id}`, { external_ticket_ref: num })
-      await changeStatus(totvs.statusId, totvs.justId)
-      await api.post(`/help-desk/tickets/${id}/comments`, {
-        body: `<p>Foi aberto o chamado nº <strong>${num}</strong> na TOTVS. Iremos acompanhar e enviar o status assim que houver retorno.</p>`,
-        visibility: 'customer',
-      })
-      toast.success('Pendente TOTVS registrado e cliente avisado.')
-      setTotvs(null); setTotvsNum('')
+      await api.put(`/help-desk/tickets/${id}`, { external_ticket_ref: ref })
+      await changeStatus(supplier.statusId, supplier.justId)
+      await api.post(`/help-desk/tickets/${id}/comments`, { body: msg, visibility: 'customer' })
+      toast.success('Pendência registrada e cliente avisado.')
+      setSupplier(null); setSupName(''); setSupNum('')
       loadComments(); loadEvents(); loadTicket()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar Pendente TOTVS') }
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar a pendência') }
   }
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
   const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
@@ -1378,7 +1385,8 @@ function TicketDetailInner({ id }: { id: number }) {
               {justifications.filter(j => j.status_id === Number(pendingStatus)).map(j => (
                 <button key={j.id} className="w-full text-left text-sm px-3 py-2 rounded-lg ds-row-hover" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
                   onClick={() => {
-                    if (/totvs/i.test(j.name)) { setTotvs({ statusId: pendingStatus, justId: j.id }); setTotvsNum(''); setPendingStatus(null) }
+                    if (/totvs/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'totvs' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
+                    else if (/terceir|fornecedor/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'other' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
                     else { changeStatus(pendingStatus, j.id); setPendingStatus(null) }
                   }}>{j.name}</button>
               ))}
@@ -1391,17 +1399,27 @@ function TicketDetailInner({ id }: { id: number }) {
         </div>
       )}
 
-      {/* Pendente TOTVS: nº do chamado no fornecedor → salva no chamado + avisa o cliente */}
-      {totvs && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setTotvs(null)}>
+      {/* Pendência em fornecedor: TOTVS (nº obrigatório) ou outro fornecedor (nome obrigatório, nº opcional) */}
+      {supplier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setSupplier(null)}>
           <div className="ds-card max-w-sm w-full p-5 space-y-3" onClick={e => e.stopPropagation()}>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Pendente TOTVS</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Informe o número do chamado aberto na TOTVS. O cliente será avisado por e-mail de que estamos acompanhando.</p>
-            <input autoFocus className="ds-input w-full" value={totvsNum} onChange={e => setTotvsNum(e.target.value)} placeholder="Nº do chamado TOTVS"
-              onKeyDown={e => { if (e.key === 'Enter' && totvsNum.trim()) submitTotvs() }} />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{supplier.mode === 'totvs' ? 'Pendente TOTVS' : 'Pendente Terceiro'}</h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {supplier.mode === 'totvs'
+                ? 'Informe o número do chamado aberto na TOTVS. O cliente será avisado por e-mail.'
+                : 'Informe o fornecedor para o qual a solicitação foi encaminhada. O cliente será avisado por e-mail.'}
+            </p>
+            {supplier.mode === 'other' && (
+              <input autoFocus className="ds-input w-full" value={supName} onChange={e => setSupName(e.target.value)} placeholder="Nome do fornecedor *" />
+            )}
+            <input autoFocus={supplier.mode === 'totvs'} className="ds-input w-full" value={supNum} onChange={e => setSupNum(e.target.value)}
+              placeholder={supplier.mode === 'totvs' ? 'Nº do chamado TOTVS *' : 'Nº do chamado (opcional)'}
+              onKeyDown={e => { if (e.key === 'Enter') submitSupplier() }} />
             <div className="flex justify-end gap-2 pt-1">
-              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setTotvs(null)}>Cancelar</button>
-              <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" disabled={!totvsNum.trim()} onClick={submitTotvs}>Confirmar e avisar cliente</button>
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setSupplier(null)}>Cancelar</button>
+              <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg"
+                disabled={supplier.mode === 'totvs' ? !supNum.trim() : !supName.trim()}
+                onClick={submitSupplier}>Confirmar e avisar cliente</button>
             </div>
           </div>
         </div>
