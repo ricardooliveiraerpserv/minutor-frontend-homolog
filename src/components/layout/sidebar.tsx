@@ -523,12 +523,15 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   const collectHrefs = (ns: NavTreeNode[] = []) => ns.forEach(n => { if (n.screen) allHrefs.push(n.screen.split('?')[0]); collectHrefs(n.children ?? []) })
   collectHrefs(mod.items ?? [])
   const needsExact = (href: string) => { const base = href.split('?')[0]; return allHrefs.some(h => h !== base && h.startsWith(base + '/')) }
-  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!) })
+  // Item folha respeita o nome POR NÓ do Configurador (n.label) antes de cair no
+  // rótulo da tela (lbl = nav_screens.label / catálogo / href cru). Sem isso, renomear
+  // uma tela no Configurador não surtia efeito no menu (só grupos usavam n.label).
+  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!) })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen) }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen) }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
