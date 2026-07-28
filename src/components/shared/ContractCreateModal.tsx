@@ -214,9 +214,12 @@ export function ContractCreateModal({
       .then(r => {
         const balance = r.general_hours_balance ?? ((r.sold_hours ?? 0) - (r.consumed_hours ?? 0))
         setParentBalance({ balance, allow_negative: r.allow_negative_balance ?? false })
-        // Auto-preenche valor_hora com o do projeto pai
-        if (r.hourly_rate) {
-          const hr = Number(r.hourly_rate)
+        // Auto-preenche valor_hora com o do projeto pai (vale também pra On Demand:
+        // a hora do filho herda a do pai). Fallback pra valor_hora caso hourly_rate
+        // venha nulo em algum tipo de pai.
+        const parentRate = r.hourly_rate ?? r.valor_hora
+        if (parentRate) {
+          const hr = Number(parentRate)
           setForm(f => {
             const hs = Number(f.horas_contratadas)
             return {
@@ -1477,10 +1480,10 @@ export function ContractCreateModal({
                       })
                     )} placeholder="0,00" />
                   </div>
-                  {!isMensalidade && !isOnDemand && (
+                  {!isMensalidade && (
                     <div>
                       <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
-                        Valor da Hora (R$) <span style={{ color: 'var(--danger)' }}>*</span>
+                        Valor da Hora (R$){!isOnDemand && <span style={{ color: 'var(--danger)' }}> *</span>}
                       </label>
                       <input {...numInput('valor_hora', vh =>
                         setForm(f => {

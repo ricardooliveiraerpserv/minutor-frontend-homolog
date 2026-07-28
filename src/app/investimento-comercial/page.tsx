@@ -1152,7 +1152,7 @@ export default function InvestimentoComercialPage() {
               )}
 
               <div className="flex gap-2 pt-1">
-                <Button variant="ghost" className="flex-1" onClick={closeModal}>Cancelar</Button>
+                <Button variant="secondary" className="flex-1" onClick={closeModal}>Cancelar</Button>
                 <Button variant="primary" className="flex-1" onClick={saveTeam} disabled={saving}>{saving ? 'Salvando…' : 'Salvar Equipe'}</Button>
               </div>
             </div>

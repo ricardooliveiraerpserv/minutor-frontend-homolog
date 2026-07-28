@@ -917,9 +917,11 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
 
 // ─── Project Card (for status columns) ───────────────────────────────────────
 
-function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableColumns, canWrite }: {
+function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableColumns, canWrite, columnCoordinatorName }: {
   card: ProjectCard; index: number; onClick: () => void; onAction: (action: string) => void
   onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; canWrite?: boolean
+  // Nome do coordenador DONO da coluna onde o card é renderizado ("sempre manter a coluna").
+  columnCoordinatorName?: string
 }) {
   const { user: viewerUser } = useAuth()
   // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
@@ -1041,7 +1043,7 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
           )}
           <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid var(--border)` }}>
             <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
-              {card.coordinators?.[0] ? `👤 ${card.coordinators[0]}` : ''}
+              {(() => { const who = columnCoordinatorName ?? card.coordinators?.[0]; return who ? `👤 ${who}` : '' })()}
             </span>
             <div className="flex items-center gap-1">
               {/* Ícone de chat removido (2026-05-28): após virar projeto, chat sai. Chat só na Requisição/Contrato. */}
@@ -2332,6 +2334,7 @@ function KanbanContent() {
                                   const projFromCol = col.id
                                   return (
                                     <ProjectKanbanCard key={`sp-${proj.id}`} card={proj} index={idx}
+                                      columnCoordinatorName={isCoord ? col.label : undefined}
                                       onClick={() => setProjectAction({ card: proj, action: 'view' })}
                                       onAction={action => setProjectAction({ card: proj, action })}
                                       onMove={toCol => {
@@ -2372,6 +2375,7 @@ function KanbanContent() {
                                 const fromCol = PROJECT_STATUS_COL[proj.status] ?? ''
                                 return (
                                   <ProjectKanbanCard key={`p-${proj.id}`} card={proj} index={contractCards.length + idx}
+                                    columnCoordinatorName={isCoord ? col.label : undefined}
                                     onClick={() => setProjectAction({ card: proj, action: 'view' })}
                                     onAction={action => setProjectAction({ card: proj, action })}
                                     onMove={toCol => handleProjectMove(proj.id, toCol, col.coordinatorId)}
@@ -2384,6 +2388,7 @@ function KanbanContent() {
                                 const fromCol = PROJECT_STATUS_COL[proj.status] ?? ''
                                 return (
                                   <ProjectKanbanCard key={`ps-${proj.id}`} card={proj} index={idx}
+                                    columnCoordinatorName={isCoord ? col.label : undefined}
                                     onClick={() => setProjectAction({ card: proj, action: 'view' })}
                                     onAction={action => setProjectAction({ card: proj, action })}
                                     onMove={toCol => handleProjectMove(proj.id, toCol)}
