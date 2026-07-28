@@ -49,7 +49,7 @@ interface Sla {
 }
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
-  priority: string; level: string | null; channel: string; reopen_count: number
+  priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
   requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
@@ -739,6 +739,11 @@ function TicketDetailInner({ id }: { id: number }) {
               <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
               {t.status?.label ?? '—'}
             </span>
+            {t.external_ticket_ref && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)', border: '1px solid var(--border)' }} title="Referência no fornecedor">
+                🔗 {t.external_ticket_ref}
+              </span>
+            )}
             {/* Menu "Opções" — ações contextuais do chamado, filtradas pelas permissões do perfil de acesso. */}
             <div className="relative">
               <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setOptOpen(o => !o)} title="Ações do chamado">
