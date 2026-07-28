@@ -48,8 +48,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   timeMode?: 'hidden' | 'required' | 'optional'
   // Motivo p/ bloquear a conclusão (ex.: classificação incompleta). Se setado, envio com status
   // resolvido é barrado com essa mensagem.
-  resolveBlockedReason?: string
-}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', resolveBlockedReason }, ref) {
+  // Trava de classificação: quais campos estão preenchidos + se o usuário é gestor (admin/coord).
+  classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean }
+  isManager?: boolean
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager }, ref) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -82,6 +84,21 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     }
   }
   const selStatus = statuses.find(s => s.id === sendStatus)
+  // TRAVA DE CLASSIFICAÇÃO: só libera o envio com os campos preenchidos. Serviço/Urgência/Nível
+  // são obrigatórios p/ TODOS; Categoria p/ agente sempre e p/ gestor só ao CONCLUIR (resolvido/
+  // terminal). "Manter" um status aberto (resposta simples) não exige classificação.
+  const classBlock = (() => {
+    if (!selStatus) return ''
+    const concluir = !!selStatus.is_resolved || !!selStatus.is_terminal
+    if (selStatus.id === currentStatusId && !concluir) return ''
+    const cf = classFilled ?? { category: true, service: true, priority: true, level: true }
+    const m: string[] = []
+    if (!cf.service) m.push('Serviço')
+    if (!cf.priority) m.push('Urgência')
+    if (!cf.level) m.push('Nível')
+    if ((!isManager || concluir) && !cf.category) m.push('Categoria')
+    return m.length ? `Preencha para enviar: ${m.join(', ')}.` : ''
+  })()
   // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
   const isCritical = (s?: ComposerStatus) => !!s && (!!s.is_terminal || !!s.is_resolved)
   // Ordena: normais primeiro (bloco de cima), depois CONCLUI (resolvido), por fim ENCERRA (terminal).
@@ -187,8 +204,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
 
   const send = async () => {
     if (statuses.length > 0 && !sendStatus) { toast.error('Escolha o status antes de enviar.'); return }
-    // Concluir (status resolvido) exige classificação completa (Categoria/Serviço/Urgência/Nível).
-    if (selStatus?.is_resolved && resolveBlockedReason) { toast.error(resolveBlockedReason); return }
+    // Trava de classificação (ver classBlock): campos obrigatórios conforme status + papel.
+    if (classBlock) { toast.error(classBlock); return }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
     const hasText = !empty
@@ -269,6 +286,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         {!sendStatus ? (
           <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
             ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
+          </span>
+        ) : classBlock ? (
+          <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
+            ⚠️ {classBlock}
           </span>
         ) : empty && (
           <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: visibility === 'internal' ? '#6d28d9' : '#9ca3af' }}>
@@ -435,7 +456,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           )}
           {files.length > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{files.length} anexo(s)</span>}
         </div>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || !sendStatus || (empty && files.length === 0)}>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || !sendStatus || !!classBlock || (empty && files.length === 0)}>
           <Send size={14} /> {sending ? 'Enviando…' : (sendStatus && sendStatus !== currentStatusId ? `Enviar e mover para: ${statuses.find(s => s.id === sendStatus)?.label ?? ''}` : 'Enviar')}
         </button>
       </div>

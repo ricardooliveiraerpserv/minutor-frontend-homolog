@@ -883,15 +883,10 @@ function TicketDetailInner({ id }: { id: number }) {
                       ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
                       : 'optional'}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
-                    /* Concluir exige classificação: Categoria, Serviço, Urgência e Nível preenchidos. */
-                    resolveBlockedReason={(() => {
-                      const f: string[] = []
-                      if (!t.category?.id) f.push('Categoria')
-                      if (!t.service?.id) f.push('Serviço')
-                      if (!t.priority) f.push('Urgência')
-                      if (!t.level) f.push('Nível')
-                      return f.length ? `Preencha antes de concluir o atendimento: ${f.join(', ')}.` : undefined
-                    })()}
+                    /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
+                       e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
+                    classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level }}
+                    isManager={user?.type === 'admin' || user?.type === 'coordenador'}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
                     formStatusIds={[...new Set([...forms.filter(f => f.status_id).map(f => f.status_id as number), ...justifications.map(j => j.status_id)])]}
