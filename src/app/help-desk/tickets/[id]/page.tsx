@@ -739,7 +739,7 @@ function TicketDetailInner({ id }: { id: number }) {
               <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
               {t.status?.label ?? '—'}
             </span>
-            {t.external_ticket_ref && (
+            {t.external_ticket_ref && t.status?.key === 'pendente_terceiros' && (
               <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)', border: '1px solid var(--border)' }} title="Referência no fornecedor">
                 🔗 {t.external_ticket_ref}
               </span>
