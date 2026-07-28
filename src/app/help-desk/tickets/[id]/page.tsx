@@ -539,8 +539,8 @@ function TicketDetailInner({ id }: { id: number }) {
 
   // Status SEM formulário: aplica direto (com justificativa se houver).
   const onStatusSelect = (statusId: string) => {
-    if (justifications.some(j => j.status_id === Number(statusId))) setPendingStatus(statusId)
-    else changeStatus(statusId)
+    if (justifications.some(j => j.status_id === Number(statusId))) { setPendingStatus(statusId); return }
+    return changeStatus(statusId) // devolve a Promise → o composer aguarda o PATCH antes de postar (e-mail com o status novo)
   }
 
   // Status COM formulário (do construtor) → abre o modal dinâmico.
