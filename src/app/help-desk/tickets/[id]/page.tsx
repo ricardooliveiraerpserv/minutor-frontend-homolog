@@ -882,7 +882,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     })()}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
-                    formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
+                    formStatusIds={[...new Set([...forms.filter(f => f.status_id).map(f => f.status_id as number), ...justifications.map(j => j.status_id)])]}
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   )}
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
