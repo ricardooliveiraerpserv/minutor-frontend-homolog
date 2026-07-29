@@ -101,6 +101,18 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     return m.length ? `Preencha a triagem antes: ${m.join(', ')}.` : ''
   }
   const classBlock = blockFor(selStatus)
+  // Relação de campos da triagem que faltam (independe do status) — mostrada ANTES de escolher o
+  // status. Agente/Serviço/Urgência/Nível p/ todos; Categoria p/ agente (gestor só ao concluir).
+  const baseMissing = (() => {
+    const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true }
+    const m: string[] = []
+    if (!cf.agent) m.push('Agente')
+    if (!isManager && !cf.category) m.push('Categoria')
+    if (!cf.service) m.push('Serviço')
+    if (!cf.priority) m.push('Urgência')
+    if (!cf.level) m.push('Nível')
+    return m
+  })()
   // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
   const isCritical = (s?: ComposerStatus) => !!s && (!!s.is_terminal || !!s.is_resolved)
   // Ordena: normais primeiro (bloco de cima), depois CONCLUI (resolvido), por fim ENCERRA (terminal).
@@ -291,7 +303,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         )}
         {!sendStatus ? (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
-            ⚠️ Escolha o status para liberar a resposta.
+            ⚠️ {baseMissing.length ? `Preencha a triagem: ${baseMissing.join(', ')}.` : 'Escolha o status para liberar a resposta.'}
           </span>
         ) : classBlock ? (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
