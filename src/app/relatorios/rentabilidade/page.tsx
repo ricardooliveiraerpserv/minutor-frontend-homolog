@@ -225,6 +225,7 @@ function HiddenUsersModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   const [users, setUsers] = useState<CfgUser[]>([])
   const [hidden, setHidden] = useState<Set<number>>(new Set())
   const [q, setQ] = useState('')
+  const [fType, setFType] = useState('') // filtro por tipo (admin/coordenador/…); '' = todos
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -236,7 +237,8 @@ function HiddenUsersModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }, [])
 
   const toggle = (id: number) => setHidden(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
-  const filtered = users.filter(u => u.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const types = [...new Set(users.map(u => u.type))]
+  const filtered = users.filter(u => u.name.toLowerCase().includes(q.trim().toLowerCase()) && (!fType || u.type === fType))
 
   const save = async () => {
     setSaving(true)
@@ -263,6 +265,17 @@ function HiddenUsersModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <Search size={13} style={{ color: 'var(--text-light)' }} />
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar usuário…" className="text-sm outline-none w-full bg-transparent" style={{ color: 'var(--text)' }} />
           </div>
+          {types.length > 1 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {['', ...types].map(val => (
+                <button key={val || 'all'} type="button" onClick={() => setFType(val)}
+                  className="text-[11px] px-2 py-0.5 rounded-full transition-colors"
+                  style={{ background: fType === val ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: fType === val ? 'var(--primary)' : 'var(--text-muted)', fontWeight: fType === val ? 600 : 400 }}>
+                  {val ? (CFG_TYPE_LABEL[val] ?? val) : 'Todos'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="px-5 overflow-y-auto flex-1" style={{ minHeight: 140 }}>
           {loading && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
@@ -281,8 +294,8 @@ function HiddenUsersModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
         </div>
         <div className="px-5 py-3 flex justify-between items-center gap-2" style={{ borderTop: '1px solid var(--border)' }}>
           <div className="flex gap-3">
-            <button onClick={() => setHidden(new Set())} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Mostrar todos</button>
-            <button onClick={() => setHidden(new Set(users.map(u => u.id)))} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Ocultar todos</button>
+            <button onClick={() => setHidden(prev => { const n = new Set(prev); filtered.forEach(u => n.delete(u.id)); return n })} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Mostrar todos</button>
+            <button onClick={() => setHidden(prev => { const n = new Set(prev); filtered.forEach(u => n.add(u.id)); return n })} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Ocultar todos</button>
           </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
