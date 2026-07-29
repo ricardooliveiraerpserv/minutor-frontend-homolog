@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, Fragment } from 'react'
 import { usePathname } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -14,7 +15,7 @@ import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { escapeHtml } from '@/lib/sanitize'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet, Clock } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet, Clock, Settings, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -217,6 +218,82 @@ function lfRead(): Record<string, unknown> {
 }
 function lf<T>(o: Record<string, unknown>, key: string, def: T): T { return (key in o ? (o[key] as T) : def) }
 
+// Modal admin: escolhe quais usuários aparecem na Rentabilidade. Desmarcar = oculto (sai da tela E dos totais).
+interface CfgUser { id: number; name: string; type: string; enabled: boolean }
+const CFG_TYPE_LABEL: Record<string, string> = { admin: 'Admin', coordenador: 'Coordenador', consultor: 'Consultor', parceiro_admin: 'Parceiro' }
+function HiddenUsersModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [users, setUsers] = useState<CfgUser[]>([])
+  const [hidden, setHidden] = useState<Set<number>>(new Set())
+  const [q, setQ] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api.get<{ hidden_ids: number[]; users: CfgUser[] }>('/relatorios/rentabilidade/hidden-users')
+      .then(r => { setUsers(r?.users ?? []); setHidden(new Set(r?.hidden_ids ?? [])) })
+      .catch(() => toast.error('Erro ao carregar usuários'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const toggle = (id: number) => setHidden(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const filtered = users.filter(u => u.name.toLowerCase().includes(q.trim().toLowerCase()))
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await api.put('/relatorios/rentabilidade/hidden-users', { user_ids: [...hidden] })
+      toast.success('Visibilidade atualizada')
+      onSaved(); onClose()
+    } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
+          <Settings size={18} style={{ color: 'var(--primary)' }} />
+          <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Quem aparece na Rentabilidade</span>
+          <button onClick={onClose} className="ml-auto" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+        </div>
+        <div className="px-5 pt-3">
+          <p className="text-[11px] mb-2" style={{ color: 'var(--text-light)' }}>
+            Desmarque quem você <b>não</b> quer que apareça. Ocultos saem da tela <b>e</b> dos totais. · {hidden.size} oculto{hidden.size !== 1 ? 's' : ''}
+          </p>
+          <div className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 mb-2" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <Search size={13} style={{ color: 'var(--text-light)' }} />
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar usuário…" className="text-sm outline-none w-full bg-transparent" style={{ color: 'var(--text)' }} />
+          </div>
+        </div>
+        <div className="px-5 overflow-y-auto flex-1" style={{ minHeight: 140 }}>
+          {loading && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
+          {!loading && filtered.map(u => {
+            const visible = !hidden.has(u.id)
+            return (
+              <label key={u.id} className="flex items-center gap-2.5 py-2 border-t cursor-pointer" style={{ borderColor: 'var(--border)' }}>
+                <input type="checkbox" checked={visible} onChange={() => toggle(u.id)} className="h-4 w-4 cursor-pointer" style={{ accentColor: 'var(--primary)' }} />
+                <span className="flex-1 text-sm" style={{ color: visible ? 'var(--text)' : 'var(--text-light)', textDecoration: visible ? 'none' : 'line-through' }}>{u.name}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{CFG_TYPE_LABEL[u.type] ?? u.type}</span>
+                {!u.enabled && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>inativo</span>}
+              </label>
+            )
+          })}
+          {!loading && filtered.length === 0 && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Nenhum usuário.</p>}
+        </div>
+        <div className="px-5 py-3 flex justify-between items-center gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex gap-3">
+            <button onClick={() => setHidden(new Set())} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Mostrar todos</button>
+            <button onClick={() => setHidden(new Set(users.map(u => u.id)))} className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Ocultar todos</button>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+            <button onClick={save} disabled={saving || loading} className="text-sm px-5 py-2 rounded-lg font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: (saving || loading) ? .6 : 1 }}>{saving ? 'Salvando…' : 'Salvar'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function RentabilidadePage({ visaoForced, embedded, periodo }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean; periodo?: { fromM: number; fromY: number; toM: number; toY: number } } = {}) {
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -226,6 +303,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Período (abas consultor/projeto): toggle Mês/Ano (mês único) ou Período (De..Até).
   const [periodModo, setPeriodModo] = useState<'mesano' | 'periodo'>(() => lf<'mesano' | 'periodo'>(sf, 'periodModo', 'mesano'))
   const [reloadTick, setReloadTick] = useState(0) // botão atualizar
+  const { user } = useAuth()
+  const isAdmin = (user?.type ?? '') === 'admin'
+  const [showHiddenCfg, setShowHiddenCfg] = useState(false) // modal admin: quem aparece na Rentabilidade
   const [fromM, setFromM] = useState(() => lf(sf, 'fromM', currentMonth))
   const [fromY, setFromY] = useState(() => lf(sf, 'fromY', currentYear))
   const [toM, setToM]     = useState(() => lf(sf, 'toM', currentMonth))
@@ -930,6 +1010,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   onClick={() => loadClientes(true).then(() => toast.success('Recebimentos do Keruak atualizados'))}>
                   {refreshing ? 'Atualizando…' : 'Atualizar Keruak'}
                 </Button>
+              )}
+              {isAdmin && !embedded && (
+                <Button variant="ghost" size="sm" icon={Settings} onClick={() => setShowHiddenCfg(true)} title="Escolher quais usuários aparecem na Rentabilidade">Visibilidade</Button>
               )}
               <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>Excel</Button>
               <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>PDF</Button>
@@ -1662,6 +1745,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           onClose={() => setKeruakModal(null)}
         />
       )}
+
+      {showHiddenCfg && <HiddenUsersModal onClose={() => setShowHiddenCfg(false)} onSaved={() => setReloadTick(t => t + 1)} />}
     </>
   )
   return embedded ? content : <AppLayout title="Relatório de Rentabilidade">{content}</AppLayout>
