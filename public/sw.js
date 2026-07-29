@@ -1,65 +1,21 @@
-const CACHE = 'minutor-v3'
+// ⚠️ PWA DESCONTINUADO — este arquivo virou um KILL-SWITCH.
+// O service worker anterior tinha escopo "/" e dava clients.claim(), controlando a
+// origem inteira e servindo o shell "/mobile" cacheado — o que "forçava o PWA" mesmo
+// fora do fluxo mobile. Este SW não intercepta mais nada: ao ativar, limpa os caches,
+// se desregistra e recarrega as abas controladas, removendo o SW de quem já o tinha.
+self.addEventListener('install', () => self.skipWaiting())
 
-// Recursos estáticos para cache offline (PWA mobile)
-const STATIC = [
-  '/mobile',
-  '/mobile/apontamento',
-  '/mobile/despesa',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
-]
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
-  )
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    try {
+      const keys = await caches.keys()
+      await Promise.all(keys.map(k => caches.delete(k)))
+    } catch {}
+    try { await self.registration.unregister() } catch {}
+    const clients = await self.clients.matchAll({ type: 'window' })
+    for (const client of clients) {
+      try { client.navigate(client.url) } catch {}
+    }
+  })())
 })
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  )
-})
-
-self.addEventListener('fetch', e => {
-  const { request } = e
-  const url = new URL(request.url)
-
-  // Requisições de API: network-first, sem cache
-  if (url.pathname.startsWith('/api/') || url.hostname !== location.hostname) {
-    e.respondWith(fetch(request).catch(() => new Response('Offline', { status: 503 })))
-    return
-  }
-
-  // Navegação (páginas HTML): network-first, fallback para cache
-  if (request.mode === 'navigate') {
-    e.respondWith(
-      fetch(request)
-        .then(res => {
-          const clone = res.clone()
-          caches.open(CACHE).then(c => c.put(request, clone))
-          return res
-        })
-        .catch(() => caches.match(request).then(r => r ?? caches.match('/mobile')))
-    )
-    return
-  }
-
-  // Demais assets (JS/CSS/_next): NETWORK-FIRST. Cache-first servia bundle ANTIGO após
-  // deploy (chunks ficavam presos no cache 'minutor-vX'), fazendo features novas não
-  // aparecerem. Agora busca sempre o fresco; o cache só atende offline (fallback).
-  e.respondWith(
-    fetch(request)
-      .then(res => {
-        if (res.ok) {
-          const clone = res.clone()
-          caches.open(CACHE).then(c => c.put(request, clone))
-        }
-        return res
-      })
-      .catch(() => caches.match(request))
-  )
-})
+// Sem listener de 'fetch': o SW deixa de interceptar navegação/assets.
