@@ -566,8 +566,14 @@ function TicketDetailInner({ id }: { id: number }) {
         toast.success('Formulário atualizado')
       } else {
         if (resolveStatusId) await changeStatus(resolveStatusId) // status ANTES do post → e-mail reflete o novo status
-        const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic', ...timeFields })
-        if (resp?.data?.id) await uploadFiles(resp.data.id)
+        // Arquivos VÃO JUNTO do comentário (FormData) → gravados antes do e-mail, que passa a incluí-los.
+        // (Antes subiam depois via uploadFiles → o e-mail já tinha saído sem anexo.)
+        const fd = new FormData()
+        fd.append('body', body); fd.append('visibility', 'customer'); fd.append('form_kind', 'dynamic')
+        fd.append('solution', JSON.stringify(inst))
+        Object.entries(timeFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, String(v)) })
+        files.forEach(f => fd.append('files[]', f))
+        const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Chamado atualizado')
       }
