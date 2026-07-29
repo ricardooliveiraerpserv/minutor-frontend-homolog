@@ -860,7 +860,18 @@ function TicketDetailInner({ id }: { id: number }) {
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-3">
                   {/* Card de reunião (Central de Reuniões) — adiado (secondaryReady) p/ não pesar na 1ª carga. */}
-                  {secondaryReady && <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => { setEditMeeting(null); setReuniaoOpen(true) }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />}
+                  {secondaryReady && <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => {
+                    // Trava de triagem: não abre o "Agendar reunião" sem os campos preenchidos.
+                    const isMgr = user?.type === 'admin' || user?.type === 'coordenador'
+                    const miss: string[] = []
+                    if (!t.assignee?.id) miss.push('Agente')
+                    if (!isMgr && !t.category?.id) miss.push('Categoria')
+                    if (!t.service?.id) miss.push('Serviço')
+                    if (!t.priority) miss.push('Urgência')
+                    if (!t.level) miss.push('Nível')
+                    if (miss.length) { toast.error(`Preencha a triagem antes de agendar: ${miss.join(', ')}.`); return }
+                    setEditMeeting(null); setReuniaoOpen(true)
+                  }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />}
                   {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
                   {t.status?.is_terminal ? (
                     <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
