@@ -684,12 +684,16 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
     }
+    // Recebe Fixo mostra SEMPRE todos os fixos (o salário é fixo, independe de cliente/projeto):
+    // itera as linhas CRUAS (não o `filtered`) → ignora filtros de Cliente/Projeto/Categoria/busca.
+    // Só o filtro de Consultor e o Incluir ERPSERV valem; o consultor aparece mesmo com receita 0.
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
-    for (const r of filtered) {
+    for (const { rows: mr } of monthly) for (const r of mr) {
       if (r.rate_type !== 'monthly') continue
       if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
+      if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
-      e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
+      if (incluirErpserv || !isErpservNome(r.cliente)) { e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas }
       if (r.custo_fixo_mes) e.salary = r.custo_fixo_mes
       byUser.set(r.user_id, e)
     }
@@ -708,7 +712,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       const custoFixo = r2(e.salary * nMeses)
       return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), horasInvest: r2(investByUser.get(e.user_id) ?? 0), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
     }).sort((a, b) => a.resultado - b.resultado)
-  }, [filtered, monthsToFetch, monthly, fConsultor])
+  }, [monthsToFetch, monthly, fConsultor, incluirErpserv])
   const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0 }), [fixosData])
   const [fixoSort, setFixoSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'resultado', dir: 'asc' })
   const sortFixo = (k: string) => setFixoSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
