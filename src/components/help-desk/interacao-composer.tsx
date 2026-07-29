@@ -291,7 +291,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         )}
         {!sendStatus ? (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
-            ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
+            ⚠️ Escolha o status para liberar a resposta.
           </span>
         ) : classBlock ? (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-center px-6 text-lg font-bold" style={{ color: '#b45309' }}>
@@ -373,7 +373,6 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           </>)}
           {statuses.length > 0 && (
             <span className="relative inline-flex items-center gap-1.5 ml-auto">
-              <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
               {/* Dropdown custom: crítico (resolvido/terminal) colorido + confirmação ao escolher.
                   Cores: terminal (Fechado/Cancelado) = danger; resolvido (Resolvido/GMUD) = warning. */}
               <button type="button" onClick={() => setStOpen(o => !o)} aria-label="Status ao enviar"
