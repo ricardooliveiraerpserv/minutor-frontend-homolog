@@ -14,6 +14,7 @@ import { Monitor, Mail, X } from 'lucide-react'
 export interface SignatureData {
   role?: string; mobile?: string; photo?: string; show_photo?: boolean
   custom_cargo?: boolean // true = usa o cargo próprio (role); false = usa o padrão do perfil
+  bizify_email?: string  // e-mail secundário — usado SÓ na assinatura Bizify (ERPSERV usa o principal)
 }
 
 // Máscara de celular: (00)00000.0000
@@ -86,6 +87,14 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
             checked={!!value.show_photo} onChange={e => set('show_photo', e.target.checked)} />
           <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Incluir minha <b>foto de perfil</b> na assinatura</span>
         </label>
+      )}
+
+      {/* E-mail Bizify (secundário) — só no cadastro; usado apenas na assinatura Bizify. */}
+      {brandProvided && (
+        <div>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail Bizify <span style={{ color: 'var(--text-light)' }}>(opcional — usado só na assinatura Bizify)</span></label>
+          <input className={`${fieldCls} w-full`} style={inputStyle} value={value.bizify_email ?? ''} onChange={e => set('bizify_email', e.target.value)} inputMode="email" placeholder="nome@bizify.com.br" />
+        </div>
       )}
 
       {!hidePhoto && (
