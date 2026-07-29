@@ -691,7 +691,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
     for (const { rows: mr } of monthly) for (const r of mr) {
       if (r.rate_type !== 'monthly') continue
-      if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
+      // coord/diretor/Bizify NÃO são excluídos: quem entra é decidido só na config Visibilidade (ocultos).
       if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
       if (incluirErpserv || !isErpservNome(r.cliente)) { e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas }
@@ -723,8 +723,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const sortFixo = (k: string) => setFixoSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
   const fixosSorted = useMemo(() => sortRows(fixosData, fixoSort), [fixosData, fixoSort])
 
-  // Seção "Horistas": consultores NÃO mensalistas (rate_type ≠ monthly). Custo = horas × R$/h;
-  // Resultado = Receita − Custo. Exclui coordenador/diretor/Bizify (como o Recebe Fixo).
+  // Seção "Horistas": consultores NÃO mensalistas (rate_type ≠ monthly). Custo = horas × R$/h.
+  // Como o Recebe Fixo: itera as linhas CRUAS (ignora filtros de Cliente/Projeto); coord/diretor/Bizify
+  // NÃO são excluídos — quem entra é decidido só na config Visibilidade. Só Consultor + Incluir ERPSERV valem.
   const horistasData = useMemo(() => {
     const investByUser = new Map<number, number>()
     for (const { rows: mr } of monthly) for (const r of mr) {
@@ -733,18 +734,18 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
     }
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custo: number; horas: number }>()
-    for (const r of filtered) {
+    for (const { rows: mr } of monthly) for (const r of mr) {
       if (r.rate_type === 'monthly') continue // horista = não mensalista
-      if (r.fixo_excluir) continue // coordenador/diretor/Bizify
+      if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custo: 0, horas: 0 }
-      e.receita += r.receita; e.custo += r.custo; e.horas += r.horas
+      if (incluirErpserv || !isErpservNome(r.cliente)) { e.receita += r.receita; e.custo += r.custo; e.horas += r.horas }
       byUser.set(r.user_id, e)
     }
     return [...byUser.values()].map(e => ({
       ...e, receita: r2(e.receita), custo: r2(e.custo), horas: r2(e.horas),
       horasInvest: r2(investByUser.get(e.user_id) ?? 0), rhCusto: e.horas > 0 ? r2(e.custo / e.horas) : 0, resultado: r2(e.receita - e.custo),
     })).sort((a, b) => a.resultado - b.resultado)
-  }, [filtered, monthly, fConsultor])
+  }, [monthly, fConsultor, incluirErpserv])
   const horistasTot = useMemo(() => horistasData.reduce((a, h) => ({ horas: a.horas + h.horas, horasInvest: a.horasInvest + h.horasInvest, receita: a.receita + h.receita, custo: a.custo + h.custo, resultado: a.resultado + h.resultado }), { horas: 0, horasInvest: 0, receita: 0, custo: 0, resultado: 0 }), [horistasData])
   const [horistaSort, setHoristaSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'resultado', dir: 'asc' })
   const sortHorista = (k: string) => setHoristaSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
