@@ -32,6 +32,7 @@ interface Row {
 interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number; nao_util?: boolean }
 // Consultor que recebe fixo SEM apontamento no período (custo do salário conta mesmo sem horas).
 interface FixoZerado { user_id: number; consultor: string; custo_fixo_mes: number }
+interface FixoExtra { user_id: number; extra_cost: number } // hora extra do banco de horas (BE), soma no Custo Fixo
 
 // Linha exibida na tabela. Na visão "consultor" é a própria Row; na visão
 // "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
@@ -331,7 +332,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (periodo) { setFromM(periodo.fromM); setFromY(periodo.fromY); setToM(periodo.toM); setToY(periodo.toY) }
   }, [periodo?.fromM, periodo?.fromY, periodo?.toM, periodo?.toY])
   const [rows, setRows]   = useState<Row[]>([])
-  const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[]; fixos: FixoZerado[] }[]>([]) // dados crus por mês (gráficos + fixos)
+  const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[]; fixos: FixoZerado[]; extras: FixoExtra[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState(() => lf(sf, 'busca', ''))
   const [incluirErpserv, setIncluirErpserv] = useState(() => lf(sf, 'incluirErpserv', true)) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
@@ -424,8 +425,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       return `?from=${dateFrom > mStart ? dateFrom : mStart}&to=${dateTo < mEnd ? dateTo : mEnd}`
     }
     Promise.all(monthsToFetch.map(ym =>
-      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[]; fixos_zerados?: FixoZerado[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
-        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [], fixos: r?.data?.fixos_zerados ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[], fixos: [] as FixoZerado[] }))
+      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[]; fixos_zerados?: FixoZerado[]; fixos_extras?: FixoExtra[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
+        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [], fixos: r?.data?.fixos_zerados ?? [], extras: r?.data?.fixos_extras ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[], fixos: [] as FixoZerado[], extras: [] as FixoExtra[] }))
     )).then(perMonth => {
       setMonthly(perMonth)
       const results = perMonth.map(x => x.rows)
@@ -707,13 +708,17 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       if (!e) byUser.set(z.user_id, { user_id: z.user_id, consultor: z.consultor, receita: 0, custoHoras: 0, horas: 0, salary: z.custo_fixo_mes })
       else if (!e.salary) e.salary = z.custo_fixo_mes
     }
+    // Hora extra do BANCO DE HORAS (do BE, por mês) → entra no Custo Fixo do consultor.
+    const extraByUser = new Map<number, number>()
+    for (const { extras } of monthly) for (const x of extras) extraByUser.set(x.user_id, (extraByUser.get(x.user_id) ?? 0) + x.extra_cost)
     const nMeses = monthsToFetch.length || 1
     return [...byUser.values()].map(e => {
-      const custoFixo = r2(e.salary * nMeses)
-      return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), horasInvest: r2(investByUser.get(e.user_id) ?? 0), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
+      const extra = r2(extraByUser.get(e.user_id) ?? 0)   // hora extra (banco de horas)
+      const custoFixo = r2(e.salary * nMeses + extra)      // salário cheio + hora extra
+      return { ...e, extra, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), horasInvest: r2(investByUser.get(e.user_id) ?? 0), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
     }).sort((a, b) => a.resultado - b.resultado)
   }, [monthsToFetch, monthly, fConsultor, incluirErpserv])
-  const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0 }), [fixosData])
+  const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest, horas: a.horas + f.horas, extra: a.extra + f.extra }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0, horas: 0, extra: 0 }), [fixosData])
   const [fixoSort, setFixoSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'resultado', dir: 'asc' })
   const sortFixo = (k: string) => setFixoSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
   const fixosSorted = useMemo(() => sortRows(fixosData, fixoSort), [fixosData, fixoSort])
@@ -819,12 +824,22 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     return n
   })
 
+  // Total da TABELA (por apontamento) — usado no rodapé do export; custo proporcional às horas.
   const tot = useMemo(() => {
     const receita = filtered.reduce((s, r) => s + r.receita, 0)
     const custo   = filtered.reduce((s, r) => s + r.custo, 0)
     const horas   = filtered.reduce((s, r) => s + r.horas, 0)
     return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null }
   }, [filtered])
+  // Totalizador dos CARDS do topo = custo REAL da folha dos consultores (fixos + horistas):
+  // fixo = salário cheio + hora extra do banco de horas; horista = horas × R$/h.
+  // = soma das seções Recebe Fixo + Horistas (custo de folha é total; ignora filtro de Cliente/Projeto).
+  const totReal = useMemo(() => {
+    const receita = r2(fixosTot.receita + horistasTot.receita)
+    const custo   = r2(fixosTot.custoFixo + horistasTot.custo)
+    const horas   = r2(fixosTot.horas + horistasTot.horas)
+    return { receita, custo, horas, margem: r2(receita - custo), pct: receita > 0 ? (receita - custo) / receita * 100 : null }
+  }, [fixosTot, horistasTot])
 
   // ── Aba Clientes: filtro/ordenação/total ──
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
@@ -1110,10 +1125,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
             ] },
           ] : [
-            { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
-            { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
-            { label: 'Margem', value: formatBRL(tot.margem), color: 'var(--primary)' },
-            { label: 'Margem %', value: tot.pct == null ? '—' : tot.pct.toFixed(1) + '%', color: pctColor(tot.pct) },
+            { label: 'Receita', value: formatBRL(totReal.receita), color: 'var(--text)' },
+            { label: 'Custo', value: formatBRL(totReal.custo), color: 'var(--text)' },
+            { label: 'Margem', value: formatBRL(totReal.margem), color: 'var(--primary)' },
+            { label: 'Margem %', value: totReal.pct == null ? '—' : totReal.pct.toFixed(1) + '%', color: pctColor(totReal.pct) },
           ]).map(c => (
             <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{c.label}</p>
