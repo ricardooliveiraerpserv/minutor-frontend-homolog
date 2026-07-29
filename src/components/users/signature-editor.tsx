@@ -14,7 +14,8 @@ import { Monitor, Mail, X } from 'lucide-react'
 export interface SignatureData {
   role?: string; mobile?: string; photo?: string; show_photo?: boolean
   custom_cargo?: boolean // true = usa o cargo próprio (role); false = usa o padrão do perfil
-  bizify_email?: string  // e-mail secundário — usado SÓ na assinatura Bizify (ERPSERV usa o principal)
+  alt_email?: string     // e-mail secundário — usado na assinatura da OUTRA empresa (não a base)
+  bizify_email?: string  // legado (compat) — lido como alt_email
 }
 
 // Máscara de celular: (00)00000.0000
@@ -54,7 +55,7 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
     timer.current = setTimeout(() => {
       const id = ++reqId.current
       // Lê o value ATUAL no momento do envio (não o capturado pelo efeito) → nunca manda sem a foto.
-      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}), ...(brandProvided ? { is_bizify: brand === 'bizify' } : {}) })
+      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}), ...(brandProvided ? { is_bizify: brand === 'bizify', home_is_bizify: !!isBizify } : {}) })
         .then(r => { if (id === reqId.current) setVariants({ system: r.data?.system ?? '', email: r.data?.email ?? '' }) })
         .catch(() => {})
     }, 350)
@@ -89,11 +90,12 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
         </label>
       )}
 
-      {/* E-mail Bizify (secundário) — só no cadastro; usado apenas na assinatura Bizify. */}
+      {/* E-mail secundário — só no cadastro; usado na assinatura da OUTRA empresa (não a base).
+          Empresa base ERPSERV → este é o e-mail Bizify; base Bizify → este é o e-mail ERPSERV. */}
       {brandProvided && (
         <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail Bizify <span style={{ color: 'var(--text-light)' }}>(opcional — usado só na assinatura Bizify)</span></label>
-          <input className={`${fieldCls} w-full`} style={inputStyle} value={value.bizify_email ?? ''} onChange={e => set('bizify_email', e.target.value)} inputMode="email" placeholder="nome@bizify.com.br" />
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(opcional — usado só na assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
+          <input className={`${fieldCls} w-full`} style={inputStyle} value={value.alt_email ?? value.bizify_email ?? ''} onChange={e => set('alt_email', e.target.value)} inputMode="email" placeholder={isBizify ? 'nome@erpserv.com.br' : 'nome@bizify.com.br'} />
         </div>
       )}
 
