@@ -131,7 +131,7 @@ function resolveProfileFromType(type: string | null | undefined): ProfileType | 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-3xl shadow-xl">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-5xl shadow-xl">
         <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)]">
           <X size={16} />
         </button>
