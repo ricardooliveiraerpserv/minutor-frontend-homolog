@@ -164,6 +164,9 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   const addBenefit = () => setBenefits(b => [...b, { id: benefitSeq.current++, html: '' }])
   const removeBenefit = (id: number) => { benefitRefs.current.delete(id); setBenefits(b => b.filter(x => x.id !== id)) }
   const [confirmMass, setConfirmMass] = useState(false)
+  const [listModal, setListModal] = useState(false)
+  const [listName, setListName] = useState('')
+  const [savingList, setSavingList] = useState(false)
   const [sending, setSending] = useState(false)
 
   const loadTemplates = useCallback(() => api.get<{ data: CommTemplate[] }>('/communication-templates').then(r => setTemplates(r.data ?? [])).catch(() => {}), [])
@@ -290,11 +293,17 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
       onSent?.()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao enviar') } finally { setSending(false) }
   }
-  const saveList = async () => {
-    const nome = window.prompt('Nome da lista de distribuição:')
-    if (!nome) return
-    try { await api.post('/distribution-lists', { nome, customer_ids: pickedCustomers.map(c => c.id), user_ids: Array.from(selectedUsers), external_emails: externals }); toast.success('Lista salva'); api.get<{ data: DistList[] }>('/distribution-lists').then(r => setLists(r.data ?? [])) }
-    catch { toast.error('Erro ao salvar lista') }
+  const saveList = () => { setListName(''); setListModal(true) }
+  const confirmSaveList = async () => {
+    const nome = listName.trim()
+    if (!nome || savingList) return
+    setSavingList(true)
+    try {
+      await api.post('/distribution-lists', { nome, customer_ids: pickedCustomers.map(c => c.id), user_ids: Array.from(selectedUsers), external_emails: externals })
+      toast.success('Lista salva'); setListModal(false)
+      api.get<{ data: DistList[] }>('/distribution-lists').then(r => setLists(r.data ?? []))
+    } catch { toast.error('Erro ao salvar lista') }
+    finally { setSavingList(false) }
   }
   const loadList = (l: DistList) => {
     setPickedCustomers((l.customer_ids ?? []).map(id => ({ id, name: customers.find(c => c.id === id)?.name ?? `#${id}` })))
@@ -454,6 +463,32 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
             <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
               <button onClick={() => setConfirmMass(false)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
               <button onClick={() => send(true)} disabled={sending} className="text-sm px-5 py-2 rounded-lg font-medium" style={{ background: 'var(--danger-border)', color: '#fff' }}>Enviar para todos</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {listModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }} onClick={() => !savingList && setListModal(false)}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2"><Bookmark size={18} style={{ color: 'var(--primary)' }} /><span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Salvar lista de distribuição</span></div>
+              <p className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>Reutilize esses destinatários depois na aba <b>Listas de distribuição</b>.</p>
+            </div>
+            <div className="p-5">
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Nome da lista <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input
+                autoFocus
+                className={fieldCls}
+                style={inputStyle}
+                value={listName}
+                onChange={e => setListName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSaveList() } else if (e.key === 'Escape') { setListModal(false) } }}
+                placeholder="Ex.: Clientes ativos ERPSERV"
+              />
+            </div>
+            <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setListModal(false)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button onClick={confirmSaveList} disabled={!listName.trim() || savingList} className="text-sm px-5 py-2 rounded-lg font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: (!listName.trim() || savingList) ? 0.5 : 1 }}>{savingList ? 'Salvando…' : 'Salvar lista'}</button>
             </div>
           </div>
         </div>
