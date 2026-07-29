@@ -15,6 +15,7 @@ export interface SignatureData {
   role?: string; mobile?: string; photo?: string; show_photo?: boolean
   custom_cargo?: boolean // true = usa o cargo próprio (role); false = usa o padrão do perfil
   alt_email?: string     // e-mail secundário — usado na assinatura da OUTRA empresa (não a base)
+  alt_role?: string      // cargo secundário — usado na assinatura da OUTRA empresa (cargo por empresa)
   bizify_email?: string  // legado (compat) — lido como alt_email
 }
 
@@ -90,12 +91,18 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
         </label>
       )}
 
-      {/* E-mail secundário — só no cadastro; usado na assinatura da OUTRA empresa (não a base).
-          Empresa base ERPSERV → este é o e-mail Bizify; base Bizify → este é o e-mail ERPSERV. */}
+      {/* Cargo + E-mail da OUTRA empresa — exclusivos por empresa. Base ERPSERV → campos Bizify;
+          base Bizify → campos ERPSERV. Só no cadastro. */}
       {brandProvided && (
-        <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(opcional — usado só na assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
-          <input className={`${fieldCls} w-full`} style={inputStyle} value={value.alt_email ?? value.bizify_email ?? ''} onChange={e => set('alt_email', e.target.value)} inputMode="email" placeholder={isBizify ? 'nome@erpserv.com.br' : 'nome@bizify.com.br'} />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Cargo {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
+            <input className={fieldCls} style={inputStyle} value={value.alt_role ?? ''} onChange={e => set('alt_role', e.target.value)} placeholder="Cargo na outra empresa" />
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
+            <input className={fieldCls} style={inputStyle} value={value.alt_email ?? value.bizify_email ?? ''} onChange={e => set('alt_email', e.target.value)} inputMode="email" placeholder={isBizify ? 'nome@erpserv.com.br' : 'nome@bizify.com.br'} />
+          </div>
         </div>
       )}
 
