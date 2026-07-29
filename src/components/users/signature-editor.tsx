@@ -24,11 +24,12 @@ function maskCelular(v: string): string {
   return `(${d.slice(0, 2)})${d.slice(2, 7)}.${d.slice(7)}`
 }
 
-export function SignatureEditor({ value, onChange, name = '', email = '', lockRole = false, hidePhoto = false, userId }: {
+export function SignatureEditor({ value, onChange, name = '', email = '', lockRole = false, hidePhoto = false, userId, isBizify }: {
   value: SignatureData; onChange: (v: SignatureData) => void; name?: string; email?: string
   lockRole?: boolean   // cargo governado pelo admin (vínculo Cargo × Perfil) — só leitura
   hidePhoto?: boolean  // foto vem da foto de perfil do sistema — não edita aqui
   userId?: number      // usuário-alvo do preview (modal admin). Ausente = usa o logado (tela de perfil).
+  isBizify?: boolean   // empresa base = Bizify (selecionada no form) → preview usa a marca Bizify
 }) {
   const [variants, setVariants] = useState<{ system: string; email: string }>({ system: '', email: '' })
   const [view, setView] = useState<'system' | 'email'>('system')
@@ -48,12 +49,12 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
     timer.current = setTimeout(() => {
       const id = ++reqId.current
       // Lê o value ATUAL no momento do envio (não o capturado pelo efeito) → nunca manda sem a foto.
-      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}) })
+      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}), ...(typeof isBizify === 'boolean' ? { is_bizify: isBizify } : {}) })
         .then(r => { if (id === reqId.current) setVariants({ system: r.data?.system ?? '', email: r.data?.email ?? '' }) })
         .catch(() => {})
     }, 350)
     return () => { if (timer.current) clearTimeout(timer.current) }
-  }, [value, name, email, userId])
+  }, [value, name, email, userId, isBizify])
 
   return (
     <div className="space-y-3">
