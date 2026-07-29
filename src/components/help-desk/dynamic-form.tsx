@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Clock } from 'lucide-react'
+import { Clock, Paperclip, FileText, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -140,6 +140,9 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   }
   const [vals, setVals] = useState<Record<string, string | boolean>>(initMap)
   const [saving, setSaving] = useState(false)
+  // Anexo ÚNICO do formulário inteiro (antes cada campo richtext tinha seu próprio "Anexar").
+  const [formFiles, setFormFiles] = useState<File[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
   const richRefs = useRef<Record<string, RichEditorHandle | null>>({})
   const [lens, setLens] = useState<Record<string, number>>(() => {
     const o: Record<string, number> = {}
@@ -182,8 +185,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       }
       if (count < sec.min_chars) errors.push(`Selecione ao menos ${sec.min_chars} ${sec.min_chars > 1 ? 'itens' : 'item'} em “${cleanLabel(sec.label)}”`)
     }
-    // Anexos coletados dos editores (botão "Anexar"). Hoje é a única via de arquivo do formulário.
-    const files = form.fields.filter(f => f.ftype === 'richtext').flatMap(f => richRefs.current[f.key]?.getFiles() ?? [])
+    // Anexo único do formulário (um só "Anexar" no rodapé, não mais por campo).
+    const files = formFiles
     // Checkbox com rule.require_attachment marcado → exige anexar arquivo COMPRIMIDO (ex.: Código Fonte).
     for (const f of form.fields) {
       if (f.ftype !== 'checkbox' || !f.rule?.require_attachment || !values[f.key]) continue
@@ -261,7 +264,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
                   <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>travado por “{fieldLabel(f.rule?.when)}”</span>
                 </div>
               ) : (<>
-              {f.ftype === 'richtext' && <RichEditor ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} onChange={() => recount(f.key)} />}
+              {f.ftype === 'richtext' && <RichEditor ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} showAttach={false} onChange={() => recount(f.key)} />}
               {f.ftype === 'text' && <input className={`${fieldCls} w-full`} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
@@ -286,6 +289,23 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
             </div>
           )
         })}
+
+        {/* Anexo ÚNICO do formulário — vale para todos os campos; vai junto do comentário → aparece no e-mail. */}
+        <div className="rounded-lg px-2.5 py-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
+              <Paperclip size={13} /> Anexar
+            </button>
+            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => { if (e.target.files) setFormFiles(f => [...f, ...Array.from(e.target.files!)]); if (fileRef.current) fileRef.current.value = '' }} />
+            {formFiles.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Anexe arquivos ao chamado (opcional)</span>}
+            {formFiles.map((f, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+                <FileText size={12} /> <span className="max-w-[160px] truncate">{f.name}</span>
+                <button type="button" onClick={() => setFormFiles(fs => fs.filter((_, j) => j !== i))}><X size={11} /></button>
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* Tempo da interação — o formulário É uma interação; movimenta horas quando o contrato tem a
             integração ligada. 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta aqui. */}
