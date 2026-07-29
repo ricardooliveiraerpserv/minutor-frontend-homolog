@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
+import { SearchSelect } from '@/components/ui/search-select'
 import {
   EmailHero, EmailSection, EmailField, EmailBenefits, EmailCTA, EmailFooter,
   inputStyle, fieldCls, lbl,
@@ -715,10 +716,14 @@ function Groups() {
         {detail && (
           <>
             <div className="ds-card p-3 flex items-center gap-2 flex-wrap">
-              <select className={fieldCls} style={{ ...inputStyle, maxWidth: 340 }} value={addCust} onChange={e => setAddCust(e.target.value)}>
-                <option value="">+ Adicionar bloco de cliente…</option>
-                {customers.filter(c => !detail.blocks.some(b => b.customer_id === c.id)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <div style={{ minWidth: 260, maxWidth: 360, flex: 1 }}>
+                <SearchSelect
+                  placeholder="+ Adicionar bloco de cliente…"
+                  value={addCust}
+                  onChange={v => setAddCust(v)}
+                  options={customers.filter(c => !detail.blocks.some(b => b.customer_id === c.id)).map(c => ({ id: c.id, name: c.name }))}
+                />
+              </div>
               <button onClick={addBlock} disabled={!addCust} className="text-sm px-3 py-1.5 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', opacity: addCust ? 1 : .5 }}>Adicionar bloco</button>
             </div>
             {detail.blocks.length === 0 && <div className="ds-card p-4 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum bloco. Adicione um cliente acima.</div>}
