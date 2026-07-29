@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Minutor',
     short_name: 'Minutor',
     description: 'Lançamento rápido de horas e despesas',
-    start_url: '/mobile/apontamento',
+    start_url: '/inicio',
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#0a0a0b',
