@@ -69,6 +69,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // O service worker NUNCA pode ser cacheado: o Vercel servia /sw.js com
+        // max-age=14400 (4h), então o device ficava com o SW ANTIGO e nunca pegava
+        // o kill-switch (PWA "continuava forçando"). Força revalidação sempre.
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: securityHeaders,
       },
