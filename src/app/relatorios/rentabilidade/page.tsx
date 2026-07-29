@@ -841,6 +841,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const horas   = r2(fixosTot.horas + horistasTot.horas)
     return { receita, custo, horas, margem: r2(receita - custo), pct: receita > 0 ? (receita - custo) / receita * 100 : null }
   }, [fixosTot, horistasTot])
+  // Detalhamento do CUSTO (clique no card): pessoa × valor. Fixos (salário + hora extra) + horistas (horas × R$/h).
+  const [showCustoDetail, setShowCustoDetail] = useState(false)
+  const custoBreakdown = useMemo(() => [
+    ...fixosData.map(f => ({ user_id: f.user_id, name: f.consultor, tipo: f.extra > 0 ? 'Fixo + extra' : 'Fixo', value: f.custoFixo })),
+    ...horistasData.map(h => ({ user_id: h.user_id, name: h.consultor, tipo: 'Horista', value: h.custo })),
+  ].sort((a, b) => b.value - a.value), [fixosData, horistasData])
 
   // ── Aba Clientes: filtro/ordenação/total ──
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
@@ -1127,12 +1133,13 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             ] },
           ] : [
             { label: 'Receita', value: formatBRL(totReal.receita), color: 'var(--text)' },
-            { label: 'Custo', value: formatBRL(totReal.custo), color: 'var(--text)' },
+            { label: 'Custo', value: formatBRL(totReal.custo), color: 'var(--text)', onClick: () => setShowCustoDetail(true) },
             { label: 'Margem', value: formatBRL(totReal.margem), color: 'var(--primary)' },
             { label: 'Margem %', value: totReal.pct == null ? '—' : totReal.pct.toFixed(1) + '%', color: pctColor(totReal.pct) },
           ]).map(c => (
-            <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{c.label}</p>
+            <div key={c.label} onClick={'onClick' in c ? (c as { onClick?: () => void }).onClick : undefined}
+              className="rounded-xl p-3 transition-colors" style={{ background: 'var(--surface)', border: '1px solid var(--border)', cursor: ('onClick' in c && (c as { onClick?: () => void }).onClick) ? 'pointer' : undefined }}>
+              <p className="text-[10px] uppercase tracking-wider inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }}>{c.label}{('onClick' in c && (c as { onClick?: () => void }).onClick) ? <ChevronRight size={11} /> : null}</p>
               {'lines' in c && c.lines ? (
                 <div className="mt-1 space-y-0.5">
                   {c.lines.map(l => (
@@ -1779,6 +1786,30 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         />
       )}
 
+      {showCustoDetail && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }} onClick={() => setShowCustoDetail(false)}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
+              <Wallet size={18} style={{ color: 'var(--primary)' }} />
+              <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Custo por pessoa</span>
+              <button onClick={() => setShowCustoDetail(false)} className="ml-auto" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5">
+              {custoBreakdown.map(it => (
+                <div key={`${it.user_id}:${it.tipo}`} className="flex items-center justify-between gap-3 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{it.name}<span className="text-[10px] ml-1.5" style={{ color: 'var(--text-light)' }}>{it.tipo}</span></span>
+                  <span className="text-sm tabular-nums font-semibold shrink-0" style={{ color: 'var(--text)' }}>{formatBRL(it.value)}</span>
+                </div>
+              ))}
+              {custoBreakdown.length === 0 && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Sem custo no período.</p>}
+            </div>
+            <div className="px-5 py-3 flex items-center justify-between" style={{ borderTop: '2px solid var(--border)' }}>
+              <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Total · {custoBreakdown.length} pessoa(s)</span>
+              <span className="text-base tabular-nums font-bold" style={{ color: 'var(--primary)' }}>{formatBRL(totReal.custo)}</span>
+            </div>
+          </div>
+        </div>
+      )}
       {showHiddenCfg && <HiddenUsersModal onClose={() => setShowHiddenCfg(false)} onSaved={() => setReloadTick(t => t + 1)} />}
     </>
   )
