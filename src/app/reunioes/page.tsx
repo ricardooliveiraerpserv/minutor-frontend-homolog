@@ -43,7 +43,7 @@ export default function ReunioesPage() {
 
   return (
     <AppLayout title="Central de Reunião">
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4 max-w-5xl">
         <div className="flex items-center gap-2.5">
           <ClipboardList size={22} style={{ color: 'var(--primary)' }} />
           <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Central de Reunião</h1>
@@ -143,22 +143,17 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
   const [location, setLocation] = useState(detail.location ?? '')
   const [description, setDescription] = useState(detail.description ?? '')
   const [notes, setNotes] = useState(detail.notes ?? '')
-  const [savingMeta, setSavingMeta] = useState(false)
-  const [savingNotes, setSavingNotes] = useState(false)
+  const [saving, setSaving] = useState(false)
   // nova tarefa
   const [tTitle, setTTitle] = useState('')
   const [tWho, setTWho] = useState<string>('')
   const [tDue, setTDue] = useState('')
 
-  const saveMeta = async () => {
-    setSavingMeta(true)
-    try { const r = await api.put<{ data: MeetingDetail }>(`/meetings/${detail.id}`, { title: title.trim(), meeting_date: date || null, location: location || null, description: description || null }); setDetail(r.data); toast.success('Reunião atualizada') }
-    catch { toast.error('Erro ao salvar') } finally { setSavingMeta(false) }
-  }
-  const saveNotes = async () => {
-    setSavingNotes(true)
-    try { const r = await api.put<{ data: MeetingDetail }>(`/meetings/${detail.id}`, { notes }); setDetail(r.data); toast.success('Anotações salvas') }
-    catch { toast.error('Erro ao salvar anotações') } finally { setSavingNotes(false) }
+  // Um único save: grava dados da reunião + anotações de uma vez.
+  const saveAll = async () => {
+    setSaving(true)
+    try { const r = await api.put<{ data: MeetingDetail }>(`/meetings/${detail.id}`, { title: title.trim(), meeting_date: date || null, location: location || null, description: description || null, notes }); setDetail(r.data); toast.success('Reunião salva') }
+    catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
   const syncParticipants = async (next: MSOpt[]) => {
     try { const r = await api.put<{ data: MeetingDetail }>(`/meetings/${detail.id}/participants`, { participant_ids: next.map(p => p.id) }); setDetail(r.data) }
@@ -203,7 +198,6 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
         </div>
         <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Pauta / descrição</label>
           <textarea className={inputCls} style={{ ...inputStyle, minHeight: 70 }} value={description} onChange={e => setDescription(e.target.value)} /></div>
-        <button onClick={saveMeta} disabled={savingMeta} className="text-sm px-4 py-1.5 rounded-lg font-medium self-start" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{savingMeta ? 'Salvando…' : 'Salvar dados'}</button>
       </div>
 
       {/* Envolvidos */}
@@ -215,9 +209,11 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
       {/* Anotações */}
       <div className="ds-card p-4 space-y-2">
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Anotações da reunião</span>
-        <textarea className={inputCls} style={{ ...inputStyle, minHeight: 120 }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="O que foi discutido, decisões, encaminhamentos…" />
-        <button onClick={saveNotes} disabled={savingNotes} className="text-sm px-4 py-1.5 rounded-lg font-medium self-start" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{savingNotes ? 'Salvando…' : 'Salvar anotações'}</button>
+        <textarea className={inputCls} style={{ ...inputStyle, minHeight: 280 }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="O que foi discutido, decisões, encaminhamentos…" />
       </div>
+
+      {/* Único botão de salvar — grava dados + anotações juntos */}
+      <button onClick={saveAll} disabled={saving} className="text-sm px-5 py-2.5 rounded-lg font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: saving ? .6 : 1 }}><Check size={16} /> {saving ? 'Salvando…' : 'Salvar reunião'}</button>
 
       {/* Tarefas */}
       <div className="ds-card p-4 space-y-2">

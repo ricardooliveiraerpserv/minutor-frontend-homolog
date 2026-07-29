@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, X, Check, ChevronDown } from 'lucide-react'
 
 export interface MSOpt { id: number; name: string; sub?: string }
@@ -8,6 +9,9 @@ export interface MSOpt { id: number; name: string; sub?: string }
 /**
  * Multi-seleção com busca por texto: lista rolável + checkbox + chips dos selecionados.
  * `search(q)` retorna as opções (q='' = lista inicial). Use useCallback no pai p/ estabilidade.
+ *
+ * O painel aberto é renderizado em PORTAL (document.body) com posição `fixed`, para NÃO ser
+ * cortado por `overflow-hidden` de modais/cards ancestrais (ex.: modal Nova reunião).
  */
 export function MultiSelect({ placeholder, selected, onChange, search, danger }: {
   placeholder: string
@@ -21,6 +25,32 @@ export function MultiSelect({ placeholder, selected, onChange, search, danger }:
   const [opts, setOpts] = useState<MSOpt[]>([])
   const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  // Posição fixed do painel (portal). up = abre pra cima quando falta espaço embaixo.
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxH: number } | null>(null)
+
+  const recalc = () => {
+    const b = btnRef.current
+    if (!b) return
+    const r = b.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - r.bottom
+    const spaceAbove = r.top
+    const up = spaceBelow < 260 && spaceAbove > spaceBelow
+    const maxH = Math.max(140, Math.min(320, (up ? spaceAbove : spaceBelow) - 16))
+    setPos(up
+      ? { left: r.left, width: r.width, bottom: window.innerHeight - r.top + 4, maxH }
+      : { left: r.left, width: r.width, top: r.bottom + 4, maxH })
+  }
+
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return }
+    recalc()
+    const onScroll = () => recalc()
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onScroll)
+    return () => { window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onScroll) }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -33,7 +63,12 @@ export function MultiSelect({ placeholder, selected, onChange, search, danger }:
 
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    // Fecha ao clicar fora — considera TANTO o gatilho (ref) quanto o painel portado (popRef).
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (ref.current?.contains(t) || popRef.current?.contains(t)) return
+      setOpen(false)
+    }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [open])
@@ -55,7 +90,7 @@ export function MultiSelect({ placeholder, selected, onChange, search, danger }:
         </div>
       )}
 
-      <button type="button" onClick={() => setOpen(o => !o)}
+      <button type="button" ref={btnRef} onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-left"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
         <Search size={13} style={{ color: 'var(--text-light)' }} />
@@ -65,14 +100,15 @@ export function MultiSelect({ placeholder, selected, onChange, search, danger }:
         <ChevronDown size={14} style={{ color: 'var(--text-light)', transform: open ? 'rotate(180deg)' : undefined }} />
       </button>
 
-      {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {open && pos && typeof document !== 'undefined' && createPortal(
+        <div ref={popRef} className="rounded-lg overflow-hidden shadow-lg"
+          style={{ position: 'fixed', left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, zIndex: 90, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-1.5 px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
             <Search size={13} style={{ color: 'var(--text-light)' }} />
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
               className="text-sm py-0.5 outline-none w-full bg-transparent" style={{ color: 'var(--text)' }} />
           </div>
-          <div className="max-h-60 overflow-y-auto py-1">
+          <div className="overflow-y-auto py-1" style={{ maxHeight: pos.maxH }}>
             {loading && <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Buscando…</div>}
             {!loading && opts.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado.</div>}
             {!loading && opts.map(o => {
@@ -95,7 +131,8 @@ export function MultiSelect({ placeholder, selected, onChange, search, danger }:
               <button type="button" onClick={() => onChange([])} style={{ color: accent }}>limpar</button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
