@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
+import { SearchSelect } from '@/components/ui/search-select'
 import {
   EmailHero, EmailSection, EmailField, EmailBenefits, EmailCTA, EmailFooter,
   inputStyle, fieldCls, lbl,
@@ -37,7 +38,7 @@ interface HistItem { id: number; tipo: string; title: string; customers: string[
 export default function CentralComunicacaoPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'novo' | 'historico' | 'listas' | 'modelos'>('novo')
+  const [tab, setTab] = useState<'novo' | 'historico' | 'listas' | 'grupos' | 'modelos'>('novo')
   useEffect(() => { if (user && !MANAGERS.includes(user.type ?? '')) router.replace('/inicio') }, [user, router])
 
   return (
@@ -50,7 +51,7 @@ export default function CentralComunicacaoPage() {
         </div>
 
         <div className="flex items-center gap-1">
-          {([['novo', 'Novo envio'], ['historico', 'Histórico'], ['listas', 'Listas de distribuição'], ['modelos', 'Modelos']] as const).map(([k, l]) => (
+          {([['novo', 'Novo envio'], ['historico', 'Histórico'], ['listas', 'Listas de distribuição'], ['grupos', 'Grupos'], ['modelos', 'Modelos']] as const).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className="text-sm px-3 py-1.5 rounded-lg" style={{ background: tab === k ? 'var(--primary-soft)' : 'transparent', color: tab === k ? 'var(--primary)' : 'var(--text-muted)', fontWeight: tab === k ? 600 : 400 }}>{l}</button>
           ))}
         </div>
@@ -58,6 +59,7 @@ export default function CentralComunicacaoPage() {
         {tab === 'novo' && <Compose />}
         {tab === 'historico' && <History />}
         {tab === 'listas' && <Lists />}
+        {tab === 'grupos' && <Groups />}
         {tab === 'modelos' && <Templates />}
       </div>
     </AppLayout>
@@ -156,6 +158,7 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   const [extInput, setExtInput] = useState('')
   const [expiresAt, setExpiresAt] = useState(defaultExpiry)
   const [lists, setLists] = useState<DistList[]>([])
+  const [groupsC, setGroupsC] = useState<GroupRow[]>([])
   const [templates, setTemplates] = useState<CommTemplate[]>([])
   const [preview, setPreview] = useState<{ html: string; recipients: number } | null>(null)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
@@ -164,12 +167,16 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   const addBenefit = () => setBenefits(b => [...b, { id: benefitSeq.current++, html: '' }])
   const removeBenefit = (id: number) => { benefitRefs.current.delete(id); setBenefits(b => b.filter(x => x.id !== id)) }
   const [confirmMass, setConfirmMass] = useState(false)
+  const [listModal, setListModal] = useState(false)
+  const [listName, setListName] = useState('')
+  const [savingList, setSavingList] = useState(false)
   const [sending, setSending] = useState(false)
 
   const loadTemplates = useCallback(() => api.get<{ data: CommTemplate[] }>('/communication-templates').then(r => setTemplates(r.data ?? [])).catch(() => {}), [])
   useEffect(() => {
     api.get<{ data: { customers: Customer[] } }>('/communications/meta').then(r => setCustomers(r.data?.customers ?? [])).catch(() => {})
     api.get<{ data: DistList[] }>('/distribution-lists').then(r => setLists(r.data ?? [])).catch(() => {})
+    api.get<{ data: GroupRow[] }>('/communication-groups').then(r => setGroupsC(r.data ?? [])).catch(() => {})
     loadTemplates()
   }, [loadTemplates])
 
@@ -290,11 +297,17 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
       onSent?.()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao enviar') } finally { setSending(false) }
   }
-  const saveList = async () => {
-    const nome = window.prompt('Nome da lista de distribuição:')
-    if (!nome) return
-    try { await api.post('/distribution-lists', { nome, customer_ids: pickedCustomers.map(c => c.id), user_ids: Array.from(selectedUsers), external_emails: externals }); toast.success('Lista salva'); api.get<{ data: DistList[] }>('/distribution-lists').then(r => setLists(r.data ?? [])) }
-    catch { toast.error('Erro ao salvar lista') }
+  const saveList = () => { setListName(''); setListModal(true) }
+  const confirmSaveList = async () => {
+    const nome = listName.trim()
+    if (!nome || savingList) return
+    setSavingList(true)
+    try {
+      await api.post('/distribution-lists', { nome, customer_ids: pickedCustomers.map(c => c.id), user_ids: Array.from(selectedUsers), external_emails: externals })
+      toast.success('Lista salva'); setListModal(false)
+      api.get<{ data: DistList[] }>('/distribution-lists').then(r => setLists(r.data ?? []))
+    } catch { toast.error('Erro ao salvar lista') }
+    finally { setSavingList(false) }
   }
   const loadList = (l: DistList) => {
     setPickedCustomers((l.customer_ids ?? []).map(id => ({ id, name: customers.find(c => c.id === id)?.name ?? `#${id}` })))
@@ -302,6 +315,16 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
     // os usuários serão carregados pelo efeito dos clientes; mantemos os explicitos
     setTimeout(() => setSelectedUsers(new Set(l.user_ids ?? [])), 400)
     toast.success(`Lista "${l.nome}" carregada`)
+  }
+  const loadGroup = async (id: number) => {
+    try {
+      const r = await api.get<{ data: { customer_ids: number[]; user_ids: number[]; external_emails: string[] } }>(`/communication-groups/${id}/resolve`)
+      const d = r.data
+      setPickedCustomers((d.customer_ids ?? []).map(cid => ({ id: cid, name: customers.find(c => c.id === cid)?.name ?? `#${cid}` })))
+      setExternals(d.external_emails ?? [])
+      setTimeout(() => setSelectedUsers(new Set(d.user_ids ?? [])), 400)
+      toast.success(`Grupo "${groupsC.find(g => g.id === id)?.nome ?? ''}" carregado`)
+    } catch { toast.error('Erro ao carregar grupo') }
   }
 
   return (
@@ -370,11 +393,21 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
 
         {!allCustomers && (
           <>
-            {lists.length > 0 && (
-              <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar lista de distribuição salva</label>
-                <select className={fieldCls} style={inputStyle} value="" onChange={e => { const l = lists.find(x => x.id === Number(e.target.value)); if (l) loadList(l) }}>
-                  <option value="">— selecionar —</option>{lists.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                </select></div>
+            {(lists.length > 0 || groupsC.length > 0) && (
+              <div className="grid grid-cols-2 gap-3">
+                {lists.length > 0 && (
+                  <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar lista de distribuição</label>
+                    <select className={fieldCls} style={inputStyle} value="" onChange={e => { const l = lists.find(x => x.id === Number(e.target.value)); if (l) loadList(l) }}>
+                      <option value="">— selecionar —</option>{lists.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                    </select></div>
+                )}
+                {groupsC.length > 0 && (
+                  <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar grupo (blocos)</label>
+                    <select className={fieldCls} style={inputStyle} value="" onChange={e => { const id = Number(e.target.value); if (id) loadGroup(id) }}>
+                      <option value="">— selecionar —</option>{groupsC.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                    </select></div>
+                )}
+              </div>
             )}
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Clientes</label>
               <MultiSelect placeholder="Buscar clientes…" selected={pickedCustomers} onChange={setPickedCustomers} search={searchCustomers} /></div>
@@ -457,6 +490,32 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
           </div>
         </div>
       )}
+      {listModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }} onClick={() => !savingList && setListModal(false)}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2"><Bookmark size={18} style={{ color: 'var(--primary)' }} /><span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Salvar lista de distribuição</span></div>
+              <p className="text-[12px] mt-1" style={{ color: 'var(--text-muted)' }}>Reutilize esses destinatários depois na aba <b>Listas de distribuição</b>.</p>
+            </div>
+            <div className="p-5">
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Nome da lista <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input
+                autoFocus
+                className={fieldCls}
+                style={inputStyle}
+                value={listName}
+                onChange={e => setListName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmSaveList() } else if (e.key === 'Escape') { setListModal(false) } }}
+                placeholder="Ex.: Clientes ativos ERPSERV"
+              />
+            </div>
+            <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setListModal(false)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button onClick={confirmSaveList} disabled={!listName.trim() || savingList} className="text-sm px-5 py-2 rounded-lg font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: (!listName.trim() || savingList) ? 0.5 : 1 }}>{savingList ? 'Salvando…' : 'Salvar lista'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -501,6 +560,199 @@ function Templates() {
           <button onClick={() => del(t)}><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
         </div>
       ))}
+    </div>
+  )
+}
+
+interface GroupRow { id: number; nome: string; blocks_count: number; recipients_count: number }
+interface GRecipient { id?: number; user_id: number | null; email: string; name: string | null; kind: 'cadastrado' | 'manual' }
+interface GBlock { id: number; customer_id: number | null; customer_name: string | null; label: string | null; recipients: GRecipient[] }
+interface GroupDetail { id: number; nome: string; blocks: GBlock[] }
+
+function GroupBlock({ groupId, block, onChange, onDeleted, onCopy }: {
+  groupId: number; block: GBlock; onChange: (b: GBlock) => void; onDeleted: () => void; onCopy: () => void
+}) {
+  const [users, setUsers] = useState<CustUser[]>([])
+  const [manual, setManual] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!block.customer_id) { setUsers([]); return }
+    api.get<{ data: CustUser[] }>(`/communications/customer-users?customer_ids[]=${block.customer_id}`).then(r => setUsers(r.data ?? [])).catch(() => setUsers([]))
+  }, [block.customer_id])
+
+  const emails = new Set(block.recipients.map(r => r.email.toLowerCase()))
+  const manuals = block.recipients.filter(r => r.kind === 'manual')
+
+  const save = async (recipients: GRecipient[]) => {
+    setSaving(true)
+    try { const r = await api.put<{ data: GBlock }>(`/communication-groups/${groupId}/blocks/${block.id}`, { recipients }); onChange(r.data) }
+    catch { toast.error('Erro ao salvar bloco') }
+    finally { setSaving(false) }
+  }
+
+  const toggleUser = (u: CustUser) => {
+    const em = u.email.toLowerCase()
+    const next: GRecipient[] = emails.has(em)
+      ? block.recipients.filter(r => r.email.toLowerCase() !== em)
+      : [...block.recipients, { user_id: u.id, email: u.email, name: u.name, kind: 'cadastrado' }]
+    save(next)
+  }
+  const addManual = () => {
+    const e = manual.trim().toLowerCase()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast.error('E-mail inválido'); return }
+    if (emails.has(e)) { setManual(''); return }
+    save([...block.recipients, { user_id: null, email: e, name: null, kind: 'manual' }]); setManual('')
+  }
+  const removeRecipient = (email: string) => save(block.recipients.filter(r => r.email.toLowerCase() !== email.toLowerCase()))
+
+  const allChecked = users.length > 0 && users.every(u => emails.has(u.email.toLowerCase()))
+  const toggleAll = () => {
+    if (allChecked) save(block.recipients.filter(r => !users.some(u => u.email.toLowerCase() === r.email.toLowerCase())))
+    else { const add: GRecipient[] = users.filter(u => !emails.has(u.email.toLowerCase())).map(u => ({ user_id: u.id, email: u.email, name: u.name, kind: 'cadastrado' })); save([...block.recipients, ...add]) }
+  }
+
+  return (
+    <div className="ds-card p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Users size={15} style={{ color: 'var(--primary)' }} />
+        <span className="text-sm font-bold flex-1 truncate" style={{ color: 'var(--text)' }}>{block.customer_name ?? block.label ?? 'Bloco'}</span>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{block.recipients.length} e-mail(s){saving ? ' · salvando…' : ''}</span>
+        <button onClick={onCopy} title="Copiar bloco para outro grupo" className="text-[11px] px-2 py-1 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>Copiar →</button>
+        <button onClick={() => { if (confirm('Remover este bloco?')) api.delete(`/communication-groups/${groupId}/blocks/${block.id}`).then(onDeleted).catch(() => toast.error('Erro')) }}><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>E-mails cadastrados</span>
+          {users.length > 0 && <button onClick={toggleAll} className="text-[11px]" style={{ color: 'var(--primary)' }}>{allChecked ? 'Desmarcar todos' : 'Marcar todos'}</button>}
+        </div>
+        {users.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum e-mail cadastrado para este cliente.</p>}
+        <div className="grid gap-1 mt-1" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+          {users.map(u => (
+            <label key={u.id} className="flex items-center gap-2 text-xs cursor-pointer">
+              <input type="checkbox" checked={emails.has(u.email.toLowerCase())} onChange={() => toggleUser(u)} />
+              <span className="truncate" style={{ color: 'var(--text)' }}>{u.name} <span style={{ color: 'var(--text-light)' }}>· {u.email}</span></span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>E-mails manuais (sem cadastro)</span>
+        <div className="flex gap-1 mt-1">
+          <input className={fieldCls} style={inputStyle} placeholder="email@cliente.com" value={manual} onChange={e => setManual(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }} />
+          <button onClick={addManual} className="shrink-0 px-3 rounded-lg text-sm" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>Add</button>
+        </div>
+        {manuals.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {manuals.map(r => (
+              <span key={r.email} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}>
+                {r.email}<button onClick={() => removeRecipient(r.email)}><X size={11} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Groups() {
+  const [rows, setRows] = useState<GroupRow[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selId, setSelId] = useState<number | null>(null)
+  const [detail, setDetail] = useState<GroupDetail | null>(null)
+  const [newName, setNewName] = useState('')
+  const [addCust, setAddCust] = useState('')
+  const [copyFrom, setCopyFrom] = useState<GBlock | null>(null)
+  const [copyTarget, setCopyTarget] = useState('')
+
+  const loadRows = useCallback(() => api.get<{ data: GroupRow[] }>('/communication-groups').then(r => setRows(r.data ?? [])).catch(() => {}), [])
+  useEffect(() => { loadRows(); api.get<{ data: { customers: Customer[] } }>('/communications/meta').then(r => setCustomers(r.data?.customers ?? [])).catch(() => {}) }, [loadRows])
+
+  const openGroup = useCallback((id: number) => { setSelId(id); api.get<{ data: GroupDetail }>(`/communication-groups/${id}`).then(r => setDetail(r.data)).catch(() => toast.error('Erro ao abrir grupo')) }, [])
+
+  const createGroup = async () => {
+    const nome = newName.trim(); if (!nome) return
+    try { const r = await api.post<{ data: { id: number } }>('/communication-groups', { nome }); setNewName(''); await loadRows(); openGroup(r.data.id) } catch { toast.error('Erro ao criar grupo') }
+  }
+  const delGroup = async (g: GroupRow) => { if (!confirm(`Excluir o grupo "${g.nome}" e todos os blocos?`)) return; try { await api.delete(`/communication-groups/${g.id}`); if (selId === g.id) { setSelId(null); setDetail(null) } loadRows() } catch { toast.error('Erro') } }
+
+  const addBlock = async () => {
+    if (!detail || !addCust) return
+    try { const r = await api.post<{ data: GBlock }>(`/communication-groups/${detail.id}/blocks`, { customer_id: Number(addCust) }); setDetail(d => d ? { ...d, blocks: [...d.blocks, r.data] } : d); setAddCust(''); loadRows() } catch { toast.error('Erro ao adicionar bloco') }
+  }
+  const onBlockChange = (b: GBlock) => { setDetail(d => d ? { ...d, blocks: d.blocks.map(x => x.id === b.id ? b : x) } : d); loadRows() }
+  const onBlockDeleted = (id: number) => { setDetail(d => d ? { ...d, blocks: d.blocks.filter(x => x.id !== id) } : d); loadRows() }
+
+  const doCopy = async () => {
+    if (!detail || !copyFrom || !copyTarget) return
+    try { await api.post(`/communication-groups/${detail.id}/blocks/${copyFrom.id}/copy`, { target_group_id: Number(copyTarget) }); toast.success('Bloco copiado'); setCopyFrom(null); setCopyTarget(''); loadRows() }
+    catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao copiar bloco') }
+  }
+
+  return (
+    <div className="grid gap-3" style={{ gridTemplateColumns: 'minmax(200px, 260px) 1fr' }}>
+      <div className="ds-card p-3 space-y-2 self-start">
+        <div className="flex gap-1">
+          <input className={fieldCls} style={inputStyle} placeholder="Novo grupo…" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') createGroup() }} />
+          <button onClick={createGroup} className="shrink-0 px-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={16} /></button>
+        </div>
+        {rows.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum grupo ainda.</p>}
+        {rows.map(g => (
+          <div key={g.id} onClick={() => openGroup(g.id)} className="flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer" style={{ background: selId === g.id ? 'var(--primary-soft)' : 'transparent' }}>
+            <Users size={14} style={{ color: 'var(--primary)' }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: selId === g.id ? 'var(--primary)' : 'var(--text)' }}>{g.nome}</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{g.blocks_count} bloco(s) · {g.recipients_count} e-mail(s)</p>
+            </div>
+            <button onClick={e => { e.stopPropagation(); delGroup(g) }}><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        {!detail && <div className="ds-card p-6 text-sm text-center" style={{ color: 'var(--text-muted)' }}>Selecione ou crie um grupo. Cada grupo é organizado em <b>blocos por cliente</b> — puxe os e-mails já cadastrados ou adicione manuais.</div>}
+        {detail && (
+          <>
+            <div className="ds-card p-3 flex items-center gap-2 flex-wrap">
+              <div style={{ minWidth: 260, maxWidth: 360, flex: 1 }}>
+                <SearchSelect
+                  placeholder="+ Adicionar bloco de cliente…"
+                  value={addCust}
+                  onChange={v => setAddCust(v)}
+                  options={customers.filter(c => !detail.blocks.some(b => b.customer_id === c.id)).map(c => ({ id: c.id, name: c.name }))}
+                />
+              </div>
+              <button onClick={addBlock} disabled={!addCust} className="text-sm px-3 py-1.5 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', opacity: addCust ? 1 : .5 }}>Adicionar bloco</button>
+            </div>
+            {detail.blocks.length === 0 && <div className="ds-card p-4 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum bloco. Adicione um cliente acima.</div>}
+            {detail.blocks.map(b => (
+              <GroupBlock key={b.id} groupId={detail.id} block={b} onChange={onBlockChange} onDeleted={() => onBlockDeleted(b.id)} onCopy={() => { setCopyFrom(b); setCopyTarget('') }} />
+            ))}
+          </>
+        )}
+      </div>
+
+      {copyFrom && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }} onClick={() => setCopyFrom(null)}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}><span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Copiar bloco “{copyFrom.customer_name ?? copyFrom.label}”</span></div>
+            <div className="p-5">
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Para qual grupo?</label>
+              <select className={fieldCls} style={inputStyle} value={copyTarget} onChange={e => setCopyTarget(e.target.value)}>
+                <option value="">— selecionar grupo —</option>
+                {rows.filter(g => g.id !== detail?.id).map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+              </select>
+            </div>
+            <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setCopyFrom(null)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button onClick={doCopy} disabled={!copyTarget} className="text-sm px-5 py-2 rounded-lg font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: copyTarget ? 1 : .5 }}>Copiar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
