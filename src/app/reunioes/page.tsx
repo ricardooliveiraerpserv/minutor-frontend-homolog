@@ -111,7 +111,7 @@ function NewMeetingModal({ onClose, onCreated, searchUsers }: { onClose: () => v
         <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
           <ClipboardList size={18} style={{ color: 'var(--primary)' }} /><span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Nova reunião</span>
         </div>
-        <div className="p-5 space-y-3 max-h-[70vh] overflow-auto">
+        <div className="p-5 space-y-3">
           <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Assunto *</label>
             <input autoFocus className={inputCls} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="Assunto da reunião" /></div>
           <div className="grid grid-cols-2 gap-3">
