@@ -149,7 +149,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
     .toUpperCase() ?? 'U'
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+    <header className="flex items-center justify-between px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)', height: 'calc(3.5rem + env(safe-area-inset-top, 0px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       <div className="flex items-center gap-2 min-w-0">
         {onMenuClick && (
           <button
