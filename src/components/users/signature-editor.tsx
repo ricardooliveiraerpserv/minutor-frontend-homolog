@@ -14,6 +14,9 @@ import { Monitor, Mail, X } from 'lucide-react'
 export interface SignatureData {
   role?: string; mobile?: string; photo?: string; show_photo?: boolean
   custom_cargo?: boolean // true = usa o cargo próprio (role); false = usa o padrão do perfil
+  alt_email?: string     // e-mail secundário — usado na assinatura da OUTRA empresa (não a base)
+  alt_role?: string      // cargo secundário — usado na assinatura da OUTRA empresa (cargo por empresa)
+  bizify_email?: string  // legado (compat) — lido como alt_email
 }
 
 // Máscara de celular: (00)00000.0000
@@ -24,14 +27,19 @@ function maskCelular(v: string): string {
   return `(${d.slice(0, 2)})${d.slice(2, 7)}.${d.slice(7)}`
 }
 
-export function SignatureEditor({ value, onChange, name = '', email = '', lockRole = false, hidePhoto = false, userId }: {
+export function SignatureEditor({ value, onChange, name = '', email = '', lockRole = false, hidePhoto = false, userId, isBizify }: {
   value: SignatureData; onChange: (v: SignatureData) => void; name?: string; email?: string
   lockRole?: boolean   // cargo governado pelo admin (vínculo Cargo × Perfil) — só leitura
   hidePhoto?: boolean  // foto vem da foto de perfil do sistema — não edita aqui
   userId?: number      // usuário-alvo do preview (modal admin). Ausente = usa o logado (tela de perfil).
+  isBizify?: boolean   // empresa base = Bizify (selecionada no form) → preview usa a marca Bizify
 }) {
   const [variants, setVariants] = useState<{ system: string; email: string }>({ system: '', email: '' })
   const [view, setView] = useState<'system' | 'email'>('system')
+  // Marca do preview. Admin precisa validar as DUAS (ERPSERV × Bizify) → toggle no cadastro.
+  const brandProvided = typeof isBizify === 'boolean'
+  const [brand, setBrand] = useState<'erpserv' | 'bizify'>(isBizify ? 'bizify' : 'erpserv')
+  useEffect(() => { if (brandProvided) setBrand(isBizify ? 'bizify' : 'erpserv') }, [isBizify, brandProvided])
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reqId = useRef(0)
   // Sempre usa o value MAIS RECENTE (evita closure stale de callback async dropar campos, ex: foto).
@@ -48,12 +56,12 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
     timer.current = setTimeout(() => {
       const id = ++reqId.current
       // Lê o value ATUAL no momento do envio (não o capturado pelo efeito) → nunca manda sem a foto.
-      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}) })
+      api.post<{ data: { system: string; email: string } }>('/signature/preview', { name, email, signature: valueRef.current, ...(typeof userId === 'number' ? { user_id: userId } : {}), ...(brandProvided ? { is_bizify: brand === 'bizify', home_is_bizify: !!isBizify } : {}) })
         .then(r => { if (id === reqId.current) setVariants({ system: r.data?.system ?? '', email: r.data?.email ?? '' }) })
         .catch(() => {})
     }, 350)
     return () => { if (timer.current) clearTimeout(timer.current) }
-  }, [value, name, email, userId])
+  }, [value, name, email, userId, isBizify, brandProvided, brand])
 
   return (
     <div className="space-y-3">
@@ -83,6 +91,21 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
         </label>
       )}
 
+      {/* Cargo + E-mail da OUTRA empresa — exclusivos por empresa. Base ERPSERV → campos Bizify;
+          base Bizify → campos ERPSERV. Só no cadastro. */}
+      {brandProvided && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Cargo {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
+            <input className={fieldCls} style={inputStyle} value={value.alt_role ?? ''} onChange={e => set('alt_role', e.target.value)} placeholder="Cargo na outra empresa" />
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
+            <input className={fieldCls} style={inputStyle} value={value.alt_email ?? value.bizify_email ?? ''} onChange={e => set('alt_email', e.target.value)} inputMode="email" placeholder={isBizify ? 'nome@erpserv.com.br' : 'nome@bizify.com.br'} />
+          </div>
+        </div>
+      )}
+
       {!hidePhoto && (
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Foto (opcional)</label>
@@ -100,15 +123,28 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
 
       {/* Preview */}
       <div>
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
           <span className={lbl} style={{ color: 'var(--text-light)' }}>Pré-visualização</span>
-          <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--surface-sunken)' }}>
-            {([['system', Monitor, 'No sistema'], ['email', Mail, 'Como e-mail']] as const).map(([m, Icon, t]) => (
-              <button key={m} type="button" onClick={() => setView(m)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md"
-                style={{ background: view === m ? 'var(--primary-soft)' : 'transparent', color: view === m ? 'var(--primary)' : 'var(--text-muted)', fontWeight: view === m ? 600 : 400 }}>
-                <Icon size={13} /> {t}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Marca — admin valida as DUAS assinaturas (ERPSERV × Bizify) alternando aqui. */}
+            {brandProvided && (
+              <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--surface-sunken)' }}>
+                {([['erpserv', 'ERPSERV'], ['bizify', 'Bizify']] as const).map(([b, t]) => (
+                  <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs px-2.5 py-1 rounded-md"
+                    style={{ background: brand === b ? 'var(--primary-soft)' : 'transparent', color: brand === b ? 'var(--primary)' : 'var(--text-muted)', fontWeight: brand === b ? 600 : 400 }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--surface-sunken)' }}>
+              {([['system', Monitor, 'No sistema'], ['email', Mail, 'Como e-mail']] as const).map(([m, Icon, t]) => (
+                <button key={m} type="button" onClick={() => setView(m)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md"
+                  style={{ background: view === m ? 'var(--primary-soft)' : 'transparent', color: view === m ? 'var(--primary)' : 'var(--text-muted)', fontWeight: view === m ? 600 : 400 }}>
+                  <Icon size={13} /> {t}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {view === 'email'

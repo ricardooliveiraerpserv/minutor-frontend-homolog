@@ -130,7 +130,7 @@ function resolveProfileFromType(type: string | null | undefined): ProfileType | 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-5xl shadow-xl">
         <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)]">
           <X size={16} />
         </button>
@@ -1262,7 +1262,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                   <PenLine size={14} /> Assinatura
                 </div>
-                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} userId={userId ?? 0} />
+                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} userId={userId ?? 0}
+                  isBizify={form.home_company_id != null && companies.some(c => c.id === form.home_company_id && /bizify/i.test(c.name))} />
               </div>
             )}
 
