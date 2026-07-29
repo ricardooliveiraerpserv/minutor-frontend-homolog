@@ -571,7 +571,8 @@ function TicketDetailInner({ id }: { id: number }) {
         const fd = new FormData()
         fd.append('body', body); fd.append('visibility', 'customer'); fd.append('form_kind', 'dynamic')
         fd.append('solution', JSON.stringify(inst))
-        Object.entries(timeFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, String(v)) })
+        // boolean vira "1"/"0" (Laravel `boolean` rejeita "true"/"false" no FormData).
+        Object.entries(timeFields).forEach(([k, v]) => { if (v === undefined || v === null || v === '') return; fd.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v)) })
         files.forEach(f => fd.append('files[]', f))
         const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
