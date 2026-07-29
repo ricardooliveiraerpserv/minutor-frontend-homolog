@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation'
+import { MobileDecommission } from '../mobile-decommission'
 
-// Fluxo mobile descontinuado — ver /mobile/apontamento/page.tsx. Vai pro app completo.
+// Fluxo mobile descontinuado — limpa o SW e vai pro app completo (/inicio).
 export default function MobileDespesa() {
-  redirect('/inicio')
+  return <MobileDecommission />
 }
