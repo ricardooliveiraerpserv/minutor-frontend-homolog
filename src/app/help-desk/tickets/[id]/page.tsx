@@ -50,7 +50,7 @@ interface Sla {
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
-  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean
+  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
@@ -943,9 +943,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     currentStatusId={t.status?.id}
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
-                    timeMode={t.contract?.helpdesk_integration_enabled
-                      ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
-                      : 'optional'}
+                    timeMode={t.apontamento_time_mode ?? 'optional'}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
@@ -1480,9 +1478,7 @@ function TicketDetailInner({ id }: { id: number }) {
           }}
           currentUserName={user?.name}
           /* Horas: em sustentação, quem não aponta manualmente é OBRIGADO a informar aqui (mesma regra do compositor). */
-          timeMode={t.contract?.helpdesk_integration_enabled
-            ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
-            : 'optional'}
+          timeMode={t.apontamento_time_mode ?? 'optional'}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
           onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
           onSubmit={submitDynForm}
