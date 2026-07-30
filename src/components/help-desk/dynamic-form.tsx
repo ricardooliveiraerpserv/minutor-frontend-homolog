@@ -191,7 +191,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     for (const f of form.fields) {
       if (f.ftype !== 'checkbox' || !f.rule?.require_attachment || !values[f.key]) continue
       if (files.length === 0) errors.push(`${f.label}: anexe o arquivo (comprimido: .zip, .rar, .7z…) pelo botão “Anexar”`)
-      else if (!files.every(x => COMPRESSED_RE.test(x.name))) errors.push(`${f.label}: o anexo deve ser um arquivo comprimido (.zip, .rar, .7z, .tar, .gz)`)
+      // Basta EXISTIR um anexo comprimido (some), não que todos sejam — o usuário pode anexar tb um PDF de doc.
+      else if (!files.some(x => COMPRESSED_RE.test(x.name))) errors.push(`${f.label}: anexe ao menos um arquivo comprimido (.zip, .rar, .7z, .tar, .gz)`)
     }
     if (errors.length) {
       toast.error(
@@ -298,7 +299,13 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
             <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
               <Paperclip size={13} /> Anexar
             </button>
-            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => { if (e.target.files) setFormFiles(f => [...f, ...Array.from(e.target.files!)]); if (fileRef.current) fileRef.current.value = '' }} />
+            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => {
+              // Materializa a lista SINCRONAMENTE: `value = ''` limpa e.target.files na hora, e o updater
+              // do setState roda depois — sem capturar aqui, a 1ª seleção era lida como vazia (não anexava).
+              const picked = e.target.files ? Array.from(e.target.files) : []
+              if (picked.length) setFormFiles(f => [...f, ...picked])
+              if (fileRef.current) fileRef.current.value = ''
+            }} />
             {formFiles.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Anexe arquivos ao chamado (opcional)</span>}
             {formFiles.map((f, i) => (
               <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
