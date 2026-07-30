@@ -63,6 +63,7 @@ interface ConsultorBancoHoras extends ConsultorBase {
   daily_hours: number
   working_days: number
   expected_hours: number
+  conflict_hours?: number
   month_balance: number
   previous_balance: number
   accumulated_balance: number
@@ -1125,7 +1126,12 @@ export default function FechamentoConsultorPage() {
                 <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
                 <Td right className="font-semibold text-[var(--text)]">{formatBRL(c.fixed_salary)}</Td>
                 <Td right className="font-mono text-[var(--text-muted)]">{fmtH(c.expected_hours)}</Td>
-                <Td right className="font-mono text-[var(--text)]">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td right className="font-mono text-[var(--text)]">
+                  {fmtH(c.horas_trabalhadas)}
+                  {c.conflict_hours != null && c.conflict_hours > 0 && (
+                    <div className="text-[10px] font-normal" style={{ color: 'var(--warning)' }} title="Horas descartadas do banco por conflito dentro de 09h–18h (teto 9h/dia): apontamentos sobrepostos em clientes diferentes.">−{fmtH(c.conflict_hours)} conflito</div>
+                  )}
+                </Td>
                 <Td right className={`font-mono ${balanceColor(c.month_balance)}`}>{fmtH(c.month_balance)}</Td>
                 <Td right className={`font-mono font-semibold ${balanceColor(c.accumulated_balance)}`}>{fmtH(c.accumulated_balance)}</Td>
                 <Td right className={`font-mono font-semibold ${c.horas_extras > 0 ? 'text-[var(--success)]' : 'text-[var(--text-light)]'}`}>

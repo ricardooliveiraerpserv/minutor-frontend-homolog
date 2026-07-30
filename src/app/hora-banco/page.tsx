@@ -33,6 +33,7 @@ interface HourBankClosing {
   holidays_count: number
   expected_hours: number
   worked_hours: number
+  conflict_hours?: number
   month_balance: number
   previous_balance: number
   accumulated_balance: number
@@ -143,6 +144,20 @@ function CurrentMonthCard({
           </div>
         ))}
       </div>
+
+      {/* Horas não contabilizadas por conflito dentro do horário comercial (09h–18h) */}
+      {data.conflict_hours != null && data.conflict_hours > 0 && (
+        <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Não contabilizado ao banco — conflito no horário comercial</p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Horas apontadas dentro de 09h–18h acima do teto de 9h/dia (apontamentos sobrepostos em clientes diferentes) não entram no saldo. Fora desse horário soma normal.
+            </p>
+          </div>
+          <span className="text-xl font-bold whitespace-nowrap" style={{ color: 'var(--warning)' }}>−{fmt(data.conflict_hours)}</span>
+        </div>
+      )}
 
       {/* Resultado */}
       <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between"
