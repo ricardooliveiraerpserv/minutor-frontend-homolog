@@ -178,7 +178,7 @@ function Card({ n, onAck, onRespond, router, badge, muted }: { n: Notif; onAck?:
   const fmtPrazo = n.expires_at ? new Date(n.expires_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
   const [editing, setEditing] = useState(false)
   return (
-    <div className="ds-card p-2.5 flex items-center gap-2.5" style={{ borderLeft: `3px solid ${muted ? 'var(--border)' : p.color}` }}>
+    <div className="ds-card p-2.5 flex items-start gap-2.5" style={{ borderLeft: `3px solid ${muted ? 'var(--border)' : p.color}` }}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[14px] font-semibold leading-tight" style={{ color: 'var(--text)' }}>{n.title}</span>
@@ -189,8 +189,8 @@ function Card({ n, onAck, onRespond, router, badge, muted }: { n: Notif; onAck?:
           {hasActions && n.my_response && <span className="text-[10px] inline-flex items-center gap-0.5" style={{ color: 'var(--success-border)' }}><CheckCircle2 size={11} /> {n.my_response}</span>}
         </div>
         {isHtmlBody(n.message)
-          ? <div className="text-[13px] mt-0.5 hd-rich truncate" style={{ color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(n.message) }} />
-          : <p className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{n.message}</p>}
+          ? <div className="text-[13px] mt-0.5 hd-rich break-words" style={{ color: 'var(--text-muted)', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(n.message) }} />
+          : <p className="text-[13px] mt-0.5 whitespace-pre-wrap break-words" style={{ color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>{n.message}</p>}
         {hasActions && (expired ? (
           <div className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>
             {n.my_response ? `Respondido: ${n.my_response}` : 'Sem resposta'} · prazo encerrado
