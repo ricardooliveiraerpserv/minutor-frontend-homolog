@@ -498,6 +498,13 @@ function TicketDetailInner({ id }: { id: number }) {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao mudar status') }
   }
+  // Reabrir AGORA: chamado resolvido/fechado volta para "Em andamento" (1º status aberto).
+  const reopenTicket = async () => {
+    const target = statuses.find(s => s.key === 'em_andamento') ?? statuses.find(s => s.is_open && !s.is_resolved && !s.is_terminal)
+    if (!target) { toast.error('Status de reabertura não encontrado'); return }
+    await changeStatus(String(target.id))
+    toast.success('Chamado reaberto')
+  }
   // Formulários dinâmicos (construtor) vinculados a status. Legado: solution/gmud (comentários antigos).
   const [forms, setForms] = useState<HdForm[]>([])
   const [solucaoOpen, setSolucaoOpen] = useState(false)
@@ -769,6 +776,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     {t.can_print && <OptItem icon={FileText} onClick={() => { setOptOpen(false); setReportOpen(true) }}>Relatório de serviço (PDF)</OptItem>}
                     {(t.can_merge || t.can_delete || t.can_clone || (t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal))) && <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Gestão do ticket</div>}
                     {t.can_clone && <OptItem icon={Copy} onClick={() => { setOptOpen(false); setCloneOpen(true) }}>Clonar chamado</OptItem>}
+                    {t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal) && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); reopenTicket() }}>Reabrir chamado</OptItem>}
                     {t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal) && !t.reopen_scheduled_at && <OptItem icon={CalendarClock} onClick={() => { setOptOpen(false); setReopenOpen(true) }}>Agendar reabertura</OptItem>}
                     {t.can_reopen && t.reopen_scheduled_at && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); cancelScheduledReopen() }}>Cancelar reabertura agendada</OptItem>}
                     {t.can_merge && <OptItem icon={GitMerge} onClick={() => { setOptOpen(false); setMergeOpen(true) }}>Mesclar chamado</OptItem>}
