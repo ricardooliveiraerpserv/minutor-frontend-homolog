@@ -949,7 +949,8 @@ function TicketDetailInner({ id }: { id: number }) {
                     // ——— Recusa da solução pelo cliente: card VERMELHO evidente + quem recusou ———
                     if (c.form_kind === 'rejection' && !editing) {
                       const rejeitante = c.contact?.name ?? c.author?.name ?? t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Cliente'
-                      const motivo = (c.body ?? '').replace(/^\s*Solução recusada pelo cliente:\s*/i, '').trim()
+                      const isHtmlMotivo = pc?.html ?? false // recusa nova = HTML (texto + print inline)
+                      const motivo = (c.body ?? '').replace(/^\s*Solução recusada pelo cliente:\s*/i, '').trim() // fallback texto (recusas antigas)
                       return (
                         <div key={c.id} className="hd-msg flex justify-center">
                           <div className="w-full max-w-[94%] sm:max-w-[82%] rounded-xl overflow-hidden" style={{ border: '1px solid var(--danger-border)', background: 'var(--danger-bg)' }}>
@@ -962,8 +963,14 @@ function TicketDetailInner({ id }: { id: number }) {
                               <div className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
                                 Recusada por <span className="font-semibold" style={{ color: 'var(--text)' }}>{rejeitante}</span>
                               </div>
-                              {motivo && (
-                                <div className="text-sm rounded-lg px-3 py-2 whitespace-pre-wrap break-words" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>{motivo}</div>
+                              {(isHtmlMotivo || motivo) && (
+                                <div className="text-sm rounded-lg px-3 py-2 break-words" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                  {isHtmlMotivo
+                                    ? (pc?.complexHtml
+                                        ? <EmailFrame html={pc?.email ?? ''} />
+                                        : <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} />)
+                                    : <div className="whitespace-pre-wrap">{motivo}</div>}
+                                </div>
                               )}
                               {c.attachments && c.attachments.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
