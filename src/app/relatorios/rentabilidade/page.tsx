@@ -1059,6 +1059,21 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           }
         />
 
+        {/* Legenda em evidência: o mês selecionado é apurado no FECHAMENTO FINANCEIRO do mês POSTERIOR. */}
+        {visao !== 'clientes' && !embedded && periodModo === 'mesano' && (() => {
+          const nm = toM === 12 ? 1 : toM + 1, ny = toM === 12 ? toY + 1 : toY
+          const raw = new Date(ny, nm - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+          const nextLabel = raw.charAt(0).toUpperCase() + raw.slice(1)
+          return (
+            <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+              <Clock size={16} style={{ color: 'var(--primary)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+                Referente ao fechamento financeiro de {nextLabel} — sempre o mês posterior ao selecionado.
+              </span>
+            </div>
+          )
+        })()}
+
         <div className="flex flex-wrap items-end gap-3 mb-4">
           {visao !== 'clientes' && (<>
             <div className="min-w-[180px]">
