@@ -424,9 +424,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       const mStart = `${ym}-01`, mEnd = `${ym}-${String(new Date(yy, mm, 0).getDate()).padStart(2, '0')}`
       return `?from=${dateFrom > mStart ? dateFrom : mStart}&to=${dateTo < mEnd ? dateTo : mEnd}`
     }
+    // Apontamento na ERPSERV (empresa interna) = INVESTIMENTO: normaliza is_investimento
+    // na ingestão → propaga p/ segmento, gráfico diário, Horas Invest e selo de uma vez.
+    const isErpsRow = (c?: string) => (c || '').toUpperCase().includes('ERPSERV')
     Promise.all(monthsToFetch.map(ym =>
       api.get<{ data: { rows: Row[]; por_dia?: DiaRow[]; fixos_zerados?: FixoZerado[]; fixos_extras?: FixoExtra[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
-        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [], fixos: r?.data?.fixos_zerados ?? [], extras: r?.data?.fixos_extras ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[], fixos: [] as FixoZerado[], extras: [] as FixoExtra[] }))
+        .then(r => ({ ym, rows: (r?.data?.rows ?? []).map(row => ({ ...row, is_investimento: !!row.is_investimento || isErpsRow(row.cliente) })), dias: r?.data?.por_dia ?? [], fixos: r?.data?.fixos_zerados ?? [], extras: r?.data?.fixos_extras ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[], fixos: [] as FixoZerado[], extras: [] as FixoExtra[] }))
     )).then(perMonth => {
       setMonthly(perMonth)
       const results = perMonth.map(x => x.rows)
