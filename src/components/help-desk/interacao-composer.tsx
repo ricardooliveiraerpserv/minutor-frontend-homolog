@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
@@ -145,7 +145,28 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Chave de idempotência por mensagem: reusada em retentativas (não duplica), zerada no sucesso.
   const idemRef = useRef<string | null>(null)
 
-  const syncEmpty = () => { const ed = edRef.current; setEmpty(!ed || ed.textContent?.trim() === '' && !ed.querySelector('img')) }
+  // Rascunho auto-salvo por chamado: o texto digitado sobrevive a reload/erro (limpa só no envio).
+  const draftKey = `hd_draft_${ticketId}`
+  const syncEmpty = () => {
+    const ed = edRef.current
+    setEmpty(!ed || ed.textContent?.trim() === '' && !ed.querySelector('img'))
+    if (ed) {
+      try {
+        const hasContent = !!(ed.textContent?.trim()) || !!ed.querySelector('img')
+        if (hasContent) localStorage.setItem(draftKey, ed.innerHTML)
+        else localStorage.removeItem(draftKey)
+      } catch { /* localStorage indisponível */ }
+    }
+  }
+  // Restaura o rascunho ao abrir o chamado (uma vez), sem sobrescrever se já houver conteúdo.
+  useEffect(() => {
+    const ed = edRef.current; if (!ed) return
+    try {
+      const d = localStorage.getItem(draftKey)
+      if (d && !ed.textContent?.trim() && !ed.querySelector('img')) { ed.innerHTML = d; syncEmpty() }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketId])
 
   // Macro (ex-playbook): APENAS insere o texto no campo de resposta. Só após escolher o status.
   const [macroOpen, setMacroOpen] = useState(false)
@@ -269,6 +290,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       }
       const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
       if (ed) ed.innerHTML = ''
+      try { localStorage.removeItem(draftKey) } catch { /* ignore */ }
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
       setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday()); setNoCharge(false)
       if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
