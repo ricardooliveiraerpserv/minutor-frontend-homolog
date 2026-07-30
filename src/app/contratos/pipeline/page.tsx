@@ -462,7 +462,7 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void; onDelete?: (e: React.MouseEvent) => void }) {
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -518,6 +518,13 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
               className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Abrir Chat"
               style={{ color: '#a78bfa' }}>
               <MessageSquare size={11} />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={onDelete}
+              className="p-1 rounded-md hover:bg-[var(--danger-bg)] transition-colors" title="Excluir requisição"
+              style={{ color: 'var(--danger)' }}>
+              <Trash2 size={11} />
             </button>
           )}
           <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
@@ -4048,7 +4055,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
 
 function KanbanColumn({
   col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
-  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onProjectAction, onContractAction,
+  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onRequestDelete, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
@@ -4067,6 +4074,7 @@ function KanbanColumn({
   onRequestClick?: (card: RequestCard) => void
   onRequestView?: (card: RequestCard) => void
   onRequestChat?: (card: RequestCard) => void
+  onRequestDelete?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
   onContractMove?: (card: ContractCard, toCol: string) => void
@@ -4177,6 +4185,7 @@ function KanbanColumn({
                       card={card}
                       onView={onRequestView ? e => { e.stopPropagation(); onRequestView(card) } : undefined}
                       onChat={onRequestChat ? e => { e.stopPropagation(); onRequestChat(card) } : undefined}
+                      onDelete={onRequestDelete ? e => { e.stopPropagation(); onRequestDelete(card) } : undefined}
                     />
                   </div>
                 )}
@@ -4279,6 +4288,7 @@ function KanbanContent() {
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
   const delReasonRef = useRef<HTMLTextAreaElement>(null) // motivo da exclusão (vai pro log)
   const [showDelLog, setShowDelLog] = useState(false)    // visualizador do log de exclusões
+  const [delRequest, setDelRequest] = useState<RequestCard | null>(null) // requisição a excluir (com log)
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
@@ -5557,6 +5567,7 @@ function KanbanContent() {
                   }
                   onRequestView={setSelectedRequest}
                   onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                  onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                   onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
                   getContractCols={getAvailableContractCols}
                 />
@@ -5600,6 +5611,7 @@ function KanbanContent() {
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                    onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
                     getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
                     />
@@ -5908,6 +5920,28 @@ function KanbanContent() {
         return null
       })()}
       {showDelLog && <DeletionLogModal onClose={() => setShowDelLog(false)} />}
+      {delRequest && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setDelRequest(null)}>
+          <div className="rounded-2xl p-6 flex flex-col gap-3 w-96 max-w-full" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3"><Trash2 size={20} className="text-[var(--danger)]" /><p className="font-semibold text-[var(--text)]">Excluir Requisição</p></div>
+            <p className="text-sm text-[var(--text-muted)]">Excluir esta requisição? Esta ação não pode ser desfeita e ficará <strong className="text-[var(--text)]">registrada no log</strong>.</p>
+            <textarea ref={delReasonRef} placeholder="Motivo da exclusão (opcional) — registrado no log" className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--text)', minHeight: 56 }} />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDelRequest(null)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
+              <button onClick={async () => {
+                const id = delRequest.id
+                try {
+                  await api.delete(`/contract-requests/${id}`, { reason: delReasonRef.current?.value?.trim() || undefined })
+                  toast.success('Requisição excluída.')
+                  setDelRequest(null); load()
+                } catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir requisição'); setDelRequest(null) }
+              }} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                <Trash2 size={14} /> Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
