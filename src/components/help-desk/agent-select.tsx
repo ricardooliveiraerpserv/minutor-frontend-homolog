@@ -7,7 +7,7 @@ import { ChevronDown, Search, Users } from 'lucide-react'
 // cabeçalho e seus membros aparecem abaixo, com busca por texto. Agente = membro de equipe.
 export interface AgentTeam { id: number; name: string; members: { id: number; name: string }[] }
 
-export function AgentSelect({ teams, value, onChange, placeholder = 'Não atribuído' }: { teams: AgentTeam[]; value: number | null; onChange: (id: number | null, teamId?: number) => void; placeholder?: string }) {
+export function AgentSelect({ teams, value, onChange, placeholder = 'Não atribuído', fallbackName }: { teams: AgentTeam[]; value: number | null; onChange: (id: number | null, teamId?: number) => void; placeholder?: string; fallbackName?: string | null }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -20,8 +20,8 @@ export function AgentSelect({ teams, value, onChange, placeholder = 'Não atribu
   const q = query.trim().toLowerCase()
   const selectedName = useMemo(() => {
     for (const t of teams) { const m = t.members.find(x => x.id === value); if (m) return m.name }
-    return null
-  }, [teams, value])
+    return value != null ? (fallbackName ?? null) : null
+  }, [teams, value, fallbackName])
   const pick = (id: number | null, teamId?: number) => { onChange(id, teamId); setOpen(false); setQuery('') }
 
   return (
