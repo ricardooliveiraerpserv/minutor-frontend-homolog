@@ -943,7 +943,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     currentStatusId={t.status?.id}
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
-                    timeMode={t.contract?.categoria === 'sustentacao'
+                    timeMode={t.contract?.helpdesk_integration_enabled
                       ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
                       : 'optional'}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
@@ -1480,7 +1480,7 @@ function TicketDetailInner({ id }: { id: number }) {
           }}
           currentUserName={user?.name}
           /* Horas: em sustentação, quem não aponta manualmente é OBRIGADO a informar aqui (mesma regra do compositor). */
-          timeMode={t.contract?.categoria === 'sustentacao'
+          timeMode={t.contract?.helpdesk_integration_enabled
             ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
             : 'optional'}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
