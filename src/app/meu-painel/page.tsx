@@ -132,6 +132,7 @@ interface HourBankMonth {
   holidays_count: number
   expected_hours: number
   worked_hours: number
+  conflict_hours?: number
   month_balance: number
   previous_balance: number
   accumulated_balance: number
@@ -554,6 +555,19 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
           </div>
         ))}
       </div>
+
+      {/* Horas não contabilizadas por conflito dentro do horário comercial (09h–18h) */}
+      {data.conflict_hours != null && data.conflict_hours > 0 && (
+        <div className="rounded-xl px-5 py-3 border border-amber-500/25 bg-[var(--warning-bg)] flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-light)]">Não contabilizado ao banco — conflito no horário comercial</p>
+            <p className="text-[11px] mt-0.5 text-[var(--text-muted)]">
+              Horas apontadas dentro de 09h–18h acima do teto de 9h/dia (apontamentos sobrepostos em clientes diferentes) não entram no saldo. Fora desse horário soma normal.
+            </p>
+          </div>
+          <span className="text-xl font-bold whitespace-nowrap text-[var(--warning)]">−{fmtHours(data.conflict_hours)}</span>
+        </div>
+      )}
 
       {/* Saldo acumulado banner */}
       <div className={`rounded-xl px-5 py-4 border flex items-center justify-between ${
