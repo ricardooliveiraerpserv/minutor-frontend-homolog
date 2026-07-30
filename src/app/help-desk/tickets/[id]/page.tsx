@@ -795,7 +795,6 @@ function TicketDetailInner({ id }: { id: number }) {
                     {(t.can_merge || t.can_delete || t.can_clone || (t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal))) && <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Gestão do ticket</div>}
                     {t.can_clone && <OptItem icon={Copy} onClick={() => { setOptOpen(false); setCloneOpen(true) }}>Clonar chamado</OptItem>}
                     {t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal) && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); reopenTicket() }}>Reabrir chamado</OptItem>}
-                    {t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal) && !t.reopen_scheduled_at && <OptItem icon={CalendarClock} onClick={() => { setOptOpen(false); setReopenOpen(true) }}>Agendar reabertura</OptItem>}
                     {t.can_reopen && t.reopen_scheduled_at && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); cancelScheduledReopen() }}>Cancelar reabertura agendada</OptItem>}
                     {t.can_merge && <OptItem icon={GitMerge} onClick={() => { setOptOpen(false); setMergeOpen(true) }}>Mesclar chamado</OptItem>}
                     {t.can_delete && <OptItem icon={Trash2} danger onClick={() => { setOptOpen(false); setConfirmDelete(true) }}>Excluir chamado</OptItem>}
