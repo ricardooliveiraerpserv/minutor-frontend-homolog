@@ -142,7 +142,18 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   const [saving, setSaving] = useState(false)
   // Anexo ÚNICO do formulário inteiro (antes cada campo richtext tinha seu próprio "Anexar").
   const [formFiles, setFormFiles] = useState<File[]>([])
-  const fileRef = useRef<HTMLInputElement>(null)
+  // Input criado IMPERATIVAMENTE fora da árvore React: o auth-context chama loadUser() no visibilitychange
+  // (dispara quando o diálogo de arquivo abre) → remonta um <input> do JSX e a 1ª seleção se perde. Imune.
+  const openFilePicker = () => {
+    const input = document.createElement('input')
+    input.type = 'file'; input.multiple = true; input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const picked = input.files ? Array.from(input.files) : []
+      if (picked.length) setFormFiles(f => [...f, ...picked])
+      input.remove()
+    })
+    document.body.appendChild(input); input.click()
+  }
   const richRefs = useRef<Record<string, RichEditorHandle | null>>({})
   const [lens, setLens] = useState<Record<string, number>>(() => {
     const o: Record<string, number> = {}
@@ -296,16 +307,9 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
         {/* Anexo ÚNICO do formulário — vale para todos os campos; vai junto do comentário → aparece no e-mail. */}
         <div className="rounded-lg px-2.5 py-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
           <div className="flex items-center gap-2 flex-wrap">
-            <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
+            <button type="button" onClick={openFilePicker} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
               <Paperclip size={13} /> Anexar
             </button>
-            <input ref={fileRef} type="file" multiple className="hidden" onChange={e => {
-              // Materializa a lista SINCRONAMENTE: `value = ''` limpa e.target.files na hora, e o updater
-              // do setState roda depois — sem capturar aqui, a 1ª seleção era lida como vazia (não anexava).
-              const picked = e.target.files ? Array.from(e.target.files) : []
-              if (picked.length) setFormFiles(f => [...f, ...picked])
-              if (fileRef.current) fileRef.current.value = ''
-            }} />
             {formFiles.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Anexe arquivos ao chamado (opcional)</span>}
             {formFiles.map((f, i) => (
               <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
