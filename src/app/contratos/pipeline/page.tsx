@@ -4277,6 +4277,8 @@ function KanbanContent() {
   const [stagesPanelProject,   setStagesPanelProject]   = useState<ProjectCard | null>(null)
   const [generateTarget,       setGenerateTarget]       = useState<ContractCard | null>(null)
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
+  const delReasonRef = useRef<HTMLTextAreaElement>(null) // motivo da exclusão (vai pro log)
+  const [showDelLog, setShowDelLog] = useState(false)    // visualizador do log de exclusões
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
@@ -4992,6 +4994,14 @@ function KanbanContent() {
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.borderColor = 'var(--primary-hover)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}>
                 <Plus size={13} /> Nova Requisição
+              </button>
+            )}
+            {user?.type === 'admin' && (
+              <button onClick={() => setShowDelLog(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                title="Log de exclusões de requisições/contratos">
+                <Clock size={13} /> Log de exclusões
               </button>
             )}
             {/* Exportar Excel — todos os perfis; exporta a lista de projetos com os filtros aplicados */}
@@ -5873,12 +5883,13 @@ function KanbanContent() {
                   <Trash2 size={20} className="text-[var(--danger)]" />
                   <p className="font-semibold text-[var(--text)]">Excluir Contrato</p>
                 </div>
-                <p className="text-sm text-[var(--text-muted)]">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>
+                <p className="text-sm text-[var(--text-muted)]">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita e ficará <strong className="text-[var(--text)]">registrada no log</strong>.</p>
+                <textarea ref={delReasonRef} placeholder="Motivo da exclusão (opcional) — registrado no log" className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--text)', minHeight: 56 }} />
                 <div className="flex gap-2 justify-end">
                   <button onClick={close} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
                   <button onClick={async () => {
                     try {
-                      await api.delete(`/contracts/${card.id}`)
+                      await api.delete(`/contracts/${card.id}`, { reason: delReasonRef.current?.value?.trim() || undefined })
                       toast.success('Contrato excluído.')
                       close()
                       load()
@@ -5896,7 +5907,44 @@ function KanbanContent() {
         }
         return null
       })()}
+      {showDelLog && <DeletionLogModal onClose={() => setShowDelLog(false)} />}
     </AppLayout>
+  )
+}
+
+// Modal admin: log de exclusões de requisições/contratos (auditoria).
+function DeletionLogModal({ onClose }: { onClose: () => void }) {
+  const [logs, setLogs] = useState<{ id: number; contract_name: string | null; customer_name: string | null; kanban_status: string | null; deleted_by_name: string | null; reason: string | null; deleted_at: string | null }[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    api.get<{ data: { id: number; contract_name: string | null; customer_name: string | null; kanban_status: string | null; deleted_by_name: string | null; reason: string | null; deleted_at: string | null }[] }>('/contracts/deletion-logs')
+      .then(r => setLogs(r?.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+  const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+        <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--danger-bg)', borderBottom: '1px solid var(--border)' }}>
+          <Trash2 size={18} style={{ color: 'var(--danger)' }} />
+          <span className="text-sm font-bold" style={{ color: 'var(--danger)' }}>Log de exclusões</span>
+          <button onClick={onClose} className="ml-auto" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-2">
+          {loading && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
+          {!loading && logs.length === 0 && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Nenhuma exclusão registrada.</p>}
+          {!loading && logs.map(l => (
+            <div key={l.id} className="py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{l.contract_name ?? '—'}{l.customer_name ? <span className="text-[11px] font-normal ml-1.5" style={{ color: 'var(--text-light)' }}>· {l.customer_name}</span> : null}</span>
+                <span className="text-[11px] shrink-0" style={{ color: 'var(--text-light)' }}>{fmt(l.deleted_at)}</span>
+              </div>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Excluído por <b>{l.deleted_by_name ?? '—'}</b>{l.kanban_status ? ` · fase ${l.kanban_status}` : ''}</p>
+              {l.reason && <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-light)' }}>Motivo: {l.reason}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
