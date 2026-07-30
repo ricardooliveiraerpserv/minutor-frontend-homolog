@@ -1154,7 +1154,12 @@ function TicketDetailInner({ id }: { id: number }) {
               <div className={lbl} style={{ color: 'var(--text-light)' }}>Atendimento</div>
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span style={{ color: 'var(--text-light)' }}>Agente</span>
-                <div className="w-[60%]"><AgentSelect teams={teams} value={t.assignee?.id ?? null} onChange={(aid, teamId) => assign(aid, teamId)} /></div>
+                <div className="w-[60%]">
+                  <AgentSelect teams={teams} value={t.assignee?.id ?? null} onChange={(aid, teamId) => assign(aid, teamId)} />
+                  {user && t.assignee?.id !== user.id && (
+                    <button onClick={() => assign(user.id)} className="text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><UserCheck size={11} /> Eu mesmo</button>
+                  )}
+                </div>
               </div>
               <Row label="Equipe" value={t.team?.name ?? '—'} />
               {user && t.assignee?.id !== user.id && (
