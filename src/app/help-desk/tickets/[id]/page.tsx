@@ -50,7 +50,7 @@ interface Sla {
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
-  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null
+  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
@@ -806,8 +806,7 @@ function TicketDetailInner({ id }: { id: number }) {
         </div>
 
         {/* ACEITE/RECUSA da solução — quando o LOGADO é o solicitante (mesmo agente/admin) e o chamado está resolvido */}
-        {t.status?.is_resolved && !t.status?.is_terminal && !!user?.email
-          && [t.solicitante?.email, t.requester_email].some(e => !!e && e.toLowerCase() === user.email?.toLowerCase()) && (
+        {t.status?.is_resolved && !t.status?.is_terminal && t.is_requester && (
           <div className="rounded-lg px-4 py-3" style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}>
             <div className="text-sm font-semibold mb-2" style={{ color: 'var(--success)' }}>✅ Você é o solicitante — a solução resolveu o seu chamado?</div>
             {!solRejectOpen ? (
