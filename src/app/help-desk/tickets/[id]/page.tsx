@@ -24,7 +24,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, type LucideIcon } from 'lucide-react'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
 const MesclarModal = dynamic(() => import('@/components/help-desk/mesclar-modal').then(m => m.MesclarModal), { ssr: false })
@@ -942,6 +942,46 @@ function TicketDetailInner({ id }: { id: number }) {
                             <SIcon size={13} />
                             <span className="whitespace-pre-wrap break-words">{txt}</span>
                             <span style={{ color: 'var(--text-light)' }}>· {fmtDate(c.created_at)}</span>
+                          </div>
+                        </div>
+                      )
+                    }
+                    // ——— Recusa da solução pelo cliente: card VERMELHO evidente + quem recusou ———
+                    if (c.form_kind === 'rejection' && !editing) {
+                      const rejeitante = c.contact?.name ?? c.author?.name ?? t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Cliente'
+                      const motivo = (c.body ?? '').replace(/^\s*Solução recusada pelo cliente:\s*/i, '').trim()
+                      return (
+                        <div key={c.id} className="hd-msg flex justify-center">
+                          <div className="w-full max-w-[94%] sm:max-w-[82%] rounded-xl overflow-hidden" style={{ border: '1px solid var(--danger-border)', background: 'var(--danger-bg)' }}>
+                            <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--danger-border)' }}>
+                              <XCircle size={16} style={{ color: 'var(--danger)' }} className="shrink-0" />
+                              <span className="text-[13px] font-bold" style={{ color: 'var(--danger)' }}>Solução recusada pelo cliente</span>
+                              <span className="text-[11px] ml-auto" style={{ color: 'var(--danger)' }}>{fmtDate(c.created_at)}</span>
+                            </div>
+                            <div className="px-3.5 py-2.5">
+                              <div className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                                Recusada por <span className="font-semibold" style={{ color: 'var(--text)' }}>{rejeitante}</span>
+                              </div>
+                              {motivo && (
+                                <div className="text-sm rounded-lg px-3 py-2 whitespace-pre-wrap break-words" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>{motivo}</div>
+                              )}
+                              {c.attachments && c.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {c.attachments.map(a => {
+                                    const url = `/api/v1/help-desk/tickets/${id}/comments/${c.id}/attachments/${a.id}/download`
+                                    const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
+                                    const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
+                                    return isImg
+                                      ? <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                                          <img src={url} alt={nome} className="max-h-48 object-contain" />
+                                        </a>
+                                      : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1.5" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                                          <Paperclip size={12} /> {nome} {a.human_size ? `· ${a.human_size}` : ''}
+                                        </a>
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )
