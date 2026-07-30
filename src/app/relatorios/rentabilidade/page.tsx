@@ -1065,9 +1065,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           const raw = new Date(ny, nm - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
           const nextLabel = raw.charAt(0).toUpperCase() + raw.slice(1)
           return (
-            <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
-              <Clock size={16} style={{ color: 'var(--primary)' }} />
-              <span className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+            <div className="rounded-xl px-4 py-2.5 mb-4 flex items-center gap-2" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)' }}>
+              <Clock size={16} style={{ color: 'var(--danger)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
                 Referente ao fechamento financeiro de {nextLabel} — sempre o mês posterior ao selecionado.
               </span>
             </div>
