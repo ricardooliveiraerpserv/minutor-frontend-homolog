@@ -263,11 +263,16 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   useEffect(() => {
     api.get<{ data: PortalColumn[] }>('/help-desk/portal/columns').then(r => { if (r?.data?.length) setCfg(r.data) }).catch(() => {})
   }, [])
-  // Deep-link: /help-desk/portal?ticket=<id> (ex.: "Ver chamado" da faixa de ajuda) abre o chamado.
+  // Deep-link: /help-desk/portal?ticket=<id> (ex.: link "Acompanhar o chamado" do e-mail) abre o chamado.
+  // O portal é client-scoped (só o cliente da customer vê). Agente/admin cairia em 404 ("Carregando…"
+  // eterno) → redireciona para a tela do AGENTE, que tem acesso pleno. Cliente segue no portal.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('ticket')
-    if (p && /^\d+$/.test(p)) setSel(Number(p))
-  }, [])
+    if (!p || !/^\d+$/.test(p)) return
+    if (!user) return // aguarda o usuário carregar para decidir o destino
+    if (user.type !== 'cliente') { window.location.replace(`/help-desk/tickets/${p}`); return }
+    setSel(Number(p))
+  }, [user])
 
   if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} onOpen={(nid) => setSel(nid)} />
 
