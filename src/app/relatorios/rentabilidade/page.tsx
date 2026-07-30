@@ -242,7 +242,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState(() => lf(sf, 'busca', ''))
   const [incluirErpserv, setIncluirErpserv] = useState(() => lf(sf, 'incluirErpserv', true)) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
-  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>(() => lf<'' | 'sustentacao' | 'projeto' | 'investimento'>(sf, 'fCategoria', '')) // filtro por segmento (cards clicáveis)
+  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>('') // filtro por segmento (cards clicáveis) — NÃO persiste: abre sempre em "Total" p/ não "grudar" num segmento entre sessões
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
   const [fCliente, setFCliente]     = useState(() => lf(sf, 'fCliente', ''))
   const [fProjeto, setFProjeto]     = useState(() => lf(sf, 'fProjeto', ''))
