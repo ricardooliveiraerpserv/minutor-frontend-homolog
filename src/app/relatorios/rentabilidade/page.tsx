@@ -1294,6 +1294,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <Wallet size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Recebe Fixo — Custo × Receita × Resultado</span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fixosData[0].nMeses} mês(es) · custo = salário × meses</span>
+              {(fCategoria || fCliente || fProjeto || busca.trim()) && (
+                <span className="text-[11px] font-medium" style={{ color: 'var(--warning)' }} title="O salário é fixo e cobre o mês todo; por isso este quadro sempre soma o mês inteiro, mesmo com um segmento/cliente/projeto selecionado na tabela.">· sempre mês inteiro — não aplica o filtro ativo (segmento/cliente/projeto)</span>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
@@ -1341,6 +1344,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <Clock size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Horistas — Custo × Receita × Resultado</span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>custo = horas × R$/h apontado</span>
+              {(fCategoria || fCliente || fProjeto || busca.trim()) && (
+                <span className="text-[11px] font-medium" style={{ color: 'var(--warning)' }} title="Este quadro sempre soma o mês inteiro, mesmo com um segmento/cliente/projeto selecionado na tabela.">· sempre mês inteiro — não aplica o filtro ativo (segmento/cliente/projeto)</span>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
