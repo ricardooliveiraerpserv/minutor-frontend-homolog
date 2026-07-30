@@ -7,6 +7,7 @@ import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 import { api, ApiError } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { cachedGet } from '@/lib/cached-api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
@@ -585,7 +586,8 @@ function TicketDetailInner({ id }: { id: number }) {
     if (time.end_time) timeFields.end_time = time.end_time
     if (time.total_hours) timeFields.total_hours = time.total_hours
     // Sobe os anexos do formulário (ex.: fonte comprimido do Código Fonte) na interação criada/editada.
-    const uploadFiles = async (cid: number) => { for (const f of files) { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/tickets/${id}/comments/${cid}/attachments`, fd) } }
+    // uploadDirect = POST direto no backend (bypassa o proxy da borda, que barra body >~4.5MB com ERR_HTTP2_PROTOCOL_ERROR).
+    const uploadFiles = async (cid: number) => { for (const f of files) { const fd = new FormData(); fd.append('file', f); await uploadDirect(`/help-desk/tickets/${id}/comments/${cid}/attachments`, fd) } }
     try {
       if (dynEdit) {
         const resp = await api.patch<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic', ...timeFields })
@@ -602,7 +604,11 @@ function TicketDetailInner({ id }: { id: number }) {
         // boolean vira "1"/"0" (Laravel `boolean` rejeita "true"/"false" no FormData).
         Object.entries(timeFields).forEach(([k, v]) => { if (v === undefined || v === null || v === '') return; fd.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v)) })
         files.forEach(f => fd.append('files[]', f))
-        const resp = await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
+        // Com anexo (ou print grande colado em base64), o body estoura o limite do proxy da borda
+        // (ERR_HTTP2_PROTOCOL_ERROR) → manda DIRETO ao backend via uploadDirect. Sem anexo, api.post (auth por aba).
+        const resp = files.length
+          ? await uploadDirect<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
+          : await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Chamado atualizado')
       }
