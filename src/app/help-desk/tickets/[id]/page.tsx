@@ -505,6 +505,24 @@ function TicketDetailInner({ id }: { id: number }) {
     await changeStatus(String(target.id))
     toast.success('Chamado reaberto')
   }
+  // Aceite/Recusa da SOLUÇÃO pelo próprio SOLICITANTE (mesmo sendo agente/admin — o chamado é dele).
+  // Usa os endpoints do portal (ownTicket já libera o solicitante por e-mail/user_id).
+  const [solRejectOpen, setSolRejectOpen] = useState(false)
+  const [solReason, setSolReason] = useState('')
+  const [solActing, setSolActing] = useState(false)
+  const acceptSolution = async () => {
+    setSolActing(true)
+    try { await api.post(`/help-desk/portal/tickets/${id}/accept`, {}); toast.success('Chamado encerrado. Obrigado!'); loadTicket(); loadEvents() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aceitar') }
+    finally { setSolActing(false) }
+  }
+  const rejectSolution = async () => {
+    if (!solReason.trim()) { toast.error('Descreva o que não resolveu.'); return }
+    setSolActing(true)
+    try { await api.post(`/help-desk/portal/tickets/${id}/reject`, { reason: solReason.trim() }); toast.success('Solução recusada — o chamado foi reaberto.'); setSolRejectOpen(false); setSolReason(''); loadTicket(); loadEvents() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao recusar') }
+    finally { setSolActing(false) }
+  }
   // Formulários dinâmicos (construtor) vinculados a status. Legado: solution/gmud (comentários antigos).
   const [forms, setForms] = useState<HdForm[]>([])
   const [solucaoOpen, setSolucaoOpen] = useState(false)
@@ -787,6 +805,28 @@ function TicketDetailInner({ id }: { id: number }) {
             </div>
           </div>
         </div>
+
+        {/* ACEITE/RECUSA da solução — quando o LOGADO é o solicitante (mesmo agente/admin) e o chamado está resolvido */}
+        {t.status?.is_resolved && !t.status?.is_terminal && !!user?.email
+          && [t.solicitante?.email, t.requester_email].some(e => !!e && e.toLowerCase() === user.email?.toLowerCase()) && (
+          <div className="rounded-lg px-4 py-3" style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}>
+            <div className="text-sm font-semibold mb-2" style={{ color: 'var(--success)' }}>✅ Você é o solicitante — a solução resolveu o seu chamado?</div>
+            {!solRejectOpen ? (
+              <div className="flex gap-2 flex-wrap">
+                <button disabled={solActing} onClick={acceptSolution} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white font-semibold" style={{ background: '#16a34a' }}>✓ Aceitar e encerrar</button>
+                <button disabled={solActing} onClick={() => setSolRejectOpen(true)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white font-semibold" style={{ background: '#ef4444' }}>✗ Recusar solução</button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <textarea value={solReason} onChange={e => setSolReason(e.target.value)} rows={3} placeholder="Descreva o que não resolveu…" className="ds-input w-full" style={{ fontSize: 13, padding: 8 }} />
+                <div className="flex gap-2">
+                  <button disabled={solActing} onClick={rejectSolution} className="text-sm px-3 py-1.5 rounded-lg text-white font-semibold" style={{ background: '#ef4444' }}>Enviar recusa</button>
+                  <button onClick={() => { setSolRejectOpen(false); setSolReason('') }} className="text-sm px-3 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CONTINUAÇÃO — banner bem evidente quando o chamado dá sequência a um chamado encerrado */}
         {t.previous_ticket && (
