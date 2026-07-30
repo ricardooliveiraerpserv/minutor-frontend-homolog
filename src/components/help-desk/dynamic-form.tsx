@@ -204,7 +204,9 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     // Tempo da interação: 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta.
     if (timeMode !== 'hidden') {
       if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
-      if (!noCharge && !totalDisplay) { toast.error(timeMode === 'required' ? 'Informe as horas da interação (início→fim ou total).' : 'Informe as horas da interação (início→fim ou total) ou marque “Sem apontamento”.'); return }
+      // Só OBRIGATÓRIO ('required') força informar horas. Em 'optional', salvar em branco é permitido
+      // (sem apontamento implícito) — não força marcar "Sem apontamento".
+      if (timeMode === 'required' && !noCharge && !totalDisplay) { toast.error('Informe as horas da interação (início→fim ou total).'); return }
     }
 
     // Tags resolvidas AGORA (grava o valor real na instância — o timeline/e-mail já saem prontos).
