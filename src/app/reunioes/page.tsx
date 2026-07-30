@@ -142,12 +142,17 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
   const [date, setDate] = useState(toLocalInput(detail.meeting_date))
   const [location, setLocation] = useState(detail.location ?? '')
   const [description, setDescription] = useState(detail.description ?? '')
-  const [notes, setNotes] = useState(detail.notes ?? '')
+  const notesDraftKey = `meeting_notes_draft_${detail.id}`
+  const [notes, setNotes] = useState(() => { try { const d = localStorage.getItem(notesDraftKey); return d != null ? d : (detail.notes ?? '') } catch { return detail.notes ?? '' } })
   const [saving, setSaving] = useState(false)
   // nova tarefa
   const [tTitle, setTTitle] = useState('')
   const [tWho, setTWho] = useState<string>('')
   const [tDue, setTDue] = useState('')
+  // Rascunho auto-salvo das anotações: sobrevive a reload/erro; limpa quando bate com o salvo.
+  useEffect(() => {
+    try { if (notes !== (detail.notes ?? '')) localStorage.setItem(notesDraftKey, notes); else localStorage.removeItem(notesDraftKey) } catch { /* ignore */ }
+  }, [notes, notesDraftKey, detail.notes])
 
   // Um único save: grava dados da reunião + anotações de uma vez.
   const saveAll = async () => {
