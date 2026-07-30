@@ -510,18 +510,21 @@ function TicketDetailInner({ id }: { id: number }) {
   const [solRejectOpen, setSolRejectOpen] = useState(false)
   const [solReason, setSolReason] = useState('')
   const [solActing, setSolActing] = useState(false)
+  const solBusyRef = useRef(false) // trava síncrona contra duplo-clique (setState é assíncrono)
   const acceptSolution = async () => {
-    setSolActing(true)
+    if (solBusyRef.current) return
+    solBusyRef.current = true; setSolActing(true)
     try { await api.post(`/help-desk/portal/tickets/${id}/accept`, {}); toast.success('Chamado encerrado. Obrigado!'); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aceitar') }
-    finally { setSolActing(false) }
+    finally { solBusyRef.current = false; setSolActing(false) }
   }
   const rejectSolution = async () => {
+    if (solBusyRef.current) return
     if (!solReason.trim()) { toast.error('Descreva o que não resolveu.'); return }
-    setSolActing(true)
+    solBusyRef.current = true; setSolActing(true)
     try { await api.post(`/help-desk/portal/tickets/${id}/reject`, { reason: solReason.trim() }); toast.success('Solução recusada — o chamado foi reaberto.'); setSolRejectOpen(false); setSolReason(''); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao recusar') }
-    finally { setSolActing(false) }
+    finally { solBusyRef.current = false; setSolActing(false) }
   }
   // Formulários dinâmicos (construtor) vinculados a status. Legado: solution/gmud (comentários antigos).
   const [forms, setForms] = useState<HdForm[]>([])
