@@ -17,10 +17,17 @@ const PROVIDERS = [
 ]
 const ROLE_LABEL: Record<string, string> = { organizer: 'Organizador', solicitante: 'Solicitante', responsavel: 'Responsável', consultor: 'Consultor', coordenador: 'Coordenador', required: 'Participante', optional: 'Opcional' }
 
-function nowLocal(offsetMin = 60) {
-  const d = new Date(Date.now() + offsetMin * 60_000)
+// Próximo horário disponível (só SUGESTÃO do default): agora + 15min de folga, arredondado p/ o
+// próximo :00 ou :30. A data acompanha (vira o dia seguinte se passar da meia-noite). Combina com a
+// guarda de não-agendar-no-passado — o default nunca cai no passado.
+function nextSlot() {
+  const d = new Date(Date.now() + 15 * 60_000)
+  d.setSeconds(0, 0)
+  const m = d.getMinutes()
+  if (m > 30) { d.setMinutes(0); d.setHours(d.getHours() + 1) }
+  else if (m > 0) { d.setMinutes(30) }
   const p = (n: number) => String(n).padStart(2, '0')
-  return { date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:00` }
+  return { date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` }
 }
 
 export function AgendarReuniaoModal({ originType, originId, defaultTitle, meeting, onClose, onCreated }: {
@@ -29,7 +36,7 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, meetin
   onClose: () => void; onCreated: () => void
 }) {
   const editing = !!meeting
-  const init = nowLocal()
+  const init = nextSlot()
   // Hoje (local) — usado como min do input de data: não dá pra escolher um DIA passado.
   const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
   // Modo edição: pré-preenche data/hora/duração da reunião existente (reagendar).
@@ -39,7 +46,7 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, meetin
   })() : null
   const [title, setTitle] = useState(meeting?.title ?? defaultTitle ?? '')
   const [date, setDate] = useState(initEdit?.date ?? init.date)
-  const [time, setTime] = useState(initEdit?.time ?? '09:00')
+  const [time, setTime] = useState(initEdit?.time ?? init.time)
   const [duration, setDuration] = useState(meeting?.duration_minutes ?? 30)
   const [provider, setProvider] = useState('teams')
   const [description, setDescription] = useState('')
