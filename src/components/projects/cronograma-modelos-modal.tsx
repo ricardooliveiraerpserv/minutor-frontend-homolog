@@ -56,6 +56,10 @@ export function CronogramaModelosModal({ open, onClose, projectId, onApplied }: 
 
   async function applyTemplate() {
     if (!templateId || !applyStart) { toast.error('Escolha o modelo e a data de início'); return }
+    // Confirmação: aplicar ADICIONA (não substitui) as etapas/atividades ao cronograma atual.
+    const tpl = templates.find(t => String(t.id) === templateId)
+    const extra = tpl ? ` (${tpl.stages_count} etapa(s) · ${tpl.activities_count} atividade(s))` : ''
+    if (!confirm(`Aplicar o modelo "${tpl?.name ?? 'selecionado'}"${extra} vai ADICIONAR essas etapas e atividades ao cronograma atual deste projeto. As etapas já existentes NÃO são removidas.\n\nDeseja continuar?`)) return
     setBusy(true)
     try {
       await api.post(`/projects/${projectId}/cronograma/apply-template`, { template_id: Number(templateId), start_date: applyStart })
@@ -67,6 +71,9 @@ export function CronogramaModelosModal({ open, onClose, projectId, onApplied }: 
 
   async function copyFromProject() {
     if (!sourceId || !copyStart) { toast.error('Escolha o projeto de origem e a data de início'); return }
+    // Confirmação: copiar ADICIONA (não substitui) o cronograma da origem ao atual.
+    const src = projects.find(p => String(p.id) === sourceId)
+    if (!confirm(`Copiar o cronograma de "${src?.name ?? 'selecionado'}" vai ADICIONAR as etapas e atividades desse projeto ao cronograma atual. As etapas já existentes NÃO são removidas.\n\nDeseja continuar?`)) return
     setBusy(true)
     try {
       await api.post(`/projects/${projectId}/cronograma/copy-from`, { source_project_id: Number(sourceId), start_date: copyStart })
