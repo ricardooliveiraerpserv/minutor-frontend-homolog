@@ -472,7 +472,7 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
   return (
     <div
       className="rounded-xl p-3 cursor-pointer select-none transition-all hover:opacity-90"
-      style={{ background: 'var(--surface)', border: '1px solid rgba(139,92,246,0.35)' }}
+      style={{ background: 'var(--surface)', border: '1px solid rgba(139,92,246,0.35)', borderLeft: `4px solid ${urgColor}` }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
@@ -501,7 +501,8 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
         </span>
       </div>
       <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(139,92,246,0.15)' }}>
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${urgColor}18`, color: urgColor }}>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 uppercase tracking-wide" style={{ background: urgColor, color: '#fff' }}>
+          <span style={{ width: 5, height: 5, borderRadius: 9999, background: '#fff', opacity: 0.9 }} />
           {URGENCIA_LABEL[card.nivel_urgencia] ?? card.nivel_urgencia}
         </span>
         <div className="flex items-center gap-2">
@@ -4318,6 +4319,7 @@ function KanbanContent() {
   const [filterSearch,        setFilterSearch]        = useState('')
   const [filterCustomers,     setFilterCustomers]     = useState<string[]>([])
   const [filterExecutivos,    setFilterExecutivos]    = useState<string[]>([])
+  const [filterUrgencias,     setFilterUrgencias]     = useState<string[]>([]) // filtro de urgência das requisições
   const [filterCoordinators,  setFilterCoordinators]  = useState<string[]>([])
   const [filterProjectNames,  setFilterProjectNames]  = useState<string[]>([])
   const [saudeFilter,         setSaudeFilter]         = useState<'' | 'green' | 'yellow' | 'red'>('')
@@ -5089,6 +5091,14 @@ function KanbanContent() {
           )}
           {!isCliente && (
             <MultiSelect
+              value={filterUrgencias}
+              onChange={setFilterUrgencias}
+              options={Object.entries(URGENCIA_LABEL).map(([id, name]) => ({ id, name }))}
+              placeholder="Toda urgência"
+            />
+          )}
+          {!isCliente && (
+            <MultiSelect
               value={filterProjectNames}
               onChange={setFilterProjectNames}
               options={allProjectOptions}
@@ -5204,6 +5214,7 @@ function KanbanContent() {
           const allRequests = requestCards
             .filter(r => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(r.customer_name ?? '')) return false
+              if (filterUrgencias.length > 0 && !filterUrgencias.includes(r.nivel_urgencia)) return false
               if (sq && !(r.customer_name ?? '').toLowerCase().includes(sq) && !(r.project_name ?? '').toLowerCase().includes(sq)) return false
               return true
             })
@@ -5592,6 +5603,7 @@ function KanbanContent() {
                     if ((r.kanban_column ?? 'backlog') !== col.id) return false
                     if (r.req_decision === 'novo_projeto' && r.linked_contract_id && authorizedContractIds.has(r.linked_contract_id)) return false
                     if (r.linked_contract_id && sustContractIds.has(r.linked_contract_id)) return false
+                    if (filterUrgencias.length > 0 && !filterUrgencias.includes(r.nivel_urgencia)) return false
                     return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '') && passesProjectFilter(requestProjectId(r))
                   })}
                   canDrag={colCanDrag(col.id)}
@@ -5633,7 +5645,8 @@ function KanbanContent() {
                         const projId = contractToProjectId.get(r.linked_contract_id)
                         if (projId && visibleProjectIds.has(projId)) return false
                       }
-                      return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '') && passesProjectFilter(requestProjectId(r))
+                      if (filterUrgencias.length > 0 && !filterUrgencias.includes(r.nivel_urgencia)) return false
+                    return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '') && passesProjectFilter(requestProjectId(r))
                     })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
