@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Building2, X, Search, LayoutDashboard } from 'lucide-react'
+import { Building2, X, Search, LayoutDashboard, Plus, Trash2 } from 'lucide-react'
 
 interface Customer { id: number; name: string; company_name: string | null; cgc: string; crm_status: string; executive?: { id: number; name: string } | null }
 interface CrmTag { id: number; name: string; color: string | null }
@@ -41,6 +41,11 @@ export default function CrmEmpresasPage() {
   const [newTag, setNewTag] = useState('')
   const [saving, setSaving] = useState(false)
   const [vinculos, setVinculos] = useState<Vinculos | null>(null)
+  // Incluir empresa
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newEmp, setNewEmp] = useState({ name: '', company_name: '', cgc: '', crm_status: 'prospect' })
+  const [deleting, setDeleting] = useState(false)
   const [timeline, setTimeline] = useState<TimelineItem[]>([])
 
   const load = useCallback(() => {
@@ -92,6 +97,37 @@ export default function CrmEmpresasPage() {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
   }
 
+  // Incluir empresa (= criar customer; CNPJ só é obrigatório se o status for cliente — o BE valida).
+  const createEmpresa = async () => {
+    if (!newEmp.name.trim()) { toast.error('Informe o nome da empresa'); return }
+    setCreating(true)
+    try {
+      await api.post('/customers', {
+        name: newEmp.name.trim(),
+        company_name: newEmp.company_name.trim() || null,
+        cgc: newEmp.cgc.replace(/\D/g, '') || null,
+        crm_status: newEmp.crm_status,
+      })
+      toast.success('Empresa incluída')
+      setShowCreate(false)
+      setNewEmp({ name: '', company_name: '', cgc: '', crm_status: 'prospect' })
+      load()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao incluir empresa') } finally { setCreating(false) }
+  }
+
+  // Excluir empresa: só se NÃO tiver vínculos (BE bloqueia contrato/projeto real/oportunidade).
+  const deleteEmpresa = async () => {
+    if (!sel) return
+    if (!confirm(`Excluir a empresa "${sel.name}"? Essa ação não pode ser desfeita.`)) return
+    setDeleting(true)
+    try {
+      await api.delete(`/customers/${sel.id}`)
+      toast.success('Empresa excluída')
+      setList(xs => xs.filter(x => x.id !== sel.id))
+      setSel(null)
+    } catch (e: any) { toast.error(e?.message ?? 'Não foi possível excluir a empresa') } finally { setDeleting(false) }
+  }
+
   const filtered = list.filter(c => {
     if (fStatus && c.crm_status !== fStatus) return false
     if (busca.trim()) { const q = busca.toLowerCase(); const d = busca.replace(/\D/g, ''); return c.name.toLowerCase().includes(q) || (c.company_name ?? '').toLowerCase().includes(q) || (d && c.cgc.includes(d)) }
@@ -107,6 +143,10 @@ export default function CrmEmpresasPage() {
         <Building2 size={18} style={{ color: 'var(--primary)' }} />
         <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Empresas</h1>
         <span className="text-xs" style={{ color: 'var(--text-light)' }}>— mesma base de clientes (empresa única)</span>
+        <button onClick={() => setShowCreate(true)} className="ml-auto flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+          <Plus size={15} /> Nova empresa
+        </button>
       </div>
 
       {/* Indicadores por status (refletem customers.crm_status — empresa única) */}
@@ -248,9 +288,63 @@ export default function CrmEmpresasPage() {
                 )}
               </div>
             </div>
+            {(() => {
+              // Empresa com vínculos = cliente de verdade → não exclui (o BE também bloqueia).
+              const locked = !!vinculos && (vinculos.contratos > 0 || vinculos.oportunidades > 0)
+              return (
+                <div className="flex items-center gap-2 mt-5">
+                  {locked ? (
+                    <span className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                      <Trash2 size={12} /> Cliente com vínculos (contrato/oportunidade) — não pode ser excluída.
+                    </span>
+                  ) : (
+                    <button onClick={deleteEmpresa} disabled={deleting} className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5"
+                      style={{ color: 'var(--danger)', border: '1px solid var(--danger)' }} title="Excluir empresa">
+                      <Trash2 size={14} /> {deleting ? 'Excluindo…' : 'Excluir'}
+                    </button>
+                  )}
+                  <div className="flex-1" />
+                  <button onClick={() => setSel(null)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+                  <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setShowCreate(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Nova empresa</h2>
+              <button onClick={() => setShowCreate(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome / Razão social *</label>
+                <input value={newEmp.name} onChange={e => setNewEmp(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome fantasia</label>
+                <input value={newEmp.company_name} onChange={e => setNewEmp(f => ({ ...f, company_name: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>CNPJ/CPF{newEmp.crm_status === 'cliente' ? ' *' : ''}</label>
+                  <input value={newEmp.cgc} onChange={e => setNewEmp(f => ({ ...f, cgc: e.target.value }))} placeholder="opcional p/ lead/prospect" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Status comercial</label>
+                  <select value={newEmp.crm_status} onChange={e => setNewEmp(f => ({ ...f, crm_status: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                    {STATUS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>O CNPJ só é obrigatório para status <b>Cliente</b>. Empresa é a mesma base de clientes (empresa única).</p>
+            </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setSel(null)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
+              <button onClick={() => setShowCreate(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={createEmpresa} disabled={creating} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{creating ? 'Incluindo…' : 'Incluir'}</button>
             </div>
           </div>
         </div>
