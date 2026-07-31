@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Contact, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Contact, Plus, Pencil, Trash2, X, Search } from 'lucide-react'
 
 interface Customer { id: number; name: string }
 interface CrmContact {
@@ -26,6 +26,13 @@ export default function CrmContatosPage() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<typeof EMPTY>(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [busca, setBusca] = useState('')
+  // Filtro por texto: nome/cargo/depto/e-mail/telefone/whatsapp do contato.
+  const filtered = contacts.filter(c => {
+    const q = busca.trim().toLowerCase()
+    if (!q) return true
+    return [c.name, c.cargo, c.departamento, c.email, c.phone, c.whatsapp].some(v => (v ?? '').toLowerCase().includes(q))
+  })
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500')
@@ -87,6 +94,12 @@ export default function CrmContatosPage() {
             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
+        {customerId && (
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-light)' }} />
+            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, cargo, e-mail…" className="pl-8 pr-3 py-2 rounded-lg text-sm outline-none w-64" style={inputStyle} />
+          </div>
+        )}
         <button onClick={openNew} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
           <Plus size={15} /> Novo contato
         </button>
@@ -107,8 +120,8 @@ export default function CrmContatosPage() {
             </tr></thead>
             <tbody>
               {loading ? <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
-              : contacts.length === 0 ? <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum contato.</td></tr>
-              : contacts.map(c => (
+              : filtered.length === 0 ? <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum contato.</td></tr>
+              : filtered.map(c => (
                 <tr key={c.id} style={{ borderTop: '1px solid var(--border)' }}>
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{c.name}{c.linkedin && <a href={c.linkedin} target="_blank" rel="noreferrer" className="ml-2 text-[11px]" style={{ color: 'var(--primary)' }}>in</a>}</td>
                   <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{c.cargo ?? '—'}{c.departamento && <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>{c.departamento}</span>}</td>
