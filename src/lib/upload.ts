@@ -36,7 +36,13 @@ export async function uploadDirect<T = any>(path: string, fd: FormData): Promise
     let msg = `Falha ao enviar anexo (HTTP ${res.status}).`
     if (res.status === 413) msg = 'Arquivo muito grande para o servidor (limite 20MB).'
     else {
-      try { const j = await res.json(); if (j?.message) msg = j.message } catch { /* ignore */ }
+      // 422 do Laravel: prefere o erro ESPECÍFICO do campo (errors.{campo}[0]); senão o message geral.
+      try {
+        const j = await res.json()
+        const first = j?.errors && typeof j.errors === 'object' ? (Object.values(j.errors)[0] as unknown) : null
+        if (Array.isArray(first) && first[0]) msg = String(first[0])
+        else if (j?.message) msg = j.message
+      } catch { /* ignore */ }
     }
     throw new Error(msg)
   }

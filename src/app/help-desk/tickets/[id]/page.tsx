@@ -614,7 +614,9 @@ function TicketDetailInner({ id }: { id: number }) {
       }
       setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar o formulário') }
+    // Mostra a mensagem REAL (ApiError do proxy OU Error do uploadDirect — que carrega o texto do 422
+    // do backend), em vez de engolir tudo num genérico. ApiError estende Error → instanceof Error cobre ambos.
+    } catch (e) { toast.error(e instanceof Error && e.message ? e.message : 'Erro ao salvar o formulário') }
   }
 
   const openFormEdit = (c: Comment) => {
