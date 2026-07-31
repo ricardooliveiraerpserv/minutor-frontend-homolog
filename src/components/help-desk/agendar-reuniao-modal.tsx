@@ -30,6 +30,8 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, meetin
 }) {
   const editing = !!meeting
   const init = nowLocal()
+  // Hoje (local) — usado como min do input de data: não dá pra escolher um DIA passado.
+  const todayStr = (() => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` })()
   // Modo edição: pré-preenche data/hora/duração da reunião existente (reagendar).
   const initEdit = meeting ? (() => {
     const d = new Date(meeting.starts_at); const p = (n: number) => String(n).padStart(2, '0')
@@ -64,6 +66,11 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, meetin
   const submit = async () => {
     if (!title.trim()) { toast.error('Informe o título.'); return }
     if (!date || !time) { toast.error('Informe data e hora.'); return }
+    // Não permite agendar/reagendar no passado (data + hora combinadas). Tolerância de 1 min p/ evitar
+    // recusar o "agora exato" por diferença de relógio.
+    const startsAt = new Date(`${date}T${time}:00`)
+    if (isNaN(startsAt.getTime())) { toast.error('Data/hora inválida.'); return }
+    if (startsAt.getTime() < Date.now() - 60_000) { toast.error('Não é possível agendar reunião em data/horário passado.'); return }
     setSaving(true)
     try {
       if (editing && meeting) {
@@ -101,7 +108,7 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, meetin
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Data</label>
-              <input type="date" className="ds-input w-full" value={date} min={editing ? undefined : init.date} onChange={e => setDate(e.target.value)} /></div>
+              <input type="date" className="ds-input w-full" value={date} min={todayStr} onChange={e => setDate(e.target.value)} /></div>
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Hora</label>
               <input type="time" className="ds-input w-full" value={time} onChange={e => setTime(e.target.value)} /></div>
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Duração</label>
