@@ -4971,10 +4971,10 @@ function KanbanContent() {
     <AppLayout>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Demandas e Projetos</h1>
-            <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+            <h1 className="text-base font-bold leading-tight" style={{ color: 'var(--text)' }}>Demandas e Projetos</h1>
+            <p className="text-[11px] leading-tight" style={{ color: 'var(--text-light)' }}>
               {isConsultor ? 'Seus projetos em execução' : 'Gerencie o fluxo completo de contratos e projetos'}
             </p>
           </div>
@@ -5036,7 +5036,7 @@ function KanbanContent() {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-6 px-4 md:px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+        <div className="flex flex-wrap items-center gap-6 px-4 md:px-6 py-1 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           {!isConsultor && !isCoord && (
             <>
               <span className="flex items-center gap-1.5">
@@ -5059,7 +5059,7 @@ function KanbanContent() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 py-1.5 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
             <input
