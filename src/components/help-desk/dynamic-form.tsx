@@ -53,6 +53,9 @@ export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' |
 export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean; counts_for_section?: boolean }
 // Extensões de arquivo comprimido aceitas quando o anexo é obrigatório (Código Fonte etc.).
 const COMPRESSED_RE = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|z)$/i
+// Limite de anexo por arquivo — mesma fonte p/ a guarda de tamanho E o texto exibido (nunca divergem).
+// Bate com o backend (validação 50MB + nginx/PHP). Acima disso: usar link (OneDrive/SharePoint).
+const MAX_ATTACH_MB = 50
 // Rótulo sem o emoji/pontuação inicial — p/ mensagens de validação mais limpas.
 const cleanLabel = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
@@ -151,11 +154,11 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
       const picked = input.files ? Array.from(input.files) : []
       // Guarda de tamanho NA HORA: arquivo > 50MB é rejeitado com mensagem clara (mostra o tamanho e
       // sugere link), em vez de falhar em rede depois de ~30s no upload. Bate com o limite do backend.
-      const MAX = 50 * 1024 * 1024
+      const MAX = MAX_ATTACH_MB * 1024 * 1024
       const big = picked.filter(f => f.size > MAX)
       const ok = picked.filter(f => f.size <= MAX)
       if (big.length) toast.error(
-        `Arquivo muito grande: ${big.map(f => `${f.name} (${(f.size / 1048576).toFixed(0)}MB)`).join(', ')}. Máximo 50MB por arquivo — para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.`,
+        `Arquivo muito grande: ${big.map(f => `${f.name} (${(f.size / 1048576).toFixed(0)}MB)`).join(', ')}. Máximo ${MAX_ATTACH_MB}MB por arquivo — para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.`,
         { duration: 8000 },
       )
       if (ok.length) setFormFiles(f => [...f, ...ok])
@@ -326,6 +329,10 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
                 <button type="button" onClick={() => setFormFiles(fs => fs.filter((_, j) => j !== i))}><X size={11} /></button>
               </span>
             ))}
+          </div>
+          {/* Limite SEMPRE visível: o usuário sabe o teto antes de anexar (evita falha de upload sem motivo claro). */}
+          <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+            Máx. {MAX_ATTACH_MB}MB por arquivo. Para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.
           </div>
         </div>
 
