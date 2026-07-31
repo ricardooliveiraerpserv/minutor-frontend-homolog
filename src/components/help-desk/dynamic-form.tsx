@@ -149,7 +149,16 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     input.type = 'file'; input.multiple = true; input.style.display = 'none'
     input.addEventListener('change', () => {
       const picked = input.files ? Array.from(input.files) : []
-      if (picked.length) setFormFiles(f => [...f, ...picked])
+      // Guarda de tamanho NA HORA: arquivo > 50MB é rejeitado com mensagem clara (mostra o tamanho e
+      // sugere link), em vez de falhar em rede depois de ~30s no upload. Bate com o limite do backend.
+      const MAX = 50 * 1024 * 1024
+      const big = picked.filter(f => f.size > MAX)
+      const ok = picked.filter(f => f.size <= MAX)
+      if (big.length) toast.error(
+        `Arquivo muito grande: ${big.map(f => `${f.name} (${(f.size / 1048576).toFixed(0)}MB)`).join(', ')}. Máximo 50MB por arquivo — para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.`,
+        { duration: 8000 },
+      )
+      if (ok.length) setFormFiles(f => [...f, ...ok])
       input.remove()
     })
     document.body.appendChild(input); input.click()
