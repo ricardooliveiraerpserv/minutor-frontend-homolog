@@ -46,6 +46,7 @@ type FormState = {
   aporte_target_project_id: string
   aporte_horas: string
   aporte_valor_hora: string
+  aporte_nao_valorizado: boolean // aporte só de horas: sem valor, sem card no kanban
   aporte_motivo: 'aporte' | 'excedentes' | 'absorvidas'
   aporte_descricao: string
   aporte_data: string
@@ -73,7 +74,7 @@ const EMPTY_FORM: FormState = {
   expectativa_inicio: '', condicao_pagamento: '',
   executivo_conta_id: '', vendedor_id: '', observacoes: '',
   is_aporte: false, aporte_target_project_id: '', aporte_horas: '',
-  aporte_valor_hora: '', aporte_motivo: 'aporte', aporte_descricao: '', aporte_data: '',
+  aporte_valor_hora: '', aporte_nao_valorizado: false, aporte_motivo: 'aporte', aporte_descricao: '', aporte_data: '',
   is_aditivo: false, aditivo_target_project_id: '', aditivo_field: '',
   aditivo_value: '', aditivo_effective_from: new Date().toISOString().slice(0, 7),
   aditivo_m_rate: '', aditivo_m_horas: '',
@@ -543,11 +544,12 @@ export function ContractCreateModal({
       if (!form.customer_id)                                              { toast.error('Selecione o cliente'); return }
       if (!form.aporte_target_project_id)                                  { toast.error('Selecione o projeto que recebe o aporte'); return }
       if (!form.aporte_horas || Number(form.aporte_horas) <= 0)            { toast.error('Informe a quantidade de horas'); return }
-      if (!form.aporte_valor_hora || Number(form.aporte_valor_hora) <= 0)  { toast.error('Informe o valor da hora'); return }
+      // Aporte NÃO valorizado: sem valor/hora, sem card e sem proposta obrigatória.
+      if (!form.aporte_nao_valorizado && (!form.aporte_valor_hora || Number(form.aporte_valor_hora) <= 0)) { toast.error('Informe o valor da hora'); return }
       if (!form.aporte_data)                                               { toast.error('Informe a data do aporte'); return }
       const selProj = aporteProjects.find(p => p.id === form.aporte_target_project_id)
       const isChildTarget = !!selProj?.is_child
-      if (!isChildTarget && !pendingProposta) {
+      if (!isChildTarget && !form.aporte_nao_valorizado && !pendingProposta) {
         toast.error('Anexe a aprovação/proposta — obrigatório para aporte em projeto pai')
         return
       }
@@ -555,15 +557,18 @@ export function ContractCreateModal({
       try {
         const fd = new FormData()
         fd.append('contributed_hours', String(Number(form.aporte_horas)))
-        fd.append('hourly_rate',       String(Number(form.aporte_valor_hora)))
+        if (form.aporte_nao_valorizado) fd.append('nao_valorizado', '1')
+        else fd.append('hourly_rate', String(Number(form.aporte_valor_hora)))
         fd.append('motivo',            form.aporte_motivo)
         fd.append('contributed_at',    form.aporte_data)
         if (form.aporte_descricao) fd.append('description', form.aporte_descricao)
-        if (!isChildTarget && pendingProposta) fd.append('proposta', pendingProposta)
+        if (!isChildTarget && !form.aporte_nao_valorizado && pendingProposta) fd.append('proposta', pendingProposta)
         await uploadDirect(`/projects/${form.aporte_target_project_id}/hour-contributions`, fd)
-        toast.success(isChildTarget
-          ? 'Aporte registrado no projeto filho (consumindo do saldo do pai)'
-          : 'Aporte criado — card disponível no Kanban')
+        toast.success(form.aporte_nao_valorizado
+          ? 'Aporte não valorizado registrado (só horas · sem card)'
+          : isChildTarget
+            ? 'Aporte registrado no projeto filho (consumindo do saldo do pai)'
+            : 'Aporte criado — card disponível no Kanban')
         // onSuccess espera um contractId; aporte não cria contract → passa 0 e o caller recarrega
         onSuccess(0)
       } catch (e: any) {
@@ -1032,6 +1037,17 @@ export function ContractCreateModal({
                       </div>
                     )}
 
+                    {/* Aporte NÃO valorizado: só horas, sem valor e sem card no Kanban */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none rounded-lg px-3 py-2"
+                      style={{ background: form.aporte_nao_valorizado ? 'var(--warning-bg)' : 'var(--surface-sunken)', border: `1px solid ${form.aporte_nao_valorizado ? 'var(--warning-border)' : 'var(--border)'}` }}>
+                      <input type="checkbox" checked={form.aporte_nao_valorizado}
+                        onChange={e => setForm(f => ({ ...f, aporte_nao_valorizado: e.target.checked, aporte_valor_hora: e.target.checked ? '' : f.aporte_valor_hora }))}
+                        style={{ accentColor: 'var(--warning)', width: 15, height: 15 }} />
+                      <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>Aporte não valorizado
+                        <span className="ml-1 font-normal" style={{ color: 'var(--text-muted)' }}>— só adiciona horas, sem valor e sem card no Kanban</span>
+                      </span>
+                    </label>
+
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -1041,17 +1057,19 @@ export function ContractCreateModal({
                           placeholder="0" className={inputCls} style={inputStyle} />
                       </div>
                       <div>
-                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Valor da hora (R$) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Valor da hora (R$) {!form.aporte_nao_valorizado && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
                         <input type="number" min="0.01" step="0.01"
-                          value={form.aporte_valor_hora}
+                          value={form.aporte_nao_valorizado ? '' : form.aporte_valor_hora}
                           onChange={e => setForm(f => ({ ...f, aporte_valor_hora: e.target.value }))}
-                          placeholder="0,00" className={inputCls} style={inputStyle} />
+                          disabled={form.aporte_nao_valorizado}
+                          placeholder={form.aporte_nao_valorizado ? 'não valorizado' : '0,00'} className={inputCls}
+                          style={{ ...inputStyle, opacity: form.aporte_nao_valorizado ? 0.5 : 1 }} />
                       </div>
                       <div>
                         <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Total do aporte</label>
                         <div className="px-3 py-2 rounded-lg text-sm font-semibold tabular-nums"
                           style={{ ...inputStyle, background: 'var(--success-bg)', color: 'var(--success)', borderColor: 'var(--success-border)' }}>
-                          {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          {form.aporte_nao_valorizado ? '—' : total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
                       </div>
                     </div>
@@ -1087,7 +1105,7 @@ export function ContractCreateModal({
                       />
                     </div>
 
-                    {!isChildTarget && (
+                    {!isChildTarget && !form.aporte_nao_valorizado && (
                       <div>
                         <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Aprovação do Cliente / Proposta Assinada <span style={{ color: 'var(--danger)' }}>*</span></label>
                         {/* DS: file:* não aceita var() inline — cor do botão de arquivo via classes utilitárias tokenizadas */}
