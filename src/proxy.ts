@@ -32,6 +32,12 @@ export function proxy(req: NextRequest) {
   const isDev = process.env.NODE_ENV !== 'production'
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
 
+  // Upload/download DIRETO no backend (uploadDirect, bypassa o proxy da borda) precisa da origem do
+  // backend liberada no connect-src — senão a CSP bloqueia ("Refused to connect"). Deriva do MESMO
+  // BACKEND_URL que o /api/upload-credentials devolve, então CSP e upload nunca divergem (homolog/prod).
+  let backendOrigin = ''
+  try { if (process.env.BACKEND_URL) backendOrigin = new URL(process.env.BACKEND_URL).origin } catch { /* noop */ }
+
   // Mesmas diretivas de antes (next.config.ts), com script-src migrado para nonce.
   const csp = [
     "default-src 'self'",
@@ -43,7 +49,9 @@ export function proxy(req: NextRequest) {
     "font-src 'self' data:",
     isDev
       ? "connect-src 'self' http://localhost:* ws://localhost:* https:"
-      : "connect-src 'self' https://api.minutor.com.br",
+      // api.minutor.com.br (prod) + backend homolog (onrender) explícitos = garantia; backendOrigin
+      // derivado cobre mudança futura de URL sem novo deploy da CSP.
+      : `connect-src 'self' https://api.minutor.com.br https://minutor-backend-homolog.onrender.com${backendOrigin && !['https://api.minutor.com.br', 'https://minutor-backend-homolog.onrender.com'].includes(backendOrigin) ? ' ' + backendOrigin : ''}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
