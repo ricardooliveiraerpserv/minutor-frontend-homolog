@@ -330,17 +330,17 @@ export default function CrmEmpresasPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>CNPJ/CPF{newEmp.crm_status === 'cliente' ? ' *' : ''}</label>
-                  <input value={newEmp.cgc} onChange={e => setNewEmp(f => ({ ...f, cgc: e.target.value }))} placeholder="opcional p/ lead/prospect" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>CNPJ/CPF</label>
+                  <input value={newEmp.cgc} onChange={e => setNewEmp(f => ({ ...f, cgc: e.target.value }))} placeholder="opcional" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Status comercial</label>
                   <select value={newEmp.crm_status} onChange={e => setNewEmp(f => ({ ...f, crm_status: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                    {STATUS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                    {STATUS.filter(s => s.v === 'lead' || s.v === 'prospect').map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                   </select>
                 </div>
               </div>
-              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>O CNPJ só é obrigatório para status <b>Cliente</b>. Empresa é a mesma base de clientes (empresa única).</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Só é possível incluir como <b>Lead</b> ou <b>Prospect</b> — clientes nascem da <b>conversão do lead</b>, não são criados aqui.</p>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setShowCreate(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
