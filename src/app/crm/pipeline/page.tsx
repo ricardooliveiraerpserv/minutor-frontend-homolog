@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { toast } from 'sonner'
 import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -987,6 +988,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
 
           {/* RESUMO */}
           {tab === 'resumo' && (<>
+            <div className="mb-4"><CustomFieldsSection urlContext="opportunities" entityId={o.id} title="Campos personalizados da oportunidade" /></div>
             {o.contract_id ? (
               <div className="mb-4 text-xs rounded-lg px-3 py-2 flex items-center gap-2" style={{ background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }}>
                 <Check size={14} /> Convertida em contrato <b>#{o.contract_id}</b> — gere o projeto no Kanban de Contratos.

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { toast } from 'sonner'
 import { Building2, X, Search, LayoutDashboard, Plus, Trash2 } from 'lucide-react'
 
@@ -287,6 +288,9 @@ export default function CrmEmpresasPage() {
                   </div>
                 )}
               </div>
+            </div>
+            <div className="mt-3">
+              <CustomFieldsSection urlContext="customers" entityId={sel.id} />
             </div>
             {(() => {
               // Empresa com vínculos = cliente de verdade → não exclui (o BE também bloqueia).

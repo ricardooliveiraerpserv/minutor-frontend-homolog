@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { toast } from 'sonner'
 import { Contact, Plus, Pencil, Trash2, X, Search } from 'lucide-react'
 
@@ -157,6 +158,11 @@ export default function CrmContatosPage() {
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Influência na decisão</label><select value={form.influencia_decisao} onChange={e => setF('influencia_decisao', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>{INFLU.map(i => <option key={i.v} value={i.v}>{i.l}</option>)}</select></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Canal preferido</label><select value={form.canal_preferido} onChange={e => setF('canal_preferido', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>{CANAL.map(i => <option key={i.v} value={i.v}>{i.l}</option>)}</select></div>
             </div>
+            {editId && (
+              <div className="mt-3">
+                <CustomFieldsSection urlContext="contacts" entityId={editId} title="Campos personalizados do contato" />
+              </div>
+            )}
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModal(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
