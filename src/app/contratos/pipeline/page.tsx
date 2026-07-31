@@ -62,6 +62,7 @@ interface ProjectCard {
   project_name: string
   code: string
   status: string
+  nivel_urgencia?: string | null   // herdada da requisição de origem (null se criado direto)
   sold_hours?: number
   consumed_hours?: number | null
   client_follows_timesheets?: boolean | null   // cliente só vê horas se true (BH Fixo nasce false)
@@ -5315,6 +5316,7 @@ function KanbanContent() {
                         {!isCliente && <SortTh k="saude" label="Saúde" align="center" />}
                         {!isCliente && <SortTh k="coord" label="Coord." align="center" />}
                         <SortTh k="status" label="Status" align="center" />
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Urgência</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Início</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Previsão</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">% Entrega</th>
@@ -5322,7 +5324,7 @@ function KanbanContent() {
                     </thead>
                     <tbody>
                       {rows.length === 0 && (
-                        <tr><td colSpan={isCliente ? 10 : 15} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
+                        <tr><td colSpan={isCliente ? 11 : 16} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
                       )}
                       {rows.map(p => {
                         const isClosed  = p.status === 'finished' || p.status === 'cancelled'
@@ -5397,6 +5399,15 @@ function KanbanContent() {
                               {(() => { const b = STATUS_BADGE[p.status] ?? { label: p.status, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }; return (
                                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
                               )})()}
+                            </td>
+                            {/* Urgência — herdada da requisição de origem */}
+                            <td className="px-4 py-3 text-center">
+                              {p.nivel_urgencia
+                                ? <span className="px-2 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 uppercase tracking-wide" style={{ background: URGENCIA_COLOR[p.nivel_urgencia] ?? '#64748b', color: '#fff' }}>
+                                    <span style={{ width: 5, height: 5, borderRadius: 9999, background: '#fff', opacity: 0.9 }} />
+                                    {URGENCIA_LABEL[p.nivel_urgencia] ?? p.nivel_urgencia}
+                                  </span>
+                                : <span style={{ color: 'var(--text-light)' }}>—</span>}
                             </td>
                             {/* Início — editável inline */}
                             <td className="px-4 py-3 text-center text-xs tabular-nums whitespace-nowrap"
