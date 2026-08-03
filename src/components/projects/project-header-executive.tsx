@@ -263,8 +263,8 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
                 {project.status_display}
               </span>
             )}
-            {project.coordinators && project.coordinators.length > 0 && (
-              <span title="Coordenador do projeto">👤 {project.coordinators[0].name}</span>
+            {((project as any).kanban_override_coordinator || (project.coordinators && project.coordinators.length > 0)) && (
+              <span title="Coordenador do projeto">👤 {(project as any).kanban_override_coordinator?.name ?? project.coordinators![0].name}</span>
             )}
             {project.executivo_conta?.name && (
               <span title="Executivo de conta">🎯 Exec: {project.executivo_conta.name}</span>

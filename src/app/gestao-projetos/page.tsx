@@ -814,13 +814,16 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           <td /><td />
           <td colSpan={14} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
-              {(project.coordinators ?? []).length > 0 && (
+              {(() => {
+                // Coordenador efetivo: override do Kanban vence sobre a lista M2M.
+                const effCoords = (project as any).kanban_override_coordinator ? [(project as any).kanban_override_coordinator] : (project.coordinators ?? [])
+                return effCoords.length > 0 && (
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-light)' }}>
                     Coordenadores
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {project.coordinators!.map(u => (
+                    {effCoords.map((u: any) => (
                       <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium"
                         style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                         {u.name}
@@ -828,7 +831,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                     ))}
                   </div>
                 </div>
-              )}
+                )
+              })()}
               {(project.consultants ?? []).length > 0 && (
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-light)' }}>

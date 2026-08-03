@@ -56,15 +56,19 @@ export default function VisaoGeralPage() {
     )
   }
 
+  // Coordenador efetivo: override do Kanban de Contratos vence sobre a lista M2M.
+  const effCoordinators = (project as any).kanban_override_coordinator
+    ? [(project as any).kanban_override_coordinator]
+    : (project.coordinators ?? [])
   const team = [
-    ...(project.coordinators ?? []).map(u => ({ ...u, role: 'Coordenador' as const })),
+    ...effCoordinators.map((u: any) => ({ ...u, role: 'Coordenador' as const })),
     ...(project.consultants ?? []).map(u => ({ ...u, role: 'Consultor' as const })),
   ]
 
   const isOperational = project.is_operational !== false
   // Em projeto operacional: equipe vem das etapas (consolidated). Em sustentação:
   // equipe direta do projeto (project_consultants) ainda é válida.
-  const directTeam = isOperational ? (project.coordinators ?? []).map(u => ({ ...u, role: 'Coordenador' as const })) : team
+  const directTeam = isOperational ? effCoordinators.map((u: any) => ({ ...u, role: 'Coordenador' as const })) : team
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

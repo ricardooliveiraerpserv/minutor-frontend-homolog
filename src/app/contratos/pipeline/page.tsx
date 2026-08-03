@@ -2113,6 +2113,8 @@ interface ProjectFull {
   consultant_groups?: { id: number; name: string; consultants?: { id: number; name: string }[] }[]
   approvers?: { id: number; name: string; email: string }[]
   executivo_conta?: { id: number; name: string } | null
+  // Coordenador efetivo (override do Kanban de Contratos) — precede coordinators M2M.
+  kanban_override_coordinator?: { id: number; name: string } | null
 }
 
 interface ConsultantBreakdown {
@@ -2553,16 +2555,20 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           </span>
                         </div>
                       )}
-                      {(p.coordinators?.length ?? 0) > 0 && (
-                        <div>
-                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
-                          <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => (
-                            <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                              {u.name}
-                            </span>
-                          ))}</div>
-                        </div>
-                      )}
+                      {(() => {
+                        // Coordenador efetivo: override do Kanban vence sobre a lista M2M.
+                        const effCoords = p.kanban_override_coordinator ? [p.kanban_override_coordinator] : (p.coordinators ?? [])
+                        return effCoords.length > 0 && (
+                          <div>
+                            <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
+                            <div className="flex flex-wrap gap-1.5">{effCoords.map(u => (
+                              <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                                {u.name}
+                              </span>
+                            ))}</div>
+                          </div>
+                        )
+                      })()}
                       {(p.consultants?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Consultores Alocados</p>
@@ -2583,7 +2589,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           <div className="flex flex-wrap gap-1.5">{p.approvers!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b' }}>{u.name}</span>)}</div>
                         </div>
                       )}
-                      {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
+                      {!p.kanban_override_coordinator && (p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
                         <p className="text-xs text-center py-3" style={{ color: 'var(--text-light)' }}>Sem equipe cadastrada</p>
                       )}
                     </div>
