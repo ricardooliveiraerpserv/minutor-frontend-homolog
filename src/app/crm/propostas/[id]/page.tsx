@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { useAsyncAction } from '@/hooks/use-async-action'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { ArrowLeft, ArrowRight, FileDown, Save, Image as ImageIcon, ChevronDown, ChevronRight, Plus, Minus, Trash2, ArrowUp, ArrowDown, Type, Mail, Send, X, Activity, Link2, Copy, FileSignature, CheckCircle2, Lock } from 'lucide-react'
 
 type EscopoBlock =
@@ -1110,6 +1111,8 @@ export default function PropostaEditor() {
         <div className="flex flex-1 min-h-0">
           {/* FORM */}
           <div className="w-[380px] shrink-0 overflow-y-auto p-4" style={{ borderRight: '1px solid var(--border)' }}>
+            {/* Campos personalizados da proposta (definidos em Campos Personalizados → Propostas). Salvam sozinhos. */}
+            {!isTemplate && <div className="mb-3"><CustomFieldsSection urlContext="proposals" entityId={id} title="Campos personalizados da proposta" /></div>}
             <Section title="Identificação" open={open.ident} onToggle={() => toggleSection("ident")}>
               {!isTemplate && (<div className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)', ...fAccent('dados') }}>
                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Código do projeto</p>

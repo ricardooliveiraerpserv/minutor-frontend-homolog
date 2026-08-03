@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { ListTodo, Search, Plus, Check, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 
 interface Opp { id: number; title: string; customer_id?: number | null; customer?: { id?: number; name: string } | null }
 interface ContactType { id: number; nome: string; slug: string }
@@ -44,6 +45,7 @@ export default function TarefasPage() {
   const [opps, setOpps] = useState<Opp[]>([])
   const [customers, setCustomers] = useState<CustomerOpt[]>([])
   const [modal, setModal] = useState(false)
+  const [detail, setDetail] = useState<Task | null>(null) // detalhe da tarefa — campos personalizados
 
   useEffect(() => {
     api.get<{ data: ContactType[] }>('/crm/contact-types').then(r => setTipos(r?.data ?? [])).catch(() => {})
@@ -134,7 +136,9 @@ export default function TarefasPage() {
                   <button onClick={() => concluir(t)} title={t.concluida ? 'Reabrir' : 'Concluir'} className="w-5 h-5 rounded flex items-center justify-center" style={{ border: '1px solid var(--border)', background: t.concluida ? '#22c55e' : 'transparent', color: '#fff' }}>{t.concluida && <Check size={13} />}</button>
                 </td>
                 <td className="px-3 py-2.5"><span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--surface-sunken)', color: SIT[t.situacao]?.cor }}>{SIT[t.situacao]?.l}</span></td>
-                <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text)', textDecoration: t.concluida ? 'line-through' : 'none' }}>{t.titulo || '—'}</td>
+                <td className="px-3 py-2.5 font-medium" style={{ textDecoration: t.concluida ? 'line-through' : 'none' }}>
+                  <button onClick={() => setDetail(t)} className="text-left hover:underline" style={{ color: 'var(--primary)' }} title="Abrir tarefa (campos personalizados)">{t.titulo || '—'}</button>
+                </td>
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{tipos.find(x => x.slug === t.tipo)?.nome ?? t.tipo}</td>
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t.empresa || '—'}</td>
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t.opportunity?.title || '—'}</td>
@@ -156,7 +160,38 @@ export default function TarefasPage() {
       </div>}
 
       {modal && <NovaTarefa tipos={tipos} users={users} opps={opps} customers={customers} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
+      {detail && <TarefaDetalhe tarefa={detail} tipos={tipos} onClose={() => setDetail(null)} />}
     </AppLayout>
+  )
+}
+
+// Detalhe da tarefa (abre ao clicar no título) — resumo + campos personalizados (auto-save, endpoint próprio).
+function TarefaDetalhe({ tarefa, tipos, onClose }: { tarefa: Task; tipos: ContactType[]; onClose: () => void }) {
+  const tipoNome = tipos.find(x => x.slug === tarefa.tipo)?.nome ?? tarefa.tipo
+  const linha = (label: string, val: string) => (
+    <div className="flex items-center justify-between text-sm py-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="font-medium text-right" style={{ color: 'var(--text)' }}>{val}</span>
+    </div>
+  )
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-3">
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{tarefa.titulo || 'Tarefa'}</h2>
+          <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--text-muted)' }}><X size={20} /></button>
+        </div>
+        <div className="rounded-lg px-3 py-1 mb-4" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          {linha('Situação', SIT[tarefa.situacao]?.l ?? tarefa.situacao)}
+          {linha('Tipo', tipoNome)}
+          {linha('Empresa', tarefa.empresa || '—')}
+          {linha('Oportunidade', tarefa.opportunity?.title || '—')}
+          {linha('Responsável', tarefa.responsavel || '—')}
+          {linha('Quando', fmtDataHora(tarefa.data))}
+        </div>
+        <CustomFieldsSection urlContext="tasks" entityId={tarefa.id} title="Campos personalizados da tarefa" />
+      </div>
+    </div>
   )
 }
 
