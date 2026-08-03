@@ -21,6 +21,7 @@ const CONTEXTS: { v: string; l: string; hint: string }[] = [
   { v: 'Customer', l: 'Empresas / Leads', hint: 'Aparecem no cadastro da empresa (e nos leads — mesma entidade).' },
   { v: 'Opportunity', l: 'Oportunidades', hint: 'Aparecem no card/detalhe da oportunidade no Pipeline.' },
   { v: 'Contact', l: 'Contatos', hint: 'Aparecem no cadastro de contatos do CRM.' },
+  { v: 'Product', l: 'Produtos / Serviços', hint: 'Aparecem na edição do produto/serviço do CRM.' },
 ]
 const TYPES: { v: CustomField['type']; l: string }[] = [
   { v: 'text', l: 'Texto' }, { v: 'number', l: 'Número' }, { v: 'boolean', l: 'Sim / Não' },

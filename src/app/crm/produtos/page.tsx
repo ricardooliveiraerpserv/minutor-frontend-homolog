@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, Package } from 'lucide-react'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 
 interface CrmProduct {
   id: number
@@ -160,6 +161,8 @@ export default function CrmProdutosPage() {
                 <input type="checkbox" checked={form.ativo} onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} style={{ accentColor: 'var(--primary)' }} />
                 Ativo
               </label>
+              {/* Campos personalizados do produto — só ao editar (precisa do id). Salvam sozinhos. */}
+              {editId && <CustomFieldsSection urlContext="products" entityId={editId} title="Campos personalizados do produto" />}
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModal(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
