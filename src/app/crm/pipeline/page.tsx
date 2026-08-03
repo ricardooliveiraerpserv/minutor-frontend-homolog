@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
+import { LeadsBoard } from '@/components/crm/leads-board'
 import { toast } from 'sonner'
 import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -13,7 +14,7 @@ import { useAsyncAction } from '@/hooks/use-async-action'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
 interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean }
-interface Pipeline { id: number; name: string; code: string; tipos_empresa?: string[] | null; stages: Stage[] }
+interface Pipeline { id: number; name: string; code: string; tipo?: string; tipos_empresa?: string[] | null; stages: Stage[] }
 interface Opp {
   id: number; title: string; valor: number; status: string; stage_id: number
   customer?: { id: number; name: string } | null
@@ -369,6 +370,8 @@ export default function CrmPipelinePage() {
   // pra reconciliar campos calculados pelo servidor SEM piscar a tela. Servidor = fonte da verdade.
   const loadBoard = useCallback((silent = false) => {
     if (!pipeId) return
+    // Leads é um pipeline de qualificação (board próprio) — não busca o kanban de oportunidades.
+    if (pipelines.find(p => p.id === pipeId)?.tipo === 'qualificacao') { setCols([]); if (!silent) setLoading(false); return }
     if (!silent) setLoading(true)
     const qs = new URLSearchParams({ pipeline_id: String(pipeId) })
     if (filtroCliente) qs.set('customer_id', filtroCliente)
@@ -377,7 +380,7 @@ export default function CrmPipelinePage() {
       .then(r => setCols(r?.data?.stages ?? []))
       .catch(() => { if (!silent) toast.error('Erro ao carregar o funil') })
       .finally(() => { if (!silent) setLoading(false) })
-  }, [pipeId, filtroCliente, filtroResp])
+  }, [pipeId, filtroCliente, filtroResp, pipelines])
   useEffect(() => { loadBoard() }, [loadBoard])
 
   // Categoria B — criar oportunidade. useAsyncAction trava o duplo-clique (evita opp duplicada).
@@ -475,22 +478,28 @@ export default function CrmPipelinePage() {
     ? customers
     : customers.filter(c => !c.crm_status || tiposDoPipelineNovo.includes(c.crm_status))
 
+  const activePipe = pipelines.find(p => p.id === pipeId) ?? null
+  const isLeads = activePipe?.tipo === 'qualificacao'
+
   return (
     <AppLayout title="Pipeline (CRM)">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex items-center gap-1 flex-wrap">
           {pipelines.map(p => (
             <button key={p.id} onClick={() => setPipeId(p.id)} className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
-              style={pipeId === p.id ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.name}</button>
+              style={pipeId === p.id ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.tipo === 'qualificacao' ? '👥 Leads' : p.name}</button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Forecast aberto: <b style={{ color: 'var(--text)' }}>{fmtBRL(totalForecast)}</b></span>
-          <button onClick={openNewOpp} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Nova oportunidade</button>
-        </div>
+        {!isLeads && pipelines.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Forecast aberto: <b style={{ color: 'var(--text)' }}>{fmtBRL(totalForecast)}</b></span>
+            <button onClick={openNewOpp} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Nova oportunidade</button>
+          </div>
+        )}
       </div>
 
-      {/* Filtros: por empresa (cliente) e por responsável */}
+      {/* Filtros do funil de oportunidades (não se aplicam ao board de Leads). */}
+      {!isLeads && pipelines.length > 0 && (
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="w-60">
           <SearchSelect value={filtroCliente} onChange={setFiltroCliente} fullWidth placeholder="Filtrar por cliente…"
@@ -504,8 +513,13 @@ export default function CrmPipelinePage() {
           <button onClick={() => { setFiltroCliente(''); setFiltroResp('') }} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Limpar filtros</button>
         )}
       </div>
+      )}
 
-      {loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
+      {pipelines.length === 0 ? (
+        <p className="text-sm rounded-lg px-4 py-6 text-center" style={{ color: 'var(--text-light)', background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>Nenhum pipeline liberado para você. Fale com um administrador para receber acesso.</p>
+      ) : isLeads ? (
+        <LeadsBoard />
+      ) : loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
           {cols.map(col => (
             <div key={col.stage.id} className="shrink-0 w-72 rounded-xl flex flex-col" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>

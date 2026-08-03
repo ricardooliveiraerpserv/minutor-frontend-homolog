@@ -29,7 +29,7 @@ const REGRAS: { k: string; l: string }[] = [
   { k: 'proxima_acao', l: 'Próxima ação' }, { k: 'contato', l: 'Contato' },
 ]
 interface Pipeline {
-  id: number; name: string; descricao: string | null; cor: string | null; active: boolean; bloqueado: boolean; arquivado: boolean; tipo: string; tipos_empresa: string[] | null; stages: Stage[]
+  id: number; name: string; descricao: string | null; cor: string | null; active: boolean; bloqueado: boolean; arquivado: boolean; tipo: string; tipos_empresa: string[] | null; visible_user_ids?: number[]; stages: Stage[]
 }
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
@@ -50,6 +50,8 @@ export default function CrmPipelinesPage() {
   const [autoStage, setAutoStage] = useState<Stage | null>(null)
   const [forbidden, setForbidden] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/users').then(r => setUsers(r?.data ?? [])).catch(() => {}) }, [])
 
   const load = useCallback((keep?: number) => {
     api.get<{ data: Pipeline[] }>('/crm/pipelines/manage')
@@ -181,6 +183,27 @@ export default function CrmPipelinesPage() {
                         </button>
                       )
                     })}
+                  </div>
+                </div>
+                {/* Quem pode ver este pipeline (visibilidade). Vazio = só admin. Admin vê tudo. */}
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                  <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Quem pode ver este pipeline <span style={{ color: 'var(--text-light)' }}>(administradores sempre veem; sem ninguém marcado = só admin)</span></label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {users.map(u => {
+                      const sels = sel.visible_user_ids ?? []
+                      const on = sels.includes(u.id)
+                      return (
+                        <button key={u.id} type="button"
+                          onClick={() => patchPipe({ visible_user_ids: on ? sels.filter(x => x !== u.id) : [...sels, u.id] })}
+                          className="text-xs px-2.5 py-1 rounded-full font-semibold transition-colors"
+                          style={on
+                            ? { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }
+                            : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                          {on ? '✓ ' : ''}{u.name}
+                        </button>
+                      )
+                    })}
+                    {users.length === 0 && <span className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum usuário CRM.</span>}
                   </div>
                 </div>
               </div>

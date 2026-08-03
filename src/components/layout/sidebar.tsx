@@ -405,7 +405,6 @@ const NAV: NavEntry[] = [
       { label: 'Pipeline',     href: '/crm/pipeline',     icon: LayoutGrid },
       { label: 'Gestão de Propostas', href: '/crm/propostas/gestao', icon: ListFilter },
       { label: 'Oportunidades', href: '/crm/oportunidades', icon: ListFilter },
-      { label: 'Leads',        href: '/crm/leads',        icon: UserPlus },
       { label: 'Saúde da Conta', href: '/crm/saude',      icon: HeartPulse },
       { label: 'Minha Carteira', href: '/crm/minha-carteira', icon: Wallet },
       { label: 'Forecast',     href: '/crm/forecast',     icon: TrendingUp },
