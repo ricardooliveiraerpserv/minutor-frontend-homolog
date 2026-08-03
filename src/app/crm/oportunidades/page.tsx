@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ListFilter, Download, AlertTriangle, SlidersHorizontal, Bookmark, Save, CalendarPlus } from 'lucide-react'
+import { ListFilter, Download, AlertTriangle, SlidersHorizontal, Bookmark, Save, CalendarPlus, X } from 'lucide-react'
+import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 
 interface Stage { id: number; name: string; ordem: number }
 interface Pipeline { id: number; name: string; stages: Stage[] }
@@ -54,6 +55,7 @@ export default function CrmOportunidadesPage() {
   const [metaMes, setMetaMes] = useState(0)     // meta da empresa (competência atual)
   const [contactTypes, setContactTypes] = useState<ContactType[]>([])
   const [quick, setQuick] = useState<Opp | null>(null) // ação rápida (📅) — criar próxima ação sem drawer
+  const [detail, setDetail] = useState<Opp | null>(null) // drawer de detalhe (título) — resumo + campos personalizados
   const F0 = { customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', status: '', de: '', ate: '', search: '', lead_source_id: '', loss_reason_id: '', produto_id: '', valor_min: '', valor_max: '', lc_de: '', lc_ate: '', sem_proxima_acao: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v, ...(k === 'pipeline_id' ? { stage_id: '' } : {}) }))
@@ -250,7 +252,9 @@ export default function CrmOportunidadesPage() {
                 {/* SAÚDE — saudável discreto (só o ponto), exceções com destaque */}
                 <td className="px-3 py-1.5">{!s ? '—' : saud ? <span title={o.saude?.diagnostico}>{s.emoji}</span> : <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" title={o.saude?.diagnostico} style={{ background: s.bg, color: s.color }}>{s.emoji} {s.label}</span>}</td>
                 <td className="px-3 py-1.5" style={{ color: 'var(--text)' }}>{o.customer?.name ?? '—'}</td>
-                <td className="px-3 py-1.5 font-medium" style={{ color: 'var(--text-muted)' }} title={`Etapa: ${o.stage?.name ?? '—'} · Probabilidade: ${o.probabilidade}%`}>{o.title}</td>
+                <td className="px-3 py-1.5 font-medium" title={`Etapa: ${o.stage?.name ?? '—'} · Probabilidade: ${o.probabilidade}%`}>
+                  <button onClick={() => setDetail(o)} className="text-left hover:underline" style={{ color: 'var(--primary)' }}>{o.title}</button>
+                </td>
                 {/* VALOR em destaque */}
                 <td className="px-3 py-1.5 text-right tabular-nums text-[15px] font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(o.valor)}</td>
                 {/* RESPONSÁVEL avatar-only clicável */}
@@ -281,7 +285,46 @@ export default function CrmOportunidadesPage() {
       </div>
 
       {quick && <QuickAction opp={quick} contactTypes={contactTypes} onClose={() => setQuick(null)} onSaved={() => { setQuick(null); load() }} />}
+      {detail && <OppDetail opp={detail} onClose={() => setDetail(null)} />}
     </AppLayout>
+  )
+}
+
+// Drawer de detalhe (abre ao clicar no título) — resumo enxuto + campos personalizados.
+// O card completo com abas fica no Pipeline; aqui é o acesso rápido a partir da lista.
+function OppDetail({ opp, onClose }: { opp: Opp; onClose: () => void }) {
+  const s = SAUDE[opp.saude?.status ?? ''] ?? null
+  const row = (label: string, val: ReactNode) => (
+    <div className="flex items-center justify-between text-sm py-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="font-medium text-right" style={{ color: 'var(--text)' }}>{val}</span>
+    </div>
+  )
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-1">
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{opp.title}</h2>
+          <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--text-muted)' }}><X size={20} /></button>
+        </div>
+        <p className="text-sm mb-3" style={{ color: 'var(--text-light)' }}>{opp.customer?.name ?? '—'}</p>
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{opp.status}</span>
+          <span className="text-base font-bold" style={{ color: 'var(--primary)' }}>{fmtBRL(opp.valor)}</span>
+          {s && <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap" title={opp.saude?.diagnostico} style={{ background: s.bg, color: s.color }}>{s.emoji} {s.label}</span>}
+        </div>
+
+        <div className="rounded-lg px-3 py-1 mb-4" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          {row('Etapa', opp.stage?.name ?? '—')}
+          {row('Probabilidade', `${opp.probabilidade}%`)}
+          {row('Previsão de fechamento', fmtDate(opp.previsao_fechamento ?? null))}
+          {row('Próxima ação', opp.sem_proxima_acao ? 'Sem próxima ação' : `${opp.proxima_acao || '—'} · ${fmtDate(opp.proxima_acao_at)}`)}
+          {row('Último contato', diasLabel(opp.dias_sem_interacao))}
+        </div>
+
+        <CustomFieldsSection urlContext="opportunities" entityId={opp.id} title="Campos personalizados da oportunidade" />
+      </div>
+    </div>
   )
 }
 
