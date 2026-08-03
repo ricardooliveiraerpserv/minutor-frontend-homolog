@@ -174,7 +174,7 @@ export default function AdiantamentosPage() {
     const total = parseFloat(valorTotal.replace(',', '.')) || 0
     if (total <= 0) { toast.error('Informe o valor total'); return }
     if (!feitoMonth || !feitoYear) { toast.error('Informe a data em que foi feito'); return }
-    if (!startYM) { toast.error('Informe a competência inicial'); return }
+    if (!startYM) { toast.error('Informe o mês em que começa a descontar'); return }
     if (parcelas.length === 0) { toast.error('Nenhuma parcela gerada'); return }
 
     const payload = {
@@ -411,6 +411,7 @@ export default function AdiantamentosPage() {
           <div className="flex flex-col gap-1.5 max-w-[220px]">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
               {natureza === 'emprestimo' ? 'Quitação começa em' : 'Começa a descontar em'}
+              <span style={{ color: 'var(--danger)' }}> *</span>
             </label>
             <MonthYearPicker month={compMonth} year={compYear} onChange={(m, y) => { setCompMonth(m || null); setCompYear(y || null) }} />
           </div>
