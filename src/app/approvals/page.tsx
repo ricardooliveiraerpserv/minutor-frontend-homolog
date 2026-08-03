@@ -657,17 +657,20 @@ export default function ApprovalsPage() {
 
   // Load support data
   useEffect(() => {
-    api.get<any>('/users?pageSize=100').then(r => {
+    // pageSize=500 (teto do backend): com <100 a lista de colaboradores era truncada
+    // por ordem alfabética — nomes após a 100ª posição (ex.: "Nelson", há 146 ativos)
+    // não apareciam no filtro. Ver customers logo abaixo, que já usava 500.
+    api.get<any>('/users?pageSize=500').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setUsers(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    api.get<any>('/users?pageSize=100&role=coordenador').then(r => {
+    api.get<any>('/users?pageSize=500&role=coordenador').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCoordinators(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
     // Canônico: exclui parceiro_admin (gestores) e users de cliente — /users?is_executive=true
     // traria os Parceiros Gestores (mesma flag) por engano.
-    api.get<any>('/executives?pageSize=100').then(r => {
+    api.get<any>('/executives?pageSize=500').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
