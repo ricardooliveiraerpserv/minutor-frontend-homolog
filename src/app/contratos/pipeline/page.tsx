@@ -4651,7 +4651,7 @@ function KanbanContent() {
     const sq = filterSearch.trim().toLowerCase()
     const list = projectCards
       .filter(p => !isCoord || !isSustType(p.service_type))
-      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
+      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => {
@@ -4697,7 +4697,7 @@ function KanbanContent() {
       .filter(p => !p.contract_id || !kanbanBornNotAllocatedIds.has(p.contract_id))
       .filter(p => !isCoord || !isSustType(p.service_type))
       // Chip "Meus projetos / Todos" — coordenador logado em coordinator_ids
-      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
+      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => passesClientScope(p.customer_id, 'project'))
@@ -5182,7 +5182,7 @@ function KanbanContent() {
           const allProjects = projectCards
             .filter(p => !isCoord || !isSustType(p.service_type))
             // Chip "Meus projetos / Todos" — coordenador logado em coordinator_ids
-            .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
+            .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
             .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
             .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
             .filter(p => filterStatuses.length === 0 || filterStatuses.includes(p.status))
