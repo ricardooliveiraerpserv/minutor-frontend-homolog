@@ -900,13 +900,13 @@ function GenerateProjectModal({
   onClose: () => void
   onGenerate: (contractId: number, coordinatorId: number | null) => Promise<void>
 }) {
-  const [coordId, setCoordId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
     setLoading(true)
     try {
-      await onGenerate(card.id, coordId)
+      // Coordenação é definida só no Kanban de Contratos — projeto nasce sem coordenador (fila Alocado).
+      await onGenerate(card.id, null)
       onClose()
     } finally {
       setLoading(false)
@@ -928,24 +928,13 @@ function GenerateProjectModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 space-y-4">
+        <div className="px-6 py-4 space-y-3">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Selecione o coordenador responsável. O projeto será criado automaticamente com os dados do contrato.
+            O projeto será criado automaticamente com os dados do contrato e ficará na fila <strong>Alocado</strong>.
           </p>
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-light)' }}>COORDENADOR (OPCIONAL)</label>
-            <select
-              value={coordId ?? ''}
-              onChange={e => setCoordId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            >
-              <option value="">Sem coordenador por agora</option>
-              {coordinators.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-light)' }}>
+            🔒 O coordenador é definido no Kanban de Contratos, arrastando o card para a coluna do coordenador.
+          </p>
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
@@ -1923,16 +1912,15 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
   onClose: () => void
   onDone: (updatedCard: RequestCard) => void
 }) {
-  const [coordId, setCoordId] = useState<number | null>(card.linked_coordinator_id ?? null)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
-    if (!coordId) { toast.error('Defina o coordenador antes de gerar.'); return }
     setLoading(true)
     try {
-      await api.post(`/contract-requests/${card.id}/finalize`, { coordinator_id: coordId })
-      toast.success('🚀 Coordenador definido e projeto gerado no Backlog!')
-      onDone({ ...card, kanban_column: 'req_em_andamento', linked_coordinator_id: coordId })
+      // Coordenação é definida só no Kanban de Contratos — projeto vai pro Backlog sem coordenador.
+      await api.post(`/contract-requests/${card.id}/finalize`, { coordinator_id: null })
+      toast.success('🚀 Projeto gerado no Backlog!')
+      onDone({ ...card, kanban_column: 'req_em_andamento' })
       onClose()
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao gerar o projeto')
@@ -1950,34 +1938,23 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
               <Rocket size={16} style={{ color: '#eab308' }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Definir coordenador e gerar</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Gerar Projeto</p>
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>{card.customer_name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-3">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Selecione o coordenador responsável. Ao confirmar, o projeto é gerado e o card vai para o Backlog.
+            Ao confirmar, o projeto é gerado e o card vai para o <strong>Backlog</strong>.
           </p>
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-light)' }}>COORDENADOR</label>
-            <select
-              value={coordId ?? ''}
-              onChange={e => setCoordId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            >
-              <option value="">Selecione o coordenador…</option>
-              {coordinators.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-light)' }}>
+            🔒 O coordenador é definido no Kanban de Contratos, arrastando o card para a coluna do coordenador.
+          </p>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-          <button onClick={handleConfirm} disabled={loading || !coordId}
+          <button onClick={handleConfirm} disabled={loading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             style={{ background: '#eab308', color: '#000' }}>
             <Rocket size={13} /> {loading ? 'Gerando...' : 'Gerar Projeto'}

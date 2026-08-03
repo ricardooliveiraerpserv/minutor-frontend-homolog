@@ -1077,7 +1077,8 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         cobra_despesa_cliente: form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
         condicao_pagamento: form.condicao_pagamento || null,
-        coordinator_ids: form.coordinator_ids,
+        // coordinator_ids NÃO é reenviado: coordenação é definida só no Kanban de Contratos.
+        // O backend preserva o M2M quando o campo é omitido.
         consultant_ids: form.consultant_ids,
         consultant_group_ids: form.consultant_group_ids,
       }
@@ -1366,7 +1367,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
             <div className="flex flex-col">
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Equipe Alocada</p>
               <div className="flex gap-1 mb-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                {([['coord','Coordenadores',form.coordinator_ids.length],['consult','Consultores',form.consultant_ids.length],['group','Grupos',form.consultant_group_ids.length]] as const).map(([id,label,count]) => (
+                {([['coord','Coordenadores',(form as any).kanban_coordinator_override_id ? 1 : form.coordinator_ids.length],['consult','Consultores',form.consultant_ids.length],['group','Grupos',form.consultant_group_ids.length]] as const).map(([id,label,count]) => (
                   <button key={id} onClick={() => { setTeamTab(id); setTeamSearch('') }}
                     className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
                     style={{ color: teamTab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: teamTab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
@@ -1380,21 +1381,27 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                   style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
               )}
               <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', maxHeight: 520 }}>
-                {teamTab === 'coord' && (
+                {teamTab === 'coord' && (() => {
+                  // Coordenador efetivo = override do Kanban tem precedência sobre a lista M2M
+                  // (mesma regra do Kanban de Contratos: override ?? coordinator_ids).
+                  const overrideId = (form as any).kanban_coordinator_override_id ? Number((form as any).kanban_coordinator_override_id) : null
+                  const effectiveCoordIds = overrideId != null ? [overrideId] : form.coordinator_ids
+                  return (
                   <div className="px-1 py-1">
-                    {form.coordinator_ids.length === 0 ? (
+                    {effectiveCoordIds.length === 0 ? (
                       <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum coordenador definido.</p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
-                        {form.coordinator_ids.map(cid => {
+                        {effectiveCoordIds.map(cid => {
                           const c = optCoordinators.find(o => o.id === cid)
-                          return <span key={cid} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{c?.name ?? `#${cid}`}</span>
+                          return <span key={cid} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{c?.name ?? (d as any).kanban_coordinator?.name ?? `#${cid}`}</span>
                         })}
                       </div>
                     )}
                     <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--text-light)' }}>🔒 O coordenador é definido no Kanban de Contratos e não pode ser editado aqui.</p>
                   </div>
-                )}
+                  )
+                })()}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
                   return <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>

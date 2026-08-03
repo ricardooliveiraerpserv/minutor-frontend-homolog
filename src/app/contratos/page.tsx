@@ -271,9 +271,9 @@ export default function ContratosPage() {
   // ─── Generate project ─────────────────────────────────────────────────────
 
   const openGenModal = (c: Contract) => {
-    // Pre-select architect if set
-    const preIds: number[] = c.architect_id ? [c.architect_id] : []
-    setGenCoordinatorIds(preIds)
+    // Coordenação é definida só no Kanban de Contratos — sem seleção manual aqui.
+    // O backend usa o arquiteto do contrato como responsável inicial (coordinator_ids vazio).
+    setGenCoordinatorIds([])
     setGenModal({ contract: c })
   }
 
@@ -677,37 +677,13 @@ export default function ContratosPage() {
               </h2>
               <p className="text-xs text-[var(--text-light)] mt-1">{genModal.contract.customer?.name}</p>
             </div>
-            <div className="px-6 py-5 space-y-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)] mb-3">Coordenadores do Projeto</p>
-                <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
-                  {coordinators.length === 0 && (
-                    <p className="text-xs text-[var(--text-muted)] italic">Nenhum coordenador cadastrado.</p>
-                  )}
-                  {coordinators.map(u => {
-                    const sel = genCoordinatorIds.includes(u.id)
-                    return (
-                      <button key={u.id} type="button"
-                        onClick={() => setGenCoordinatorIds(ids => sel ? ids.filter(i => i !== u.id) : [...ids, u.id])}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left"
-                        style={{
-                          background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)',
-                          border: `1px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
-                          color: sel ? 'var(--primary)' : 'var(--text)',
-                        }}>
-                        <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] font-bold"
-                          style={{ background: sel ? 'var(--primary)' : 'transparent', border: `1px solid ${sel ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--primary-fg)' }}>
-                          {sel ? '✓' : ''}
-                        </span>
-                        {u.name}
-                      </button>
-                    )
-                  })}
-                </div>
-                {genCoordinatorIds.length === 0 && (
-                  <p className="text-[11px] text-[var(--warning)] mt-2">Nenhum coordenador selecionado — o arquiteto do contrato será usado como fallback.</p>
-                )}
-              </div>
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-sm text-[var(--text-muted)]">
+                O projeto será criado automaticamente com os dados do contrato.
+              </p>
+              <p className="text-xs leading-relaxed text-[var(--text-light)]">
+                🔒 O coordenador é definido no Kanban de Contratos, arrastando o card para a coluna do coordenador. O arquiteto do contrato entra como responsável inicial.
+              </p>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setGenModal(null)} disabled={generating}
