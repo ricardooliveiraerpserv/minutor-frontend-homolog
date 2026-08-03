@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo, type ReactNode } from 'react
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ListFilter, Download, AlertTriangle, SlidersHorizontal, Bookmark, Save, CalendarPlus, X } from 'lucide-react'
+import { ListFilter, Download, AlertTriangle, SlidersHorizontal, Bookmark, Save, CalendarPlus, X, Columns3 } from 'lucide-react'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 
 interface Stage { id: number; name: string; ordem: number }
@@ -16,9 +16,11 @@ interface Opp {
   saude?: { status: string; diagnostico?: string } | null
   customer?: { name: string } | null; pipeline?: { name: string } | null
   stage?: { name: string } | null; responsavel?: { id?: number; name: string } | null
+  custom_fields?: Record<string, string> | null
 }
 interface Opt { id: number; name: string }
 interface ContactType { id: number; nome: string; slug: string }
+interface CfDef { id: number; label: string; key: string; type: 'text' | 'number' | 'boolean' | 'date' | 'select'; options: string[] | null }
 
 const fmtBRL = (n: number | string) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('pt-BR') : '—'
@@ -56,6 +58,10 @@ export default function CrmOportunidadesPage() {
   const [contactTypes, setContactTypes] = useState<ContactType[]>([])
   const [quick, setQuick] = useState<Opp | null>(null) // ação rápida (📅) — criar próxima ação sem drawer
   const [detail, setDetail] = useState<Opp | null>(null) // drawer de detalhe (título) — resumo + campos personalizados
+  const [cfDefs, setCfDefs] = useState<CfDef[]>([]) // definições de campos personalizados (contexto Opportunity)
+  const [cfCols, setCfCols] = useState<string[]>([]) // keys exibidas como coluna na tabela (persiste em localStorage)
+  const [cfFilters, setCfFilters] = useState<Record<string, string>>({}) // filtro por coluna personalizada (client-side)
+  const [colsMenu, setColsMenu] = useState(false)
   const F0 = { customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', status: '', de: '', ate: '', search: '', lead_source_id: '', loss_reason_id: '', produto_id: '', valor_min: '', valor_max: '', lc_de: '', lc_ate: '', sem_proxima_acao: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v, ...(k === 'pipeline_id' ? { stage_id: '' } : {}) }))
@@ -96,8 +102,13 @@ export default function CrmOportunidadesPage() {
     const ym = new Date().toISOString().slice(0, 7)
     api.get<{ data: { empresa: number } }>(`/crm/sales-targets?periodo=${ym}`).then(r => setMetaMes(Number(r?.data?.empresa ?? 0))).catch(() => {})
     api.get<{ data: ContactType[] }>('/crm/contact-types').then(r => setContactTypes(r?.data ?? [])).catch(() => {})
+    api.get<{ items: CfDef[] }>('/custom-fields?context=Opportunity').then(r => setCfDefs(r?.items ?? [])).catch(() => {})
     loadSaved()
   }, [loadSaved])
+
+  // Colunas personalizadas escolhidas — persistem entre sessões.
+  useEffect(() => { try { const s = localStorage.getItem('crm_opp_cf_cols'); if (s) setCfCols(JSON.parse(s)) } catch { /* */ } }, [])
+  useEffect(() => { try { localStorage.setItem('crm_opp_cf_cols', JSON.stringify(cfCols)) } catch { /* */ } }, [cfCols])
 
   const stageOpts: { id: number; label: string }[] = f.pipeline_id
     ? (pipelines.find(p => String(p.id) === f.pipeline_id)?.stages ?? []).map(s => ({ id: s.id, label: s.name }))
@@ -118,8 +129,31 @@ export default function CrmOportunidadesPage() {
   // Prioridade do dia: sem próxima ação OU atrasada OU em risco
   const ehPrioridade = (r: Opp) => r.sem_proxima_acao || r.proxima_acao_vencida || r.saude?.status === 'em_risco'
 
-  // Filtros de leitura (cliente): "em risco", "previsão no mês" e "prioridade do dia"
-  const visible = rows.filter(r => (!soRisco || r.saude?.status === 'em_risco') && (!soMes || noMes(r.previsao_fechamento)) && (!soPrioridade || ehPrioridade(r)))
+  // Campos personalizados como colunas + filtro por coluna (client-side sobre os dados já carregados).
+  const cfDefByKey = useMemo(() => Object.fromEntries(cfDefs.map(d => [d.key, d])) as Record<string, CfDef>, [cfDefs])
+  const activeCols = cfCols.filter(k => cfDefByKey[k]) // só keys que ainda existem como definição
+  const toggleCol = (key: string) => setCfCols(cols => {
+    if (cols.includes(key)) { setCfFilters(ff => { const n = { ...ff }; delete n[key]; return n }); return cols.filter(k => k !== key) }
+    return [...cols, key]
+  })
+  const setCfFilter = (k: string, v: string) => setCfFilters(ff => ({ ...ff, [k]: v }))
+  const cfCell = (o: Opp, k: string): string => {
+    const raw = o.custom_fields?.[k]
+    if (raw == null || raw === '') return '—'
+    const def = cfDefByKey[k]
+    if (def?.type === 'boolean') return (raw === '1' || raw === 'true') ? 'Sim' : 'Não'
+    if (def?.type === 'date') return fmtDate(raw)
+    return raw
+  }
+  const matchCf = (o: Opp) => activeCols.every(k => {
+    const fv = cfFilters[k]; if (!fv) return true
+    const raw = String(o.custom_fields?.[k] ?? '')
+    const t = cfDefByKey[k]?.type
+    return (t === 'select' || t === 'boolean') ? raw === fv : raw.toLowerCase().includes(fv.toLowerCase())
+  })
+
+  // Filtros de leitura (cliente): "em risco", "previsão no mês", "prioridade do dia" e campos personalizados
+  const visible = rows.filter(r => (!soRisco || r.saude?.status === 'em_risco') && (!soMes || noMes(r.previsao_fechamento)) && (!soPrioridade || ehPrioridade(r)) && matchCf(r))
   // ORDENAÇÃO PADRÃO INTELIGENTE — problemas primeiro (ação > risco > previsão).
   const prio = (o: Opp): number[] => [
     o.sem_proxima_acao ? 0 : 1,
@@ -149,7 +183,7 @@ export default function CrmOportunidadesPage() {
       <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{sub}</p>
     </button>
   )
-  const limpar = () => { setF(F0); setSoRisco(false); setSoMes(false); setSoPrioridade(false) }
+  const limpar = () => { setF(F0); setSoRisco(false); setSoMes(false); setSoPrioridade(false); setCfFilters({}) }
 
   return (
     <AppLayout title="Oportunidades (CRM)">
@@ -191,6 +225,24 @@ export default function CrmOportunidadesPage() {
         <button onClick={() => set('sem_proxima_acao', f.sem_proxima_acao === '1' ? '' : '1')} className="px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5" style={{ background: f.sem_proxima_acao === '1' ? 'var(--warning-bg)' : 'var(--surface-sunken)', color: f.sem_proxima_acao === '1' ? 'var(--warning-border)' : 'var(--text-muted)' }}><AlertTriangle size={12} /> Sem próxima ação</button>
         <button onClick={() => setSoRisco(v => !v)} className="px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5" style={{ background: soRisco ? 'var(--danger-bg)' : 'var(--surface-sunken)', color: soRisco ? 'var(--danger-border)' : 'var(--text-muted)' }}>🔴 Em risco</button>
         <button onClick={() => setMais(m => !m)} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold" style={{ background: mais ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: mais ? 'var(--primary)' : 'var(--text-muted)' }}><SlidersHorizontal size={13} /> Filtros avançados</button>
+        {/* Seletor de colunas de campos personalizados — marcar adiciona a coluna E cria o filtro da coluna. */}
+        <div className="relative">
+          <button onClick={() => setColsMenu(v => !v)} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold" style={{ background: colsMenu || activeCols.length ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: colsMenu || activeCols.length ? 'var(--primary)' : 'var(--text-muted)' }}><Columns3 size={13} /> Colunas{activeCols.length ? ` (${activeCols.length})` : ''}</button>
+          {colsMenu && <div className="fixed inset-0 z-20" onClick={() => setColsMenu(false)} />}
+          {colsMenu && (
+            <div className="absolute left-0 mt-1 w-60 rounded-lg p-2 z-30 shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] uppercase tracking-wider px-1 mb-1" style={{ color: 'var(--text-light)' }}>Campos personalizados</p>
+              {cfDefs.length === 0
+                ? <p className="text-xs px-1 py-1" style={{ color: 'var(--text-light)' }}>Nenhum campo. Crie em Campos Personalizados.</p>
+                : cfDefs.map(d => (
+                  <label key={d.key} className="flex items-center gap-2 text-sm px-1 py-1 rounded cursor-pointer" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={cfCols.includes(d.key)} onChange={() => toggleCol(d.key)} style={{ accentColor: 'var(--primary)' }} />
+                    {d.label}
+                  </label>
+                ))}
+            </div>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <Bookmark size={14} style={{ color: 'var(--text-light)' }} />
           <select onChange={e => { const s = saved.find(x => String(x.id) === e.target.value); if (s) aplicarFiltro(s.payload); e.target.value = '' }} className="px-2 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} defaultValue="">
@@ -202,6 +254,36 @@ export default function CrmOportunidadesPage() {
           <button onClick={limpar} className="px-2.5 py-1.5 rounded-lg text-xs" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Limpar</button>
         </div>
       </div>
+
+      {/* FILTROS AUTOMÁTICOS das colunas personalizadas selecionadas (aparecem ao marcar a coluna). */}
+      {activeCols.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Filtrar por campo:</span>
+          {activeCols.map(k => {
+            const def = cfDefByKey[k]
+            const on = !!cfFilters[k]
+            return (
+              <label key={k} className="flex items-center gap-1.5">
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{def?.label ?? k}</span>
+                {def?.type === 'select' ? (
+                  <select value={cfFilters[k] ?? ''} onChange={e => setCfFilter(k, e.target.value)} className="px-2 py-1.5 rounded-lg text-xs outline-none" style={{ ...inputStyle, borderColor: on ? 'var(--primary)' : 'var(--border)' }}>
+                    <option value="">Todos</option>
+                    {(def.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : def?.type === 'boolean' ? (
+                  <select value={cfFilters[k] ?? ''} onChange={e => setCfFilter(k, e.target.value)} className="px-2 py-1.5 rounded-lg text-xs outline-none" style={{ ...inputStyle, borderColor: on ? 'var(--primary)' : 'var(--border)' }}>
+                    <option value="">Todos</option>
+                    <option value="1">Sim</option>
+                    <option value="0">Não</option>
+                  </select>
+                ) : (
+                  <input value={cfFilters[k] ?? ''} onChange={e => setCfFilter(k, e.target.value)} placeholder="filtrar…" className="px-2 py-1.5 rounded-lg text-xs outline-none" style={{ ...inputStyle, borderColor: on ? 'var(--primary)' : 'var(--border)', minWidth: 110 }} />
+                )}
+              </label>
+            )
+          })}
+        </div>
+      )}
 
       {/* FILTROS AVANÇADOS (empresa, pipeline, datas, status, forecast, etc.) */}
       {mais && (
@@ -236,13 +318,15 @@ export default function CrmOportunidadesPage() {
       <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full text-sm whitespace-nowrap">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-            {['Saúde', 'Empresa', 'Oportunidade', 'Valor', 'Resp.', 'Próxima ação', 'Contato', ''].map((h, i) => (
+            {['Saúde', 'Empresa', 'Oportunidade', 'Valor', 'Resp.', 'Próxima ação', 'Contato'].map((h, i) => (
               <th key={i} className={`px-3 py-2 text-xs font-semibold ${h === 'Valor' ? 'text-right' : 'text-left'}`}>{h}</th>
             ))}
+            {activeCols.map(k => <th key={k} className="px-3 py-2 text-xs font-semibold text-left" title="Campo personalizado">{cfDefByKey[k]?.label ?? k}</th>)}
+            <th className="px-3 py-2" />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
-            : ordered.length === 0 ? <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma oportunidade.</td></tr>
+            {loading ? <tr><td colSpan={8 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+            : ordered.length === 0 ? <tr><td colSpan={8 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma oportunidade.</td></tr>
             : ordered.map(o => {
               const s = SAUDE[o.saude?.status ?? ''] ?? null
               const saud = o.saude?.status === 'saudavel'
@@ -269,6 +353,8 @@ export default function CrmOportunidadesPage() {
                 </td>
                 {/* ÚLTIMO CONTATO: bolinha + indicador curto */}
                 <td className="px-3 py-1.5"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: diasColor(o.dias_sem_interacao) }} /><span style={{ color: diasColor(o.dias_sem_interacao) }}>{diasLabel(o.dias_sem_interacao)}</span></span></td>
+                {/* COLUNAS PERSONALIZADAS selecionadas */}
+                {activeCols.map(k => <td key={k} className="px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{cfCell(o, k)}</td>)}
                 {/* AÇÃO RÁPIDA */}
                 <td className="px-3 py-1.5 text-center"><button onClick={() => setQuick(o)} title="Criar próxima ação" className="opacity-60 hover:opacity-100" style={{ color: o.sem_proxima_acao ? 'var(--danger-border)' : 'var(--primary)' }}><CalendarPlus size={16} /></button></td>
               </tr>
@@ -278,7 +364,7 @@ export default function CrmOportunidadesPage() {
             <tfoot><tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface-sunken)' }}>
               <td colSpan={3} className="px-3 py-2 text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Totais ({ordered.length})</td>
               <td className="px-3 py-2 text-right tabular-nums font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(totalValor)}</td>
-              <td colSpan={4} className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>forecast {fmtBRL(totalForecastVis)}</td>
+              <td colSpan={4 + activeCols.length} className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>forecast {fmtBRL(totalForecastVis)}</td>
             </tr></tfoot>
           )}
         </table>
