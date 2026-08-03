@@ -153,14 +153,14 @@ export default function AdiantamentosPage() {
     setModalOpen(true)
   }
 
-  // Ao escolher a data em que foi feito, sugere a competência de desconto/quitação:
-  // adiantamento desconta no mesmo mês; empréstimo começa a quitar no mês seguinte.
+  // Ao escolher a data em que foi feito, apenas pré-preenche "Começa a descontar em"
+  // com o MESMO mês (regime de caixa). Sem compensação automática de ±1 mês: o mês
+  // informado em "Começa a descontar em" é a única referência das parcelas e pode
+  // ser ajustado livremente.
   const pickFeito = (m: number, y: number) => {
     setFeitoMonth(m || null); setFeitoYear(y || null)
     if (m && y) {
-      const offset = natureza === 'emprestimo' ? 1 : 0
-      const d = new Date(y, (m - 1) + offset, 1)
-      setCompMonth(d.getMonth() + 1); setCompYear(d.getFullYear())
+      setCompMonth(m); setCompYear(y)
     }
   }
 
