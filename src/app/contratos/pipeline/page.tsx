@@ -72,6 +72,8 @@ interface ProjectCard {
   delivery_percentage?: number | null
   coordinator_ids?: number[]
   coordinators?: string[]
+  // Nome do coordenador efetivo (override do Kanban) — precede coordinators[0] na exibição do card.
+  kanban_coordinator_override_name?: string | null
   executivo_conta_name?: string
   coordination_hours?: number | null
   coordination_consumed_hours?: number
@@ -840,9 +842,9 @@ function ProjectKanbanCard({
           })()}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
             <div className="flex flex-col gap-0.5 min-w-0">
-              {card.coordinators && card.coordinators.length > 0 && (
+              {(card.kanban_coordinator_override_name || (card.coordinators && card.coordinators.length > 0)) && (
                 <span className="text-[10px] truncate" style={{ color: 'var(--text-light)' }}>
-                  👤 {card.coordinators[0]}
+                  👤 {card.kanban_coordinator_override_name ?? card.coordinators![0]}
                 </span>
               )}
               {card.executivo_conta_name && (
