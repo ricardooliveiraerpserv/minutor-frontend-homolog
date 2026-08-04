@@ -182,7 +182,7 @@ interface MyClosing {
  * fechamento: total base + ajustes (desconto/adiantamento/adicional com motivos) e o
  * recebimento final em destaque. Só renderiza as linhas de ajuste ≠ 0.
  */
-function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) {
+function RecebimentoFechamentoBlock({ closing, extraValor = 0, extraHoras = 0, valorHora = 0 }: { closing: MyClosing | null; extraValor?: number; extraHoras?: number; valorHora?: number }) {
   if (!closing) return null
 
   const temAjustes = closing.desconto !== 0 || closing.adiantamento !== 0 || closing.adicional !== 0
@@ -195,11 +195,29 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
       </div>
 
       <div className="px-5 py-4 space-y-2.5">
-        {/* Total do fechamento (serviço) */}
-        <div className="flex items-center justify-between text-sm">
-          <span style={{ color: 'var(--text-muted)' }}>Total do fechamento</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(closing.total_servico)}</span>
-        </div>
+        {/* Total do fechamento — quebrado em valor fixo (base) + hora extra quando houver extras */}
+        {extraValor > 0 ? (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: 'var(--text-muted)' }}>Valor fixo (base)</span>
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(closing.total_servico - extraValor)}</span>
+            </div>
+            <div className="flex items-start justify-between text-sm">
+              <div className="min-w-0">
+                <span style={{ color: 'var(--text-muted)' }}>+ Hora extra</span>
+                {extraHoras > 0 && valorHora > 0 && (
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>{fmtHours(extraHoras)} × {formatBRL(valorHora)}/h</p>
+                )}
+              </div>
+              <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ {formatBRL(extraValor)}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-between text-sm">
+            <span style={{ color: 'var(--text-muted)' }}>Total do fechamento</span>
+            <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(closing.total_servico)}</span>
+          </div>
+        )}
 
         {/* Despesa do mês (entra no recebimento) */}
         {closing.total_despesas > 0 && (
@@ -2654,7 +2672,7 @@ export default function MeuPainelPage() {
           )}
 
           {/* Recebimento do fechamento — mesmo valor que o admin vê na tela de fechamento */}
-          <RecebimentoFechamentoBlock closing={myClosing} />
+          <RecebimentoFechamentoBlock closing={myClosing} extraValor={hbExtraValue} extraHoras={hbExtraHours} valorHora={hourlyRate > 0 ? hourlyRate / 160 : 0} />
 
           {/* Recent lists */}
           <div className="grid md:grid-cols-2 gap-4">
@@ -3639,7 +3657,7 @@ export default function MeuPainelPage() {
           </div>
 
           {/* Recebimento do fechamento — mesmo valor que o admin vê na tela de fechamento */}
-          <RecebimentoFechamentoBlock closing={myClosing} />
+          <RecebimentoFechamentoBlock closing={myClosing} extraValor={hbExtraValue} extraHoras={hbExtraHours} valorHora={hourlyRate > 0 ? hourlyRate / 160 : 0} />
 
           {isFixo ? (
             /* ── Fixo: valor mensal fixo + horas trabalhadas (sem extras) ── */
