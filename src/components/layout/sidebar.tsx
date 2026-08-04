@@ -427,6 +427,7 @@ const NAV: NavEntry[] = [
       { label: 'Segmentos',           href: '/crm/segmentos', icon: Tag },
       { label: 'Motivos de Perda',    href: '/crm/motivos-perda', icon: XCircle },
       { label: 'Tipos de Contato',    href: '/crm/tipos-contato', icon: Tag },
+      { label: 'Tags',                href: '/crm/tags', icon: Tag },
       { label: 'Campos Personalizados', href: '/crm/campos-personalizados', icon: SlidersHorizontal },
       { label: 'Responsáveis',        href: '/crm/responsaveis', icon: UserCheck },
       { label: 'Dados da Contratada', href: '/crm/configuracoes/contratada', icon: Building2 },

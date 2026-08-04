@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { Building2, X, Search, LayoutDashboard, Plus, Trash2 } from 'lucide-react'
 
 interface Customer { id: number; name: string; company_name: string | null; cgc: string; crm_status: string; executive?: { id: number; name: string } | null }
-interface CrmTag { id: number; name: string; color: string | null }
+interface CrmTag { id: number; name: string; color: string | null; active?: boolean }
 interface CrmProfile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null }
 interface Vinculos { oportunidades: number; propostas: number; contratos: number; projetos: number }
 interface TimelineItem { when: string; source: string; type: string; label: string | null }
@@ -254,7 +254,7 @@ export default function CrmEmpresasPage() {
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Tags</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {allTags.map(t => {
+                  {allTags.filter(t => t.active !== false || tagIds.includes(t.id)).map(t => {
                     const on = tagIds.includes(t.id)
                     return <button key={t.id} type="button" onClick={() => setTagIds(ids => on ? ids.filter(i => i !== t.id) : [...ids, t.id])}
                       className="text-[11px] px-2 py-1 rounded-full font-medium"
