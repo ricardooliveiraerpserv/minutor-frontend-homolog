@@ -12,8 +12,9 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useAsyncAction } from '@/hooks/use-async-action'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 
-interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean }
+interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean; cor?: string | null; is_inicial?: boolean }
 interface Pipeline { id: number; name: string; code: string; tipo?: string; tipos_empresa?: string[] | null; stages: Stage[] }
 interface Opp {
   id: number; title: string; valor: number; status: string; stage_id: number
@@ -481,6 +482,18 @@ export default function CrmPipelinePage() {
   const activePipe = pipelines.find(p => p.id === pipeId) ?? null
   const isLeads = activePipe?.tipo === 'qualificacao'
 
+  // Arrastar card entre etapas → reusa moveStage (que já trata Perdido[modal]/Ganho[contrato]/normal[otimista]).
+  const onDragEnd = (r: DropResult) => {
+    if (!r.destination) return
+    const toStageId = Number(r.destination.droppableId)
+    const fromStageId = Number(r.source.droppableId)
+    if (!toStageId || toStageId === fromStageId) return
+    const opp = cols.flatMap(c => c.opportunities).find(o => o.id === Number(r.draggableId.replace('opp-', '')))
+    if (opp) moveStage(opp, toStageId)
+  }
+  // Cor de destaque da coluna: cor da etapa (config) ou verde/vermelho p/ Ganho/Perdido, senão o primário.
+  const colAccent = (s: Stage) => s.cor || (s.is_won ? 'var(--success-border)' : s.is_lost ? 'var(--danger-border)' : 'var(--primary)')
+
   return (
     <AppLayout title="Pipeline (CRM)">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -520,12 +533,16 @@ export default function CrmPipelinePage() {
       ) : isLeads ? (
         <LeadsBoard />
       ) : loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
+        <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
-          {cols.map(col => (
-            <div key={col.stage.id} className="shrink-0 w-72 rounded-xl flex flex-col" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-              <div className="px-3 py-2.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: col.stage.is_won ? 'var(--success-border)' : col.stage.is_lost ? 'var(--danger)' : 'var(--text-muted)' }}>{col.stage.name}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{col.count}</span>
+          {cols.map(col => { const accent = colAccent(col.stage); return (
+            <div key={col.stage.id} className="shrink-0 w-72 rounded-2xl flex flex-col" style={{ background: 'var(--panel)', border: `1px solid ${accent}`, boxShadow: 'var(--brand-card-shadow)' }}>
+              <div className="px-3.5 py-3 border-b rounded-t-2xl flex items-center justify-between gap-2" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: accent }} />
+                  <span className="text-sm font-bold truncate" style={{ color: accent }}>{col.stage.name}</span>
+                </span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{col.count}</span>
               </div>
               {/* Indicadores da etapa (Fase 4) */}
               <div className="px-3 py-1 text-[10px] space-y-0.5" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -537,9 +554,13 @@ export default function CrmPipelinePage() {
                   {!!col.parados && <span style={{ color: 'var(--warning-border)' }} title="parados (sem interação 7d+)">⏸ {col.parados}</span>}
                 </div>
               </div>
-              <div className="p-2 space-y-2 overflow-y-auto flex-1">
-                {col.opportunities.map(o => (
-                  <div key={o.id} onClick={() => abrirDetalhe(o.id)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <Droppable droppableId={String(col.stage.id)}>
+                {(prov, snap) => (
+                <div ref={prov.innerRef} {...prov.droppableProps} className="p-2 space-y-2 overflow-y-auto flex-1 transition-colors rounded-b-2xl" style={{ minHeight: 80, background: snap.isDraggingOver ? 'var(--primary-soft)' : 'transparent' }}>
+                {col.opportunities.map((o, idx) => (
+                  <Draggable key={o.id} draggableId={`opp-${o.id}`} index={idx}>
+                    {(dp, ds) => (
+                  <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps} onClick={() => abrirDetalhe(o.id)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--surface)', border: '1px solid var(--border)', ...dp.draggableProps.style, boxShadow: ds.isDragging ? '0 8px 20px rgba(0,0,0,0.18)' : undefined }}>
                     <div className="flex items-start justify-between gap-1">
                       <span className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>{o.title}</span>
                       <span className="flex items-center gap-1 shrink-0">
@@ -575,23 +596,29 @@ export default function CrmPipelinePage() {
                       )
                     })()}
                     {/* Botão de adicionar tarefa — sempre disponível */}
-                    <button onClick={e => { e.stopPropagation(); abrirDetalhe(o.id, 'followups') }} className="mt-1.5 w-full flex items-center justify-center gap-1 text-[10px] rounded px-1.5 py-1 font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--primary)' }}>
+                    <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); abrirDetalhe(o.id, 'followups') }} className="mt-1.5 w-full flex items-center justify-center gap-1 text-[10px] rounded px-1.5 py-1 font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--primary)' }}>
                       <Plus size={11} /> Adicionar tarefa
                     </button>
                     {!col.stage.is_won && !col.stage.is_lost && (
-                      <select value="" onClick={e => e.stopPropagation()} disabled={moveAction.pending} onChange={e => { if (e.target.value) moveStage(o, Number(e.target.value)) }}
+                      <select value="" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} disabled={moveAction.pending} onChange={e => { if (e.target.value) moveStage(o, Number(e.target.value)) }}
                         className="w-full mt-2 text-[10px] rounded px-1.5 py-1 outline-none disabled:opacity-50" style={inputStyle}>
                         <option value="">Mover para…</option>
                         {pipe?.stages.filter(s => s.id !== o.stage_id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     )}
                   </div>
+                    )}
+                  </Draggable>
                 ))}
-                {col.opportunities.length === 0 && <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>—</p>}
-              </div>
+                {prov.placeholder}
+                {col.opportunities.length === 0 && !snap.isDraggingOver && <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>—</p>}
+                </div>
+                )}
+              </Droppable>
             </div>
-          ))}
+          )})}
         </div>
+        </DragDropContext>
       )}
 
       {newOpen && (
