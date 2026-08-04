@@ -760,7 +760,7 @@ function LossModal({ reasons, onCancel, onConfirm }: { reasons: { id: number; na
 // ── Drawer de detalhe da oportunidade: info + Próxima Ação (tarefas) + timeline ──
 interface OppFull extends Opp { pipeline?: { name: string }; stage?: Stage; notas?: string | null; descricao?: string | null; proxima_acao?: string | null; previsao_fechamento?: string | null; ultima_interacao_at?: string | null
   contract_id?: number | null
-  products?: { id: number; name: string; categoria: string | null; pivot: { quantidade: number | string; valor: number | string } }[]
+  products?: { id: number; name: string; origem?: string | null; pivot: { quantidade: number | string; valor: number | string; categoria?: string | null; tipo_precificacao?: string | null } }[]
   tasks?: { id: number; tipo: string; titulo: string | null; data: string | null; prioridade: string; concluida_at: string | null; responsavel?: { name: string } | null }[]
   events?: { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }[]
   qualificacao?: string | null; detalhes?: Record<string, any> | null
@@ -838,6 +838,95 @@ const DERIV_LABELS: [string, string][] = [
   ['margem_liquida', 'Margem líquida'], ['custo_fixo', 'Custo fixo'], ['condicao_pagamento', 'Condição de pagamento'],
   ['escopo', 'Escopo'], ['proposta_status', 'Status da proposta'], ['data_assinatura', 'Assinatura'],
 ]
+
+// Categoria e Precificação agora vivem na OPORTUNIDADE (por produto vinculado).
+const OPP_CATEGORIAS = ['Licenciamento', 'Implantação', 'Sustentação', 'Banco de Horas', 'Pacote de Horas', 'Projeto Fechado', 'Treinamento', 'Customização']
+const OPP_PRECIFICACOES: { v: string; l: string }[] = [
+  { v: 'hora', l: 'Por hora' }, { v: 'projeto', l: 'Por projeto' }, { v: 'mensal', l: 'Mensal' }, { v: 'licenca', l: 'Licença' },
+]
+
+type OppProduct = NonNullable<OppFull['products']>[number]
+
+/** Produtos/Serviços vinculados à oportunidade — Categoria e Precificação por linha. */
+function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; products: OppProduct[]; onChanged: () => void }) {
+  const [catalog, setCatalog] = useState<{ id: number; name: string; origem: string | null }[]>([])
+  const [addId, setAddId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const sel = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  useEffect(() => {
+    api.get<{ data: { id: number; name: string; ativo?: boolean; origem?: string | null }[] }>('/crm/products')
+      .then(r => setCatalog((r?.data ?? []).filter(p => p.ativo !== false).map(p => ({ id: p.id, name: p.name, origem: p.origem ?? 'proprio' }))))
+      .catch(() => {})
+  }, [])
+  const put = async (productId: number, body: Record<string, unknown>) => {
+    try { await api.put(`/crm/opportunities/${oppId}/products/${productId}`, body); onChanged() }
+    catch { toast.error('Erro ao salvar produto') }
+  }
+  const add = async () => {
+    if (!addId) return
+    setBusy(true)
+    try { await api.post(`/crm/opportunities/${oppId}/products`, { crm_product_id: Number(addId) }); setAddId(''); onChanged() }
+    catch { toast.error('Erro ao adicionar produto') } finally { setBusy(false) }
+  }
+  const remove = async (productId: number) => {
+    try { await api.delete(`/crm/opportunities/${oppId}/products/${productId}`); onChanged() }
+    catch { toast.error('Erro ao remover produto') }
+  }
+  const num = (x: number | string) => Number(x) || 0
+  const total = products.reduce((s, p) => s + num(p.pivot.quantidade) * num(p.pivot.valor), 0)
+  const disponiveis = catalog.filter(c => !products.some(p => p.id === c.id))
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Produtos / Serviços</h3>
+        {products.length > 0 && <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>Σ {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>}
+      </div>
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        {products.length === 0 ? (
+          <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>Nenhum produto vinculado.</p>
+        ) : products.map(p => (
+          <div key={p.id} className="px-2.5 py-2 space-y-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5 min-w-0" style={{ color: 'var(--text)' }}>
+                <span className="truncate">{p.name}</span>
+                {p.origem === 'parceiro' && <span className="text-[9px] px-1 py-0.5 rounded font-bold shrink-0" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>Parceiro</span>}
+              </span>
+              <button onClick={() => remove(p.id)} className="p-1 rounded hover:bg-[var(--surface-hover)] shrink-0" title="Remover" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <select value={p.pivot.categoria ?? ''} onChange={e => put(p.id, { categoria: e.target.value })} className="text-[11px] rounded px-1.5 py-1 outline-none" style={sel}>
+                <option value="">Categoria…</option>
+                {OPP_CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={p.pivot.tipo_precificacao ?? ''} onChange={e => put(p.id, { tipo_precificacao: e.target.value })} className="text-[11px] rounded px-1.5 py-1 outline-none" style={sel}>
+                <option value="">Precificação…</option>
+                {OPP_PRECIFICACOES.map(x => <option key={x.v} value={x.v}>{x.l}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <label className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>Qtd
+                <input key={`q${p.id}-${p.pivot.quantidade}`} type="number" step="0.01" min="0" defaultValue={String(p.pivot.quantidade)} onBlur={e => { if (e.target.value !== String(p.pivot.quantidade)) put(p.id, { quantidade: e.target.value === '' ? 0 : Number(e.target.value) }) }} className="w-full text-[11px] rounded px-1.5 py-1 outline-none text-right tabular-nums" style={sel} />
+              </label>
+              <label className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>Valor
+                <input key={`v${p.id}-${p.pivot.valor}`} type="number" step="0.01" min="0" defaultValue={String(p.pivot.valor)} onBlur={e => { if (e.target.value !== String(p.pivot.valor)) put(p.id, { valor: e.target.value === '' ? 0 : Number(e.target.value) }) }} className="w-full text-[11px] rounded px-1.5 py-1 outline-none text-right tabular-nums" style={sel} />
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+      {disponiveis.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <select value={addId} onChange={e => setAddId(e.target.value)} className="flex-1 text-[11px] rounded px-1.5 py-1 outline-none" style={sel}>
+            <option value="">+ Adicionar produto…</option>
+            {disponiveis.map(c => <option key={c.id} value={c.id}>{c.name}{c.origem === 'parceiro' ? ' (Parceiro)' : ''}</option>)}
+          </select>
+          <button onClick={add} disabled={!addId || busy} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{busy ? '…' : 'Adicionar'}</button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose: () => void; initialTab?: 'resumo' | 'timeline' | 'followups' | 'propostas' | 'anexos' }) {
   const router = useRouter()
@@ -1058,6 +1147,9 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
               <div className="flex justify-between"><span>Previsão de fechamento</span><span style={{ color: 'var(--text)' }}>{o.previsao_fechamento ? new Date(o.previsao_fechamento).toLocaleDateString('pt-BR') : '—'}</span></div>
               <div className="flex justify-between"><span>Próxima ação</span><span style={{ color: 'var(--text)' }}>{o.proxima_acao || '—'}{o.proxima_acao_at ? ` · ${fmtDt(o.proxima_acao_at)}` : ''}</span></div>
             </div>
+
+            {/* Produtos/Serviços vinculados — Categoria e Precificação por linha (migradas do produto). */}
+            <ProdutosVinculados oppId={id} products={o.products ?? []} onChanged={load} />
 
             {/* Previsibilidade — probabilidade, valor ponderado, saúde, motivo da parada */}
             <div className="mt-4">

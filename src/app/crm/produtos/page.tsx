@@ -10,21 +10,22 @@ import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 interface CrmProduct {
   id: number
   name: string
-  categoria: string
-  tipo_precificacao: string
+  origem: string | null
   valor: number | null
   descricao_tecnica: string | null
   ativo: boolean
 }
 
-const CATEGORIAS = ['Licenciamento', 'Implantação', 'Sustentação', 'Banco de Horas', 'Pacote de Horas', 'Projeto Fechado', 'Treinamento', 'Customização']
-const PRECIFICACOES: { v: string; l: string }[] = [
-  { v: 'hora', l: 'Por hora' }, { v: 'projeto', l: 'Por projeto' }, { v: 'mensal', l: 'Mensal' }, { v: 'licenca', l: 'Licença' },
+// Categoria e Precificação migraram para a OPORTUNIDADE (por produto vinculado).
+const ORIGENS: { v: string; l: string }[] = [
+  { v: 'proprio', l: 'Serviço/Produto Próprio' },
+  { v: 'parceiro', l: 'Serviço/Produto Parceiro' },
 ]
+const origemLabel = (v: string | null) => ORIGENS.find(o => o.v === v)?.l ?? 'Próprio'
 
 const fmtBRL = (n: number | null) => n == null ? '—' : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const EMPTY = { name: '', categoria: 'Sustentação', tipo_precificacao: 'hora', valor: '', descricao_tecnica: '', ativo: true }
+const EMPTY = { name: '', origem: 'proprio', valor: '', descricao_tecnica: '', ativo: true }
 
 export default function CrmProdutosPage() {
   const [items, setItems] = useState<CrmProduct[]>([])
@@ -46,7 +47,7 @@ export default function CrmProdutosPage() {
   const openNew = () => { setEditId(null); setForm(EMPTY); setModal(true) }
   const openEdit = (p: CrmProduct) => {
     setEditId(p.id)
-    setForm({ name: p.name, categoria: p.categoria, tipo_precificacao: p.tipo_precificacao, valor: p.valor != null ? String(p.valor) : '', descricao_tecnica: p.descricao_tecnica ?? '', ativo: p.ativo })
+    setForm({ name: p.name, origem: p.origem ?? 'proprio', valor: p.valor != null ? String(p.valor) : '', descricao_tecnica: p.descricao_tecnica ?? '', ativo: p.ativo })
     setModal(true)
   }
 
@@ -89,8 +90,7 @@ export default function CrmProdutosPage() {
           <thead>
             <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
               <th className="text-left px-4 py-2.5 text-xs font-semibold">Nome</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold">Categoria</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold">Precificação</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold">Origem</th>
               <th className="text-right px-4 py-2.5 text-xs font-semibold">Valor</th>
               <th className="text-center px-4 py-2.5 text-xs font-semibold">Ativo</th>
               <th className="px-4 py-2.5"></th>
@@ -98,14 +98,18 @@ export default function CrmProdutosPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum produto cadastrado.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum produto cadastrado.</td></tr>
             ) : items.map(p => (
               <tr key={p.id} style={{ borderTop: '1px solid var(--border)' }}>
                 <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{p.name}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{p.categoria}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{PRECIFICACOES.find(x => x.v === p.tipo_precificacao)?.l ?? p.tipo_precificacao}</td>
+                <td className="px-4 py-3">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                    style={p.origem === 'parceiro' ? { background: 'var(--warning-bg)', color: 'var(--warning-border)' } : { background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                    {p.origem === 'parceiro' ? 'Parceiro' : 'Próprio'}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtBRL(p.valor)}</td>
                 <td className="px-4 py-3 text-center">
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
@@ -135,19 +139,11 @@ export default function CrmProdutosPage() {
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Categoria</label>
-                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                    {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Precificação</label>
-                  <select value={form.tipo_precificacao} onChange={e => setForm(f => ({ ...f, tipo_precificacao: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                    {PRECIFICACOES.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Serviço/Produto é *</label>
+                <select value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  {ORIGENS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Valor (R$)</label>
@@ -161,6 +157,7 @@ export default function CrmProdutosPage() {
                 <input type="checkbox" checked={form.ativo} onChange={e => setForm(f => ({ ...f, ativo: e.target.checked }))} style={{ accentColor: 'var(--primary)' }} />
                 Ativo
               </label>
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Categoria e precificação agora são definidas na oportunidade, por produto vinculado.</p>
               {/* Campos personalizados do produto — só ao editar (precisa do id). Salvam sozinhos. */}
               {editId && <CustomFieldsSection urlContext="products" entityId={editId} title="Campos personalizados do produto" />}
             </div>
