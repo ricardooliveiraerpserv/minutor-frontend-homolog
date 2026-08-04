@@ -10,6 +10,8 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Table, Thead, Th, Tbody, Tr, Td, Button, Badge, EmptyState, SkeletonTable } from '@/components/ds'
 import { AlertTriangle, Check, CalendarClock, X } from 'lucide-react'
+import { TimesheetHoverTooltip, useTimesheetHover, type TimesheetPreview } from '@/components/ui/timesheet-hover-tooltip'
+import { previewText } from '@/lib/sanitize'
 
 interface AtrasoRow {
   id: number
@@ -20,10 +22,33 @@ interface AtrasoRow {
   cliente: string
   projeto: string
   projeto_codigo: string
+  project_id: number | null
+  coordenador: string | null
+  executivo: string | null
   ticket: string | null
   horas: number
+  effort_minutes: number
   observacao: string | null
   date_locked: boolean
+}
+
+// Mapeia a linha de atraso pro formato do tooltip (reusa o da tela de Apontamentos).
+const toPreview = (r: AtrasoRow): TimesheetPreview => ({
+  id: r.id,
+  user_name: r.colaborador,
+  customer_name: r.cliente,
+  project_name: r.projeto,
+  project_id: r.project_id ?? undefined,
+  effort_minutes: r.effort_minutes,
+  ticket: r.ticket,
+  observation: r.observacao,
+  coordinator_label: r.coordenador,
+  project: { id: r.project_id ?? undefined, customer: { executive: { name: r.executivo ?? undefined } } },
+})
+// Descrição curta (sem HTML) pra tabela; o completo aparece no hover.
+const descCurta = (obs: string | null): string => {
+  const t = previewText(obs).replace(/\s+/g, ' ').trim()
+  return t.length > 90 ? t.slice(0, 90) + '…' : t
 }
 
 const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
@@ -41,6 +66,7 @@ export default function AtrasosIntegracaoPage() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [dateModal, setDateModal] = useState<{ row: AtrasoRow; date: string } | null>(null)
+  const hover = useTimesheetHover()
 
   const load = useCallback(() => {
     setLoading(true)
@@ -94,7 +120,7 @@ export default function AtrasosIntegracaoPage() {
             </Thead>
             <Tbody>
               {rows.map(r => (
-                <Tr key={r.id}>
+                <Tr key={r.id} {...hover.bind(toPreview(r))} className="cursor-default">
                   <Td>
                     <span className="inline-flex items-center gap-1.5">{fmtDate(r.date)} <Badge variant="warning">Atraso</Badge></span>
                   </Td>
@@ -103,7 +129,7 @@ export default function AtrasosIntegracaoPage() {
                   <Td>{r.cliente}</Td>
                   <Td>
                     <span style={{ color: 'var(--text-light)' }}>{r.projeto_codigo}</span> {r.projeto}
-                    {r.observacao ? <span className="block text-xs" style={{ color: 'var(--text-light)' }}>{r.observacao}</span> : null}
+                    {r.observacao ? <span className="block text-xs truncate max-w-[420px]" style={{ color: 'var(--text-light)' }} title="Passe o mouse na linha para ver a descrição completa">{descCurta(r.observacao)}</span> : null}
                   </Td>
                   <Td>{r.ticket ?? '—'}</Td>
                   <Td className="text-right tabular-nums">{fmtH(r.horas)}</Td>
@@ -119,6 +145,9 @@ export default function AtrasosIntegracaoPage() {
           </Table>
         )}
       </div>
+
+      {/* Popover ao passar o mouse na linha — mesmo da tela de Apontamentos */}
+      <TimesheetHoverTooltip ts={hover.ts} />
 
       {dateModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}
