@@ -32,6 +32,7 @@ export default function CrmEmpresasPage() {
   const [fStatus, setFStatus] = useState('')
   const [busca, setBusca] = useState('')
   const [allTags, setAllTags] = useState<CrmTag[]>([])
+  const [segmentos, setSegmentos] = useState<{ id: number; name: string }[]>([])
 
   // Edição CRM
   const [sel, setSel] = useState<Customer | null>(null)
@@ -58,6 +59,7 @@ export default function CrmEmpresasPage() {
   }, [])
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<{ data: CrmTag[] }>('/crm/tags').then(r => setAllTags(r?.data ?? [])).catch(() => {}) }, [])
+  useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/segments?only_active=1').then(r => setSegmentos(r?.data ?? [])).catch(() => {}) }, [])
 
   const open = async (c: Customer) => {
     setSel(c); setVinculos(null); setTimeline([])
@@ -229,7 +231,15 @@ export default function CrmEmpresasPage() {
                 {([['region', 'Região'], ['segment', 'Segmento'], ['porte', 'Porte'], ['erp_atual', 'ERP atual'], ['indicacao', 'Indicação / origem']] as [keyof CrmProfile, string][]).map(([k, l]) => (
                   <div key={k}>
                     <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{l}</label>
-                    <input value={(profile[k] as any) ?? ''} onChange={e => setP(k, e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                    {k === 'segment' ? (
+                      <select value={(profile.segment as any) ?? ''} onChange={e => setP('segment', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                        <option value="">—</option>
+                        {profile.segment && !segmentos.some(s => s.name === profile.segment) && <option value={profile.segment}>{profile.segment}</option>}
+                        {segmentos.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
+                    ) : (
+                      <input value={(profile[k] as any) ?? ''} onChange={e => setP(k, e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                    )}
                   </div>
                 ))}
                 <div>

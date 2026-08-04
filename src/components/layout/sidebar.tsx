@@ -424,6 +424,7 @@ const NAV: NavEntry[] = [
       { label: 'Pipelines',           href: '/crm/pipelines', icon: GitBranch },
       { label: 'Produtos e Serviços', href: '/crm/produtos', icon: Tag },
       { label: 'Origens',             href: '/crm/origens',  icon: Tag },
+      { label: 'Segmentos',           href: '/crm/segmentos', icon: Tag },
       { label: 'Motivos de Perda',    href: '/crm/motivos-perda', icon: XCircle },
       { label: 'Tipos de Contato',    href: '/crm/tipos-contato', icon: Tag },
       { label: 'Campos Personalizados', href: '/crm/campos-personalizados', icon: SlidersHorizontal },
