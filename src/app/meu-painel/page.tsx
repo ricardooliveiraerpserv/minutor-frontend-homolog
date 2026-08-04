@@ -501,6 +501,22 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {hasAdjust ? 'recebimento do fechamento' : (hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal')}
         </span>
+        {/* Valor/hora + valor a receber de extra (hora extra × valor/hora) */}
+        {fixedSalary > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-sunken)] px-3 py-2">
+              <p className="text-[9px] uppercase tracking-wider text-[var(--text-light)]">Valor/hora</p>
+              <p className="text-sm font-bold text-[var(--text)]">{formatBRL(valorHoraExt)}<span className="text-[10px] font-normal text-[var(--text-muted)]">/h</span></p>
+            </div>
+            {hasExtra && (
+              <div className="rounded-lg border border-green-500/20 bg-[var(--success-bg)] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-[var(--success)]/70">Extra a receber</p>
+                <p className="text-sm font-bold text-[var(--success)]">{formatBRL(totalExtra)}</p>
+                <p className="text-[9px] text-[var(--text-muted)]">{fmtHours(extraHours)} × {formatBRL(valorHoraExt)}/h</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Despesas — breakdown */}
