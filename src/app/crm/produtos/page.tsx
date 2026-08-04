@@ -18,8 +18,8 @@ interface CrmProduct {
 
 // Categoria e Precificação migraram para a OPORTUNIDADE (por produto vinculado).
 const ORIGENS: { v: string; l: string }[] = [
-  { v: 'proprio', l: 'Serviço/Produto Próprio' },
-  { v: 'parceiro', l: 'Serviço/Produto Parceiro' },
+  { v: 'proprio', l: 'Próprio' },
+  { v: 'parceiro', l: 'Parceiro' },
 ]
 const origemLabel = (v: string | null) => ORIGENS.find(o => o.v === v)?.l ?? 'Próprio'
 
@@ -131,7 +131,7 @@ export default function CrmProdutosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setModal(false)}>
           <div className="w-full max-w-lg rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{editId ? 'Editar' : 'Novo'} produto/serviço</h2>
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{editId ? 'Editar' : 'Novo'} produto</h2>
               <button onClick={() => setModal(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
             <div className="space-y-3">
@@ -140,7 +140,7 @@ export default function CrmProdutosPage() {
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Serviço/Produto é *</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Serviço *</label>
                 <select value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                   {ORIGENS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
