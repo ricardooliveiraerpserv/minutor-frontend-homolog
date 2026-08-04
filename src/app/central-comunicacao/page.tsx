@@ -545,13 +545,54 @@ function History() {
 
 function Templates() {
   const [rows, setRows] = useState<CommTemplate[]>([])
+  const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [nome, setNome] = useState('')
+  const [tipo, setTipo] = useState('aviso')
+  const [title, setTitle] = useState('')
+  const [message, setMessage] = useState('')
   const load = () => api.get<{ data: CommTemplate[] }>('/communication-templates').then(r => setRows(r.data ?? [])).catch(() => {})
   useEffect(() => { load() }, [])
   const del = async (t: CommTemplate) => { if (!confirm(`Excluir o modelo "${t.nome}"?`)) return; try { await api.delete(`/communication-templates/${t.id}`); load() } catch { toast.error('Erro') } }
+  const resetForm = () => { setNome(''); setTipo('aviso'); setTitle(''); setMessage('') }
+  const save = async () => {
+    if (!nome.trim()) { toast.error('Informe o nome do modelo'); return }
+    setSaving(true)
+    try {
+      await api.post('/communication-templates', { nome: nome.trim(), tipo_comunicacao: tipo, title: title.trim(), message: message.trim() })
+      toast.success('Modelo salvo'); resetForm(); setCreating(false); load()
+    } catch { toast.error('Erro ao salvar modelo') } finally { setSaving(false) }
+  }
+  const fieldCls = 'w-full rounded-lg px-3 py-2 text-sm ds-input'
   return (
     <div className="ds-card p-4 space-y-2">
-      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Modelos de mensagem reutilizáveis (carregue-os na aba “Novo envio”). Salve um novo modelo lá pelo botão “Salvar como modelo”.</p>
-      {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum modelo salvo.</p>}
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>Modelos de mensagem reutilizáveis (carregue-os na aba “Novo envio”). Crie um aqui em “Incluir modelo”, ou pela aba “Novo envio” no botão “Salvar como modelo” (que preserva toda a formatação rica).</p>
+        <button onClick={() => setCreating(v => !v)} className="ds-btn-primary text-xs inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1.5">
+          {creating ? <X size={13} /> : <Plus size={13} />}{creating ? 'Cancelar' : 'Incluir modelo'}
+        </button>
+      </div>
+      {creating && (
+        <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)' }}>
+            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nome do modelo *</label>
+              <input className={fieldCls} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Aviso de manutenção" /></div>
+            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Tipo</label>
+              <select className={fieldCls} value={tipo} onChange={e => setTipo(e.target.value)}>
+                {TIPOS.map(t => <option key={t.k} value={t.k}>{t.l}</option>)}
+              </select></div>
+          </div>
+          <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Título</label>
+            <input className={fieldCls} value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da comunicação" /></div>
+          <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mensagem</label>
+            <textarea className={fieldCls} rows={5} value={message} onChange={e => setMessage(e.target.value)} placeholder="Conteúdo do modelo…" /></div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => { resetForm(); setCreating(false) }} className="ds-btn-secondary text-xs px-3 py-1.5">Cancelar</button>
+            <button onClick={save} disabled={saving} className="ds-btn-primary text-xs px-3 py-1.5 disabled:opacity-60">{saving ? 'Salvando…' : 'Salvar modelo'}</button>
+          </div>
+        </div>
+      )}
+      {rows.length === 0 && !creating && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum modelo salvo.</p>}
       {rows.map(t => (
         <div key={t.id} className="flex items-center gap-2 py-2 border-t text-sm" style={{ borderColor: 'var(--border)' }}>
           <Bookmark size={14} style={{ color: 'var(--primary)' }} />
