@@ -293,6 +293,9 @@ export default function RelatorioApontamentosPage() {
       const p = new URLSearchParams()
       p.set('customer_id', String(customerId))
       p.set('pageSize',    '2000')
+      // Coord de sustentação enxerga também o filho On Demand do projeto de sustentação
+      // (mesmo param usado no seletor de projetos). Só neste relatório.
+      p.set('include_sust_ondemand_children', 'true')
       applyDates(p)
       statuses.forEach(s => p.append('status[]', s))
       projectIds.forEach(id => p.append('project_id[]', id))
@@ -300,6 +303,7 @@ export default function RelatorioApontamentosPage() {
 
       const summaryParams = new URLSearchParams()
       summaryParams.set('customer_id', String(customerId))
+      summaryParams.set('include_sust_ondemand_children', 'true')
       applyDates(summaryParams)
       statuses.forEach(s => summaryParams.append('status[]', s))
       projectIds.forEach(id => summaryParams.append('project_id[]', id))
