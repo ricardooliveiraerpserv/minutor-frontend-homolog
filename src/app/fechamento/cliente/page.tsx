@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { toast } from 'sonner'
-import { Lock, RefreshCw, Building2, Printer, FileText, Receipt, ChevronRight, ChevronLeft, ChevronDown, Mail, FileSpreadsheet, Send, X, Save, Plus, Check, Paperclip, Eye, AlertTriangle } from 'lucide-react'
+import { Lock, RefreshCw, Building2, Printer, FileText, Receipt, ChevronRight, ChevronLeft, ChevronDown, Mail, FileSpreadsheet, Send, X, Save, Plus, Check, Paperclip, Eye, AlertTriangle, Trash2 } from 'lucide-react'
 import {
   Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, SkeletonTable, EmptyState,
@@ -870,6 +870,29 @@ export default function FechamentoClientePage() {
     }
   }
 
+  // Exclui o desconto (zera valor + descritivo). Reaproveita o mesmo endpoint
+  // enviando 0/null; o relatório/e-mail deixam de mostrar a linha de desconto.
+  const excluirDesconto = async () => {
+    if (!customerId) return
+    if (!confirm('Excluir o desconto deste fechamento?')) return
+    setSavingDesconto(true)
+    try {
+      await api.post(`/fechamento-cliente/${customerId}/${toYM}/desconto`, {
+        desconto: 0,
+        desconto_descricao: null,
+      })
+      setDescontoValor(''); setDescontoDesc('')
+      setStatus(prev => (prev && prev.customer_id === customerId
+        ? { ...prev, desconto: 0, desconto_descricao: null } : prev))
+      setReportReload(n => n + 1)
+      toast.success('Desconto excluído')
+    } catch {
+      toast.error('Erro ao excluir o desconto')
+    } finally {
+      setSavingDesconto(false)
+    }
+  }
+
   // ── Detalhe (tela tradicional): preview do relatório + ações (imprimir/email/excel) ──
   const renderDetail = (mode: 'servicos' | 'despesa') => {
     const isDesp = mode === 'despesa'
@@ -963,15 +986,30 @@ export default function FechamentoClientePage() {
                   className="ds-input w-full mt-1 resize-none"
                 />
               </div>
-              <Button
-                size="sm"
-                icon={Save}
-                loading={savingDesconto}
-                className="w-full !justify-center"
-                onClick={salvarDesconto}
-              >
-                {savingDesconto ? 'Salvando…' : 'Salvar desconto'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  icon={Save}
+                  loading={savingDesconto}
+                  className="flex-1 !justify-center"
+                  onClick={salvarDesconto}
+                >
+                  {savingDesconto ? 'Salvando…' : (descontoAtual > 0 ? 'Salvar alteração' : 'Salvar desconto')}
+                </Button>
+                {descontoAtual > 0 && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    icon={Trash2}
+                    disabled={savingDesconto}
+                    className="!justify-center"
+                    onClick={excluirDesconto}
+                    title="Excluir desconto"
+                  >
+                    Excluir
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
