@@ -827,6 +827,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (n.has(pid)) n.delete(pid); else n.add(pid)
     return n
   })
+  // Abrir/fechar todas as linhas-pai da árvore de uma vez.
+  const expandAll = () => setExpanded(new Set(sorted.filter(r => childrenOf(r).length > 0).map(r => parentId(r))))
+  const collapseAll = () => setExpanded(new Set())
 
   // Total da TABELA (por apontamento) — usado no rodapé do export; custo proporcional às horas.
   const tot = useMemo(() => {
@@ -1687,6 +1690,15 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         ) : filtered.length === 0 ? (
           <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum apontamento para o mês/filtros." />
         ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 8 }}>
+              <button onClick={expandAll} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <ChevronDown size={13} /> Expandir tudo
+              </button>
+              <button onClick={collapseAll} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <ChevronRight size={13} /> Recolher tudo
+              </button>
+            </div>
           <Table>
             <Thead>
               <tr>
@@ -1759,6 +1771,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               })}
             </Tbody>
           </Table>
+          </>
         )}
       </div>
 
