@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
-import { ListTodo, Search, Plus, Check, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ListTodo, Search, Plus, Check, Trash2, Pencil, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 
 interface Opp { id: number; title: string; customer_id?: number | null; customer?: { id?: number; name: string } | null }
@@ -28,6 +28,12 @@ const fmtDataHora = (d: string | null) => {
   const dt = new Date(d)
   return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
+// ISO → valor do <input type="datetime-local"> (hora local).
+const toLocalInput = (iso: string | null) => {
+  if (!iso) return ''
+  const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
 
 export default function TarefasPage() {
   const [data, setData] = useState<Resp | null>(null)
@@ -46,6 +52,7 @@ export default function TarefasPage() {
   const [customers, setCustomers] = useState<CustomerOpt[]>([])
   const [modal, setModal] = useState(false)
   const [detail, setDetail] = useState<Task | null>(null) // detalhe da tarefa — campos personalizados
+  const [editing, setEditing] = useState<Task | null>(null) // edição da tarefa
 
   useEffect(() => {
     api.get<{ data: ContactType[] }>('/crm/contact-types').then(r => setTipos(r?.data ?? [])).catch(() => {})
@@ -144,7 +151,10 @@ export default function TarefasPage() {
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t.opportunity?.title || '—'}</td>
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t.responsavel || '—'}</td>
                 <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{fmtDataHora(t.data)}</td>
-                <td className="px-3 py-2.5"><button onClick={() => excluir(t)} style={{ color: 'var(--danger-border)' }}><Trash2 size={14} /></button></td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <button onClick={() => setEditing(t)} title="Editar" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
+                  <button onClick={() => excluir(t)} title="Excluir" className="p-1 rounded hover:bg-[var(--surface-hover)] ml-1" style={{ color: 'var(--danger-border)' }}><Trash2 size={14} /></button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -161,6 +171,7 @@ export default function TarefasPage() {
 
       {modal && <NovaTarefa tipos={tipos} users={users} opps={opps} customers={customers} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
       {detail && <TarefaDetalhe tarefa={detail} tipos={tipos} onClose={() => setDetail(null)} />}
+      {editing && <EditarTarefa task={editing} tipos={tipos} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
     </AppLayout>
   )
 }
@@ -275,6 +286,66 @@ function NovaTarefa({ tipos, users, opps, customers, onClose, onSaved }: { tipos
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Cancelar</button>
           <button onClick={salvar} disabled={saving} className="px-3 py-1.5 rounded-lg text-sm font-bold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Criar tarefa'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Edição de tarefa — o backend permite alterar tipo/título/quando/prioridade/notas.
+// Empresa, oportunidade e responsável ficam fixos após a criação (exibidos como referência).
+function EditarTarefa({ task, tipos, onClose, onSaved }: { task: Task; tipos: ContactType[]; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ tipo: task.tipo, titulo: task.titulo ?? '', data: toLocalInput(task.data), prioridade: task.prioridade || 'media', notas: task.notas ?? '' })
+  const [saving, setSaving] = useState(false)
+  const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
+  const salvar = async () => {
+    setSaving(true)
+    try {
+      await api.put(`/crm/tasks/${task.id}`, { tipo: f.tipo, titulo: f.titulo || null, data: f.data || null, prioridade: f.prioridade, notas: f.notas || null })
+      onSaved()
+    } catch { alert('Erro ao salvar a tarefa.') } finally { setSaving(false) }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Editar tarefa</h2>
+          <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        <div className="text-[11px] mb-3 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+          {(task.empresa || '—')}{task.opportunity?.title ? ` · ${task.opportunity.title}` : ''}{task.responsavel ? ` · 👤 ${task.responsavel}` : ''}
+        </div>
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Tipo *</span>
+              <select value={f.tipo} onChange={e => set('tipo', e.target.value)} className={fieldCls} style={inputStyle}>
+                {tipos.map(t => <option key={t.id} value={t.slug}>{t.nome}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Prioridade</span>
+              <select value={f.prioridade} onChange={e => set('prioridade', e.target.value)} className={fieldCls} style={inputStyle}>
+                <option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option>
+              </select>
+            </label>
+          </div>
+          <label className="block">
+            <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Título</span>
+            <input value={f.titulo} onChange={e => set('titulo', e.target.value)} placeholder="Ex.: Ligar para alinhar proposta" className={fieldCls} style={inputStyle} />
+          </label>
+          <label className="block">
+            <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Quando (data/hora)</span>
+            <input type="datetime-local" value={f.data} onChange={e => set('data', e.target.value)} className={fieldCls} style={inputStyle} />
+          </label>
+          <label className="block">
+            <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Notas</span>
+            <textarea rows={2} value={f.notas} onChange={e => set('notas', e.target.value)} className={fieldCls} style={inputStyle} />
+          </label>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Cancelar</button>
+          <button onClick={salvar} disabled={saving} className="px-3 py-1.5 rounded-lg text-sm font-bold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
         </div>
       </div>
     </div>
