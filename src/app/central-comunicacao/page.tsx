@@ -546,6 +546,8 @@ function History() {
 function Templates() {
   const [rows, setRows] = useState<CommTemplate[]>([])
   const [creating, setCreating] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [hasStructure, setHasStructure] = useState(false)
   const [saving, setSaving] = useState(false)
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('aviso')
@@ -554,26 +556,48 @@ function Templates() {
   const load = () => api.get<{ data: CommTemplate[] }>('/communication-templates').then(r => setRows(r.data ?? [])).catch(() => {})
   useEffect(() => { load() }, [])
   const del = async (t: CommTemplate) => { if (!confirm(`Excluir o modelo "${t.nome}"?`)) return; try { await api.delete(`/communication-templates/${t.id}`); load() } catch { toast.error('Erro') } }
-  const resetForm = () => { setNome(''); setTipo('aviso'); setTitle(''); setMessage('') }
+  const resetForm = () => { setNome(''); setTipo('aviso'); setTitle(''); setMessage(''); setEditingId(null); setHasStructure(false) }
+  const closeForm = () => { resetForm(); setCreating(false) }
+  const startNew = () => { resetForm(); setCreating(true) }
+  const startEdit = (t: CommTemplate) => {
+    setEditingId(t.id)
+    setNome(t.nome)
+    setTipo(t.tipo_comunicacao || 'aviso')
+    setTitle(t.title ?? '')
+    setMessage(t.message ?? t.structure?.content ?? '')
+    setHasStructure(!!t.structure && Object.keys(t.structure).length > 0)
+    setCreating(true)
+  }
   const save = async () => {
     if (!nome.trim()) { toast.error('Informe o nome do modelo'); return }
     setSaving(true)
     try {
-      await api.post('/communication-templates', { nome: nome.trim(), tipo_comunicacao: tipo, title: title.trim(), message: message.trim() })
-      toast.success('Modelo salvo'); resetForm(); setCreating(false); load()
-    } catch { toast.error('Erro ao salvar modelo') } finally { setSaving(false) }
+      const payload = { nome: nome.trim(), tipo_comunicacao: tipo, title: title.trim(), message: message.trim() }
+      if (editingId) {
+        await api.put(`/communication-templates/${editingId}`, payload)
+        toast.success('Modelo atualizado')
+      } else {
+        await api.post('/communication-templates', payload)
+        toast.success('Modelo salvo')
+      }
+      closeForm(); load()
+    } catch { toast.error(editingId ? 'Erro ao atualizar modelo' : 'Erro ao salvar modelo') } finally { setSaving(false) }
   }
   const fieldCls = 'w-full rounded-lg px-3 py-2 text-sm ds-input'
   return (
     <div className="ds-card p-4 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>Modelos de mensagem reutilizáveis (carregue-os na aba “Novo envio”). Crie um aqui em “Incluir modelo”, ou pela aba “Novo envio” no botão “Salvar como modelo” (que preserva toda a formatação rica).</p>
-        <button onClick={() => setCreating(v => !v)} className="ds-btn-primary text-xs inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1.5">
+        <button onClick={() => creating ? closeForm() : startNew()} className="ds-btn-primary text-xs inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1.5">
           {creating ? <X size={13} /> : <Plus size={13} />}{creating ? 'Cancelar' : 'Incluir modelo'}
         </button>
       </div>
       {creating && (
         <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>{editingId ? 'Editar modelo' : 'Novo modelo'}</p>
+          {editingId && hasStructure && (
+            <p className="text-[11px]" style={{ color: 'var(--warning)' }}>Este modelo tem formatação rica (blocos/CTA). Edite aqui nome, tipo e título; para alterar o conteúdo rico, carregue-o na aba “Novo envio” e use “Salvar como modelo”.</p>
+          )}
           <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)' }}>
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nome do modelo *</label>
               <input className={fieldCls} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Aviso de manutenção" /></div>
@@ -587,8 +611,8 @@ function Templates() {
           <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mensagem</label>
             <textarea className={fieldCls} rows={5} value={message} onChange={e => setMessage(e.target.value)} placeholder="Conteúdo do modelo…" /></div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => { resetForm(); setCreating(false) }} className="ds-btn-secondary text-xs px-3 py-1.5">Cancelar</button>
-            <button onClick={save} disabled={saving} className="ds-btn-primary text-xs px-3 py-1.5 disabled:opacity-60">{saving ? 'Salvando…' : 'Salvar modelo'}</button>
+            <button onClick={closeForm} className="ds-btn-secondary text-xs px-3 py-1.5">Cancelar</button>
+            <button onClick={save} disabled={saving} className="ds-btn-primary text-xs px-3 py-1.5 disabled:opacity-60">{saving ? 'Salvando…' : (editingId ? 'Salvar alterações' : 'Salvar modelo')}</button>
           </div>
         </div>
       )}
@@ -598,7 +622,8 @@ function Templates() {
           <Bookmark size={14} style={{ color: 'var(--primary)' }} />
           <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{t.nome}</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{TIPO_L[t.tipo_comunicacao] ?? t.tipo_comunicacao}</span>
-          <button onClick={() => del(t)}><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
+          <button onClick={() => startEdit(t)} title="Editar modelo"><PenLine size={14} style={{ color: 'var(--text-muted)' }} /></button>
+          <button onClick={() => del(t)} title="Excluir modelo"><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
         </div>
       ))}
     </div>
