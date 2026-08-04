@@ -66,9 +66,19 @@ const STATUS_LABEL: Record<string, string> = {
   approved: 'Aprovado',
 }
 
+// Data (YYYY-MM-DD) no fuso de São Paulo. Timestamps (created_at) vêm em UTC do prod;
+// só fatiar a string ISO daria a data UTC (ex.: 03/08 22:22 SP = 04/08 01:22 UTC → 04/08 errado).
+function spDateISO(iso: string | null | undefined): string {
+  if (!iso) return ''
+  if (!iso.includes('T')) return iso.slice(0, 10) // date-only (ex.: data do serviço) — sem fuso
+  const dt = new Date(iso)
+  if (isNaN(dt.getTime())) return iso.slice(0, 10)
+  return dt.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) // en-CA → YYYY-MM-DD
+}
+
 function fmtDateBR(iso: string | null | undefined): string {
   if (!iso) return ''
-  const date = iso.split('T')[0]
+  const date = spDateISO(iso)
   const [y, m, d] = date.split('-')
   if (!y || !m || !d) return ''
   return `${d}/${m}/${y}`
@@ -368,7 +378,8 @@ export default function RelatorioApontamentosPage() {
   function isLateInclusion(t: RawTimesheet): boolean {
     if (!t.created_at || !competenciaStart || !competenciaEnd) return false
     // Destacado quando digitado FORA da competência (serviço dentro, lançado depois).
-    const c = t.created_at.slice(0, 10)
+    // Usa a data em São Paulo (created_at vem em UTC do prod).
+    const c = spDateISO(t.created_at)
     return c < competenciaStart || c > competenciaEnd
   }
 
