@@ -15,6 +15,7 @@ interface AtrasoRow {
   id: number
   date: string
   year_month: string
+  created_at: string | null
   colaborador: string
   cliente: string
   projeto: string
@@ -26,6 +27,13 @@ interface AtrasoRow {
 }
 
 const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+// Data + hora de inclusão no fuso de São Paulo (created_at vem em UTC do prod).
+const fmtInclusaoSP = (iso: string | null | undefined): string => {
+  if (!iso) return '—'
+  const dt = new Date(iso)
+  if (isNaN(dt.getTime())) return '—'
+  return dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 const fmtH = (n: number) => (n ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function AtrasosIntegracaoPage() {
@@ -67,7 +75,7 @@ export default function AtrasosIntegracaoPage() {
         </div>
 
         {loading ? (
-          <SkeletonTable rows={6} cols={7} />
+          <SkeletonTable rows={6} cols={8} />
         ) : rows.length === 0 ? (
           <EmptyState icon={Check} title="Nenhum atraso pendente" description="Não há apontamentos da integração aguardando aprovação de atraso." />
         ) : (
@@ -75,6 +83,7 @@ export default function AtrasosIntegracaoPage() {
             <Thead>
               <Tr>
                 <Th>Data</Th>
+                <Th>Data de Inclusão</Th>
                 <Th>Colaborador</Th>
                 <Th>Cliente</Th>
                 <Th>Projeto</Th>
@@ -89,6 +98,7 @@ export default function AtrasosIntegracaoPage() {
                   <Td>
                     <span className="inline-flex items-center gap-1.5">{fmtDate(r.date)} <Badge variant="warning">Atraso</Badge></span>
                   </Td>
+                  <Td className="whitespace-nowrap tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtInclusaoSP(r.created_at)}</Td>
                   <Td>{r.colaborador}</Td>
                   <Td>{r.cliente}</Td>
                   <Td>
