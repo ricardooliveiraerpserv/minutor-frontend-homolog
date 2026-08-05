@@ -24,7 +24,7 @@ const inputStyle = { background: 'var(--surface)', border: '1px solid var(--bord
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 const PRIO_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Média', alta: 'Alta', urgente: 'Urgente' }
 
-export function NovoChamadoModal({ meta, customers, onClose, onCreated }: { meta: NovoChamadoMeta | null; customers: NovoChamadoRef[]; onClose: () => void; onCreated: (id: number) => void }) {
+export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant = 'modal', heading = 'Novo chamado' }: { meta: NovoChamadoMeta | null; customers: NovoChamadoRef[]; onClose: () => void; onCreated: (id: number) => void; variant?: 'modal' | 'drawer'; heading?: string }) {
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('normal')
@@ -50,11 +50,12 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated }: { meta
   }
 
   const lbl = 'text-[11px] font-semibold block mb-0.5'
+  const drawer = variant === 'drawer'
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div className="ds-card w-full max-w-lg p-4 space-y-3" onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-50 flex ${drawer ? 'justify-end' : 'items-start justify-center pt-16 px-4'}`} style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
+      <div className={`ds-card p-4 space-y-3 ${drawer ? 'h-full w-full max-w-md rounded-none rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200' : 'w-full max-w-lg'}`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Novo chamado</h2>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{heading}</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
         <div className="space-y-2">
