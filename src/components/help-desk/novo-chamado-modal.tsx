@@ -52,8 +52,15 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const lbl = 'text-[11px] font-semibold block mb-0.5'
   const drawer = variant === 'drawer'
   return (
-    <div className={`fixed inset-0 z-50 flex ${drawer ? 'justify-end' : 'items-start justify-center pt-16 px-4'}`} style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div className={`ds-card p-4 space-y-3 ${drawer ? 'h-full w-full max-w-md rounded-none rounded-l-2xl overflow-y-auto animate-in slide-in-from-right duration-200' : 'w-full max-w-lg'}`} onClick={e => e.stopPropagation()}>
+    <div
+      className={`fixed z-50 inset-0 ${drawer ? 'pointer-events-none' : 'flex items-start justify-center pt-16 px-4'}`}
+      style={{ background: drawer ? 'transparent' : 'rgba(0,0,0,0.4)' }}
+      onClick={drawer ? undefined : onClose}
+    >
+      <div
+        className={`ds-card p-4 space-y-3 ${drawer ? 'pointer-events-auto fixed right-4 bottom-4 w-[min(92vw,420px)] max-h-[82vh] overflow-y-auto shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200' : 'w-full max-w-lg'}`}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{heading}</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
