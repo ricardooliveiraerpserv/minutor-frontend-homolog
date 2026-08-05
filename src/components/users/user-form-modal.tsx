@@ -643,8 +643,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         await api.put(`/users/${editItem.id}`, payload)
         toast.success('Usuário atualizado')
       } else {
-        await api.post('/users', payload)
-        toast.success('Usuário criado — e-mail de boas-vindas enviado com a senha de acesso')
+        const created = await api.post<any>('/users', payload)
+        if (created?.welcome_email_sent === false) toast.warning('Usuário criado, mas o e-mail de boas-vindas não pôde ser enviado. Use "Reenviar" depois.')
+        else toast.success('Usuário criado — e-mail de boas-vindas enviado com a senha de acesso')
       }
       onSaved()
       onClose()
