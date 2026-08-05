@@ -479,7 +479,10 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
                 {recurrence !== 'none' && (
                   <div className="flex items-center gap-1.5 mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                     a cada
-                    <input type="number" min={1} max={recurrence === 'every_hours' ? 168 : 31} className={`${fieldCls} w-16`} style={inputStyle} value={recurrenceValue} onChange={e => setRecurrenceValue(Math.max(1, Number(e.target.value)))} />
+                    <input type="number" min={1} max={recurrence === 'every_hours' ? 168 : 31} className={`${fieldCls} w-16`} style={inputStyle}
+                      value={recurrenceValue || ''}
+                      onChange={e => setRecurrenceValue(e.target.value === '' ? 0 : Number(e.target.value))}
+                      onBlur={() => setRecurrenceValue(v => Math.min(recurrence === 'every_hours' ? 168 : 31, Math.max(1, v || 1)))} />
                     <select className={`${fieldCls}`} style={inputStyle} value={recurrence === 'every_hours' ? 'hours' : 'days'} onChange={e => setRecurrence(e.target.value === 'hours' ? 'every_hours' : 'every_days')}>
                       <option value="hours">hora(s)</option>
                       <option value="days">dia(s)</option>
