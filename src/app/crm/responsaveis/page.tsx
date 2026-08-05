@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { UserCheck, Search } from 'lucide-react'
+import { UserCheck, Search, ShieldCheck } from 'lucide-react'
+import { PoliticaComercialDrawer } from '@/components/crm/politica-comercial-drawer'
 
 interface UserRow { id: number; name: string; type: string; is_executive: boolean; is_crm_responsavel: boolean }
 
@@ -15,6 +16,7 @@ export default function CrmResponsaveisPage() {
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [soResp, setSoResp] = useState(false)
+  const [polUser, setPolUser] = useState<{ id: number; name: string } | null>(null)
 
   useEffect(() => {
     api.get<{ data: UserRow[] }>('/crm/responsaveis').then(r => setUsers(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -56,15 +58,19 @@ export default function CrmResponsaveisPage() {
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
             <th className="text-left px-4 py-2.5 text-xs font-semibold">Usuário</th>
             <th className="text-left px-4 py-2.5 text-xs font-semibold">Perfil</th>
+            <th className="text-center px-4 py-2.5 text-xs font-semibold">Política Comercial</th>
             <th className="text-right px-4 py-2.5 text-xs font-semibold w-40">Responsável comercial</th>
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={3} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
-            : linhas.length === 0 ? <tr><td colSpan={3} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum usuário.</td></tr>
+            {loading ? <tr><td colSpan={4} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+            : linhas.length === 0 ? <tr><td colSpan={4} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum usuário.</td></tr>
             : linhas.map(u => (
               <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
                 <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{u.name}</td>
                 <td className="px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{u.type}{u.is_executive && ' · executivo'}</td>
+                <td className="px-4 py-2.5 text-center">
+                  <button onClick={() => setPolUser({ id: u.id, name: u.name })} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold inline-flex items-center gap-1" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><ShieldCheck size={12} /> Definir</button>
+                </td>
                 <td className="px-4 py-2.5 text-right">
                   <button onClick={() => toggle(u)} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={u.is_crm_responsavel ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e' } : { background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{u.is_crm_responsavel ? 'Vinculado' : 'Vincular'}</button>
                 </td>
@@ -73,6 +79,8 @@ export default function CrmResponsaveisPage() {
           </tbody>
         </table>
       </div>
+
+      {polUser && <PoliticaComercialDrawer userId={polUser.id} userName={polUser.name} onClose={() => setPolUser(null)} />}
     </AppLayout>
   )
 }
