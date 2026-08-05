@@ -26,8 +26,10 @@ const EVENT_LABEL: Record<string, string> = {
 const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   aberta: { bg: 'var(--success-bg)', fg: 'var(--success)', label: 'Aberta' },
   fechada: { bg: 'var(--danger-bg)', fg: 'var(--danger)', label: 'Fechada' },
+  fechada_mes: { bg: 'var(--warning-bg)', fg: 'var(--warning)', label: 'Fechada (mês)' },
   reaberta: { bg: 'var(--warning-bg)', fg: 'var(--warning)', label: 'Reaberta' },
 }
+const isClosed = (s: string) => s === 'fechada' || s === 'fechada_mes'
 // Endpoints do Minutor variam: {items:[]} (customers/users/projects) | {data:[]} (paginate) | [].
 const norm = (r: unknown): unknown[] => {
   if (Array.isArray(r)) return r
@@ -52,7 +54,8 @@ export default function FechamentoSemanalPage() {
   const [fCliente, setFCliente] = useState('')
   const [fProjeto, setFProjeto] = useState('')
   const [fKind, setFKind] = useState<'week' | 'month'>('week')
-  const [fKey, setFKey] = useState('')
+  const [fMonth, setFMonth] = useState('')
+  const [fWeek, setFWeek] = useState('')
   const [fUser, setFUser] = useState('')
   const formRef = useRef<HTMLDivElement>(null)
 
@@ -75,8 +78,9 @@ export default function FechamentoSemanalPage() {
   }, [])
 
   const projectOptions = projects.filter(p => !fCliente || String(p.customer_id) === fCliente)
-  const weekOptions = months.flatMap(m => m.weeks.map(w => ({ id: w.week_start, name: `${m.label.split(' ')[0]} · Semana ${w.n} (${fmtDate(w.week_start)}–${fmtDate(w.week_end)})` })))
   const monthOptions = months.map(m => ({ id: m.ym, name: m.label }))
+  const weeksOfMonth = months.find(m => m.ym === fMonth)?.weeks ?? []
+  const weekOptions = weeksOfMonth.map(w => ({ id: w.week_start, name: `Semana ${w.n} (${fmtDate(w.week_start)}–${fmtDate(w.week_end)})` }))
 
   const doAction = async (action: 'reopen' | 'close', body: Record<string, unknown>, key: string) => {
     setBusy(key)
@@ -84,15 +88,17 @@ export default function FechamentoSemanalPage() {
     catch { toast.error('Erro na operação') } finally { setBusy('') }
   }
   const submitForm = (action: 'reopen' | 'close') => {
-    if (!fKey) { toast.error('Escolha o período (mês ou semana)'); return }
+    if (!fMonth) { toast.error('Escolha o mês'); return }
+    if (fKind === 'week' && !fWeek) { toast.error('Escolha a semana'); return }
     doAction(action, {
-      period_kind: fKind, period_key: fKey,
+      period_kind: fKind,
+      period_key: fKind === 'month' ? fMonth : fWeek,
       ...(fProjeto ? { project_id: Number(fProjeto) } : {}),
       ...(fUser ? { user_id: Number(fUser) } : {}),
     }, 'form')
   }
-  const scopeToUser = (kind: 'week' | 'month', key: string) => {
-    setFKind(kind); setFKey(key); setFUser('')
+  const scopeToUser = (kind: 'week' | 'month', ym: string, weekStart?: string) => {
+    setFKind(kind); setFMonth(ym); setFWeek(kind === 'week' ? (weekStart ?? '') : ''); setFUser('')
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     toast.info('Escolha o usuário (e opcionalmente o projeto) e clique em Reabrir')
   }
@@ -124,11 +130,15 @@ export default function FechamentoSemanalPage() {
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Período</label>
               <div className="flex gap-1 mt-1">
                 {(['week', 'month'] as const).map(k => (
-                  <button key={k} onClick={() => { setFKind(k); setFKey('') }} className="flex-1 text-xs py-1.5 rounded-md font-medium" style={{ background: fKind === k ? 'var(--primary-soft)' : 'var(--bg)', color: fKind === k ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>{k === 'week' ? 'Semana' : 'Mês'}</button>
+                  <button key={k} onClick={() => { setFKind(k); setFWeek('') }} className="flex-1 text-xs py-1.5 rounded-md font-medium" style={{ background: fKind === k ? 'var(--primary-soft)' : 'var(--bg)', color: fKind === k ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>{k === 'week' ? 'Semana' : 'Mês'}</button>
                 ))}
               </div></div>
-            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fKind === 'week' ? 'Semana' : 'Mês'}</label>
-              <SearchSelect value={fKey} onChange={setFKey} options={fKind === 'week' ? weekOptions : monthOptions} placeholder={fKind === 'week' ? 'Escolha a semana…' : 'Escolha o mês…'} /></div>
+            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mês</label>
+              <SearchSelect value={fMonth} onChange={v => { setFMonth(v); setFWeek('') }} options={monthOptions} placeholder="Escolha o mês…" /></div>
+            {fKind === 'week' && (
+              <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Semana {!fMonth && <span style={{ color: 'var(--text-light)' }}>(escolha o mês)</span>}</label>
+                <SearchSelect value={fWeek} onChange={setFWeek} options={weekOptions} placeholder={fMonth ? 'Escolha a semana…' : 'Escolha o mês primeiro'} disabled={!fMonth} /></div>
+            )}
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Usuário (vazio = todos)</label>
               <SearchSelect value={fUser} onChange={setFUser} options={users} placeholder="Todos os usuários" /></div>
             <div className="flex gap-2">
@@ -167,7 +177,7 @@ export default function FechamentoSemanalPage() {
                   {m.status === 'reaberta'
                     ? iconBtn(() => doAction('close', { period_kind: 'month', period_key: m.ym }, `mc${m.ym}`), busy === `mc${m.ym}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar mês', 'Fechar reabertura do mês')
                     : iconBtn(() => doAction('reopen', { period_kind: 'month', period_key: m.ym }, `mr${m.ym}`), busy === `mr${m.ym}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Abrir mês', 'Reabrir o mês inteiro (global)')}
-                  {iconBtn(() => doAction('close', { period_kind: 'month', period_key: m.ym }, `me${m.ym}`), busy === `me${m.ym}`, { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', 'Encerrar o mês (global)')}
+                  {iconBtn(() => doAction('close', { period_kind: 'month', period_key: m.ym }, `me${m.ym}`), busy === `me${m.ym}` || isClosed(m.status), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', isClosed(m.status) ? 'Mês já está fechado' : 'Encerrar o mês (global)')}
                   {iconBtn(() => scopeToUser('month', m.ym), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Abrir mês só para um usuário')}
                 </div>
               </div>
@@ -179,7 +189,9 @@ export default function FechamentoSemanalPage() {
                     </tr></thead>
                     <tbody>
                       {m.weeks.map(w => {
-                        const st = STATUS_STYLE[w.status] ?? STATUS_STYLE.aberta
+                        // Mês fechado bloqueia a semana mesmo que a regra semanal a mostre "aberta".
+                        const eff = (isClosed(m.status) && w.status === 'aberta') ? 'fechada_mes' : w.status
+                        const st = STATUS_STYLE[eff] ?? STATUS_STYLE.aberta
                         return (
                           <tr key={w.week_start} className="border-t" style={{ borderColor: 'var(--border)' }}>
                             <td className="px-4 py-2" style={{ color: 'var(--text)' }}><b>Semana {w.n}</b> <span style={{ color: 'var(--text-muted)' }}>· {fmtDate(w.week_start)} – {fmtDate(w.week_end)}</span></td>
@@ -190,8 +202,8 @@ export default function FechamentoSemanalPage() {
                                 {w.status === 'reaberta'
                                   ? iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `wc${w.week_start}`), busy === `wc${w.week_start}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar', 'Fechar reabertura')
                                   : iconBtn(() => doAction('reopen', { period_kind: 'week', period_key: w.week_start }, `wr${w.week_start}`), busy === `wr${w.week_start}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Reabrir', 'Reabrir a semana (global)')}
-                                {iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `we${w.week_start}`), busy === `we${w.week_start}`, { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', 'Encerrar a semana (global)')}
-                                {iconBtn(() => scopeToUser('week', w.week_start), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Reabrir só para um usuário')}
+                                {iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `we${w.week_start}`), busy === `we${w.week_start}` || isClosed(eff), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', isClosed(eff) ? 'Semana já está fechada' : 'Encerrar a semana (global)')}
+                                {iconBtn(() => scopeToUser('week', m.ym, w.week_start), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Reabrir só para um usuário')}
                               </div>
                             </td>
                           </tr>
