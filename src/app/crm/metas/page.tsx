@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Target, TrendingUp, TrendingDown, Plus, FileDown, Copy, Trophy, AlertTriangle, Flame, Wallet, Search, ArrowUpDown } from 'lucide-react'
+import { Target, TrendingUp, TrendingDown, Plus, FileDown, Copy, Trophy, AlertTriangle, Flame, Wallet, Search, ArrowUpDown, Settings2 } from 'lucide-react'
+import { MetaModal } from '@/components/crm/meta-modal'
 
 interface Kpis { meta: number; meta_delta: number | null; realizado: number; realizado_delta: number | null; realizado_pct: number | null; forecast: number; forecast_pct: number | null; falta: number; opps_necessarias: number | null; ticket: number; ticket_delta: number | null; ganhos: number; conversao: number | null; pipeline: number }
 interface Evo { dia: number; meta_acum: number; forecast_acum: number; realizado_acum: number | null }
@@ -130,6 +131,7 @@ export default function CrmMetasCockpit() {
           )}
           {d?.can_edit && <button onClick={duplicar} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Copy size={14} /> Duplicar mês ant.</button>}
           <button onClick={exportCsv} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><FileDown size={14} /> Exportar</button>
+          {d?.can_edit && <a href="/crm/metas-admin" className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Settings2 size={14} /> Gerenciar</a>}
           {d?.can_edit && <button onClick={() => setNovaMeta(true)} className="text-sm rounded-lg px-4 py-2 font-semibold flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Nova Meta</button>}
         </div>
       </div>
@@ -261,7 +263,7 @@ export default function CrmMetasCockpit() {
         </div>
       )}
 
-      {novaMeta && d && <NovaMetaModal comp={comp} responsaveis={d.ranking.map(r => ({ id: r.user_id, name: r.name, meta: r.meta }))} onClose={() => setNovaMeta(false)} onSaved={() => { setNovaMeta(false); load() }} />}
+      {novaMeta && d && <MetaModal comp={comp} responsaveis={d.ranking.map(r => ({ id: r.user_id, name: r.name, meta: r.meta }))} onClose={() => setNovaMeta(false)} onSaved={() => { setNovaMeta(false); load() }} />}
     </AppLayout>
   )
 }
@@ -276,35 +278,3 @@ function Insight({ icon, label, value }: { icon: React.ReactNode; label: string;
   )
 }
 
-function NovaMetaModal({ comp, responsaveis, onClose, onSaved }: { comp: string; responsaveis: { id: number; name: string; meta: number }[]; onClose: () => void; onSaved: () => void }) {
-  const [uid, setUid] = useState('')
-  const [valor, setValor] = useState('')
-  const [saving, setSaving] = useState(false)
-  useEffect(() => { const r = responsaveis.find(x => String(x.id) === uid); if (r) setValor(r.meta ? String(r.meta) : '') }, [uid, responsaveis])
-  const save = async () => {
-    if (!uid) { toast.error('Escolha o responsável'); return }
-    const v = Number(valor.replace(/\./g, '').replace(',', '.'))
-    if (isNaN(v) || v < 0) { toast.error('Valor inválido'); return }
-    setSaving(true)
-    try { await api.put('/crm/metas', { user_id: Number(uid), competencia: comp, valor_meta: v }); toast.success('Meta salva'); onSaved() }
-    catch { toast.error('Erro ao salvar meta') } finally { setSaving(false) }
-  }
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-        <h3 className="text-base font-bold mb-4" style={{ color: 'var(--text)' }}>Definir meta · {comp}</h3>
-        <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Responsável</label>
-        <select value={uid} onChange={e => setUid(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-          <option value="">Selecione…</option>
-          {responsaveis.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-        <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Meta (R$)</label>
-        <input inputMode="decimal" value={valor} onChange={e => setValor(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-4 tabular-nums" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-        <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Cancelar</button>
-          <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
-        </div>
-      </div>
-    </div>
-  )
-}
