@@ -30,6 +30,7 @@ export const NAV_CATALOG: CatalogItem[] = [
 
   // Administrativo — Financeiro / Fechamento
   { key: '/fechamento',               label: 'Fechamento Geral',         group: 'Financeiro' },
+  { key: '/fechamento/semanal',       label: 'Fechamento Semanal',       group: 'Financeiro' },
   { key: '/fechamento/cliente',       label: 'Fechamento Clientes',      group: 'Financeiro' },
   { key: '/fechamento/parceiro',      label: 'Fechamento Parceiros',     group: 'Financeiro' },
   { key: '/fechamento/consultor',     label: 'Fechamento Consultores',   group: 'Financeiro' },
