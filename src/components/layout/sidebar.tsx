@@ -421,6 +421,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Empresas',            href: '/crm/empresas', icon: Building2 },
       { label: 'Contatos',            href: '/crm/contatos', icon: Contact },
+      { label: 'Equipes de Vendas',   href: '/crm/equipes',  icon: Users },
     ],
   },
   {
