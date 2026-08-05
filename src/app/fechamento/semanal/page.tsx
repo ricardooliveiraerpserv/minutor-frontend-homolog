@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -97,11 +97,30 @@ export default function FechamentoSemanalPage() {
       ...(fUser ? { user_id: Number(fUser) } : {}),
     }, 'form')
   }
-  const scopeToUser = (kind: 'week' | 'month', ym: string, weekStart?: string) => {
-    setFKind(kind); setFMonth(ym); setFWeek(kind === 'week' ? (weekStart ?? '') : ''); setFUser('')
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    toast.info('Escolha o usuário (e opcionalmente o projeto) e clique em Reabrir')
+  // Seletor de usuário INLINE (na linha da semana/mês): reabre/encerra para 1 usuário
+  // em TODOS os projetos dele (escopo global de projeto + user_id).
+  const [userScope, setUserScope] = useState<{ kind: 'week' | 'month'; key: string } | null>(null)
+  const [userPick, setUserPick] = useState('')
+  const openUserPicker = (kind: 'week' | 'month', key: string) => {
+    setUserScope(cur => (cur && cur.kind === kind && cur.key === key) ? null : { kind, key }); setUserPick('')
   }
+  const submitUserScope = async (action: 'reopen' | 'close') => {
+    if (!userScope) return
+    if (!userPick) { toast.error('Escolha o usuário'); return }
+    await doAction(action, { period_kind: userScope.kind, period_key: userScope.key, user_id: Number(userPick) }, 'us')
+    setUserScope(null); setUserPick('')
+  }
+  const userPicker = (
+    <div className="flex flex-wrap items-end gap-2 px-4 py-3" style={{ background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+      <div style={{ minWidth: 240 }}>
+        <label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Abrir para o usuário (todos os projetos dele)</label>
+        <SearchSelect value={userPick} onChange={setUserPick} options={users} placeholder="Escolha o usuário…" />
+      </div>
+      <button onClick={() => submitUserScope('reopen')} disabled={busy === 'us'} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-2 disabled:opacity-60"><RotateCcw size={13} /> Reabrir p/ usuário</button>
+      <button onClick={() => submitUserScope('close')} disabled={busy === 'us'} className="text-xs inline-flex items-center gap-1 px-3 py-2 rounded-lg font-medium disabled:opacity-60" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}><Lock size={13} /> Encerrar p/ usuário</button>
+      <button onClick={() => setUserScope(null)} className="ds-btn-secondary text-xs px-3 py-2">Cancelar</button>
+    </div>
+  )
   const toggle = (ym: string) => setExpanded(p => { const n = new Set(p); n.has(ym) ? n.delete(ym) : n.add(ym); return n })
 
   const iconBtn = (onClick: () => void, disabled: boolean, style: { bg: string; fg: string }, Icon: typeof RotateCcw, label: string, title: string) => (
@@ -114,7 +133,7 @@ export default function FechamentoSemanalPage() {
         <div className="flex items-start justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}><CalendarClock size={18} style={{ color: 'var(--primary)' }} /> Abertura de Competência</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Semana (seg–dom) fecha no 2º dia útil da semana seguinte, 23:59. Reabertura auto-fecha às 23:59 do dia. Reabrir o mês libera as semanas dele.</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Semana (seg–dom) fecha no 1º dia útil da semana seguinte, 23:59. Reabertura auto-fecha às 23:59 do dia. Reabrir o mês libera as semanas dele.</p>
           </div>
           <button onClick={load} className="ds-btn-secondary text-xs inline-flex items-center gap-1 px-2.5 py-1.5"><RefreshCw size={13} /> Atualizar</button>
         </div>
@@ -183,9 +202,10 @@ export default function FechamentoSemanalPage() {
                     ? iconBtn(() => doAction('close', { period_kind: 'month', period_key: m.ym }, `mc${m.ym}`), busy === `mc${m.ym}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar mês', 'Fechar reabertura do mês')
                     : iconBtn(() => doAction('reopen', { period_kind: 'month', period_key: m.ym }, `mr${m.ym}`), busy === `mr${m.ym}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Abrir mês', 'Reabrir o mês inteiro (global)')}
                   {iconBtn(() => doAction('close', { period_kind: 'month', period_key: m.ym }, `me${m.ym}`), busy === `me${m.ym}` || isClosed(m.status), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', isClosed(m.status) ? 'Mês já está fechado' : 'Encerrar o mês (global)')}
-                  {iconBtn(() => scopeToUser('month', m.ym), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Abrir mês só para um usuário')}
+                  {iconBtn(() => openUserPicker('month', m.ym), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Abrir mês só para um usuário')}
                 </div>
               </div>
+              {userScope?.kind === 'month' && userScope.key === m.ym && userPicker}
               {open && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -198,7 +218,8 @@ export default function FechamentoSemanalPage() {
                         const eff = (isClosed(m.status) && w.status === 'aberta') ? 'fechada_mes' : w.status
                         const st = STATUS_STYLE[eff] ?? STATUS_STYLE.aberta
                         return (
-                          <tr key={w.week_start} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                          <Fragment key={w.week_start}>
+                          <tr className="border-t" style={{ borderColor: 'var(--border)' }}>
                             <td className="px-4 py-2" style={{ color: 'var(--text)' }}><b>Semana {w.n}</b> <span style={{ color: 'var(--text-muted)' }}>· {fmtDate(w.week_start)} – {fmtDate(w.week_end)}</span></td>
                             <td style={{ color: 'var(--text-muted)' }}>{fmtDeadline(w.deadline)}</td>
                             <td><span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.fg }}>{st.label}</span>{w.status === 'reaberta' && <span className="text-[10px] ml-1.5" style={{ color: 'var(--text-light)' }}>até {fmtDT(w.reopen_auto_close_at)}</span>}</td>
@@ -208,10 +229,14 @@ export default function FechamentoSemanalPage() {
                                   ? iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `wc${w.week_start}`), busy === `wc${w.week_start}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar', 'Fechar reabertura')
                                   : iconBtn(() => doAction('reopen', { period_kind: 'week', period_key: w.week_start }, `wr${w.week_start}`), busy === `wr${w.week_start}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Reabrir', 'Reabrir a semana (global)')}
                                 {iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `we${w.week_start}`), busy === `we${w.week_start}` || isClosed(eff), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', isClosed(eff) ? 'Semana já está fechada' : 'Encerrar a semana (global)')}
-                                {iconBtn(() => scopeToUser('week', m.ym, w.week_start), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Reabrir só para um usuário')}
+                                {iconBtn(() => openUserPicker('week', w.week_start), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Reabrir só para um usuário')}
                               </div>
                             </td>
                           </tr>
+                          {userScope?.kind === 'week' && userScope.key === w.week_start && (
+                            <tr><td colSpan={4} className="p-0">{userPicker}</td></tr>
+                          )}
+                          </Fragment>
                         )
                       })}
                     </tbody>
