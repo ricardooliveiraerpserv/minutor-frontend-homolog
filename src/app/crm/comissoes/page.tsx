@@ -11,7 +11,8 @@ interface Evo { mes: string; comissao: number }
 interface Dist { name: string; valor: number }
 interface Rank { user_id: number; name: string; cargo: string | null; base: number; negocios: number; ticket: number; percentual: number; comissao: number; pipeline: number; forecast_comissao: number }
 interface Insights { maior_comissao: { name: string; valor: number } | null; maior_venda: { title: string; valor: number } | null; maior_ticket: any; maior_percentual: any; maior_pipeline: any; comissao_media: number; pendente: number }
-interface Cockpit { competencia: string; can_edit: boolean; percentual_padrao: number; has_payment_tracking: boolean; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
+interface Team { id: number; name: string }
+interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; percentual_padrao: number; has_payment_tracking: boolean; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
 
 const fmtBRL = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 const curMonth = () => new Date().toISOString().slice(0, 7)
@@ -79,6 +80,7 @@ function Donut({ items }: { items: Dist[] }) {
 
 export default function CrmComissoesCockpit() {
   const [comp, setComp] = useState(curMonth())
+  const [teamId, setTeamId] = useState('')
   const [d, setD] = useState<Cockpit | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
@@ -87,11 +89,11 @@ export default function CrmComissoesCockpit() {
 
   const load = useCallback(() => {
     setLoading(true); setDenied(false)
-    api.get<{ data: Cockpit }>(`/crm/comissoes/cockpit?competencia=${comp}`)
+    api.get<{ data: Cockpit }>(`/crm/comissoes/cockpit?competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`)
       .then(r => { setD(r?.data ?? null); setDefRate(r?.data ? String(r.data.percentual_padrao) : '') })
       .catch((e: any) => { if (String(e?.message || '').match(/permite|403/)) setDenied(true); else toast.error('Erro ao carregar cockpit') })
       .finally(() => setLoading(false))
-  }, [comp])
+  }, [comp, teamId])
   useEffect(() => { load() }, [load])
 
   const ranking = useMemo(() => d ? d.ranking.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase())) : [], [d, q])
@@ -131,6 +133,12 @@ export default function CrmComissoesCockpit() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="month" value={comp} onChange={e => setComp(e.target.value)} className="text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          {(d?.teams?.length ?? 0) > 0 && (
+            <select value={teamId} onChange={e => setTeamId(e.target.value)} className="text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--surface)', border: `1px solid ${teamId ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }}>
+              <option value="">Todas as equipes</option>
+              {d!.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           {d?.can_edit && (
             <div className="flex items-center gap-1 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} title="Percentual padrão da empresa">
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>% padrão</span>

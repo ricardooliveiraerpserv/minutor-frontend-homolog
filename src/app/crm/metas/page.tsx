@@ -11,7 +11,8 @@ interface Evo { dia: number; meta_acum: number; forecast_acum: number; realizado
 interface Funil { stage: string; ordem: number; count: number; valor: number; pct: number }
 interface Rank { user_id: number; name: string; cargo: string | null; meta: number; realizado: number; negocios: number; ticket: number; pipeline: number; forecast: number; pct: number | null; chance: number | null; ultima_venda: string | null }
 interface Insights { abaixo_50: number; forecast_pct: number | null; melhor: { name: string; valor: number } | null; maior_oportunidade: { title: string; valor: number } | null; pipeline_total: number; paradas_15d: number; total_responsaveis: number }
-interface Cockpit { competencia: string; can_edit: boolean; dias_mes: number; dia_corrente: number; kpis: Kpis; evolucao: Evo[]; funil: Funil[]; ranking: Rank[]; insights: Insights }
+interface Team { id: number; name: string }
+interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; dias_mes: number; dia_corrente: number; kpis: Kpis; evolucao: Evo[]; funil: Funil[]; ranking: Rank[]; insights: Insights }
 
 const fmtBRL = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 const fmtBRLc = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -57,6 +58,7 @@ function EvolutionChart({ evo }: { evo: Evo[] }) {
 
 export default function CrmMetasCockpit() {
   const [comp, setComp] = useState(curMonth())
+  const [teamId, setTeamId] = useState('')
   const [d, setD] = useState<Cockpit | null>(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
@@ -66,11 +68,11 @@ export default function CrmMetasCockpit() {
 
   const load = useCallback(() => {
     setLoading(true); setDenied(false)
-    api.get<{ data: Cockpit }>(`/crm/metas/cockpit?competencia=${comp}`)
+    api.get<{ data: Cockpit }>(`/crm/metas/cockpit?competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`)
       .then(r => setD(r?.data ?? null))
       .catch((e: any) => { if (String(e?.message || '').match(/permite|403/)) setDenied(true); else toast.error('Erro ao carregar cockpit') })
       .finally(() => setLoading(false))
-  }, [comp])
+  }, [comp, teamId])
   useEffect(() => { load() }, [load])
 
   const ranking = useMemo(() => {
@@ -120,6 +122,12 @@ export default function CrmMetasCockpit() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="month" value={comp} onChange={e => setComp(e.target.value)} className="text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          {(d?.teams?.length ?? 0) > 0 && (
+            <select value={teamId} onChange={e => setTeamId(e.target.value)} className="text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--surface)', border: `1px solid ${teamId ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }}>
+              <option value="">Todas as equipes</option>
+              {d!.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
           {d?.can_edit && <button onClick={duplicar} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Copy size={14} /> Duplicar mês ant.</button>}
           <button onClick={exportCsv} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><FileDown size={14} /> Exportar</button>
           {d?.can_edit && <button onClick={() => setNovaMeta(true)} className="text-sm rounded-lg px-4 py-2 font-semibold flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Nova Meta</button>}
