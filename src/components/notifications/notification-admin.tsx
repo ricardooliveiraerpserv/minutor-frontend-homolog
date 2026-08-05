@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -637,6 +637,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [data, setData] = useState<LogData | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
+  const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
 
   useEffect(() => {
     api.get<{ data: LogData }>(`/notifications/${notif.id}/log`)
@@ -644,8 +645,25 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   }, [notif.id])
 
   const dt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
-  const rows = (data?.recipients ?? []).filter(r =>
-    filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at)
+  const rows = (data?.recipients ?? []).filter(r => {
+    const okView = filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at
+    const okResp = respFilter === 'all' ? true : respFilter === 'none' ? !r.response : r.response === respFilter
+    return okView && okResp
+  })
+
+  // Exporta as linhas FILTRADAS em CSV (abre no Excel; BOM + ';' p/ pt-BR e acentos).
+  const exportCsv = () => {
+    const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta']
+    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? ''])
+    const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `log-${(notif.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.csv`
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
@@ -669,13 +687,26 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 ))}
               </div>
 
-              {/* Filtro */}
+              {/* Filtro por visualização + exportar */}
               <div className="flex items-center gap-1 text-[11px]">
                 {([['all', 'Todos'], ['viewed', 'Visualizaram'], ['pending', 'Não viram']] as const).map(([k, l]) => (
                   <button key={k} onClick={() => setFilter(k)} className="px-2.5 py-1 rounded-md font-medium"
                     style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
                 ))}
+                <div className="flex-1" />
+                <button onClick={exportCsv} title="Exportar em Excel (CSV)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
               </div>
+
+              {/* Filtro por RESPOSTA (só quando há botões de decisão) */}
+              {data.summary.actions.length > 0 && (
+                <div className="flex items-center gap-1 text-[11px] flex-wrap">
+                  <span className="mr-0.5" style={{ color: 'var(--text-light)' }}>Resposta:</span>
+                  {([['all', 'Todas'], ...data.summary.actions.map(a => [a, a] as [string, string]), ['none', 'Não respondida']] as [string, string][]).map(([k, l]) => (
+                    <button key={k} onClick={() => setRespFilter(k)} className="px-2.5 py-1 rounded-md font-medium"
+                      style={{ background: respFilter === k ? 'var(--primary-soft)' : 'transparent', color: respFilter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </div>
+              )}
 
               {/* Tabela */}
               <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>

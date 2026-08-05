@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import { Megaphone, ChevronDown, Clock, ClipboardList, X } from 'lucide-react'
+import { Megaphone, ChevronDown, Clock, ClipboardList, X, Download } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 
 interface Comunicado {
@@ -141,6 +141,7 @@ function PubLog({ item, onClose }: { item: Comunicado; onClose: () => void }) {
   const [data, setData] = useState<LogData | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
+  const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
   const realId = item.id.slice(1)
   const url = item.origem === 'notificacao' ? `/notifications/${realId}/log` : `/communications/${realId}/log`
 
@@ -150,7 +151,24 @@ function PubLog({ item, onClose }: { item: Comunicado; onClose: () => void }) {
 
   const dt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
   const hasActions = (data?.summary.actions.length ?? 0) > 0
-  const rows = (data?.recipients ?? []).filter(r => filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at)
+  const rows = (data?.recipients ?? []).filter(r => {
+    const okView = filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at
+    const okResp = respFilter === 'all' ? true : respFilter === 'none' ? !r.response : r.response === respFilter
+    return okView && okResp
+  })
+
+  // Exporta as linhas FILTRADAS em CSV (abre no Excel; BOM + ';' p/ pt-BR e acentos).
+  const exportCsv = () => {
+    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const header = ['Destinatário', 'E-mail', item.origem === 'notificacao' ? 'Visualizou' : 'Leu', 'Resposta']
+    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? ''])
+    const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `log-${(item.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.csv`
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href)
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
@@ -173,7 +191,20 @@ function PubLog({ item, onClose }: { item: Comunicado; onClose: () => void }) {
                 {([['all', 'Todos'], ['viewed', item.origem === 'notificacao' ? 'Viram' : 'Leram'], ['pending', 'Não leram']] as const).map(([k, l]) => (
                   <button key={k} onClick={() => setFilter(k)} className="px-2.5 py-1 rounded-md font-medium" style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
                 ))}
+                <div className="flex-1" />
+                <button onClick={exportCsv} title="Exportar em Excel (CSV)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
               </div>
+
+              {/* Filtro por RESPOSTA (só quando há botões de decisão) */}
+              {hasActions && (
+                <div className="flex items-center gap-1 text-[11px] flex-wrap">
+                  <span className="mr-0.5" style={{ color: 'var(--text-light)' }}>Resposta:</span>
+                  {([['all', 'Todas'], ...data.summary.actions.map(a => [a, a] as [string, string]), ['none', 'Não respondida']] as [string, string][]).map(([k, l]) => (
+                    <button key={k} onClick={() => setRespFilter(k)} className="px-2.5 py-1 rounded-md font-medium"
+                      style={{ background: respFilter === k ? 'var(--primary-soft)' : 'transparent', color: respFilter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </div>
+              )}
               <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                 <table className="w-full text-[12px]">
                   <thead>
