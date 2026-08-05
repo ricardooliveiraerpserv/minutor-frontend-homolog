@@ -263,7 +263,7 @@ export default function CrmMetasCockpit() {
         </div>
       )}
 
-      {novaMeta && d && <MetaModal comp={comp} responsaveis={d.ranking.map(r => ({ id: r.user_id, name: r.name, meta: r.meta }))} onClose={() => setNovaMeta(false)} onSaved={() => { setNovaMeta(false); load() }} />}
+      {novaMeta && d && <MetaModal comp={comp} responsaveis={d.ranking.map(r => ({ id: r.user_id, name: r.name, cargo: r.cargo, meta: r.meta }))} onClose={() => setNovaMeta(false)} onSaved={() => { setNovaMeta(false); load() }} />}
     </AppLayout>
   )
 }

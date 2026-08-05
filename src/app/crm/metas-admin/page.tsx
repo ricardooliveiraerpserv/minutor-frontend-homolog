@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Target, Plus, FileDown, Copy, History, Upload, X, Pencil } from 'lucide-react'
 import { MetaModal, tipoLabel, META_TIPOS } from '@/components/crm/meta-modal'
 
-interface Row { user_id: number; name: string; meta: number; tipo: string; observacao: string | null; realizado: number; qtd: number; pct: number | null; ultima_alteracao: string | null }
+interface Row { user_id: number; name: string; cargo: string | null; meta: number; tipo: string; observacao: string | null; realizado: number; qtd: number; pct: number | null; ultima_alteracao: string | null }
 interface Data { competencia: string; can_edit: boolean; total_meta: number; total_realizado: number; rows: Row[] }
 interface Hist { id: number; responsavel: string; periodo: string; tipo: string; valor_anterior: number | null; valor_novo: number; observacao: string | null; por: string | null; em: string | null }
 
@@ -47,7 +47,7 @@ export default function CrmMetasAdminPage() {
     const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); const a = document.createElement('a'); a.href = url; a.download = `metas-${comp}.csv`; a.click(); URL.revokeObjectURL(url)
   }
 
-  const respList = d?.rows.map(r => ({ id: r.user_id, name: r.name, meta: r.meta })) ?? []
+  const respList = d?.rows.map(r => ({ id: r.user_id, name: r.name, cargo: r.cargo, meta: r.meta })) ?? []
 
   return (
     <AppLayout title="Administração de Metas (CRM)">
