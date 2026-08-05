@@ -162,6 +162,10 @@ function NovaRequisicaoContent() {
   type CcEmail = { email: string; user: { id: number; name: string } | null; resolving?: boolean }
   const [ccEmails, setCcEmails] = useState<CcEmail[]>([])
   const [ccDraft, setCcDraft] = useState('')
+  // Autocomplete: contatos do cliente selecionado + consultores ERPSERV
+  type CcSug = { name: string; email: string; kind: 'cliente' | 'erpserv' }
+  const [ccSugs, setCcSugs] = useState<CcSug[]>([])
+  const [showCcSugs, setShowCcSugs] = useState(false)
 
   const effectiveCustomerId = isCliente ? null : (customerId ? Number(customerId) : null)
 
@@ -208,6 +212,28 @@ function NovaRequisicaoContent() {
       .catch(() => setCcEmails(prev => prev.map(e => ({ ...e, resolving: false }))))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveCustomerId])
+
+  // Adiciona um contato sugerido (clique no dropdown do autocomplete).
+  const pickCcSug = (email: string) => { addCcEmail(email); setCcDraft(''); setCcSugs([]); setShowCcSugs(false) }
+
+  // Busca sugestões (debounce) enquanto digita: contatos do cliente + consultores ERPSERV.
+  useEffect(() => {
+    const term = ccDraft.trim()
+    if (term.length < 2 || (!isCliente && !effectiveCustomerId)) { setCcSugs([]); setShowCcSugs(false); return }
+    const t = setTimeout(() => {
+      const params = new URLSearchParams({ q: term })
+      if (effectiveCustomerId) params.set('customer_id', String(effectiveCustomerId))
+      api.get<{ data: CcSug[] }>(`/contract-requests/contact-suggestions?${params.toString()}`)
+        .then(r => {
+          const added = new Set(ccEmails.map(e => e.email))
+          setCcSugs((r.data ?? []).filter(s => !added.has(s.email.toLowerCase())).slice(0, 8))
+          setShowCcSugs(true)
+        })
+        .catch(() => { setCcSugs([]); setShowCcSugs(false) })
+    }, 220)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ccDraft, effectiveCustomerId, isCliente, ccEmails])
 
   const set = (field: keyof typeof form) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -335,6 +361,7 @@ function NovaRequisicaoContent() {
                   Quem não tem cadastro fica registrado, mas não recebe acesso.
                 </p>
 
+                <div className="relative">
                 <div className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 min-h-[42px]"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {ccEmails.map(e => {
@@ -367,19 +394,44 @@ function NovaRequisicaoContent() {
                   <input
                     value={ccDraft}
                     onChange={ev => setCcDraft(ev.target.value)}
+                    onFocus={() => { if (ccSugs.length) setShowCcSugs(true) }}
                     onKeyDown={ev => {
-                      if (ev.key === 'Enter' || ev.key === ',' || ev.key === ' ') {
+                      if (ev.key === 'Enter') {
+                        ev.preventDefault()
+                        if (showCcSugs && ccSugs.length) pickCcSug(ccSugs[0].email)
+                        else if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') }
+                      } else if (ev.key === ',') {
                         ev.preventDefault()
                         if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') }
+                      } else if (ev.key === 'Escape') {
+                        setShowCcSugs(false)
                       } else if (ev.key === 'Backspace' && !ccDraft && ccEmails.length) {
                         removeCcEmail(ccEmails[ccEmails.length - 1].email)
                       }
                     }}
-                    onBlur={() => { if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') } }}
-                    placeholder={ccEmails.length ? '' : 'email@exemplo.com — Enter para adicionar'}
+                    onBlur={() => { setTimeout(() => setShowCcSugs(false), 150); if (ccDraft.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ccDraft.trim())) { addCcEmail(ccDraft); setCcDraft('') } }}
+                    placeholder={ccEmails.length ? '' : 'Digite nome ou e-mail (cliente + ERPSERV)…'}
                     className="flex-1 min-w-[200px] bg-transparent outline-none text-sm px-1"
                     style={{ color: 'var(--text)' }}
                   />
+                </div>
+                {showCcSugs && ccSugs.length > 0 && (
+                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-lg overflow-hidden shadow-lg max-h-64 overflow-y-auto"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    {ccSugs.map(s => (
+                      <button key={s.email} type="button"
+                        onMouseDown={ev => { ev.preventDefault(); pickCcSug(s.email) }}
+                        className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--surface-hover)]">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold"
+                          style={{ background: s.kind === 'cliente' ? 'rgba(34,197,94,0.12)' : 'var(--primary-soft)', color: s.kind === 'cliente' ? '#16a34a' : 'var(--primary)' }}>
+                          {s.kind === 'cliente' ? 'Cliente' : 'ERPSERV'}
+                        </span>
+                        <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{s.name}</span>
+                        <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{s.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 </div>
                 {ccEmails.some(e => e.user === null && !e.resolving) && (
                   <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: '#eab308' }}>
