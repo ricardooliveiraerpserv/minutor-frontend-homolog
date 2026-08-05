@@ -24,7 +24,7 @@ interface Crm {
   perdas: { title: string; motivo: string | null }[]
   produtos_interesse: { name: string; categoria: string | null }[]
 }
-interface TimelineItem { when: string | null; source: string; type: string; label: string | null }
+interface TimelineItem { when: string | null; source: string; type: string; label: string | null; user?: string | null }
 interface Contrato { id: number; projeto: string; tipo: string; tipo_faturamento: string | null; status: string; valor: number; horas_contratadas: number; data_vencimento: string | null; executivo_conta: string | null; vendedor: string | null; is_banco_horas: boolean }
 interface Adm { contratos: Contrato[]; contratos_total?: number; contratos_ativos: number; banco_horas: { contratadas: number; consumidas: number; saldo: number } }
 interface ProjetoServ { id: number; name: string; status: string; ativo: boolean; sold_hours: number; horas_consumidas: number }
@@ -55,6 +55,17 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('pt-BR'
 const STATUS_LABEL: Record<string, string> = { lead: 'Lead', prospect: 'Prospect', cliente: 'Cliente', contrato_ativo: 'Cliente', em_renovacao: 'Em Renovação', inativo: 'Inativo' }
 const srcStyle = (s: string) => s === 'lead' ? { background: 'rgba(56,189,248,0.15)', color: '#38bdf8' } : s === 'crm' ? { background: 'var(--primary-soft)', color: 'var(--primary)' } : s === 'followup' ? { background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' } : { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }
 const srcLabel = (s: string) => s === 'lead' ? 'Lead' : s === 'crm' ? 'CRM' : s === 'followup' ? 'Follow-up' : 'Contrato'
+// Rótulos amigáveis dos tipos de evento.
+const EVT_LABEL: Record<string, string> = {
+  created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado',
+  probabilidade_alterada: 'Probabilidade alterada', previsao_alterada: 'Previsão alterada', parada_alterada: 'Motivo da parada',
+  task_done: 'Tarefa concluída', task_reopened: 'Tarefa reaberta', task_updated: 'Tarefa editada', note: 'Nota',
+  won: 'Ganha', lost: 'Perdida', converted: 'Convertida em contrato', automacao: 'Automação', automacao_erro: 'Falha em automação',
+  field_changed: 'Campo alterado', qualified: 'Qualificado', prospect: 'Virou prospect', lead_created: 'Lead criado',
+  cliente_pendente_cnpj: 'Cliente pendente de CNPJ', product_added: 'Produto adicionado', product_removed: 'Produto removido',
+  renovacao_ignorada: 'Renovação ignorada',
+}
+const evtLabel = (t: string) => EVT_LABEL[t] ?? (t ? t.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : t)
 const FU_CAT = ['retorno', 'proposta', 'reclamacao', 'aprovacao', 'sinalizou_renovacao', 'reuniao', 'outro']
 
 function Kpi({ label, value, sub, pending }: { label: string; value: string; sub?: string; pending?: boolean }) {
@@ -380,7 +391,7 @@ export default function Ficha360Page() {
                     <div key={i} className="flex items-start gap-2 text-xs">
                       <span className="shrink-0 w-16 tabular-nums" style={{ color: 'var(--text-light)' }}>{fmtDate(t.when)}</span>
                       <span className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase shrink-0" style={srcStyle(t.source)}>{srcLabel(t.source)}</span>
-                      <span className="flex-1" style={{ color: 'var(--text-muted)' }}>{t.type}{t.label ? ` · ${t.label}` : ''}</span>
+                      <span className="flex-1" style={{ color: 'var(--text-muted)' }}>{evtLabel(t.type)}{t.label ? ` · ${t.label}` : ''}{t.user ? <span style={{ color: 'var(--text-light)' }}> · 👤 {t.user}</span> : ''}</span>
                     </div>
                   ))}
                 </div>
