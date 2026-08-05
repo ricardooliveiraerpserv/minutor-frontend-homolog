@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User, HelpCircle } from 'lucide-react'
+import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User } from 'lucide-react'
 import { TicketTabs } from '@/components/help-desk/ticket-tabs'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -138,7 +138,6 @@ export default function HelpDeskFilaPage() {
   const toggleSel = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   // Abertura de chamado INLINE (mesmo modal da lista de Chamados) — sem navegar de tela.
   const [novo, setNovo] = useState(false)
-  const [novoVariant, setNovoVariant] = useState<'modal' | 'drawer'>('modal')
   const [novoMeta, setNovoMeta] = useState<NovoChamadoMeta | null>(null)
   const [customers, setCustomers] = useState<Ref[]>([])
   // Perfil de acesso: se este agente enxerga a coluna "Novo" (tickets ainda não distribuídos).
@@ -489,7 +488,7 @@ export default function HelpDeskFilaPage() {
                   </button>
                 ))}
               </div>
-              <button onClick={() => { loadCustomers(); setNovoVariant('modal'); setNovo(true) }} title="Abrir novo chamado"
+              <button onClick={() => { loadCustomers(); setNovo(true) }} title="Abrir novo chamado"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 ml-1 transition hover:opacity-90"
                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Novo chamado</button>
             </div>
@@ -723,19 +722,7 @@ export default function HelpDeskFilaPage() {
         )}
         {user && mine && <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mostrando apenas chamados atribuídos a você.</p>}
       </div>
-      {/* Aba flutuante "Preciso de ajuda?" — borda direita; expande no hover e abre o formulário de abertura de chamado. */}
-      <button
-        onClick={() => { loadCustomers(); setNovoVariant('drawer'); setNovo(true) }}
-        title="Preciso de ajuda? Abrir um chamado"
-        aria-label="Abrir um chamado"
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-2 rounded-l-2xl shadow-lg px-2.5 py-4 transition-all hover:px-3.5 hover:shadow-xl"
-        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
-      >
-        <HelpCircle size={18} className="shrink-0" />
-        <span className="text-sm font-semibold tracking-wide" style={{ writingMode: 'vertical-rl' }}>Preciso de ajuda?</span>
-      </button>
-
-      {novo && <NovoChamadoModal meta={novoMeta} customers={customers} variant={novoVariant} heading={novoVariant === 'drawer' ? 'Preciso de ajuda? Abra um chamado' : 'Novo chamado'} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); router.push(`/help-desk/tickets/${id}`) }} />}
+      {novo && <NovoChamadoModal meta={novoMeta} customers={customers} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); router.push(`/help-desk/tickets/${id}`) }} />}
     </AppLayout>
   )
 }
