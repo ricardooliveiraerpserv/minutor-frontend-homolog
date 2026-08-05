@@ -15,6 +15,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { useColumnOrder } from '@/lib/kanban-column-order'
 import { NovoChamadoModal, type NovoChamadoMeta } from '@/components/help-desk/novo-chamado-modal'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { TicketBulkBar } from '@/components/help-desk/ticket-bulk-bar'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -131,6 +132,10 @@ export default function HelpDeskFilaPage() {
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
   const [teams, setTeams] = useState<Ref[]>([])
   const [local, setLocal] = useState<TicketRow[]>([])
+  // Seleção p/ atualização em massa (só na view Lista).
+  const [sel, setSel] = useState<Set<number>>(new Set())
+  const [agents, setAgents] = useState<Ref[]>([])
+  const toggleSel = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   // Abertura de chamado INLINE (mesmo modal da lista de Chamados) — sem navegar de tela.
   const [novo, setNovo] = useState(false)
   const [novoMeta, setNovoMeta] = useState<NovoChamadoMeta | null>(null)
@@ -271,6 +276,8 @@ export default function HelpDeskFilaPage() {
       .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
       .catch(() => {})
   }, [])
+  // Agentes (para o picker de Responsável na ação em massa).
+  useEffect(() => { api.get<{ data: Ref[] }>('/help-desk/agents').then(r => setAgents(r?.data ?? [])).catch(() => {}) }, [])
   // Clientes (p/ o modal "Novo chamado") — LAZY: só busca ao abrir o modal, fora do caminho crítico da carga
   // inicial (o backend free processa as chamadas em fila; tirar 1 request acelera a abertura da fila).
   const loadCustomers = useCallback(() => {
@@ -582,11 +589,24 @@ export default function HelpDeskFilaPage() {
           </div>
         )}
 
+        {view === 'lista' && (
+          <TicketBulkBar ids={[...sel]} perms={novoMeta?.my_perms} agents={agents}
+            categories={novoMeta?.categories ?? []} services={novoMeta?.services ?? []}
+            priorities={novoMeta?.priorities} prioLabel={p => PRIO[p]?.label ?? p}
+            onClear={() => setSel(new Set())} onDone={() => { setSel(new Set()); load() }} />
+        )}
+
         {view === 'lista' ? (
           <div className="ds-card overflow-x-auto">
             <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="text-left" style={{ color: 'var(--text-light)' }}>
+                  <th className="px-3 py-2 border-b w-8" style={{ borderColor: 'var(--border)' }}>
+                    <input type="checkbox" title="Selecionar todos"
+                      checked={listRows.length > 0 && listRows.every(r => sel.has(r.id))}
+                      ref={el => { if (el) el.indeterminate = sel.size > 0 && !listRows.every(r => sel.has(r.id)) }}
+                      onChange={e => setSel(e.target.checked ? new Set(listRows.map(r => r.id)) : new Set())} />
+                  </th>
                   {listCols.map(c => {
                     const active = listSort.col === c.key
                     return (
@@ -600,13 +620,16 @@ export default function HelpDeskFilaPage() {
                 </tr>
               </thead>
               <tbody>
-                {listRows.length === 0 && <tr><td colSpan={listCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum chamado.</td></tr>}
+                {listRows.length === 0 && <tr><td colSpan={listCols.length + 1} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum chamado.</td></tr>}
                 {listRows.map(t => {
                   const st = statuses.find(s => s.id === t.status_id)
                   const sla = slaChip(t, st)
                   const dt = (v?: string | null) => v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
                   return (
                     <tr key={t.id} onClick={() => openTicket(t.id)} onMouseEnter={() => prefetchTicket(t.id)} className="cursor-pointer ds-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
+                      <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleSel(t.id)} title="Selecionar" />
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                       <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>

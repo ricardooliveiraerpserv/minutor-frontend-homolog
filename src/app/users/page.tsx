@@ -716,7 +716,7 @@ export default function UsersPage() {
                   <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })}
                     className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
                   <Button onClick={confirmReset} disabled={resetting === resetModal.userId}
-                    className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-1.5">
+                    className="h-8 text-xs bg-[var(--warning-border)] hover:opacity-90 text-[#422006] font-semibold gap-1.5">
                     <KeyRound size={12} />
                     {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
                   </Button>

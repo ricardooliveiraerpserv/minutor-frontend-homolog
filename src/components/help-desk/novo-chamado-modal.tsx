@@ -17,6 +17,7 @@ export interface NovoChamadoMeta {
   categories?: { id: number; name: string; color?: string | null }[]
   services?: NovoChamadoServiceOpt[]
   my_inform?: Record<string, boolean>
+  my_perms?: Record<string, boolean>
 }
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }

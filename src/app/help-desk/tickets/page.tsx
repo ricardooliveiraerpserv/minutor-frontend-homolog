@@ -10,6 +10,7 @@ import { startSession, getSession } from '@/lib/help-desk-session'
 import { Ticket, Plus, Search, Inbox, GitMerge } from 'lucide-react'
 import { MesclarModal } from '@/components/help-desk/mesclar-modal'
 import { NovoChamadoModal } from '@/components/help-desk/novo-chamado-modal'
+import { TicketBulkBar } from '@/components/help-desk/ticket-bulk-bar'
 
 interface Ref { id: number; name: string }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
@@ -26,7 +27,6 @@ interface TicketRow {
 }
 interface ServiceOpt { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }
 interface Meta { priorities: string[]; statuses: StatusOpt[]; categories: CategoryOpt[]; teams: Ref[]; services?: ServiceOpt[]; my_inform?: Record<string, boolean>; can_open?: boolean; my_perms?: Record<string, boolean> }
-const LEVELS = ['N1', 'N2', 'N3']
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -62,24 +62,6 @@ export default function HelpDeskTicketsPage() {
   const [sel, setSel] = useState<Set<number>>(new Set())
   const [mergeOpen, setMergeOpen] = useState(false)
   const toggleSel = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  // Atualização em massa (barra de seleção) — gated por meta.my_perms (perfil de acesso).
-  const [bulkAction, setBulkAction] = useState('')
-  const [bulkValue, setBulkValue] = useState('')
-  const [bulkBusy, setBulkBusy] = useState(false)
-  const applyBulk = async () => {
-    if (!bulkAction || sel.size === 0) return
-    if (bulkAction === 'delete') {
-      if (!confirm(`Excluir ${sel.size} chamado(s) selecionado(s)?`)) return
-    } else if (bulkAction !== 'responsible' && !bulkValue) {
-      toast.error('Selecione um valor para aplicar'); return
-    }
-    setBulkBusy(true)
-    try {
-      const r = await api.post<{ data: { updated: number } }>('/help-desk/tickets/bulk', { action: bulkAction, ticket_ids: [...sel], value: bulkValue || null })
-      toast.success(`${r?.data?.updated ?? 0} chamado(s) ${bulkAction === 'delete' ? 'excluído(s)' : 'atualizado(s)'}`)
-      setSel(new Set()); setBulkAction(''); setBulkValue(''); load()
-    } catch (e: any) { toast.error(e?.message || 'Erro na ação em massa') } finally { setBulkBusy(false) }
-  }
   // Deep-link (?novo=1), ex.: botão "Novo chamado" da Fila — abre o modal de abertura.
   useEffect(() => { if (new URLSearchParams(window.location.search).get('novo') === '1') setNovo(true) }, [])
 
@@ -213,57 +195,9 @@ export default function HelpDeskTicketsPage() {
         </div>
 
         {/* Barra de atualização em massa — só com seleção e se o perfil libera (meta.my_perms). */}
-        {sel.size >= 1 && meta?.my_perms?.enabled && (
-          <div className="ds-card flex items-center gap-2 flex-wrap px-3 py-2" style={{ borderColor: 'var(--primary)' }}>
-            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{sel.size} selecionado(s)</span>
-            <span className="text-xs" style={{ color: 'var(--text-light)' }}>· Ação em massa:</span>
-            <select className={fieldCls} style={inputStyle} value={bulkAction} onChange={e => { setBulkAction(e.target.value); setBulkValue('') }}>
-              <option value="">Escolha a ação…</option>
-              {meta.my_perms.responsible && <option value="responsible">Responsável</option>}
-              {meta.my_perms.level && <option value="level">Nível de atendimento</option>}
-              {meta.my_perms.service && <option value="service">Serviço</option>}
-              {meta.my_perms.category && <option value="category">Categoria</option>}
-              {meta.my_perms.urgency && <option value="urgency">Urgência</option>}
-              {meta.my_perms.delete && <option value="delete">Excluir</option>}
-            </select>
-
-            {bulkAction === 'responsible' && (
-              <select className={fieldCls} style={inputStyle} value={bulkValue} onChange={e => setBulkValue(e.target.value)}>
-                <option value="">— Sem responsável (remover)</option>
-                {agents.map(a => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
-              </select>
-            )}
-            {bulkAction === 'level' && (
-              <select className={fieldCls} style={inputStyle} value={bulkValue} onChange={e => setBulkValue(e.target.value)}>
-                <option value="">Nível…</option>{LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            )}
-            {bulkAction === 'service' && (
-              <select className={fieldCls} style={inputStyle} value={bulkValue} onChange={e => setBulkValue(e.target.value)}>
-                <option value="">Serviço…</option>{(meta.services ?? []).map(s => <option key={s.id} value={String(s.id)}>{s.parent_id ? '— ' : ''}{s.name}</option>)}
-              </select>
-            )}
-            {bulkAction === 'category' && (
-              <select className={fieldCls} style={inputStyle} value={bulkValue} onChange={e => setBulkValue(e.target.value)}>
-                <option value="">Categoria…</option>{meta.categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-              </select>
-            )}
-            {bulkAction === 'urgency' && (
-              <select className={fieldCls} style={inputStyle} value={bulkValue} onChange={e => setBulkValue(e.target.value)}>
-                <option value="">Urgência…</option>{(meta.priorities?.length ? meta.priorities : ['baixa', 'normal', 'alta', 'urgente']).map(p => <option key={p} value={p}>{PRIO[p]?.label ?? p}</option>)}
-              </select>
-            )}
-
-            {bulkAction && (
-              <button onClick={applyBulk} disabled={bulkBusy}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-semibold disabled:opacity-60"
-                style={bulkAction === 'delete' ? { background: 'var(--danger-bg)', color: 'var(--danger-border)' } : { background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-                {bulkBusy ? 'Aplicando…' : bulkAction === 'delete' ? 'Excluir selecionados' : 'Aplicar'}
-              </button>
-            )}
-            <button onClick={() => { setSel(new Set()); setBulkAction(''); setBulkValue('') }} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Limpar seleção</button>
-          </div>
-        )}
+        <TicketBulkBar ids={[...sel]} perms={meta?.my_perms} agents={agents} categories={meta?.categories ?? []}
+          services={meta?.services ?? []} priorities={meta?.priorities} prioLabel={p => PRIO[p]?.label ?? p}
+          onClear={() => setSel(new Set())} onDone={() => { setSel(new Set()); load() }} />
 
         {/* Tabela */}
         <div className="ds-card overflow-hidden">
