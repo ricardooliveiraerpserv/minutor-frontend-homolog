@@ -375,10 +375,10 @@ export default function HelpDeskFilaPage() {
   const slaCorFila = pctSlaFila >= 90 ? '#16a34a' : pctSlaFila >= 70 ? '#f59e0b' : '#ef4444'
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
+    { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', highlight: true, hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Total', value: totalFila, cor: '#64748b', hint: pendFilter ? 'clique para ver todos' : undefined, onClick: () => setPendFilter('') },
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
-    { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
     { label: 'Agendados', value: agendados, cor: '#6366f1', icon: '📅', hint: 'reuniões marcadas · clique p/ ver', onClick: () => setPendFilter(p => p === 'scheduled' ? '' : 'scheduled'), active: pendFilter === 'scheduled' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
   ]
