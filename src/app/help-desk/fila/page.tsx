@@ -316,6 +316,9 @@ export default function HelpDeskFilaPage() {
   const statusById: Record<number, StatusOpt> = Object.fromEntries(statuses.map(s => [s.id, s]))
   const isPendente = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return !!s && !s.is_terminal && !s.is_resolved }
   const abertos = flt.filter(isPendente).length
+  // Chamados NOVOS = status inicial "Novo" (recém-criados, ainda sem triagem/atendimento).
+  const isNovo = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return s?.key === 'novo' }
+  const novos = flt.filter(isNovo).length
   // Chamados com reunião/agendamento marcado (Teams). "Reunião agendada" não é status próprio —
   // vem do agendamento (scheduled_until). O card abaixo filtra por isso.
   const agendados = flt.filter(t => !!t.scheduled_until).length
@@ -334,6 +337,7 @@ export default function HelpDeskFilaPage() {
     if (pendFilter === 'mine') return t.assignee?.id === user?.id && isNossaPendencia(t)
     if (pendFilter === 'team') return isNossaPendencia(t)
     if (pendFilter === 'open') return isPendente(t)
+    if (pendFilter === 'novos') return isNovo(t)
     if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
     if (pendFilter === 'scheduled') return !!t.scheduled_until // reunião/agendamento marcado (Teams)
     return true
@@ -374,6 +378,7 @@ export default function HelpDeskFilaPage() {
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Total', value: totalFila, cor: '#64748b', hint: pendFilter ? 'clique para ver todos' : undefined, onClick: () => setPendFilter('') },
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
+    { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
     { label: 'Agendados', value: agendados, cor: '#6366f1', icon: '📅', hint: 'reuniões marcadas · clique p/ ver', onClick: () => setPendFilter(p => p === 'scheduled' ? '' : 'scheduled'), active: pendFilter === 'scheduled' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
   ]
