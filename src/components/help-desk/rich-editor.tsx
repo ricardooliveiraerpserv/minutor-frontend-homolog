@@ -97,16 +97,33 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
       img.src = url
     })
 
+    // 🚑 À prova de falhas contra o "bug dos campos vazios": o navegador CLONA a caixa da
+    // imagem (span com border+resize) ao digitar/dar espaço ao lado, gerando caixas vazias;
+    // e o execCommand descarta o contenteditable que colocamos no HTML. A cada input:
+    //  • span-caixa COM <img> → marca contenteditable=false via DOM (atômico, não some);
+    //  • span-caixa SEM <img> (o clone espúrio) → tira o estilo de caixa (vira texto normal,
+    //    invisível) SEM remover o nó → não desloca o cursor.
+    const cleanBoxes = () => {
+      const ed = edRef.current; if (!ed) return
+      ed.querySelectorAll('span[style*="resize"]').forEach(sp => {
+        if (sp.querySelector('img')) {
+          if (sp.getAttribute('contenteditable') !== 'false') sp.setAttribute('contenteditable', 'false')
+        } else {
+          sp.removeAttribute('style'); sp.removeAttribute('contenteditable')
+        }
+      })
+    }
+
     const insertImage = (dataUrl: string) => {
       const ed = edRef.current; if (!ed) return
       ed.focus()
       // Imagem num bloco de alinhamento (text-align controla esquerda/centro/direita).
-      // O <span> redimensionável é contenteditable=false → atômico: digitar ao lado NÃO
-      // clona a "caixa" (bug dos campos vazios). A linha <p><br></p> abaixo fica editável.
+      // A linha <p><br></p> abaixo fica editável. cleanBoxes() reforça o contenteditable=false.
       document.execCommand('insertHTML', false,
         `<div style="text-align:center;margin:6px 0;">` +
         `<span contenteditable="false" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:80px;width:340px;border:1px solid rgba(125,125,125,.35);border-radius:8px;vertical-align:top;">` +
         `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span></div><p><br/></p>`)
+      cleanBoxes()
     }
 
     // Alinha a imagem (a do cursor, ou a última) à esquerda/centro/direita via text-align do bloco.
@@ -205,7 +222,7 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
             </div>
           )}
         </div>
-        <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste}
+        <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste} onInput={cleanBoxes}
           onKeyUp={saveSel} onMouseUp={saveSel} onBlur={saveSel}
           className="text-sm hd-rich rounded-lg p-3 outline-none overflow-auto"
           style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480 }} />
