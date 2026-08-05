@@ -670,9 +670,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const isConsultor   = form.profiles.includes('consultor')
   const isCoordenador = form.profiles.includes('coordenador')
   const isParceiroAdm = form.profiles.includes('parceiro_adm')
+  const isComercial   = form.profiles.includes('comercial')
   // App Password de envio: só admin/administrativo enviam fechamentos a partir do próprio e-mail.
   const showAppPassword = form.profiles.includes('administrator') || form.profiles.includes('administrativo')
-  const hasRate       = isConsultor || isCoordenador || isParceiroAdm
+  const hasRate       = isConsultor || isCoordenador || isParceiroAdm || isComercial
   const needsPartner  = isParceiroAdm
   const selectedPartner = partners.find(p => p.id === Number(form.partner_id))
   const partnerIsFixed  = selectedPartner?.pricing_type === 'fixed'
@@ -704,6 +705,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         ...f,
         profiles,
         consultant_type:  profiles.includes('consultor')    ? f.consultant_type  : '',
+        rate_type:        profiles.includes('comercial')    ? 'monthly' : f.rate_type,
         contract_type:    (profiles.length && !profiles.includes('cliente')) ? f.contract_type : '',
         coordinator_type: profiles.includes('coordenador')  ? f.coordinator_type : '',
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
@@ -846,7 +848,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             ) : hasRate && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-[var(--text-muted)]">Remuneração</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">{isComercial ? 'Valor fixo (mensal)' : 'Remuneração'}</Label>
                   {isEdit && (
                     <button type="button" onClick={openRateHistory}
                       className="text-[10px] font-medium text-[var(--primary)] hover:underline">
@@ -855,8 +857,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   )}
                 </div>
                 <div className="flex gap-2 items-center">
-                  {/* Consultor: tipo fixado pelo tipo de consultor; outros: toggle manual */}
-                  {isConsultor ? (
+                  {/* Consultor/Comercial: tipo fixado (Fixo); outros: toggle manual */}
+                  {(isConsultor || isComercial) ? (
                     <span className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] font-medium whitespace-nowrap">
                       {form.rate_type === 'hourly' ? 'Por Hora' : 'Fixo'}
                     </span>
