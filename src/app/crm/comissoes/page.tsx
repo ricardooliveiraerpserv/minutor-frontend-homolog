@@ -9,7 +9,7 @@ import { Percent, TrendingUp, TrendingDown, FileDown, Wallet, Trophy, Search, In
 interface Kpis { base: number; base_delta: number | null; comissao: number; comissao_delta: number | null; pct_faturamento: number | null; ticket: number; ganhos: number; pipeline: number; maior_comissao: { name: string; valor: number } | null; comissao_media: number; forecast_comissao: number }
 interface Evo { mes: string; comissao: number }
 interface Dist { name: string; valor: number }
-interface Rank { user_id: number; name: string; cargo: string | null; base: number; negocios: number; ticket: number; percentual: number; comissao: number; pipeline: number; forecast_comissao: number }
+interface Rank { user_id: number; name: string; cargo: string | null; base: number; negocios: number; ticket: number; percentual: number; pct_origem?: string; comissao: number; pipeline: number; forecast_comissao: number }
 interface Insights { maior_comissao: { name: string; valor: number } | null; maior_venda: { title: string; valor: number } | null; maior_ticket: any; maior_percentual: any; maior_pipeline: any; comissao_media: number; pendente: number }
 interface Team { id: number; name: string }
 interface Pagamento { apurada: number; aprovada: number; paga: number; bloqueada: number; cancelada: number; pendente: number; total_apurado: number; nao_apuradas: number; count: number }
@@ -97,17 +97,17 @@ export default function CrmComissoesCockpit() {
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
   const [q, setQ] = useState('')
-  const [defRate, setDefRate] = useState('')
   const [lancs, setLancs] = useState<Lancamento[]>([])
   const [apurando, setApurando] = useState(false)
   const [drill, setDrill] = useState<Rank | null>(null)
+  const [pctInfo, setPctInfo] = useState<Rank | null>(null)
 
   const qs = `competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`
   const load = useCallback(() => {
     setLoading(true); setDenied(false)
     const q2 = `competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`
     api.get<{ data: Cockpit }>(`/crm/comissoes/cockpit?${q2}`)
-      .then(r => { setD(r?.data ?? null); setDefRate(r?.data ? String(r.data.percentual_padrao) : '') })
+      .then(r => setD(r?.data ?? null))
       .catch((e: any) => { if (String(e?.message || '').match(/permite|403/)) setDenied(true); else toast.error('Erro ao carregar cockpit') })
       .finally(() => setLoading(false))
     api.get<{ data: { rows: Lancamento[] } }>(`/crm/comissoes/lancamentos?${q2}`).then(r => setLancs(r?.data?.rows ?? [])).catch(() => {})
@@ -128,13 +128,6 @@ export default function CrmComissoesCockpit() {
 
   const ranking = useMemo(() => d ? d.ranking.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase())) : [], [d, q])
   const maxCom = useMemo(() => Math.max(1, ...(d?.ranking.map(r => r.comissao) ?? [1])), [d])
-
-  const saveRate = async (uid: number | null, raw: string) => {
-    const v = Number(String(raw).replace(',', '.'))
-    if (isNaN(v) || v < 0 || v > 100) { toast.error('Percentual inválido (0–100)'); return }
-    try { await api.put('/crm/comissoes/rate', { user_id: uid, percentual: v }); toast.success('Percentual salvo'); load() }
-    catch { toast.error('Erro ao salvar percentual') }
-  }
 
   const exportCsv = () => {
     if (!d) return
@@ -169,13 +162,7 @@ export default function CrmComissoesCockpit() {
               {d!.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           )}
-          {d?.can_edit && (
-            <div className="flex items-center gap-1 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} title="Percentual padrão da empresa">
-              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>% padrão</span>
-              <input inputMode="decimal" value={defRate} onChange={e => setDefRate(e.target.value)} onBlur={() => d && defRate !== String(d.percentual_padrao) && saveRate(null, defRate)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="w-12 text-right bg-transparent text-sm outline-none tabular-nums" style={{ color: 'var(--text)' }} />
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
-            </div>
-          )}
+          {d?.can_edit && <a href="/crm/politicas-comissao" className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Percent size={14} /> Políticas</a>}
           <button onClick={exportCsv} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><FileDown size={14} /> Exportar</button>
           {d?.can_edit && <button onClick={apurar} disabled={apurando} className="text-sm rounded-lg px-4 py-2 font-semibold flex items-center gap-1.5 disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Calculator size={14} /> {apurando ? 'Apurando…' : 'Apurar comissões'}</button>}
         </div>
@@ -269,9 +256,9 @@ export default function CrmComissoesCockpit() {
                         <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(r.ticket)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(r.pipeline)}</td>
                         <td className="px-3 py-2.5 text-right">
-                          {d.can_edit ? (
-                            <input inputMode="decimal" onClick={e => e.stopPropagation()} defaultValue={String(r.percentual)} onBlur={e => { const v = e.target.value; if (v !== String(r.percentual)) saveRate(r.user_id, v) }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="w-14 text-right rounded-lg px-2 py-1 outline-none tabular-nums" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                          ) : <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{r.percentual}%</span>}
+                          <button onClick={e => { e.stopPropagation(); setPctInfo(r) }} className="tabular-nums inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:brightness-110" style={{ color: 'var(--text)' }} title="Ver política aplicada">
+                            {r.percentual}% {r.pct_origem === 'excecao' && <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />}
+                          </button>
                         </td>
                         <td className="px-3 py-2.5 text-right" style={{ minWidth: 150 }}>
                           <div className="flex items-center gap-2 justify-end">
@@ -348,6 +335,24 @@ export default function CrmComissoesCockpit() {
       )}
 
       {drill && d && <VendedorDrawer rank={drill} comp={comp} teamId={teamId} canEdit={d.can_edit} onClose={() => setDrill(null)} onChanged={load} />}
+
+      {pctInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setPctInfo(null)}>
+          <div className="w-full max-w-xs rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>Política aplicada</h3>
+            <p className="text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>{pctInfo.name}</p>
+            <div className="rounded-lg p-3 space-y-1.5 text-sm" style={{ background: 'var(--surface-sunken)' }}>
+              <div className="flex justify-between"><span style={{ color: 'var(--text-muted)' }}>Percentual</span><span className="font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{pctInfo.percentual}%</span></div>
+              <div className="flex justify-between"><span style={{ color: 'var(--text-muted)' }}>Origem</span><span className="font-medium" style={{ color: 'var(--text)' }}>{pctInfo.pct_origem === 'excecao' ? 'Exceção individual' : 'Política padrão'}</span></div>
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: 'var(--text-light)' }}>O percentual é definido nas Políticas de Comissão — não é editável aqui.</p>
+            <div className="flex justify-between items-center mt-3">
+              {d?.can_edit ? <a href="/crm/politicas-comissao" className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>Configurar →</a> : <span />}
+              <button onClick={() => setPctInfo(null)} className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
