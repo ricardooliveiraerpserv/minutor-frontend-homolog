@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Percent, TrendingUp, TrendingDown, FileDown, Wallet, Trophy, Search, Info } from 'lucide-react'
+import { Percent, TrendingUp, TrendingDown, FileDown, Wallet, Trophy, Search, Info, Calculator, CheckCircle2, DollarSign, Ban, Lock } from 'lucide-react'
 
 interface Kpis { base: number; base_delta: number | null; comissao: number; comissao_delta: number | null; pct_faturamento: number | null; ticket: number; ganhos: number; pipeline: number; maior_comissao: { name: string; valor: number } | null; comissao_media: number; forecast_comissao: number }
 interface Evo { mes: string; comissao: number }
@@ -12,7 +12,18 @@ interface Dist { name: string; valor: number }
 interface Rank { user_id: number; name: string; cargo: string | null; base: number; negocios: number; ticket: number; percentual: number; comissao: number; pipeline: number; forecast_comissao: number }
 interface Insights { maior_comissao: { name: string; valor: number } | null; maior_venda: { title: string; valor: number } | null; maior_ticket: any; maior_percentual: any; maior_pipeline: any; comissao_media: number; pendente: number }
 interface Team { id: number; name: string }
-interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; percentual_padrao: number; has_payment_tracking: boolean; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
+interface Pagamento { apurada: number; aprovada: number; paga: number; bloqueada: number; cancelada: number; pendente: number; total_apurado: number; nao_apuradas: number; count: number }
+interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; percentual_padrao: number; has_payment_tracking: boolean; pagamento: Pagamento; distribuicao_status: Dist[]; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
+interface Lancamento { id: number; negocio: string | null; cliente: string | null; responsavel: string | null; base: number; percentual: number; valor: number; status: string; aprovado_em: string | null; pago_em: string | null; motivo: string | null; transicoes: string[] }
+
+const ST_LABEL: Record<string, { l: string; c: string; b: string }> = {
+  apurada: { l: 'Apurada', c: 'var(--text-muted)', b: 'var(--surface-sunken)' },
+  aprovada: { l: 'Aprovada', c: 'var(--info-border)', b: 'var(--info-bg)' },
+  paga: { l: 'Paga', c: '#17914e', b: 'rgba(34,197,94,.14)' },
+  bloqueada: { l: 'Bloqueada', c: 'var(--danger-border)', b: 'var(--danger-bg)' },
+  cancelada: { l: 'Cancelada', c: 'var(--text-light)', b: 'var(--surface-sunken)' },
+}
+const ACTION_LABEL: Record<string, string> = { aprovada: 'Aprovar', paga: 'Pagar', bloqueada: 'Bloquear', cancelada: 'Cancelar', apurada: 'Desbloquear' }
 
 const fmtBRL = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 const curMonth = () => new Date().toISOString().slice(0, 7)
@@ -86,15 +97,32 @@ export default function CrmComissoesCockpit() {
   const [denied, setDenied] = useState(false)
   const [q, setQ] = useState('')
   const [defRate, setDefRate] = useState('')
+  const [lancs, setLancs] = useState<Lancamento[]>([])
+  const [apurando, setApurando] = useState(false)
 
+  const qs = `competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`
   const load = useCallback(() => {
     setLoading(true); setDenied(false)
-    api.get<{ data: Cockpit }>(`/crm/comissoes/cockpit?competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`)
+    const q2 = `competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`
+    api.get<{ data: Cockpit }>(`/crm/comissoes/cockpit?${q2}`)
       .then(r => { setD(r?.data ?? null); setDefRate(r?.data ? String(r.data.percentual_padrao) : '') })
       .catch((e: any) => { if (String(e?.message || '').match(/permite|403/)) setDenied(true); else toast.error('Erro ao carregar cockpit') })
       .finally(() => setLoading(false))
+    api.get<{ data: { rows: Lancamento[] } }>(`/crm/comissoes/lancamentos?${q2}`).then(r => setLancs(r?.data?.rows ?? [])).catch(() => {})
   }, [comp, teamId])
   useEffect(() => { load() }, [load])
+
+  const apurar = async () => {
+    setApurando(true)
+    try { const r = await api.post<{ data: { apuradas: number } }>(`/crm/comissoes/apurar?${qs}`, {}); toast.success(`${r.data.apuradas} comissão(ões) apurada(s)`); load() }
+    catch { toast.error('Erro ao apurar comissões') } finally { setApurando(false) }
+  }
+  const changeStatus = async (l: Lancamento, to: string) => {
+    let motivo: string | null = null
+    if (to === 'bloqueada' || to === 'cancelada') { motivo = prompt(`Motivo para ${(ACTION_LABEL[to] || to).toLowerCase()}:`); if (motivo === null) return }
+    try { await api.post(`/crm/comissoes/lancamentos/${l.id}/status`, { status: to, motivo }); toast.success('Status atualizado'); load() }
+    catch (e: any) { toast.error(e?.message || 'Transição não permitida') }
+  }
 
   const ranking = useMemo(() => d ? d.ranking.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase())) : [], [d, q])
   const maxCom = useMemo(() => Math.max(1, ...(d?.ranking.map(r => r.comissao) ?? [1])), [d])
@@ -147,6 +175,7 @@ export default function CrmComissoesCockpit() {
             </div>
           )}
           <button onClick={exportCsv} className="text-sm rounded-lg px-3 py-2 flex items-center gap-1.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><FileDown size={14} /> Exportar</button>
+          {d?.can_edit && <button onClick={apurar} disabled={apurando} className="text-sm rounded-lg px-4 py-2 font-semibold flex items-center gap-1.5 disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Calculator size={14} /> {apurando ? 'Apurando…' : 'Apurar comissões'}</button>}
         </div>
       </div>
 
@@ -166,14 +195,38 @@ export default function CrmComissoesCockpit() {
               ))}
             </div>
 
+            {/* Faixa do ciclo de pagamento */}
+            {d.has_payment_tracking ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { l: 'Apurado', v: d.pagamento.total_apurado, icon: Calculator, c: 'var(--text)' },
+                  { l: 'Pago', v: d.pagamento.paga, icon: DollarSign, c: '#17914e' },
+                  { l: 'Pendente', v: d.pagamento.pendente, icon: CheckCircle2, c: 'var(--warning-border)', sub: `apurada + aprovada` },
+                  { l: 'Bloqueado', v: d.pagamento.bloqueada, icon: Lock, c: 'var(--danger-border)' },
+                ].map(x => (
+                  <div key={x.l} className="rounded-xl p-3.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                    <x.icon size={14} style={{ color: x.c }} className="mb-1" />
+                    <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{x.l}</p>
+                    <p className="text-lg font-bold tabular-nums" style={{ color: x.c }}>{fmtBRL(x.v)}</p>
+                    {x.sub && <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{x.sub}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : d.can_edit && (d.kpis.ganhos > 0) ? (
+              <div className="rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap" style={{ border: '1px solid var(--border)', background: 'var(--primary-soft)' }}>
+                <div className="flex items-start gap-2"><Calculator size={18} style={{ color: 'var(--primary)' }} className="shrink-0 mt-0.5" /><div><p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Apure as comissões do mês</p><p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gera um lançamento por negócio ganho para aprovar e pagar.</p></div></div>
+                <button onClick={apurar} disabled={apurando} className="text-sm rounded-lg px-4 py-2 font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{apurando ? 'Apurando…' : 'Apurar agora'}</button>
+              </div>
+            ) : null}
+
             <div className="grid md:grid-cols-2 gap-4">
               <div className="rounded-xl p-4" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
                 <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>Evolução da comissão (12 meses)</h3>
                 <LineChart evo={d.evolucao} />
               </div>
               <div className="rounded-xl p-4" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>Distribuição por vendedor</h3>
-                <Donut items={d.distribuicao} />
+                <h3 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>{d.has_payment_tracking ? 'Distribuição por status' : 'Distribuição por vendedor'}</h3>
+                <Donut items={d.has_payment_tracking ? d.distribuicao_status : d.distribuicao} />
               </div>
             </div>
 
@@ -224,12 +277,48 @@ export default function CrmComissoesCockpit() {
               </div>
             </div>
 
-            {!d.has_payment_tracking && (
-              <div className="rounded-xl p-3.5 flex items-start gap-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>
-                <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--warning-border)' }} />
-                <span>Os valores são <b>comissão apurada</b> (base ganha × percentual). O <b>ciclo de pagamento</b> (pago / pendente / bloqueado), <b>políticas avançadas</b> (por cargo, produto, margem, progressiva) e o <b>simulador</b> exigem um novo módulo — próxima fase.</span>
+            {/* Lançamentos de comissão (ciclo de pagamento) */}
+            {lancs.length > 0 && (
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                <div className="p-3" style={{ borderBottom: '1px solid var(--border)' }}><h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Lançamentos de comissão</h3></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm whitespace-nowrap">
+                    <thead><tr style={{ color: 'var(--text-light)' }}>
+                      {['Negócio', 'Cliente', 'Responsável', 'Base', '%', 'Comissão', 'Status', 'Ações'].map((h, i) => <th key={i} className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wide ${i >= 3 && i <= 5 ? 'text-right' : 'text-left'}`}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {lancs.map(l => {
+                        const st = ST_LABEL[l.status] ?? ST_LABEL.apurada
+                        return (
+                          <tr key={l.id} className="transition hover:brightness-110" style={{ borderTop: '1px solid var(--border)' }}>
+                            <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{l.negocio ?? '—'}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{l.cliente ?? '—'}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{l.responsavel ?? '—'}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(l.base)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text-light)' }}>{l.percentual}%</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold" style={{ color: '#17914e' }}>{fmtBRL(l.valor)}</td>
+                            <td className="px-3 py-2.5"><span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ color: st.c, background: st.b }} title={l.motivo ?? undefined}>{st.l}</span>{l.pago_em && <span className="text-[9px] block" style={{ color: 'var(--text-light)' }}>{l.pago_em}</span>}</td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex gap-1">
+                                {d.can_edit && l.transicoes.map(to => (
+                                  <button key={to} onClick={() => changeStatus(l, to)} className="text-[10px] px-2 py-1 rounded-lg font-semibold" style={{ background: (ST_LABEL[to] ?? st).b, color: (ST_LABEL[to] ?? st).c }}>{ACTION_LABEL[to] ?? to}</button>
+                                ))}
+                                {(!d.can_edit || l.transicoes.length === 0) && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>—</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
+
+            <div className="rounded-xl p-3.5 flex items-start gap-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>
+              <Info size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--warning-border)' }} />
+              <span>Comissão apurada = base ganha × percentual, congelada no lançamento. <b>Políticas avançadas</b> (por cargo, produto, margem, progressiva) e o <b>simulador</b> são a próxima fase.</span>
+            </div>
           </div>
 
           <aside className="space-y-3">
