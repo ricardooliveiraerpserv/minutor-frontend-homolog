@@ -500,7 +500,7 @@ export default function CrmPipelinePage() {
         <div className="flex items-center gap-1 flex-wrap">
           {pipelines.map(p => (
             <button key={p.id} onClick={() => setPipeId(p.id)} className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
-              style={pipeId === p.id ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.tipo === 'qualificacao' ? '👥 Leads' : p.name}</button>
+              style={pipeId === p.id ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.name}</button>
           ))}
         </div>
         {!isLeads && pipelines.length > 0 && (

@@ -67,7 +67,7 @@ export default function CrmResponsaveisPage() {
             : linhas.map(u => (
               <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
                 <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{u.name}</td>
-                <td className="px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{u.type}{u.is_executive && ' · executivo'}</td>
+                <td className="px-4 py-2.5" style={{ color: 'var(--text-muted)' }}>{u.type}</td>
                 <td className="px-4 py-2.5 text-center">
                   <button onClick={() => setPolUser({ id: u.id, name: u.name })} className="text-[11px] px-2.5 py-1 rounded-lg font-semibold inline-flex items-center gap-1" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><ShieldCheck size={12} /> Definir</button>
                 </td>

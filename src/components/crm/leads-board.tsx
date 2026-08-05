@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { UserPlus, X, Plus, AlertTriangle, Phone, ArrowRight, Trophy, Clock, Activity, ShieldAlert } from 'lucide-react'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 
 interface Stage { id: number; name: string; ordem: number; is_won: boolean; is_lost: boolean }
 interface Source { id: number; name: string; active: boolean; ordem: number }
@@ -97,6 +98,21 @@ export function LeadsBoard() {
   }, {} as Record<string, { responsavel: string; ativos: number; sem_proxima: number; atrasados: number; em_risco: number; valor: number }>))
     .sort((a, b) => b.ativos - a.ativos)
 
+  // Drag-and-drop entre etapas (igual aos demais pipelines). is_won exige conversão.
+  const onDragEnd = async (r: DropResult) => {
+    if (!r.destination) return
+    const toId = Number(r.destination.droppableId)
+    const lead = leads.find(l => l.customer_id === Number(r.draggableId))
+    if (!lead || lead.stage_id === toId) return
+    const st = stages.find(s => s.id === toId)
+    if (!st) return
+    if (st.is_won) { toast('Use "Converter para Prospect" para qualificar este lead.'); return }
+    const prev = leads
+    setLeads(ls => ls.map(l => l.customer_id === lead.customer_id ? { ...l, stage_id: toId } : l))
+    try { await api.patch(`/crm/leads/${lead.customer_id}/stage`, { stage_id: toId }); load() }
+    catch { setLeads(prev); toast.error('Erro ao mover lead') }
+  }
+
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const in7 = new Date(today); in7.setDate(in7.getDate() + 7)
   const comAcao = filtered.filter(l => l.proxima_acao_at && !l.lost_at)
@@ -106,15 +122,6 @@ export function LeadsBoard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <UserPlus size={18} style={{ color: 'var(--primary)' }} />
-          <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Leads</h1>
-          <span className="text-xs" style={{ color: 'var(--text-light)' }}>— captação e qualificação</span>
-        </div>
-        <button onClick={() => setAddOpen(true)} className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Novo Lead</button>
-      </div>
-
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <select value={fOrigem} onChange={e => setFOrigem(e.target.value)} className="text-sm rounded-lg px-2.5 py-2 outline-none" style={{ ...inputStyle, borderColor: fOrigem ? 'var(--primary)' : 'var(--border)' }}>
           <option value="">Todas as origens</option>
@@ -131,9 +138,12 @@ export function LeadsBoard() {
           <option value="frio">❄ Frio</option>
         </select>
         {(fOrigem || fResp || fTemp) && <button onClick={() => { setFOrigem(''); setFResp(''); setFTemp('') }} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Limpar filtros</button>}
+        <div className="flex-1" />
+        <button onClick={() => setAddOpen(true)} className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 whitespace-nowrap" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Novo Lead</button>
       </div>
 
       {loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
+        <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-3">
           {stages.map(st => {
             const col = filtered.filter(l => l.stage_id === st.id || (!l.stage_id && st.ordem === 1))
@@ -145,12 +155,17 @@ export function LeadsBoard() {
                   </span>
                   <span className="text-[11px] px-1.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>{col.length}</span>
                 </div>
-                <div className="p-2 space-y-2 min-h-[120px]">
+                <Droppable droppableId={String(st.id)}>
+                {(prov) => (
+                <div ref={prov.innerRef} {...prov.droppableProps} className="p-2 space-y-2 min-h-[120px]">
                   {st.is_won && col.length === 0 && <p className="text-[11px] px-2 py-3 text-center" style={{ color: 'var(--text-light)' }}>Leads qualificados viram Prospect e seguem para Oportunidades.</p>}
-                  {col.map(l => {
+                  {col.map((l, i) => {
                     const temp = TEMP[l.temperatura ?? 'frio']
                     return (
-                    <button key={l.customer_id} onClick={() => setSel(l)} className="w-full text-left rounded-lg p-2.5 hover:brightness-110 transition" style={{ background: 'var(--surface)', border: l.lost_at ? '1px solid var(--danger-border)' : l.sem_responsavel ? '1px solid var(--danger-border)' : '1px solid var(--border)' }}>
+                    <Draggable key={l.customer_id} draggableId={String(l.customer_id)} index={i}>
+                    {(dp) => (
+                    <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps}>
+                    <button onClick={() => setSel(l)} className="w-full text-left rounded-lg p-2.5 hover:brightness-110 transition" style={{ background: 'var(--surface)', border: l.lost_at ? '1px solid var(--danger-border)' : l.sem_responsavel ? '1px solid var(--danger-border)' : '1px solid var(--border)' }}>
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: temp.bg, color: temp.color }}>{temp.emoji} {temp.label}</span>
                         {l.sem_responsavel && !l.lost_at && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5" style={{ background: 'var(--danger-bg)', color: 'var(--danger-border)' }} title="Lead sem responsável"><ShieldAlert size={9} /> órfão</span>}
@@ -179,12 +194,19 @@ export function LeadsBoard() {
                           </div>
                         ) : <p className="text-[10px] mt-1.5 flex items-center gap-0.5" style={{ color: 'var(--warning-border)' }}><AlertTriangle size={10} /> sem próxima ação</p>}
                     </button>
+                    </div>
+                    )}
+                    </Draggable>
                   ) })}
+                  {prov.placeholder}
                 </div>
+                )}
+                </Droppable>
               </div>
             )
           })}
         </div>
+        </DragDropContext>
       )}
 
       {addOpen && <AddLeadModal sources={sources} users={users} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); load() }} />}
