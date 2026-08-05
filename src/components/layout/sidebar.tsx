@@ -311,7 +311,6 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
       { label: 'Rent. Consultor × Projeto', href: '/relatorios/rentabilidade/consultor', icon: Users },
-      { label: 'Rent. por Projeto',         href: '/relatorios/rentabilidade/projeto',   icon: FolderOpen },
       { label: 'Rent. Clientes',            href: '/relatorios/rentabilidade',           icon: TrendingUp, exactMatch: true },
       { label: 'Contratos s/ Vencimento', href: '/relatorios/contratos-sem-vencimento', icon: CalendarX },
     ],

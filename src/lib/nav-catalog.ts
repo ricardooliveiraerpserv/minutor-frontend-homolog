@@ -44,7 +44,6 @@ export const NAV_CATALOG: CatalogItem[] = [
   // Administrativo — Relatórios
   { key: '/relatorios/pagamentos',                label: 'Relatório de Pagamentos',      group: 'Relatórios' },
   { key: '/relatorios/rentabilidade/consultor',   label: 'Rent. Consultor × Projeto',    group: 'Relatórios' },
-  { key: '/relatorios/rentabilidade/projeto',     label: 'Rent. por Projeto',            group: 'Relatórios' },
   { key: '/relatorios/rentabilidade',             label: 'Rent. Clientes',               group: 'Relatórios' },
   { key: '/relatorios/contratos-sem-vencimento',  label: 'Contratos s/ Vencimento',      group: 'Relatórios' },
   { key: '/relatorios/atividade-clientes',         label: 'Status de Clientes',           group: 'Relatórios' },
