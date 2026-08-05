@@ -437,6 +437,7 @@ const NAV: NavEntry[] = [
       { label: 'Campos Personalizados', href: '/crm/campos-personalizados', icon: SlidersHorizontal },
       { label: 'Responsáveis',        href: '/crm/responsaveis', icon: UserCheck },
       { label: 'Perfis Comerciais',   href: '/crm/perfis', icon: UserCheck },
+      { label: 'Políticas de Comissão', href: '/crm/politicas-comissao', icon: Percent },
       { label: 'Dados da Contratada', href: '/crm/configuracoes/contratada', icon: Building2 },
       { label: 'Templates de Proposta', href: '/crm/configuracoes/templates', icon: FileText },
     ],
