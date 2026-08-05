@@ -61,6 +61,8 @@ import {
   Eye,
   KeyRound,
   Server,
+  Target,
+  Percent,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
@@ -406,6 +408,9 @@ const NAV: NavEntry[] = [
       { label: 'Oportunidades', href: '/crm/oportunidades', icon: ListFilter },
       { label: 'Minha Carteira', href: '/crm/minha-carteira', icon: Wallet },
       { label: 'Forecast',     href: '/crm/forecast',     icon: TrendingUp },
+      { label: 'Metas',        href: '/crm/metas',        icon: Target },
+      { label: 'Comissões',    href: '/crm/comissoes',    icon: Percent },
+      { label: 'Rentabilidade', href: '/crm/rentabilidade', icon: TrendingUp },
       { label: 'Dashboards',   href: '/crm/dashboards',   icon: BarChart2 },
       { label: 'Tarefas',      href: '/crm/tarefas',      icon: ListTodo },
       { label: 'Simulador',    href: '/crm/simulador',    icon: Calculator },
