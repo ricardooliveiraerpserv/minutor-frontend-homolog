@@ -7,10 +7,12 @@ import { toast } from 'sonner'
 import { Percent, Plus, Pencil, Trash2, X, Calculator, ArrowRight } from 'lucide-react'
 
 interface Pipeline { id: number; name: string }
-interface Policy { id: number; name: string; active: boolean; priority: number; cargo: string | null; pipeline_id: number | null; min_valor: number | null; max_valor: number | null; min_margem: number | null; max_margem: number | null; percentual: number }
+interface Policy { id: number; name: string; active: boolean; priority: number; cargo: string | null; pipeline_id: number | null; tipo_negocio: string | null; min_valor: number | null; max_valor: number | null; min_margem: number | null; max_margem: number | null; min_atingimento: number | null; max_atingimento: number | null; percentual: number }
 interface Data { policies: Policy[]; pipelines: Pipeline[]; cargos: string[] }
 
 const fmtBRL = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+const TIPOS: { v: string; l: string }[] = [{ v: 'novo_cliente', l: 'Novo cliente' }, { v: 'renovacao', l: 'Renovação' }]
+const tipoLabel = (v: string | null) => TIPOS.find(t => t.v === v)?.l ?? v
 
 export default function CrmPoliticasComissaoPage() {
   const [d, setD] = useState<Data | null>(null)
@@ -32,8 +34,10 @@ export default function CrmPoliticasComissaoPage() {
     const parts: string[] = []
     if (p.cargo) parts.push(`Cargo ${p.cargo}`)
     if (p.pipeline_id) parts.push(`Funil ${pipeName(p.pipeline_id) ?? p.pipeline_id}`)
+    if (p.tipo_negocio) parts.push(tipoLabel(p.tipo_negocio) as string)
     if (p.min_valor != null || p.max_valor != null) parts.push(`Valor ${p.min_valor != null ? fmtBRL(p.min_valor) : '0'}–${p.max_valor != null ? fmtBRL(p.max_valor) : '∞'}`)
     if (p.min_margem != null || p.max_margem != null) parts.push(`Margem ${p.min_margem ?? 0}–${p.max_margem ?? 100}%`)
+    if (p.min_atingimento != null || p.max_atingimento != null) parts.push(`Atingim. ${p.min_atingimento ?? 0}–${p.max_atingimento != null ? p.max_atingimento : '∞'}%`)
     return parts.length ? parts : ['Qualquer negócio']
   }
 
@@ -105,6 +109,8 @@ function Simulador({ pipelines, cargos }: { pipelines: Pipeline[]; cargos: strin
   const [margem, setMargem] = useState('')
   const [cargo, setCargo] = useState('')
   const [pipelineId, setPipelineId] = useState('')
+  const [tipo, setTipo] = useState('')
+  const [ating, setAting] = useState('')
   const [res, setRes] = useState<{ base: number; percentual: number; comissao: number; regra: string | null; origem: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -116,6 +122,7 @@ function Simulador({ pipelines, cargos }: { pipelines: Pipeline[]; cargos: strin
       const r = await api.post<{ data: any }>('/crm/comissoes/simular', {
         valor: v, margem: margem ? Number(margem.replace(',', '.')) : null,
         cargo: cargo || null, pipeline_id: pipelineId ? Number(pipelineId) : null,
+        tipo_negocio: tipo || null, atingimento: ating ? Number(ating.replace(',', '.')) : null,
       })
       setRes(r.data)
     } catch { toast.error('Erro ao simular') } finally { setLoading(false) }
@@ -130,6 +137,8 @@ function Simulador({ pipelines, cargos }: { pipelines: Pipeline[]; cargos: strin
         <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Margem (%)</label><input inputMode="decimal" value={margem} onChange={e => setMargem(e.target.value)} placeholder="opcional" className="w-full px-3 py-2 rounded-lg text-sm outline-none tabular-nums" style={inp} /></div>
         <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</label><select value={cargo} onChange={e => setCargo(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{cargos.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
         <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Funil</label><select value={pipelineId} onChange={e => setPipelineId(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+        <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Tipo de negócio</label><select value={tipo} onChange={e => setTipo(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{TIPOS.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}</select></div>
+        <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Atingimento de meta (%)</label><input inputMode="decimal" value={ating} onChange={e => setAting(e.target.value)} placeholder="opcional" className="w-full px-3 py-2 rounded-lg text-sm outline-none tabular-nums" style={inp} /></div>
         <button onClick={simular} disabled={loading} className="w-full py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{loading ? 'Simulando…' : 'Simular'}</button>
       </div>
       {res && (
@@ -147,9 +156,10 @@ function Simulador({ pipelines, cargos }: { pipelines: Pipeline[]; cargos: strin
 function PolicyEditor({ policy, pipelines, cargos, onClose, onSaved }: { policy: Policy | null; pipelines: Pipeline[]; cargos: string[]; onClose: () => void; onSaved: () => void }) {
   const [f, setF] = useState({
     name: policy?.name ?? '', active: policy?.active ?? true, priority: String(policy?.priority ?? 100),
-    cargo: policy?.cargo ?? '', pipeline_id: policy?.pipeline_id ? String(policy.pipeline_id) : '',
+    cargo: policy?.cargo ?? '', pipeline_id: policy?.pipeline_id ? String(policy.pipeline_id) : '', tipo_negocio: policy?.tipo_negocio ?? '',
     min_valor: policy?.min_valor != null ? String(policy.min_valor) : '', max_valor: policy?.max_valor != null ? String(policy.max_valor) : '',
     min_margem: policy?.min_margem != null ? String(policy.min_margem) : '', max_margem: policy?.max_margem != null ? String(policy.max_margem) : '',
+    min_atingimento: policy?.min_atingimento != null ? String(policy.min_atingimento) : '', max_atingimento: policy?.max_atingimento != null ? String(policy.max_atingimento) : '',
     percentual: policy?.percentual != null ? String(policy.percentual) : '',
   })
   const [saving, setSaving] = useState(false)
@@ -161,12 +171,13 @@ function PolicyEditor({ policy, pipelines, cargos, onClose, onSaved }: { policy:
     const pct = Number(String(f.percentual).replace(',', '.'))
     if (isNaN(pct) || pct < 0 || pct > 100) { toast.error('Percentual inválido (0–100)'); return }
     setSaving(true)
+    const pctNum = (v: string) => v === '' ? null : Number(String(v).replace(',', '.'))
     const body = {
       name: f.name, active: f.active, priority: Number(f.priority) || 100,
-      cargo: f.cargo || null, pipeline_id: f.pipeline_id ? Number(f.pipeline_id) : null,
+      cargo: f.cargo || null, pipeline_id: f.pipeline_id ? Number(f.pipeline_id) : null, tipo_negocio: f.tipo_negocio || null,
       min_valor: num(f.min_valor), max_valor: num(f.max_valor),
-      min_margem: f.min_margem === '' ? null : Number(String(f.min_margem).replace(',', '.')),
-      max_margem: f.max_margem === '' ? null : Number(String(f.max_margem).replace(',', '.')),
+      min_margem: pctNum(f.min_margem), max_margem: pctNum(f.max_margem),
+      min_atingimento: pctNum(f.min_atingimento), max_atingimento: pctNum(f.max_atingimento),
       percentual: pct,
     }
     try {
@@ -191,10 +202,13 @@ function PolicyEditor({ policy, pipelines, cargos, onClose, onSaved }: { policy:
           <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Percentual (%)</label><input inputMode="decimal" value={f.percentual} onChange={e => set('percentual', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none tabular-nums" style={inp} /></div>
           <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</label><select value={f.cargo} onChange={e => set('cargo', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{cargos.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Funil</label><select value={f.pipeline_id} onChange={e => set('pipeline_id', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+          <div className="col-span-2"><label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Tipo de negócio</label><select value={f.tipo_negocio} onChange={e => set('tipo_negocio', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inp}><option value="">Qualquer</option>{TIPOS.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}</select></div>
           {field('Valor mín. (R$)', 'min_valor', '—')}
           {field('Valor máx. (R$)', 'max_valor', '—')}
           {field('Margem mín. (%)', 'min_margem', '—')}
           {field('Margem máx. (%)', 'max_margem', '—')}
+          {field('Atingim. mín. (%)', 'min_atingimento', '—')}
+          {field('Atingim. máx. (%)', 'max_atingimento', '—')}
           <label className="col-span-2 flex items-center gap-2 text-sm mt-1" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={f.active} onChange={e => set('active', e.target.checked)} /> Ativa</label>
         </div>
         <div className="flex justify-end gap-2 mt-4">
