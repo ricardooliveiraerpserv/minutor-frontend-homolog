@@ -12,7 +12,19 @@ interface Customer { id: number; name: string; company_name: string | null; cgc:
 interface CrmTag { id: number; name: string; color: string | null; active?: boolean }
 interface CrmProfile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null }
 interface Vinculos { oportunidades: number; propostas: number; contratos: number; projetos: number }
-interface TimelineItem { when: string; source: string; type: string; label: string | null }
+interface TimelineItem { when: string; source: string; type: string; label: string | null; user?: string | null }
+
+// Rótulos amigáveis dos tipos de evento (comercial + contratos + lead).
+const EVT_LABEL: Record<string, string> = {
+  created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado',
+  probabilidade_alterada: 'Probabilidade alterada', previsao_alterada: 'Previsão alterada', parada_alterada: 'Motivo da parada',
+  task_done: 'Tarefa concluída', task_reopened: 'Tarefa reaberta', task_updated: 'Tarefa editada', note: 'Nota',
+  won: 'Ganha', lost: 'Perdida', converted: 'Convertida em contrato', automacao: 'Automação', automacao_erro: 'Falha em automação',
+  field_changed: 'Campo alterado', qualified: 'Qualificado', prospect: 'Virou prospect', lead_created: 'Lead criado',
+  cliente_pendente_cnpj: 'Cliente pendente de CNPJ', product_added: 'Produto adicionado', product_removed: 'Produto removido',
+  renovacao_ignorada: 'Renovação ignorada', proposta_criada: 'Proposta criada',
+}
+const evtLabel = (t: string) => EVT_LABEL[t] ?? (t ? t.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()) : t)
 
 const STATUS: { v: string; l: string; bg: string; fg: string }[] = [
   { v: 'lead',           l: 'Lead',          bg: 'rgba(148,163,184,0.15)', fg: '#94a3b8' },
@@ -291,7 +303,7 @@ export default function CrmEmpresasPage() {
                             : { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
                           {t.source === 'lead' ? 'Lead' : t.source === 'crm' ? 'CRM' : 'Contrato'}
                         </span>
-                        <span className="flex-1" style={{ color: 'var(--text-muted)' }}>{t.type}{t.label ? ` · ${t.label}` : ''}</span>
+                        <span className="flex-1" style={{ color: 'var(--text-muted)' }}>{evtLabel(t.type)}{t.label ? ` · ${t.label}` : ''}{t.user ? <span style={{ color: 'var(--text-light)' }}> · 👤 {t.user}</span> : ''}</span>
                         <span className="shrink-0 tabular-nums" style={{ color: 'var(--text-light)' }}>{t.when ? new Date(t.when).toLocaleDateString('pt-BR') : ''}</span>
                       </div>
                     ))}
