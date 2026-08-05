@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Percent, TrendingUp, TrendingDown, FileDown, Wallet, Trophy, Search, Info, Calculator, CheckCircle2, DollarSign, Ban, Lock } from 'lucide-react'
+import { Percent, TrendingUp, TrendingDown, FileDown, Wallet, Trophy, Search, Info, Calculator, CheckCircle2, DollarSign, Lock, AlertTriangle, ChevronRight, X } from 'lucide-react'
 
 interface Kpis { base: number; base_delta: number | null; comissao: number; comissao_delta: number | null; pct_faturamento: number | null; ticket: number; ganhos: number; pipeline: number; maior_comissao: { name: string; valor: number } | null; comissao_media: number; forecast_comissao: number }
 interface Evo { mes: string; comissao: number }
@@ -13,7 +13,8 @@ interface Rank { user_id: number; name: string; cargo: string | null; base: numb
 interface Insights { maior_comissao: { name: string; valor: number } | null; maior_venda: { title: string; valor: number } | null; maior_ticket: any; maior_percentual: any; maior_pipeline: any; comissao_media: number; pendente: number }
 interface Team { id: number; name: string }
 interface Pagamento { apurada: number; aprovada: number; paga: number; bloqueada: number; cancelada: number; pendente: number; total_apurado: number; nao_apuradas: number; count: number }
-interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; percentual_padrao: number; has_payment_tracking: boolean; pagamento: Pagamento; distribuicao_status: Dist[]; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
+interface Alerta { nivel: string; texto: string }
+interface Cockpit { competencia: string; can_edit: boolean; teams: Team[]; team_id: number | null; percentual_padrao: number; has_payment_tracking: boolean; pagamento: Pagamento; distribuicao_status: Dist[]; alertas: Alerta[]; kpis: Kpis; evolucao: Evo[]; distribuicao: Dist[]; ranking: Rank[]; insights: Insights }
 interface Lancamento { id: number; negocio: string | null; cliente: string | null; responsavel: string | null; base: number; percentual: number; valor: number; status: string; aprovado_em: string | null; pago_em: string | null; motivo: string | null; transicoes: string[] }
 
 const ST_LABEL: Record<string, { l: string; c: string; b: string }> = {
@@ -99,6 +100,7 @@ export default function CrmComissoesCockpit() {
   const [defRate, setDefRate] = useState('')
   const [lancs, setLancs] = useState<Lancamento[]>([])
   const [apurando, setApurando] = useState(false)
+  const [drill, setDrill] = useState<Rank | null>(null)
 
   const qs = `competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}`
   const load = useCallback(() => {
@@ -184,6 +186,14 @@ export default function CrmComissoesCockpit() {
       : d && (
         <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0,1fr) 300px' }}>
           <div className="min-w-0 space-y-4">
+            {d.alertas.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {d.alertas.map((a, i) => {
+                  const c = a.nivel === 'danger' ? { c: 'var(--danger-border)', b: 'var(--danger-bg)' } : a.nivel === 'warning' ? { c: 'var(--warning-border)', b: 'var(--warning-bg)' } : { c: 'var(--info-border)', b: 'var(--info-bg)' }
+                  return <span key={i} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-medium" style={{ color: c.c, background: c.b }}><AlertTriangle size={13} /> {a.texto}</span>
+                })}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {cards.map(c => (
                 <div key={c.label} className="rounded-xl p-3.5 transition hover:brightness-[1.06]" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
@@ -246,7 +256,7 @@ export default function CrmComissoesCockpit() {
                   </tr></thead>
                   <tbody>
                     {ranking.map((r, i) => (
-                      <tr key={r.user_id} className="transition hover:brightness-110" style={{ borderTop: '1px solid var(--border)' }}>
+                      <tr key={r.user_id} onClick={() => setDrill(r)} className="transition hover:brightness-110 cursor-pointer" style={{ borderTop: '1px solid var(--border)' }} title="Ver lançamentos do vendedor">
                         <td className="px-3 py-2.5 text-center text-base w-8">{i < 3 && !q ? MEDAL[i] : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{i + 1}</span>}</td>
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2.5">
@@ -260,7 +270,7 @@ export default function CrmComissoesCockpit() {
                         <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(r.pipeline)}</td>
                         <td className="px-3 py-2.5 text-right">
                           {d.can_edit ? (
-                            <input inputMode="decimal" defaultValue={String(r.percentual)} onBlur={e => { const v = e.target.value; if (v !== String(r.percentual)) saveRate(r.user_id, v) }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="w-14 text-right rounded-lg px-2 py-1 outline-none tabular-nums" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                            <input inputMode="decimal" onClick={e => e.stopPropagation()} defaultValue={String(r.percentual)} onBlur={e => { const v = e.target.value; if (v !== String(r.percentual)) saveRate(r.user_id, v) }} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="w-14 text-right rounded-lg px-2 py-1 outline-none tabular-nums" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
                           ) : <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{r.percentual}%</span>}
                         </td>
                         <td className="px-3 py-2.5 text-right" style={{ minWidth: 150 }}>
@@ -336,7 +346,78 @@ export default function CrmComissoesCockpit() {
           </aside>
         </div>
       )}
+
+      {drill && d && <VendedorDrawer rank={drill} comp={comp} teamId={teamId} canEdit={d.can_edit} onClose={() => setDrill(null)} onChanged={load} />}
     </AppLayout>
+  )
+}
+
+function VendedorDrawer({ rank, comp, teamId, canEdit, onClose, onChanged }: { rank: Rank; comp: string; teamId: string; canEdit: boolean; onClose: () => void; onChanged: () => void }) {
+  const [rows, setRows] = useState<Lancamento[]>([])
+  const [loading, setLoading] = useState(true)
+  const reload = useCallback(() => {
+    setLoading(true)
+    api.get<{ data: { rows: Lancamento[] } }>(`/crm/comissoes/lancamentos?competencia=${comp}${teamId ? `&team_id=${teamId}` : ''}&user_id=${rank.user_id}`)
+      .then(r => setRows(r?.data?.rows ?? [])).catch(() => {}).finally(() => setLoading(false))
+  }, [comp, teamId, rank.user_id])
+  useEffect(() => { reload() }, [reload])
+
+  const change = async (l: Lancamento, to: string) => {
+    let motivo: string | null = null
+    if (to === 'bloqueada' || to === 'cancelada') { motivo = prompt(`Motivo para ${(ACTION_LABEL[to] || to).toLowerCase()}:`); if (motivo === null) return }
+    try { await api.post(`/crm/comissoes/lancamentos/${l.id}/status`, { status: to, motivo }); toast.success('Status atualizado'); reload(); onChanged() }
+    catch (e: any) { toast.error(e?.message || 'Transição não permitida') }
+  }
+
+  const sum = (s: string) => rows.filter(r => r.status === s).reduce((a, r) => a + r.valor, 0)
+  const total = rows.filter(r => r.status !== 'cancelada').reduce((a, r) => a + r.valor, 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="w-full max-w-xl h-full overflow-y-auto p-5" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{initials(rank.name)}</div>
+            <div><h3 className="font-bold" style={{ color: 'var(--text)' }}>{rank.name}</h3><p className="text-[11px]" style={{ color: 'var(--text-light)' }}>{rank.cargo ?? '—'} · {comp}</p></div>
+          </div>
+          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-light)' }} /></button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {[['Apurado', total, 'var(--text)'], ['Pago', sum('paga'), '#17914e'], ['Pendente', sum('apurada') + sum('aprovada'), 'var(--warning-border)'], ['Bloqueado', sum('bloqueada'), 'var(--danger-border)']].map(([l, v, c]) => (
+            <div key={l as string} className="rounded-lg p-2.5" style={{ background: 'var(--surface-sunken)' }}>
+              <p className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{l as string}</p>
+              <p className="text-base font-bold tabular-nums" style={{ color: c as string }}>{fmtBRL(v as number)}</p>
+            </div>
+          ))}
+        </div>
+
+        <h4 className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--text-light)' }}>Lançamentos ({rows.length})</h4>
+        {loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p>
+        : rows.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhum lançamento apurado neste mês. Use “Apurar comissões”.</p>
+        : (
+          <div className="space-y-2">
+            {rows.map(l => {
+              const st = ST_LABEL[l.status] ?? ST_LABEL.apurada
+              return (
+                <div key={l.id} className="rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0"><p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{l.negocio ?? '—'}</p><p className="text-[11px]" style={{ color: 'var(--text-light)' }}>{l.cliente ?? '—'}</p></div>
+                    <div className="text-right shrink-0"><p className="text-sm font-bold tabular-nums" style={{ color: '#17914e' }}>{fmtBRL(l.valor)}</p><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmtBRL(l.base)} × {l.percentual}%</p></div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 flex-wrap gap-1.5">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ color: st.c, background: st.b }} title={l.motivo ?? undefined}>{st.l}{l.pago_em ? ` · ${l.pago_em}` : ''}</span>
+                    <div className="flex gap-1">
+                      {canEdit && l.transicoes.map(to => <button key={to} onClick={() => change(l, to)} className="text-[10px] px-2 py-1 rounded-lg font-semibold" style={{ background: (ST_LABEL[to] ?? st).b, color: (ST_LABEL[to] ?? st).c }}>{ACTION_LABEL[to] ?? to}</button>)}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
