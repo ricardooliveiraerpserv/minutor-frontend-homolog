@@ -66,7 +66,7 @@ interface UserData {
 interface CustomerOption { id: number; name: string }
 interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null }
 
-type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator' | 'administrativo'
+type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator' | 'administrativo' | 'comercial'
 type ConsultantType = 'horista' | 'banco_de_horas' | 'fixo'
 type ContractType   = 'cooperado' | 'clt' | 'pj'
 
@@ -75,6 +75,7 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
   { value: 'consultor',      label: 'Consultor' },
   { value: 'coordenador',    label: 'Coordenador' },
   { value: 'parceiro_adm',   label: 'Parceiro' },
+  { value: 'comercial',      label: 'Comercial' },
   { value: 'administrativo', label: 'Administrativo' },
   { value: 'administrator',  label: 'Administrador' },
 ]
