@@ -1131,34 +1131,19 @@ export default function FechamentoClientePage() {
 
           {/* Controles: período + cliente + contrato */}
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            {/* Pickers De/Até */}
-            <div className="flex items-center gap-2">
-              <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>De</div>
-                <MonthYearPicker
-                  month={fromMonth}
-                  year={fromYear}
-                  onChange={(m, y) => {
-                    setFromMonth(m || null)
-                    setFromYear(y || null)
-                    // Garante que toYM >= fromYM
-                    if (m && y && toYear && toMonth) {
-                      const fYM = toYearMonth(m, y)
-                      const tYM = toYearMonth(toMonth, toYear)
-                      if (fYM > tYM) { setToMonth(m); setToYear(y) }
-                    }
-                  }}
-                />
-              </div>
-              <span className="text-sm pb-1" style={{ color: 'var(--text-light)' }}>—</span>
-              <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Até</div>
-                <MonthYearPicker
-                  month={toMonth}
-                  year={toYear}
-                  onChange={(m, y) => { setToMonth(m || null); setToYear(y || null) }}
-                />
-              </div>
+            {/* Período (mês único) — De e Até seguem o mesmo mês */}
+            <div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Período</div>
+              <MonthYearPicker
+                month={fromMonth}
+                year={fromYear}
+                onChange={(m, y) => {
+                  setFromMonth(m || null)
+                  setFromYear(y || null)
+                  setToMonth(m || null)
+                  setToYear(y || null)
+                }}
+              />
             </div>
 
             {/* Filtro de contrato (projeto) */}
