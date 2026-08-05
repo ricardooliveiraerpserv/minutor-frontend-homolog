@@ -151,9 +151,14 @@ export default function FechamentoSemanalPage() {
               <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-light)' }}>Reaberturas ativas (escopo)</p>
               <div className="flex flex-wrap gap-2">
                 {activeReopens.map((p, i) => (
-                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
-                    {p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.project ?? 'global'}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}
-                    <button title="Fechar agora" onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.project_id ? { project_id: p.project_id } : {}), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}><Lock size={11} /></button>
+                  <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+                    <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.project ?? 'global'}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}</span>
+                    <button title="Encerrar esta reabertura agora" disabled={busy === `ar${i}`}
+                      onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.project_id ? { project_id: p.project_id } : {}), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
+                      style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+                      <Lock size={10} /> Encerrar
+                    </button>
                   </span>
                 ))}
               </div>
