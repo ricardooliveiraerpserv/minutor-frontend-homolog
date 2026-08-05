@@ -28,7 +28,15 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
   fechada: { bg: 'var(--danger-bg)', fg: 'var(--danger)', label: 'Fechada' },
   reaberta: { bg: 'var(--warning-bg)', fg: 'var(--warning)', label: 'Reaberta' },
 }
-const norm = (r: { data?: unknown }): unknown[] => Array.isArray(r.data) ? r.data : ((r.data as { data?: unknown })?.data as unknown[] ?? [])
+// Endpoints do Minutor variam: {items:[]} (customers/users/projects) | {data:[]} (paginate) | [].
+const norm = (r: unknown): unknown[] => {
+  if (Array.isArray(r)) return r
+  const o = r as { items?: unknown; data?: unknown }
+  if (Array.isArray(o?.items)) return o.items
+  if (Array.isArray(o?.data)) return o.data
+  if (Array.isArray((o?.data as { data?: unknown })?.data)) return (o.data as { data: unknown[] }).data
+  return []
+}
 
 export default function FechamentoSemanalPage() {
   const [months, setMonths] = useState<MonthGroup[]>([])
