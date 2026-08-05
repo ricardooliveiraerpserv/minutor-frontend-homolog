@@ -34,7 +34,15 @@ const SCHEMA: Record<Kind, Tab[]> = {
       { title: 'Listagem e visualização', controls: [
         { key: 'tickets.personal_views', label: 'Criar visualizações pessoais', type: 'toggle' },
         { key: 'tickets.shared_views', label: 'Editar/criar painéis compartilhados', type: 'radio', options: [{ value: 'any', label: 'Qualquer agente' }, { value: 'same_team', label: 'Somente mesma equipe' }, { value: 'none', label: 'Não permitir' }] },
-        { key: 'tickets.bulk_actions', label: 'Manutenção coletiva de tickets', type: 'toggle' },
+        { key: 'tickets.bulk_actions', label: 'Manutenção coletiva de tickets (habilita a barra de seleção)', type: 'toggle' },
+        { key: 'tickets.bulk', label: 'O que pode fazer na atualização em massa', type: 'toggles', items: [
+          { key: 'tickets.bulk.responsible', label: 'Responsável' },
+          { key: 'tickets.bulk.level', label: 'Nível de atendimento' },
+          { key: 'tickets.bulk.service', label: 'Serviço' },
+          { key: 'tickets.bulk.category', label: 'Categoria' },
+          { key: 'tickets.bulk.urgency', label: 'Urgência' },
+          { key: 'tickets.bulk.delete', label: 'Excluir' },
+        ] },
       ] },
     ] },
     { id: 'atendimento', label: 'Atendimento', sections: [
@@ -112,7 +120,7 @@ const SCHEMA: Record<Kind, Tab[]> = {
 
 // Toggles ligados por padrão (estilo Movidesk) — o resto começa desligado.
 const ON_BY_DEFAULT: Record<Kind, Set<string>> = {
-  agent: new Set(['tickets.inform.service', 'tickets.inform.sla_due', 'tickets.inform.category', 'tickets.inform.urgency', 'tickets.inform.subject', 'tickets.inform.tags', 'policies.all_catalog', 'policies.can_be_assignee', 'policies.see_new_column', 'policies.global_search', 'service.merge_tickets', 'service.print_ticket', 'service.view_sla', 'service.clone_tickets', 'service.send_email', 'service.reopen_tickets', 'time.view_contract', 'tickets.personal_views', 'tickets.bulk_actions']),
+  agent: new Set(['tickets.inform.service', 'tickets.inform.sla_due', 'tickets.inform.category', 'tickets.inform.urgency', 'tickets.inform.subject', 'tickets.inform.tags', 'policies.all_catalog', 'policies.can_be_assignee', 'policies.see_new_column', 'policies.global_search', 'service.merge_tickets', 'service.print_ticket', 'service.view_sla', 'service.clone_tickets', 'service.send_email', 'service.reopen_tickets', 'time.view_contract', 'tickets.personal_views', 'tickets.bulk_actions', 'tickets.bulk.responsible', 'tickets.bulk.level', 'tickets.bulk.service', 'tickets.bulk.category', 'tickets.bulk.urgency', 'tickets.bulk.delete']),
   cliente: new Set(['tickets.inform.category', 'tickets.inform.subject', 'tickets.personal_views', 'tickets.view_in.service', 'tickets.view_in.responsible', 'tickets.view_in.category', 'tickets.view_in.sla_due', 'tickets.view_in.status', 'tickets.view_in.justification', 'tickets.view_in.subject', 'policies.all_catalog']),
 }
 function defaultsFor(kind: Kind): Record<string, unknown> {
