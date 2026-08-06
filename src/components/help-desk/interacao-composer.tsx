@@ -149,6 +149,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   const draftKey = `hd_draft_${ticketId}`
   const syncEmpty = () => {
     const ed = edRef.current
+    // Remove "molduras" de imagem vazias (o navegador divide o span resize/borda azul
+    // ao arrastar/mover a imagem, deixando um campo azul vazio).
+    ed?.querySelectorAll('span.hd-img, span[style*="resize"]').forEach(sp => { if (!sp.querySelector('img')) sp.remove() })
     setEmpty(!ed || ed.textContent?.trim() === '' && !ed.querySelector('img'))
     if (ed) {
       try {
@@ -197,7 +200,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     // fica no style inline → persiste no envio.
     // Borda AZUL evidente + alça de redimensionar (arrastar o canto inferior-direito).
     document.execCommand('insertHTML', false,
-      `<span title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
+      `<span class="hd-img" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
       `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
     syncEmpty()
   }
@@ -312,6 +315,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           contentEditable={!!sendStatus}
           suppressContentEditableWarning
           onInput={syncEmpty}
+          onKeyUp={syncEmpty}
+          onMouseUp={syncEmpty}
+          onDrop={() => setTimeout(syncEmpty, 0)}
           onPaste={onPaste}
           className="hd-composer hd-rich w-full text-sm rounded-lg px-3 py-2.5 outline-none overflow-y-auto"
           // Fundo papel branco fixo (legível com print/e-mail). Nota interna → fundo ROXO bem

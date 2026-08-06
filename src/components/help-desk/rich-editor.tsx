@@ -64,9 +64,20 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
       if (url && /^https?:\/\/\S+/i.test(url)) exec('createLink', url)
       else if (url) toast.error('URL inválida (use http:// ou https://).')
     }
+    // Remove "molduras" de imagem que ficaram VAZIAS (o navegador divide o span
+    // com resize/borda azul ao mover/arrastar a imagem, deixando um campo azul vazio).
+    const cleanEmptyImages = () => {
+      const ed = edRef.current; if (!ed) return
+      let removed = false
+      ed.querySelectorAll('span.hd-img, span[style*="resize"]').forEach(sp => {
+        if (!sp.querySelector('img')) { sp.remove(); removed = true }
+      })
+      return removed
+    }
+
     useEffect(() => { if (edRef.current) edRef.current.innerHTML = sanitizeRich(initialHtml) }, [initialHtml])
     useImperativeHandle(ref, () => ({
-      getHtml: () => (edRef.current ? sanitizeRich(edRef.current.innerHTML) : ''),
+      getHtml: () => { cleanEmptyImages(); return edRef.current ? sanitizeRich(edRef.current.innerHTML) : '' },
       getFiles: () => files,
     }), [files])
 
@@ -93,7 +104,7 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
       ed.focus()
       // Borda AZUL evidente + alça de redimensionar (arrastar o canto inferior-direito).
       document.execCommand('insertHTML', false,
-        `<span title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
+        `<span class="hd-img" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
         `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
     }
 
@@ -161,8 +172,9 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
           )}
         </div>
         <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste}
-          onInput={() => onChange?.()}
-          onKeyUp={saveSel} onMouseUp={saveSel} onBlur={saveSel}
+          onInput={() => { cleanEmptyImages(); onChange?.() }}
+          onKeyUp={() => { saveSel(); cleanEmptyImages() }} onMouseUp={() => { saveSel(); cleanEmptyImages() }}
+          onDrop={() => setTimeout(cleanEmptyImages, 0)} onBlur={() => { saveSel(); cleanEmptyImages() }}
           className="text-sm hd-rich rounded-lg p-3 outline-none overflow-auto"
           style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480 }} />
         {showAttach ? (
