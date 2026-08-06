@@ -10,6 +10,7 @@ import { GitBranch, Plus, Trash2, Lock, Unlock, GripVertical, Trophy, XCircle, F
 
 const AUTO_TIPOS: { k: string; l: string }[] = [
   { k: 'criar_tarefa', l: 'Criar tarefa / follow-up' },
+  { k: 'definir_proxima_acao', l: 'Definir próxima ação' },
   { k: 'alterar_status_empresa', l: 'Alterar status da empresa' },
   { k: 'enviar_email', l: 'Enviar e-mail' },
   { k: 'notificar', l: 'Notificar (timeline)' },
@@ -317,6 +318,7 @@ function AutomationsModal({ stage, onClose }: { stage: Stage; onClose: () => voi
   const resume = (a: Automation) => {
     const c = a.config ?? {}
     if (a.tipo === 'criar_tarefa') return `${c.titulo ?? 'tarefa'} (+${c.dias_prazo ?? 1}d)`
+    if (a.tipo === 'definir_proxima_acao') return `${c.proxima_acao ?? 'próxima ação'} (+${c.dias_prazo ?? 1}d)`
     if (a.tipo === 'alterar_status_empresa') return `→ ${c.status ?? '?'}`
     if (a.tipo === 'enviar_email') return `p/ ${c.para ?? 'contato'}: ${c.assunto ?? ''}`
     if (a.tipo === 'webhook') return c.url ?? ''
@@ -353,6 +355,11 @@ function AutomationsModal({ stage, onClose }: { stage: Stage; onClose: () => voi
             <input placeholder="Título" onChange={e => set('titulo', e.target.value)} className="px-2 py-1.5 rounded text-sm outline-none col-span-2" style={inp} />
             <input type="number" placeholder="Prazo (dias)" onChange={e => set('dias_prazo', Number(e.target.value))} className="px-2 py-1.5 rounded text-sm outline-none" style={inp} />
             <select onChange={e => set('tipo', e.target.value)} className="px-2 py-1.5 rounded text-sm outline-none" style={inp}><option value="ligacao">Ligação</option><option value="whatsapp">WhatsApp</option><option value="email">E-mail</option><option value="reuniao">Reunião</option></select>
+          </div>)}
+          {tipo === 'definir_proxima_acao' && (<div className="grid grid-cols-3 gap-2">
+            <input placeholder="Próxima ação (ex.: Enviar proposta)" onChange={e => set('proxima_acao', e.target.value)} className="px-2 py-1.5 rounded text-sm outline-none col-span-2" style={inp} />
+            <input type="number" min={0} placeholder="Prazo (dias)" onChange={e => set('dias_prazo', Number(e.target.value))} className="px-2 py-1.5 rounded text-sm outline-none" style={inp} />
+            <p className="col-span-3 text-[10px]" style={{ color: 'var(--text-light)' }}>Preenche a &quot;Próxima ação&quot; da oportunidade (texto + hoje + N dias) ao entrar nesta etapa.</p>
           </div>)}
           {tipo === 'alterar_status_empresa' && (
             <select onChange={e => set('status', e.target.value)} className="w-full px-2 py-1.5 rounded text-sm outline-none" style={inp}><option value="">Status…</option>{CRM_STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}</select>
