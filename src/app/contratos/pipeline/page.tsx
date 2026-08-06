@@ -5969,11 +5969,13 @@ function KanbanContent() {
 // Histórico de dias por coluna: tabela projeto × colunas (dias) + total.
 function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   interface ColDef { key: string; label: string }
-  interface Row { project_id: number; code: string | null; name: string | null; customer: string; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
+  interface Row { project_id: number; code: string | null; name: string | null; customer: string; created_at?: string | null; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
   const [columns, setColumns] = useState<ColDef[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [fCliente, setFCliente] = useState('')
+  const [fProjeto, setFProjeto] = useState('')
 
   useEffect(() => {
     api.get<{ columns: ColDef[]; rows: Row[] }>('/projects/kanban-column-history')
@@ -5983,7 +5985,16 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   }, [])
 
   const fmtD = (d?: number) => d == null || d === 0 ? '—' : `${Number(d).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
-  const filtered = rows.filter(r => !q || `${r.code ?? ''} ${r.name ?? ''} ${r.customer}`.toLowerCase().includes(q.toLowerCase()))
+  const fmtDay = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'
+  // Listas para os filtros (derivadas dos dados).
+  const clientes = Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const projetos = rows.filter(r => !fCliente || r.customer === fCliente)
+    .map(r => ({ id: String(r.project_id), label: `${r.code ?? ''} · ${r.name ?? ''}` }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
+  const filtered = rows.filter(r =>
+    (!q || `${r.code ?? ''} ${r.name ?? ''} ${r.customer}`.toLowerCase().includes(q.toLowerCase())) &&
+    (!fCliente || r.customer === fCliente) &&
+    (!fProjeto || String(r.project_id) === fProjeto))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
@@ -5993,9 +6004,19 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
             <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Dias por Coluna — histórico</h2>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
           </div>
-          <div className="flex items-center gap-2">
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar projeto/cliente…"
-              className="text-sm rounded-lg px-3 py-1.5 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <select value={fCliente} onChange={e => { setFCliente(e.target.value); setFProjeto('') }}
+              className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[180px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              <option value="">Todos os clientes</option>
+              {clientes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={fProjeto} onChange={e => setFProjeto(e.target.value)}
+              className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[220px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              <option value="">Todos os projetos</option>
+              {projetos.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
+              className="text-sm rounded-lg px-3 py-1.5 outline-none w-32" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
             <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
           </div>
         </div>
@@ -6006,6 +6027,7 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                 <tr>
                   <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Projeto</th>
                   <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Cliente</th>
+                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Criado em</th>
                   <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Status atual</th>
                   {columns.map(c => <th key={c.key} className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{c.label}</th>)}
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Total (dias)</th>
@@ -6016,6 +6038,7 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                   <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDay(r.created_at)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
                         style={r.current === 'cancelled'
@@ -6030,7 +6053,7 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                     <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtD(r.total)}</td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={columns.length + 4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={columns.length + 5} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
               </tbody>
             </table>
           )}
