@@ -163,7 +163,7 @@ function NovaRequisicaoContent() {
   const [ccEmails, setCcEmails] = useState<CcEmail[]>([])
   const [ccDraft, setCcDraft] = useState('')
   // Autocomplete: contatos do cliente selecionado + consultores ERPSERV
-  type CcSug = { name: string; email: string; kind: 'cliente' | 'erpserv' }
+  type CcSug = { name: string; email: string; kind: 'cliente' | 'erpserv' | 'parceiro' }
   const [ccSugs, setCcSugs] = useState<CcSug[]>([])
   const [showCcSugs, setShowCcSugs] = useState(false)
 
@@ -410,7 +410,7 @@ function NovaRequisicaoContent() {
                       }
                     }}
                     onBlur={() => { setTimeout(() => setShowCcSugs(false), 150); if (ccDraft.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ccDraft.trim())) { addCcEmail(ccDraft); setCcDraft('') } }}
-                    placeholder={ccEmails.length ? '' : 'Digite nome ou e-mail (cliente + ERPSERV)…'}
+                    placeholder={ccEmails.length ? '' : 'Digite nome ou e-mail (cliente + ERPSERV + parceiros)…'}
                     className="flex-1 min-w-[200px] bg-transparent outline-none text-sm px-1"
                     style={{ color: 'var(--text)' }}
                   />
@@ -423,8 +423,11 @@ function NovaRequisicaoContent() {
                         onMouseDown={ev => { ev.preventDefault(); pickCcSug(s.email) }}
                         className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--surface-hover)]">
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold"
-                          style={{ background: s.kind === 'cliente' ? 'rgba(34,197,94,0.12)' : 'var(--primary-soft)', color: s.kind === 'cliente' ? '#16a34a' : 'var(--primary)' }}>
-                          {s.kind === 'cliente' ? 'Cliente' : 'ERPSERV'}
+                          style={{
+                            background: s.kind === 'cliente' ? 'rgba(34,197,94,0.12)' : s.kind === 'parceiro' ? 'rgba(245,158,11,0.14)' : 'var(--primary-soft)',
+                            color: s.kind === 'cliente' ? '#16a34a' : s.kind === 'parceiro' ? '#b45309' : 'var(--primary)',
+                          }}>
+                          {s.kind === 'cliente' ? 'Cliente' : s.kind === 'parceiro' ? 'Parceiro' : 'ERPSERV'}
                         </span>
                         <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{s.name}</span>
                         <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{s.email}</span>
