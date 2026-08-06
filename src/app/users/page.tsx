@@ -191,6 +191,9 @@ export default function UsersPage() {
   const setSearch         = (v: string) => setFilter('search', v)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
   const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
+  // Limpa TODOS os filtros (busca, aba, ativos, e os filtros específicos).
+  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterBond || filterContract || filterConsultantType || filterSust)
+  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any)
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
   const setFilterBond          = (v: string) => setFilter({ filterBond: v, page: 1 } as any)
@@ -514,6 +517,12 @@ export default function UsersPage() {
               <option value="0">Bloqueado</option>
             </select>
           </>
+        )}
+        {hasActiveFilters && (
+          <button type="button" onClick={clearFilters} title="Limpar filtros"
+            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
+            <X size={13} /> Limpar
+          </button>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
