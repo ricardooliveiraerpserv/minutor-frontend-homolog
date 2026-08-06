@@ -180,6 +180,7 @@ export default function UsersPage() {
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
   const [hasNext, setHasNext] = useState(false)
+  const [total, setTotal] = useState<number | null>(null)
   const [counts, setCounts] = useState<Record<string, number>>({})
 
   const { filters: flt, set: setFilter } = usePersistedFilters(
@@ -260,7 +261,8 @@ export default function UsersPage() {
       if (filterConsultantType) p.set('consultant_type', filterConsultantType)
       if (filterSust)          p.set('sustentacao', filterSust)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
-      const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
+      const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; total?: number; meta?: { last_page: number } }>(`/users?${p}`)
+      setTotal(typeof r?.total === 'number' ? r.total : null)
       const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setUsers(list)
       setSelectedIds(new Set())
@@ -523,6 +525,11 @@ export default function UsersPage() {
             className="inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
             <X size={13} /> Limpar
           </button>
+        )}
+        {total != null && (
+          <span className="text-xs px-2.5 h-8 inline-flex items-center rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+            {total} resultado{total === 1 ? '' : 's'}
+          </span>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">

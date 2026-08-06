@@ -17,20 +17,21 @@ const INTERNAL_ROLES = [{ k: 'admin', l: 'Admin' }, { k: 'administrativo', l: 'A
 // Consultor deixou de ser um chip único → vira dois por VÍNCULO (work_bond): Interno | Free Lance.
 const CONSULTANT_BONDS = [{ k: 'fixo', l: 'Consultor Interno' }, { k: 'freelance', l: 'Consultor Free Lance' }]
 
-/** Chip de destinatário com seta p/ expandir os membros do grupo e RETIRAR alguns do envio. */
-function RecipientChip({ label, active, onToggle, params, fetchMembers, excluded, setExcluded, chipStyle }: {
+/** Chip de grupo: abre a lista de membros (só ATIVOS) p/ SELECIONAR quem recebe.
+ *  Vem tudo DESMARCADO; botão "Selecionar todos"; campo de busca. Marcar adiciona aos destinatários. */
+function RecipientChip({ label, params, fetchMembers, picked, addUsers, removeUsers, chipStyle }: {
   label: string
-  active: boolean
-  onToggle: () => void
-  params: string   // query p/ /users (ex.: 'type=admin' | 'type=consultor&work_bond=fixo' | 'contract_type=3')
+  params: string
   fetchMembers: (params: string) => Promise<{ id: number; name: string; sub?: string | null }[]>
-  excluded: number[]
-  setExcluded: (fn: (prev: number[]) => number[]) => void
+  picked: number[]                                       // ids já selecionados (target_users)
+  addUsers: (m: { id: number; name: string }[]) => void
+  removeUsers: (ids: number[]) => void
   chipStyle: (on: boolean) => CSSProperties
 }) {
   const [open, setOpen] = useState(false)
   const [members, setMembers] = useState<{ id: number; name: string; sub?: string | null }[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [q, setQ] = useState('')
   const expand = async () => {
     const next = !open; setOpen(next)
     if (next && members === null) {
@@ -38,27 +39,36 @@ function RecipientChip({ label, active, onToggle, params, fetchMembers, excluded
       try { setMembers(await fetchMembers(params)) } catch { setMembers([]) } finally { setLoading(false) }
     }
   }
+  const shown = (members ?? []).filter(m => !q || m.name.toLowerCase().includes(q.toLowerCase()))
+  const anyOn = shown.some(m => picked.includes(m.id))
+  const anyGroupSelected = (members ?? []).some(m => picked.includes(m.id))
+
   return (
     <div className="inline-flex flex-col align-top">
-      <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(active)}>
-        <button type="button" onClick={onToggle} className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
-        <button type="button" onClick={expand} title="Ver / retirar destinatários" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
+      <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(anyGroupSelected)}>
+        <button type="button" onClick={expand} className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
+        <button type="button" onClick={expand} title="Escolher pessoas" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
           <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
         </button>
       </div>
       {open && (
-        <div className="mt-1 rounded-lg p-2 max-h-48 overflow-auto min-w-[180px]" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <div className="mt-1 rounded-lg p-2 max-h-56 overflow-auto min-w-[210px]" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
+            className="w-full text-[11px] rounded px-2 py-1 mb-1.5 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           {loading && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
-          {!loading && members && members.length === 0 && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário neste grupo.</p>}
-          {!active && members && members.length > 0 && <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Selecione o grupo para incluí-los.</p>}
-          {members?.map(m => {
-            const on = !excluded.includes(m.id)
+          {!loading && shown.length === 0 && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum ativo neste grupo.</p>}
+          {!loading && shown.length > 0 && (
+            <button type="button" onClick={() => anyOn ? removeUsers(shown.map(m => m.id)) : addUsers(shown.map(m => ({ id: m.id, name: m.name })))}
+              className="text-[11px] mb-1 px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+              {anyOn ? 'Limpar seleção' : 'Selecionar todos'}
+            </button>
+          )}
+          {shown.map(m => {
+            const on = picked.includes(m.id)
             return (
               <label key={m.id} className="flex items-center gap-1.5 text-xs py-0.5 cursor-pointer">
-                <input type="checkbox" checked={on} onChange={() => setExcluded(prev => on ? [...prev, m.id] : prev.filter(x => x !== m.id))} />
-                <span style={{ textDecoration: on ? 'none' : 'line-through', opacity: on ? 1 : .5, color: 'var(--text)' }}>
-                  {m.name}{m.sub ? <span style={{ color: 'var(--text-light)' }}> — {m.sub}</span> : null}
-                </span>
+                <input type="checkbox" checked={on} onChange={() => on ? removeUsers([m.id]) : addUsers([{ id: m.id, name: m.name }])} />
+                <span style={{ color: 'var(--text)' }}>{m.name}{m.sub ? <span style={{ color: 'var(--text-light)' }}> — {m.sub}</span> : null}</span>
               </label>
             )
           })}
@@ -323,10 +333,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const msgRef = useRef<RichEditorHandle>(null)
   const [type, setType] = useState(draft.type ?? 'aviso')
   const [priority, setPriority] = useState(draft.priority ?? 'medium')
-  const [roles, setRoles] = useState<string[]>(draft.target_roles ?? [])
-  const [bonds, setBonds] = useState<string[]>((draft as { target_bonds?: string[] }).target_bonds ?? [])
-  const [excluded, setExcluded] = useState<number[]>((draft as { excluded_user_ids?: number[] }).excluded_user_ids ?? [])
-  const [contractTypes, setContractTypes] = useState<string[]>(draft.target_contract_types ?? [])
+  // Modelo atual = SELEÇÃO POSITIVA de pessoas (target_users). Os antigos grupos vão vazios.
+  const roles: string[] = [], bonds: string[] = [], excluded: number[] = [], contractTypes: string[] = []
   const [pickedUsers, setPickedUsers] = useState<MSOpt[]>([])
   const [sendEmail, setSendEmail] = useState<boolean>(draft.send_email ?? true)
   const [ctaLabel, setCtaLabel] = useState(draft.cta_label ?? '')
@@ -383,12 +391,16 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
     return (r.data ?? []).map(u => ({ id: u.id, name: u.name, sub: u.email }))
   }, [])
 
-  const toggleRole = (r: string) => setRoles(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r])
-  const toggleBond = (b: string) => setBonds(bs => bs.includes(b) ? bs.filter(x => x !== b) : [...bs, b])
-  const toggleContract = (c: string) => setContractTypes(cs => cs.includes(c) ? cs.filter(x => x !== c) : [...cs, c])
   // Busca os membros de um grupo (p/ expandir e retirar do envio). Usa /users com filtros.
+  // Adiciona/remove usuários da seleção (target_users) — dos chips de grupo.
+  const addPicked = (ms: { id: number; name: string }[]) => setPickedUsers(prev => {
+    const ids = new Set(prev.map(u => u.id))
+    return [...prev, ...ms.filter(m => !ids.has(m.id)).map(m => ({ id: m.id, name: m.name }))]
+  })
+  const removePicked = (ids: number[]) => setPickedUsers(prev => prev.filter(u => !ids.includes(u.id)))
+
   const fetchMembers = useCallback(async (params: string): Promise<{ id: number; name: string; sub?: string | null }[]> => {
-    const r = await api.get<{ data?: unknown; items?: unknown }>(`/users?${params}&pageSize=500`)
+    const r = await api.get<{ data?: unknown; items?: unknown }>(`/users?${params}&enabled=1&pageSize=500`)   // só ATIVOS
     const raw = (r as { data?: unknown; items?: unknown }).data ?? (r as { items?: unknown }).items ?? []
     const arr = Array.isArray(raw) ? raw : []
     return arr.map((u) => ({ id: (u as { id: number }).id, name: (u as { name: string }).name, sub: (u as { partner_name?: string | null }).partner_name })).filter(u => u.id && u.name)
@@ -602,18 +614,18 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
         <div className="text-[12px] font-bold" style={{ color: 'var(--text)' }}>Destinatários</div>
 
         <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna <span className="text-[10px]">· clique na seta ▾ para ver/retirar pessoas</span></label>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna <span className="text-[10px]">· clique no grupo p/ escolher as pessoas (só ativos)</span></label>
           <div className="flex flex-wrap gap-2 items-start">
             {INTERNAL_ROLES.map(r => (
-              <RecipientChip key={r.k} label={r.l} active={roles.includes(r.k)} onToggle={() => toggleRole(r.k)}
-                params={`type=${r.k}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+              <RecipientChip key={r.k} label={r.l}
+                params={`type=${r.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
             ))}
             {CONSULTANT_BONDS.map(b => (
-              <RecipientChip key={b.k} label={b.l} active={bonds.includes(b.k)} onToggle={() => toggleBond(b.k)}
-                params={`type=consultor&work_bond=${b.k}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+              <RecipientChip key={b.k} label={b.l}
+                params={`type=consultor&work_bond=${b.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
             ))}
-            <RecipientChip label="Parceiro" active={roles.includes('parceiro_admin')} onToggle={() => toggleRole('parceiro_admin')}
-              params="type=parceiro_admin" fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+            <RecipientChip label="Parceiro"
+              params="type=parceiro_admin" fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
           </div>
         </div>
 
@@ -621,8 +633,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Por tipo de contratação</label>
           <div className="flex flex-wrap gap-2 items-start">
             {contractOpts.map(c => (
-              <RecipientChip key={c.id} label={c.name} active={contractTypes.includes(String(c.id))} onToggle={() => toggleContract(String(c.id))}
-                params={`contract_type=${c.id}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+              <RecipientChip key={c.id} label={c.name}
+                params={`contract_type=${c.id}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
             ))}
           </div>
         </div>
