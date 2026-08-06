@@ -28,8 +28,13 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
   fechada: { bg: 'var(--danger-bg)', fg: 'var(--danger)', label: 'Fechada' },
   fechada_mes: { bg: 'var(--warning-bg)', fg: 'var(--warning)', label: 'Fechada (mês)' },
   reaberta: { bg: 'var(--warning-bg)', fg: 'var(--warning)', label: 'Reaberta' },
+  futura: { bg: 'var(--surface-hover)', fg: 'var(--text-muted)', label: 'Futura' },
 }
 const isClosed = (s: string) => s === 'fechada' || s === 'fechada_mes'
+// Hoje em São Paulo (YYYY-MM-DD) — comparação lexicográfica com week_start.
+const todayStr = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+// Semana ainda NÃO começou (segunda no futuro) → linha inativa.
+const isFutureWeek = (weekStart: string) => weekStart > todayStr()
 // Endpoints do Minutor variam: {items:[]} (customers/users/projects) | {data:[]} (paginate) | [].
 const norm = (r: unknown): unknown[] => {
   if (Array.isArray(r)) return r
@@ -216,22 +221,24 @@ export default function FechamentoSemanalPage() {
                     </tr></thead>
                     <tbody>
                       {m.weeks.map(w => {
+                        // Semana futura (ainda não começou) = linha inativa, sem ações.
+                        const future = isFutureWeek(w.week_start)
                         // Mês fechado bloqueia a semana mesmo que a regra semanal a mostre "aberta".
-                        const eff = (isClosed(m.status) && w.status === 'aberta') ? 'fechada_mes' : w.status
+                        const eff = future ? 'futura' : ((isClosed(m.status) && w.status === 'aberta') ? 'fechada_mes' : w.status)
                         const st = STATUS_STYLE[eff] ?? STATUS_STYLE.aberta
                         return (
                           <Fragment key={w.week_start}>
-                          <tr className="border-t" style={{ borderColor: 'var(--border)' }}>
+                          <tr className="border-t" style={{ borderColor: 'var(--border)', opacity: future ? 0.55 : 1 }}>
                             <td className="px-4 py-2" style={{ color: 'var(--text)' }}><b>Semana {w.n}</b> <span style={{ color: 'var(--text-muted)' }}>· {fmtDate(w.week_start)} – {fmtDate(w.week_end)}</span></td>
                             <td style={{ color: 'var(--text-muted)' }}>{fmtDeadline(w.deadline)}</td>
-                            <td><span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.fg }}>{st.label}</span>{w.status === 'reaberta' && <span className="text-[10px] ml-1.5" style={{ color: 'var(--text-light)' }}>até {fmtDT(w.reopen_auto_close_at)}</span>}</td>
+                            <td><span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: st.bg, color: st.fg }}>{st.label}</span>{!future && w.status === 'reaberta' && <span className="text-[10px] ml-1.5" style={{ color: 'var(--text-light)' }}>até {fmtDT(w.reopen_auto_close_at)}</span>}</td>
                             <td className="text-right pr-4">
                               <div className="inline-flex gap-1.5">
                                 {w.status === 'reaberta'
-                                  ? iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `wc${w.week_start}`), busy === `wc${w.week_start}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar', 'Fechar reabertura')
-                                  : iconBtn(() => doAction('reopen', { period_kind: 'week', period_key: w.week_start }, `wr${w.week_start}`), busy === `wr${w.week_start}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Reabrir', 'Reabrir a semana (global)')}
-                                {iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `we${w.week_start}`), busy === `we${w.week_start}` || isClosed(eff), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', isClosed(eff) ? 'Semana já está fechada' : 'Encerrar a semana (global)')}
-                                {iconBtn(() => openUserPicker('week', w.week_start), false, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', 'Reabrir só para um usuário')}
+                                  ? iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `wc${w.week_start}`), future || busy === `wc${w.week_start}`, { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }, Lock, 'Fechar', 'Fechar reabertura')
+                                  : iconBtn(() => doAction('reopen', { period_kind: 'week', period_key: w.week_start }, `wr${w.week_start}`), future || busy === `wr${w.week_start}`, { bg: 'var(--primary-soft)', fg: 'var(--primary)' }, RotateCcw, 'Reabrir', future ? 'Semana ainda não iniciada' : 'Reabrir a semana (global)')}
+                                {iconBtn(() => doAction('close', { period_kind: 'week', period_key: w.week_start }, `we${w.week_start}`), future || busy === `we${w.week_start}` || isClosed(eff), { bg: 'var(--danger-bg)', fg: 'var(--danger)' }, Lock, 'Encerrar', future ? 'Semana ainda não iniciada' : (isClosed(eff) ? 'Semana já está fechada' : 'Encerrar a semana (global)'))}
+                                {iconBtn(() => openUserPicker('week', w.week_start), future, { bg: 'var(--bg)', fg: 'var(--text-muted)' }, UserCog, 'Usuário', future ? 'Semana ainda não iniciada' : 'Reabrir só para um usuário')}
                               </div>
                             </td>
                           </tr>
