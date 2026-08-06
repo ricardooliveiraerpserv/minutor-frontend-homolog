@@ -844,7 +844,7 @@ function LossModal({ reasons, onCancel, onConfirm }: { reasons: { id: number; na
 // ── Drawer de detalhe da oportunidade: info + Próxima Ação (tarefas) + timeline ──
 interface OppFull extends Opp { pipeline?: { name: string }; stage?: Stage; notas?: string | null; descricao?: string | null; proxima_acao?: string | null; previsao_fechamento?: string | null; ultima_interacao_at?: string | null
   contract_id?: number | null
-  products?: { id: number; name: string; origem?: string | null; pivot: { quantidade: number | string; valor: number | string; categoria?: string | null; tipo_precificacao?: string | null } }[]
+  products?: { id: number; name: string; origem?: string | null; pivot: { quantidade: number | string; valor: number | string; custo?: number | string | null; categoria?: string | null; tipo_precificacao?: string | null } }[]
   tasks?: { id: number; tipo: string; titulo: string | null; data: string | null; prioridade: string; concluida_at: string | null; responsavel?: { name: string } | null }[]
   events?: { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }[]
   qualificacao?: string | null; detalhes?: Record<string, any> | null
@@ -955,15 +955,25 @@ function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; pro
     try { await api.delete(`/crm/opportunities/${oppId}/products/${productId}`); onChanged() }
     catch { toast.error('Erro ao remover produto') }
   }
-  const num = (x: number | string) => Number(x) || 0
-  const total = products.reduce((s, p) => s + num(p.pivot.quantidade) * num(p.pivot.valor), 0)
+  const num = (x: number | string | null | undefined) => Number(x) || 0
+  const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const totalReceita = products.reduce((s, p) => s + num(p.pivot.quantidade) * num(p.pivot.valor), 0)
+  const totalCusto = products.reduce((s, p) => s + num(p.pivot.quantidade) * num(p.pivot.custo), 0)
+  const totalMargem = totalReceita - totalCusto
+  const totalMargemPct = totalReceita > 0 ? (totalMargem / totalReceita) * 100 : 0
   const disponiveis = catalog.filter(c => !products.some(p => p.id === c.id))
 
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between mb-1.5">
         <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Produtos / Serviços</h3>
-        {products.length > 0 && <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>Σ {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>}
+        {products.length > 0 && (
+          <span className="text-[11px] font-semibold tabular-nums flex flex-wrap items-center gap-x-2">
+            <span style={{ color: 'var(--primary)' }}>Σ {brl(totalReceita)}</span>
+            <span style={{ color: 'var(--text-light)' }}>· Custo {brl(totalCusto)}</span>
+            <span style={{ color: totalMargem >= 0 ? '#16a34a' : 'var(--danger-border)' }}>· Margem {brl(totalMargem)} ({totalMargemPct.toFixed(1)}%)</span>
+          </span>
+        )}
       </div>
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         {products.length === 0 ? (
@@ -987,14 +997,30 @@ function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; pro
                 {OPP_PRECIFICACOES.map(x => <option key={x.v} value={x.v}>{x.l}</option>)}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <label className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>Qtd
+            <div className="grid grid-cols-3 gap-1.5">
+              <label className="flex flex-col gap-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>Qtd
                 <input key={`q${p.id}-${p.pivot.quantidade}`} type="number" step="0.01" min="0" defaultValue={String(p.pivot.quantidade)} onBlur={e => { if (e.target.value !== String(p.pivot.quantidade)) put(p.id, { quantidade: e.target.value === '' ? 0 : Number(e.target.value) }) }} className="w-full text-[11px] rounded px-1.5 py-1 outline-none text-right tabular-nums" style={sel} />
               </label>
-              <label className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>Valor
+              <label className="flex flex-col gap-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>Preço unit.
                 <input key={`v${p.id}-${p.pivot.valor}`} type="number" step="0.01" min="0" defaultValue={String(p.pivot.valor)} onBlur={e => { if (e.target.value !== String(p.pivot.valor)) put(p.id, { valor: e.target.value === '' ? 0 : Number(e.target.value) }) }} className="w-full text-[11px] rounded px-1.5 py-1 outline-none text-right tabular-nums" style={sel} />
               </label>
+              <label className="flex flex-col gap-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>Custo unit.
+                <input key={`c${p.id}-${p.pivot.custo ?? 0}`} type="number" step="0.01" min="0" defaultValue={String(p.pivot.custo ?? 0)} onBlur={e => { if (e.target.value !== String(p.pivot.custo ?? 0)) put(p.id, { custo: e.target.value === '' ? 0 : Number(e.target.value) }) }} className="w-full text-[11px] rounded px-1.5 py-1 outline-none text-right tabular-nums" style={sel} />
+              </label>
             </div>
+            {/* Memória de cálculo por produto (dentro da linha) */}
+            {(() => {
+              const q = num(p.pivot.quantidade), v = num(p.pivot.valor), c = num(p.pivot.custo)
+              const receita = q * v, custoTot = q * c, margem = receita - custoTot
+              const margemPct = receita > 0 ? (margem / receita) * 100 : 0
+              return (
+                <div className="text-[10px] rounded px-2 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                  <span>{q} × {brl(v)} = <b style={{ color: 'var(--text)' }}>{brl(receita)}</b></span>
+                  <span>· Custo {q} × {brl(c)} = {brl(custoTot)}</span>
+                  <span>· Margem <b style={{ color: margem >= 0 ? '#16a34a' : 'var(--danger-border)' }}>{brl(margem)} ({margemPct.toFixed(1)}%)</b></span>
+                </div>
+              )
+            })()}
           </div>
         ))}
       </div>
