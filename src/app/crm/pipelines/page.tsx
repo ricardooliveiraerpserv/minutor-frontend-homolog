@@ -145,9 +145,10 @@ export default function CrmPipelinesPage() {
             <button onClick={createPipe} className="w-full rounded-xl p-2.5 text-sm font-semibold flex items-center justify-center gap-1.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Plus size={14} /> Novo pipeline</button>
           </div>
 
-          {/* Detalhe do pipeline selecionado */}
+          {/* Detalhe do pipeline selecionado. key={sel.id} força remount ao trocar de pipeline —
+              senão os inputs não-controlados (defaultValue) ficam presos no valor do pipeline anterior. */}
           {sel && (
-            <div className="flex-1 space-y-4">
+            <div key={sel.id} className="flex-1 space-y-4">
               <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome</label><input defaultValue={sel.name} onBlur={e => e.target.value !== sel.name && patchPipe({ name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
