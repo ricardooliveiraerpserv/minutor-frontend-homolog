@@ -103,17 +103,19 @@ export default function CrmEmpresasPage() {
 
   const save = async () => {
     if (!sel) return
+    if (executiveId === '') { toast.error('Informe o Executivo Comercial'); return }
+    if (!(profile.segment ?? '').toString().trim()) { toast.error('Informe o Segmento'); return }
     setSaving(true)
     try {
       await api.put(`/customers/${sel.id}/crm`, {
         crm_status: crmStatus,
         cgc: cgc.trim() || null,
-        executive_id: executiveId === '' ? null : executiveId,
+        executive_id: executiveId,
         profile: { ...profile, faturamento_estimado: profile.faturamento_estimado === ('' as any) ? null : profile.faturamento_estimado, num_funcionarios: profile.num_funcionarios === ('' as any) ? null : profile.num_funcionarios },
         tag_ids: tagIds,
       })
       toast.success('Empresa atualizada')
-      const exec = executiveId === '' ? null : executives.find(e => e.id === executiveId) ?? null
+      const exec = executives.find(e => e.id === executiveId) ?? null
       setList(xs => xs.map(x => x.id === sel.id ? { ...x, crm_status: crmStatus, executive: exec ? { id: exec.id, name: exec.name } : null } : x))
       setSel(null)
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
@@ -241,7 +243,7 @@ export default function CrmEmpresasPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Executivo Comercial</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Executivo Comercial <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                 <select value={executiveId} onChange={e => setExecutiveId(e.target.value === '' ? '' : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                   <option value="">Sem executivo</option>
                   {/* Se o executivo atual não estiver na lista (ex.: perdeu a flag), mantém-no visível. */}
@@ -258,7 +260,7 @@ export default function CrmEmpresasPage() {
               <div className="grid grid-cols-2 gap-3">
                 {([['region', 'Região'], ['segment', 'Segmento'], ['porte', 'Porte'], ['erp_atual', 'ERP atual'], ['indicacao', 'Indicação / origem']] as [keyof CrmProfile, string][]).map(([k, l]) => (
                   <div key={k}>
-                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{l}</label>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{l}{k === 'segment' && <span style={{ color: 'var(--danger-border)' }}> *</span>}</label>
                     {k === 'segment' ? (
                       <select value={(profile.segment as any) ?? ''} onChange={e => setP('segment', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                         <option value="">—</option>
