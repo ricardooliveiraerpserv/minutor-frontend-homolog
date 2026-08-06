@@ -115,6 +115,8 @@ interface Notif {
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
   is_template?: boolean; template_name?: string | null; actions?: string[] | null
 }
+// Dias da semana (0=domingo … 6=sábado, convenção Carbon dayOfWeek).
+const WEEKDAYS: [number, string][] = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']]
 const RECUR = [
   { k: 'none', l: 'Não repetir' },
   { k: 'every_days', l: 'A cada X dias' },
@@ -194,7 +196,9 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   const useTemplate = (t: Notif) => setEditing({ ...t, id: undefined, is_template: false, template_name: null, target_users: (t as Draft).target_users })
 
   const recurLabel = (n: Notif) => n.recurrence && n.recurrence !== 'none'
-    ? (n.recurrence === 'every_days' ? `a cada ${n.recurrence_value}d` : n.recurrence === 'day_of_month' ? `dia ${n.recurrence_value}` : `${n.recurrence_value}º dia útil`)
+    ? (n.recurrence === 'every_days' ? `a cada ${n.recurrence_value}d`
+      : n.recurrence === 'weekly' ? `semanal (${((n as { recurrence_weekdays?: number[] }).recurrence_weekdays ?? []).map(d => (WEEKDAYS.find(w => w[0] === d)?.[1] ?? '')).join(', ')})`
+      : n.recurrence === 'day_of_month' ? `dia ${n.recurrence_value}` : `${n.recurrence_value}º dia útil`)
     : null
 
   if (editing) return <Form draft={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load(); onChanged?.() }} />
@@ -376,6 +380,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const [visible, setVisible] = useState<boolean>(draft.visible ?? true)
   const [recurrence, setRecurrence] = useState<string>(draft.recurrence ?? 'none')
   const [recurrenceValue, setRecurrenceValue] = useState<number>(draft.recurrence_value ?? 1)
+  const [recurWeekdays, setRecurWeekdays] = useState<number[]>((draft as { recurrence_weekdays?: number[] }).recurrence_weekdays ?? [])
+  const toggleWeekday = (d: number) => setRecurWeekdays(ws => ws.includes(d) ? ws.filter(x => x !== d) : [...ws, d].sort())
   const [saving, setSaving] = useState(false)
 
   // Botões de decisão personalizados (nomes definidos pelo admin) — exigem resposta + geram log/resultado.
@@ -475,7 +481,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       send_email: sendEmail,
       visible,
       recurrence,
-      recurrence_value: recurrence === 'none' ? null : (Number(recurrenceValue) || 1),
+      recurrence_value: recurrence === 'none' || recurrence === 'weekly' ? (recurrence === 'weekly' ? 1 : null) : (Number(recurrenceValue) || 1),
+      recurrence_weekdays: recurrence === 'weekly' ? recurWeekdays : null,
       requires_ack: type === 'require_ack' || type === 'aviso',   // todo Aviso exige aceite (log de leitura)
       cta_label: type === 'action' ? (ctaLabel.trim() || null) : null,
       cta_url: type === 'action' ? (ctaUrl.trim() || null) : null,
@@ -585,18 +592,31 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
                 </label>
                 {recurrence !== 'none' && (
                   <div className="flex items-center gap-1.5 mt-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-                    a cada
-                    <input type="number" min={1} max={recurrence === 'every_hours' ? 168 : 31} className={`${fieldCls} w-16`} style={inputStyle}
-                      value={recurrenceValue || ''}
-                      onChange={e => setRecurrenceValue(e.target.value === '' ? 0 : Number(e.target.value))}
-                      onBlur={() => setRecurrenceValue(v => Math.min(recurrence === 'every_hours' ? 168 : 31, Math.max(1, v || 1)))} />
-                    <select className={`${fieldCls}`} style={inputStyle} value={recurrence === 'every_hours' ? 'hours' : 'days'} onChange={e => setRecurrence(e.target.value === 'hours' ? 'every_hours' : 'every_days')}>
+                    {recurrence !== 'weekly' && <>
+                      a cada
+                      <input type="number" min={1} max={recurrence === 'every_hours' ? 168 : 31} className={`${fieldCls} w-16`} style={inputStyle}
+                        value={recurrenceValue || ''}
+                        onChange={e => setRecurrenceValue(e.target.value === '' ? 0 : Number(e.target.value))}
+                        onBlur={() => setRecurrenceValue(v => Math.min(recurrence === 'every_hours' ? 168 : 31, Math.max(1, v || 1)))} />
+                    </>}
+                    <select className={`${fieldCls}`} style={inputStyle}
+                      value={recurrence === 'every_hours' ? 'hours' : recurrence === 'weekly' ? 'weekly' : 'days'}
+                      onChange={e => setRecurrence(e.target.value === 'hours' ? 'every_hours' : e.target.value === 'weekly' ? 'weekly' : 'every_days')}>
                       <option value="hours">hora(s)</option>
                       <option value="days">dia(s)</option>
+                      <option value="weekly">semana(s)</option>
                     </select>
                   </div>
                 )}
-                <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>O sistema reabre e re-pergunta sozinho no intervalo (horas: de hora em hora · dias: 1×/dia). "Decidir depois" adia até a próxima.</div>
+                {recurrence === 'weekly' && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {WEEKDAYS.map(([d, l]) => { const on = recurWeekdays.includes(d); return (
+                      <button key={d} type="button" onClick={() => toggleWeekday(d)} className="text-[11px] px-2 py-1 rounded-md"
+                        style={on ? { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' } : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{l}</button>
+                    ) })}
+                  </div>
+                )}
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>O sistema reabre e re-pergunta sozinho no intervalo (horas: de hora em hora · dias: 1×/dia · semana: nos dias marcados). "Decidir depois" adia até a próxima.</div>
               </div>
             </div>
           )}
