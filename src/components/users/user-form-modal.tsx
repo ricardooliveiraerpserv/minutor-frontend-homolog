@@ -31,6 +31,7 @@ interface UserData {
   bank_hours_start_date?: string | null
   bank_hours_initial_balance?: number | null
   consultant_type?: string | null
+  work_bond?: string | null
   contract_type?: 'cooperado' | 'clt' | 'pj' | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
@@ -343,6 +344,7 @@ const EMPTY_FORM = {
   guaranteed_hours: '',
   profiles: [] as ProfileType[],
   consultant_type: 'horista' as ConsultantType | '',
+  work_bond: '' as '' | 'fixo' | 'freelance',
   contract_type: '' as ContractType | '',
   coordinator_type: '' as 'projetos' | 'sustentacao' | '',
   is_partner_consultor: false,
@@ -483,6 +485,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           guaranteed_hours:       item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
           profiles,
           consultant_type:      consultant_type as ConsultantType | '',
+          work_bond:            (item.work_bond as '' | 'fixo' | 'freelance' | undefined) ?? '',
           contract_type:        (item.contract_type as ContractType | undefined) ?? '',
           coordinator_type:     (item.coordinator_type as 'projetos' | 'sustentacao' | undefined) ?? '',
           is_partner_consultor: false,
@@ -568,6 +571,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       payload.is_diretor_projetos = form.is_diretor_projetos
       payload.is_coordinator = form.is_coordinator
       payload.is_bizify_coordinator = form.is_bizify_coordinator
+      if (form.profiles.includes('consultor')) {
+        payload.work_bond = form.work_bond || null   // vínculo: Fixo | Free Lance
+      }
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
@@ -945,6 +951,17 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   consultant_type: opt,
                   rate_type: opt === 'horista' ? 'hourly' : 'monthly',
                 }))}
+              />
+            )}
+
+            {/* ── Consultor: vínculo (Fixo | Free Lance) — usado na segmentação de comunicações ── */}
+            {isConsultor && (
+              <FieldSelect
+                label="Vínculo"
+                value={form.work_bond}
+                onChange={(v: string) => setForm(f => ({ ...f, work_bond: v as '' | 'fixo' | 'freelance' }))}
+                options={[{ value: 'fixo', label: 'Consultor Interno' }, { value: 'freelance', label: 'Consultor Free Lance' }]}
+                placeholder="Selecione o vínculo…"
               />
             )}
 

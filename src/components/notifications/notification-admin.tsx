@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -13,7 +13,58 @@ const inputStyle = { background: 'var(--surface)', border: '1px solid var(--bord
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 const lbl = 'text-[11px] font-semibold block mb-0.5'
 
-const INTERNAL_ROLES = [{ k: 'admin', l: 'Admin' }, { k: 'administrativo', l: 'Administrativo' }, { k: 'coordenador', l: 'Coordenador' }, { k: 'consultor', l: 'Consultor' }]
+const INTERNAL_ROLES = [{ k: 'admin', l: 'Admin' }, { k: 'administrativo', l: 'Administrativo' }, { k: 'coordenador', l: 'Coordenador' }]
+// Consultor deixou de ser um chip único → vira dois por VÍNCULO (work_bond): Interno | Free Lance.
+const CONSULTANT_BONDS = [{ k: 'fixo', l: 'Consultor Interno' }, { k: 'freelance', l: 'Consultor Free Lance' }]
+
+/** Chip de destinatário com seta p/ expandir os membros do grupo e RETIRAR alguns do envio. */
+function RecipientChip({ label, active, onToggle, params, fetchMembers, excluded, setExcluded, chipStyle }: {
+  label: string
+  active: boolean
+  onToggle: () => void
+  params: string   // query p/ /users (ex.: 'type=admin' | 'type=consultor&work_bond=fixo' | 'contract_type=3')
+  fetchMembers: (params: string) => Promise<{ id: number; name: string }[]>
+  excluded: number[]
+  setExcluded: (fn: (prev: number[]) => number[]) => void
+  chipStyle: (on: boolean) => CSSProperties
+}) {
+  const [open, setOpen] = useState(false)
+  const [members, setMembers] = useState<{ id: number; name: string }[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const expand = async () => {
+    const next = !open; setOpen(next)
+    if (next && members === null) {
+      setLoading(true)
+      try { setMembers(await fetchMembers(params)) } catch { setMembers([]) } finally { setLoading(false) }
+    }
+  }
+  return (
+    <div className="inline-flex flex-col align-top">
+      <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(active)}>
+        <button type="button" onClick={onToggle} className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
+        <button type="button" onClick={expand} title="Ver / retirar destinatários" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
+          <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1 rounded-lg p-2 max-h-48 overflow-auto min-w-[180px]" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          {loading && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
+          {!loading && members && members.length === 0 && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário neste grupo.</p>}
+          {!active && members && members.length > 0 && <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Selecione o grupo para incluí-los.</p>}
+          {members?.map(m => {
+            const on = !excluded.includes(m.id)
+            return (
+              <label key={m.id} className="flex items-center gap-1.5 text-xs py-0.5 cursor-pointer">
+                <input type="checkbox" checked={on} onChange={() => setExcluded(prev => on ? [...prev, m.id] : prev.filter(x => x !== m.id))} />
+                <span style={{ textDecoration: on ? 'none' : 'line-through', opacity: on ? 1 : .5, color: 'var(--text)' }}>{m.name}</span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface PollOpt { id: number; label: string; order: number; votes: number; percent: number; mine: boolean }
 interface PollData {
@@ -271,6 +322,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const [type, setType] = useState(draft.type ?? 'aviso')
   const [priority, setPriority] = useState(draft.priority ?? 'medium')
   const [roles, setRoles] = useState<string[]>(draft.target_roles ?? [])
+  const [bonds, setBonds] = useState<string[]>((draft as { target_bonds?: string[] }).target_bonds ?? [])
+  const [excluded, setExcluded] = useState<number[]>((draft as { excluded_user_ids?: number[] }).excluded_user_ids ?? [])
   const [contractTypes, setContractTypes] = useState<string[]>(draft.target_contract_types ?? [])
   const [pickedUsers, setPickedUsers] = useState<MSOpt[]>([])
   const [sendEmail, setSendEmail] = useState<boolean>(draft.send_email ?? true)
@@ -329,7 +382,15 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   }, [])
 
   const toggleRole = (r: string) => setRoles(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r])
+  const toggleBond = (b: string) => setBonds(bs => bs.includes(b) ? bs.filter(x => x !== b) : [...bs, b])
   const toggleContract = (c: string) => setContractTypes(cs => cs.includes(c) ? cs.filter(x => x !== c) : [...cs, c])
+  // Busca os membros de um grupo (p/ expandir e retirar do envio). Usa /users com filtros.
+  const fetchMembers = useCallback(async (params: string): Promise<{ id: number; name: string }[]> => {
+    const r = await api.get<{ data?: unknown; items?: unknown }>(`/users?${params}&pageSize=500`)
+    const raw = (r as { data?: unknown; items?: unknown }).data ?? (r as { items?: unknown }).items ?? []
+    const arr = Array.isArray(raw) ? raw : []
+    return arr.map((u) => ({ id: (u as { id: number }).id, name: (u as { name: string }).name })).filter(u => u.id && u.name)
+  }, [])
 
   const setOption = (i: number, v: string) => setPollOptions(opts => opts.map((o, idx) => idx === i ? v : o))
   const addOption = () => setPollOptions(opts => [...opts, ''])
@@ -361,8 +422,10 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
     return {
       title: title.trim(), message, type, priority,
       target_roles: roles,
+      target_bonds: bonds,
       target_users: pickedUsers.map(u => u.id),
       target_contract_types: contractTypes,
+      excluded_user_ids: excluded,
       target_customer_id: null,
       target_customer_ids: [],
       send_email: sendEmail,
@@ -537,23 +600,28 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
         <div className="text-[12px] font-bold" style={{ color: 'var(--text)' }}>Destinatários</div>
 
         <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna</label>
-          <div className="flex flex-wrap gap-2">
-            {INTERNAL_ROLES.map(r => { const on = roles.includes(r.k); return (
-              <button key={r.k} type="button" onClick={() => toggleRole(r.k)} className="text-xs px-2.5 py-1 rounded-lg" style={chip(on)}>{r.l}</button>
-            ) })}
-            {(() => { const on = roles.includes('parceiro_admin'); return (
-              <button type="button" onClick={() => toggleRole('parceiro_admin')} className="text-xs px-2.5 py-1 rounded-lg" style={chip(on)}>Parceiro</button>
-            ) })()}
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna <span className="text-[10px]">· clique na seta ▾ para ver/retirar pessoas</span></label>
+          <div className="flex flex-wrap gap-2 items-start">
+            {INTERNAL_ROLES.map(r => (
+              <RecipientChip key={r.k} label={r.l} active={roles.includes(r.k)} onToggle={() => toggleRole(r.k)}
+                params={`type=${r.k}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+            ))}
+            {CONSULTANT_BONDS.map(b => (
+              <RecipientChip key={b.k} label={b.l} active={bonds.includes(b.k)} onToggle={() => toggleBond(b.k)}
+                params={`type=consultor&work_bond=${b.k}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+            ))}
+            <RecipientChip label="Parceiro" active={roles.includes('parceiro_admin')} onToggle={() => toggleRole('parceiro_admin')}
+              params="type=parceiro_admin" fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
           </div>
         </div>
 
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Por tipo de contratação</label>
-          <div className="flex flex-wrap gap-2">
-            {contractOpts.map(c => { const on = contractTypes.includes(String(c.id)); return (
-              <button key={c.id} type="button" onClick={() => toggleContract(String(c.id))} className="text-xs px-2.5 py-1 rounded-lg" style={chip(on)}>{c.name}</button>
-            ) })}
+          <div className="flex flex-wrap gap-2 items-start">
+            {contractOpts.map(c => (
+              <RecipientChip key={c.id} label={c.name} active={contractTypes.includes(String(c.id))} onToggle={() => toggleContract(String(c.id))}
+                params={`contract_type=${c.id}`} fetchMembers={fetchMembers} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
+            ))}
           </div>
         </div>
 
