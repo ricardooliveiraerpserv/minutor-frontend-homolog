@@ -42,7 +42,23 @@ export default function ContratacaoPage() {
   const [loading, setLoading] = useState(true)
   const [cepLoading, setCepLoading] = useState(false)
   const [open, setOpen] = useState<Card | null>(null)
+  const [showNew, setShowNew] = useState(false)
+  const [nTitle, setNTitle] = useState('')
+  const [nCargo, setNCargo] = useState('')
+  const [nModal, setNModal] = useState('')
+  const [creating, setCreating] = useState(false)
   const { confirm, confirmDialog } = useConfirm()
+
+  const createHire = async () => {
+    if (!nTitle.trim()) { toast.error('Informe o nome da contratação'); return }
+    setCreating(true)
+    try {
+      await api.post('/competencias/contratacao', { title: nTitle.trim(), cargo: nCargo || null, modalidade: nModal || null })
+      toast.success('Contratação incluída')
+      setShowNew(false); setNTitle(''); setNCargo(''); setNModal(''); load()
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao incluir') }
+    finally { setCreating(false) }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -114,6 +130,11 @@ export default function ContratacaoPage() {
 
   return (
     <AppLayout title="Contratação / Onboarding">
+      <div className="flex justify-end mb-3">
+        <button onClick={() => setShowNew(true)} className="ds-btn-primary flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg">
+          <Plus size={15} /> Nova contratação
+        </button>
+      </div>
       <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
         {buckets.map(b => (
           <div key={b.key} style={{ minWidth: 300, flex: '0 0 300px' }}>
@@ -355,6 +376,41 @@ export default function ContratacaoPage() {
         </Modal>
       )}
       {confirmDialog}
+
+      {showNew && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setShowNew(false)}>
+          <div className="ds-card ds-card-pad w-full max-w-md" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Nova contratação</h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                <input autoFocus value={nTitle} onChange={e => setNTitle(e.target.value)} placeholder="Nome da pessoa"
+                  className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cargo</label>
+                  <input value={nCargo} onChange={e => setNCargo(e.target.value)} placeholder="(opcional)"
+                    className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Modalidade</label>
+                  <select value={nModal} onChange={e => setNModal(e.target.value)}
+                    className="w-full text-sm rounded-lg px-2.5 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                    <option value="">(opcional)</option>
+                    {modalidades.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowNew(false)} className="text-sm px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button onClick={createHire} disabled={creating} className="ds-btn-primary text-sm px-4 py-2 rounded-lg disabled:opacity-50">{creating ? 'Incluindo…' : 'Incluir'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
