@@ -16,7 +16,7 @@ interface HireForm {
   perfil: string; coordinator_type: string
   contratacao_fixa: string; consultant_type: string; valor: string; start_date: string
   tem_garantia: string; guaranteed_hours: string; empresa: string
-  recursos: string[]; incluir_whatsapp: string; whatsapp_date: string
+  recursos: string[]; email_criado: string; incluir_whatsapp: string; whatsapp_date: string
   cpf: string; nascimento: string; matricula: string
   cep: string; logradouro: string; numero: string
   complemento: string; bairro: string; cidade: string; estado: string; observacao: string
@@ -52,6 +52,7 @@ export default function ContratacaoPage() {
   const [nRemun, setNRemun] = useState('')        // consultant_type: fixo (Fixa) | horista (Por hora)
   const [nValor, setNValor] = useState('')
   const [nRecursos, setNRecursos] = useState<string[]>([])
+  const [nEmailCriado, setNEmailCriado] = useState('')  // sim | nao
   const [nWhats, setNWhats] = useState('')        // sim | nao
   const [nWhatsDate, setNWhatsDate] = useState('')
   const [nObs, setNObs] = useState('')
@@ -61,7 +62,7 @@ export default function ContratacaoPage() {
   const toggleNRec = (v: string) => setNRecursos(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])
   const resetNew = () => {
     setNTitle(''); setNContato(''); setNCargo('Analista de Sistema'); setNModal(''); setNFixa('')
-    setNRemun(''); setNValor(''); setNRecursos([]); setNWhats(''); setNWhatsDate(''); setNObs('')
+    setNRemun(''); setNValor(''); setNRecursos([]); setNEmailCriado(''); setNWhats(''); setNWhatsDate(''); setNObs('')
   }
 
   const createHire = async () => {
@@ -72,7 +73,7 @@ export default function ContratacaoPage() {
         title: nTitle.trim(), cargo: nCargo || null, modalidade: nModal || null,
         form: {
           contato: nContato, contratacao_fixa: nFixa, consultant_type: nRemun, valor: nValor,
-          recursos: nRecursos, incluir_whatsapp: nWhats,
+          recursos: nRecursos, email_criado: nEmailCriado, incluir_whatsapp: nWhats,
           whatsapp_date: nWhats === 'sim' ? nWhatsDate : '', observacao: nObs,
         },
       })
@@ -453,11 +454,16 @@ export default function ContratacaoPage() {
                       return (
                         <button key={r.value} type="button" onClick={() => toggleNRec(r.value)}
                           className={on ? 'ds-filter-active' : 'ds-btn-secondary'} style={{ padding: '4px 14px', fontSize: 13 }}>
-                          {r.label}{r.value === 'email' ? ' (já criado!)' : ''}
+                          {r.label}
                         </button>
                       )
                     })}
                   </div>
+                </div>
+                {/* E-mail já criado? */}
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>E-mail corporativo já criado?</label>
+                  <Pills options={[['sim', 'Sim'], ['nao', 'Não']]} value={nEmailCriado} onChange={setNEmailCriado} />
                 </div>
                 {/* 7. WhatsApp */}
                 <div className="grid grid-cols-2 gap-3 items-start">
@@ -475,7 +481,7 @@ export default function ContratacaoPage() {
                 {/* Observação */}
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Observação</label>
-                  <textarea value={nObs} onChange={e => setNObs(e.target.value)} rows={2} placeholder="Anotações da passagem…" className="ds-input" />
+                  <textarea value={nObs} onChange={e => setNObs(e.target.value)} rows={6} placeholder="Anotações da passagem…" className="ds-input" style={{ minHeight: 130, resize: 'vertical' }} />
                 </div>
                 {/* Reminder Jeniffer */}
                 <div className="text-[12px] rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
