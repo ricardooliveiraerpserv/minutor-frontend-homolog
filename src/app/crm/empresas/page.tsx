@@ -10,7 +10,7 @@ import { Building2, X, Search, LayoutDashboard, Plus, Trash2 } from 'lucide-reac
 
 interface Customer { id: number; name: string; company_name: string | null; cgc: string; crm_status: string; executive?: { id: number; name: string } | null }
 interface CrmTag { id: number; name: string; color: string | null; active?: boolean }
-interface CrmProfile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null; site: string | null; endereco: string | null }
+interface CrmProfile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null; site: string | null; cep: string | null; endereco: string | null }
 interface Vinculos { oportunidades: number; propostas: number; contratos: number; projetos: number }
 interface TimelineItem { when: string; source: string; type: string; label: string | null; user?: string | null }
 
@@ -35,7 +35,8 @@ const STATUS: { v: string; l: string; bg: string; fg: string }[] = [
 ]
 // "contrato_ativo" foi unificado em "cliente" — alias p/ não quebrar dado residual.
 const statusInfo = (v: string) => STATUS.find(s => s.v === (v === 'contrato_ativo' ? 'cliente' : v)) ?? STATUS[0]
-const EMPTY_PROFILE: CrmProfile = { region: '', segment: '', porte: '', faturamento_estimado: null, num_funcionarios: null, erp_atual: '', indicacao: '', site: '', endereco: '' }
+const EMPTY_PROFILE: CrmProfile = { region: '', segment: '', porte: '', faturamento_estimado: null, num_funcionarios: null, erp_atual: '', indicacao: '', site: '', cep: '', endereco: '' }
+const maskCep = (v: string) => { const d = v.replace(/\D/g, '').slice(0, 8); return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d }
 
 export default function CrmEmpresasPage() {
   const router = useRouter()
@@ -160,6 +161,21 @@ export default function CrmEmpresasPage() {
 
   const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   const setP = (k: keyof CrmProfile, v: any) => setProfile(p => ({ ...p, [k]: v }))
+  const [cepBusy, setCepBusy] = useState(false)
+  // Busca automática de endereço pelo CEP (ViaCEP). Preenche o campo Endereço; mantém o nº digitado pelo usuário.
+  const buscarCep = async (raw: string) => {
+    const cep = raw.replace(/\D/g, '')
+    if (cep.length !== 8) return
+    setCepBusy(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const j = await res.json()
+      if (j?.erro) { toast.error('CEP não encontrado'); return }
+      const linha = [j.logradouro, j.bairro, j.localidade && j.uf ? `${j.localidade}/${j.uf}` : j.localidade].filter(Boolean).join(', ')
+      setProfile(p => ({ ...p, cep: maskCep(cep), endereco: linha || p.endereco }))
+      toast.success('Endereço preenchido pelo CEP')
+    } catch { toast.error('Falha ao consultar o CEP') } finally { setCepBusy(false) }
+  }
 
   return (
     <AppLayout title="Empresas (CRM)">
@@ -280,8 +296,12 @@ export default function CrmEmpresasPage() {
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nº de funcionários</label>
                   <input type="number" value={(profile.num_funcionarios as any) ?? ''} onChange={e => setP('num_funcionarios', e.target.value === '' ? null : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                 </div>
+                <div>
+                  <label className="block text-xs mb-1 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>CEP {cepBusy && <span style={{ color: 'var(--primary)' }}>buscando…</span>}</label>
+                  <input value={(profile.cep as any) ?? ''} inputMode="numeric" onChange={e => { const m = maskCep(e.target.value); setP('cep', m); if (m.replace(/\D/g, '').length === 8) buscarCep(m) }} onBlur={e => buscarCep(e.target.value)} placeholder="00000-000" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                </div>
                 <div className="col-span-2">
-                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Endereço</label>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Endereço <span style={{ color: 'var(--text-light)' }}>(preenchido pelo CEP — ajuste o nº)</span></label>
                   <input value={(profile.endereco as any) ?? ''} onChange={e => setP('endereco', e.target.value)} placeholder="Rua, nº, bairro, cidade/UF" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                 </div>
               </div>
