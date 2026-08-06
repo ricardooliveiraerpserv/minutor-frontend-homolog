@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
+import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass } from 'lucide-react'
@@ -5973,7 +5974,6 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   const [columns, setColumns] = useState<ColDef[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
-  const [q, setQ] = useState('')
   const [fCliente, setFCliente] = useState('')
   const [fProjeto, setFProjeto] = useState('')
 
@@ -5992,9 +5992,26 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
     .map(r => ({ id: String(r.project_id), label: `${r.code ?? ''} · ${r.name ?? ''}` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
   const filtered = rows.filter(r =>
-    (!q || `${r.code ?? ''} ${r.name ?? ''} ${r.customer}`.toLowerCase().includes(q.toLowerCase())) &&
     (!fCliente || r.customer === fCliente) &&
     (!fProjeto || String(r.project_id) === fProjeto))
+  // Ordenação por coluna (clique no cabeçalho). Default: total desc.
+  const [sortKey, setSortKey] = useState<string>('total')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const clickSort = (k: string) => { if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(k); setSortDir(k === 'name' || k === 'customer' || k === 'current' ? 'asc' : 'desc') } }
+  const sortVal = (r: Row, k: string): number | string => {
+    if (k === 'total') return r.total
+    if (k === 'name') return `${r.code ?? ''} ${r.name ?? ''}`.toLowerCase()
+    if (k === 'customer') return r.customer.toLowerCase()
+    if (k === 'created_at') return r.created_at ? new Date(r.created_at).getTime() : 0
+    if (k === 'current') return (r.current_label ?? r.current).toLowerCase()
+    return r.days_by_column[k] ?? 0   // coluna de dias
+  }
+  const sorted = [...filtered].sort((a, b) => {
+    const va = sortVal(a, sortKey), vb = sortVal(b, sortKey)
+    const c = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt-BR')
+    return sortDir === 'asc' ? c : -c
+  })
+  const arrow = (k: string) => sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
@@ -6005,18 +6022,10 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <select value={fCliente} onChange={e => { setFCliente(e.target.value); setFProjeto('') }}
-              className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[180px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-              <option value="">Todos os clientes</option>
-              {clientes.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={fProjeto} onChange={e => setFProjeto(e.target.value)}
-              className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[220px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-              <option value="">Todos os projetos</option>
-              {projetos.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
-              className="text-sm rounded-lg px-3 py-1.5 outline-none w-32" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+            <div className="w-44"><SearchSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto('') }}
+              options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" /></div>
+            <div className="w-56"><SearchSelect value={fProjeto} onChange={setFProjeto}
+              options={projetos.map(p => ({ id: p.id, name: p.label }))} placeholder="Todos os projetos" /></div>
             <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
           </div>
         </div>
@@ -6025,16 +6034,16 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
             <table className="w-full text-xs border-collapse">
               <thead className="sticky top-0" style={{ background: 'var(--surface-sunken)' }}>
                 <tr>
-                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Projeto</th>
-                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Cliente</th>
-                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Criado em</th>
-                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Status atual</th>
-                  {columns.map(c => <th key={c.key} className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{c.label}</th>)}
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Total (dias)</th>
+                  <th onClick={() => clickSort('name')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Projeto{arrow('name')}</th>
+                  <th onClick={() => clickSort('customer')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Cliente{arrow('customer')}</th>
+                  <th onClick={() => clickSort('created_at')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Criado em{arrow('created_at')}</th>
+                  <th onClick={() => clickSort('current')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Status atual{arrow('current')}</th>
+                  {columns.map(c => <th key={c.key} onClick={() => clickSort(c.key)} className="text-right px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>{c.label}{arrow(c.key)}</th>)}
+                  <th onClick={() => clickSort('total')} className="text-right px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--primary)' }}>Total (dias){arrow('total')}</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => (
+                {sorted.map((r, i) => (
                   <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
