@@ -53,7 +53,7 @@ interface Timeline { eventos: TimelineItem[]; total: number }
 interface Permissoes { comercial: boolean; adm: boolean; serv: boolean; despesas: boolean }
 interface Data360 { header: Header; resumo: Resumo; crm?: Crm; negociacoes?: Negociacoes; saude?: Saude; adm?: Adm; serv?: Serv; timeline: Timeline }
 
-interface Profile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null; observacoes?: string | null }
+interface Profile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null; site?: string | null; endereco?: string | null; observacoes?: string | null }
 interface CrmShow { crm_status: string | null; cgc: string | null; profile: Profile | null; executive?: { id: number; name: string } | null; tags?: { id: number; name: string }[] }
 interface Contact { id: number; name: string; cargo: string | null; email: string | null; phone: string | null; whatsapp: string | null; departamento: string | null; influencia_decisao: string | null; canal_preferido: string | null }
 
@@ -251,8 +251,8 @@ export default function Ficha360Page() {
                   <Row label="Empresa" value={<span title={h!.name}>{h!.name}</span>} />
                   <Row label="Segmento" value={prof?.segment || h!.segment} />
                   <Row label="CNPJ / CPF" value={crmShow?.cgc} />
-                  <Row label="URL / site" value={'—'} />
-                  <Row label="Endereço" value={'—'} />
+                  <Row label="URL / site" value={prof?.site ? <a href={/^https?:\/\//.test(prof.site) ? prof.site : `https://${prof.site}`} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)' }}>{prof.site}</a> : '—'} />
+                  <Row label="Endereço" value={prof?.endereco} />
                 </SideSection>
                 <SideSection title="Informações adicionais" open={!!openSec.info} onToggle={() => toggleSec('info')}>
                   <Row label="Região" value={prof?.region} />
