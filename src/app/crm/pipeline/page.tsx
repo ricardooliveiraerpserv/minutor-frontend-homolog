@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { LeadsBoard } from '@/components/crm/leads-board'
 import { toast } from 'sonner'
-import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil } from 'lucide-react'
+import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil, ChevronDown } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useAsyncAction } from '@/hooks/use-async-action'
@@ -276,6 +276,58 @@ function optimisticMoveCard(cols: Column[], oppId: number, fromStageId: number, 
     if (col.stage.id === toStageId) return { ...col, opportunities: [...col.opportunities, { ...moved, stage_id: toStageId }], count: col.count + 1, total_valor: col.total_valor + (moved.valor || 0) }
     return col
   })
+}
+
+// Lista de escolhas (multi-seleção com busca) — para Produtos/Serviços na oportunidade.
+function ProdutoMultiSelect({ options, value, onChange }: { options: { id: number; name: string }[]; value: number[]; onChange: (ids: number[]) => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+  const list = options.filter(o => o.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const toggle = (id: number) => onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id])
+  const selected = options.filter(o => value.includes(o.id))
+  const inp = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm outline-none text-left" style={inp}>
+        <span style={{ color: value.length ? 'var(--text)' : 'var(--text-muted)' }}>{value.length ? `${value.length} selecionado(s)` : 'Selecione os produtos/serviços…'}</span>
+        <ChevronDown size={15} style={{ color: 'var(--text-light)', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {open && (
+        <div className="absolute z-40 mt-1 w-full rounded-lg overflow-hidden shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Buscar…" className="w-full px-2.5 py-1.5 rounded-lg text-sm outline-none" style={inp} />
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            {list.map(o => {
+              const on = value.includes(o.id)
+              return (
+                <button key={o.id} type="button" onClick={() => toggle(o.id)} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]">
+                  <span className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary)' : 'transparent' }}>{on && <Check size={12} style={{ color: 'var(--primary-fg)' }} />}</span>
+                  <span style={{ color: 'var(--text)' }}>{o.name}</span>
+                </button>
+              )
+            })}
+            {list.length === 0 && <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Nada encontrado.</p>}
+          </div>
+        </div>
+      )}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selected.map(o => (
+            <span key={o.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+              {o.name}
+              <button type="button" onClick={() => toggle(o.id)} style={{ color: 'var(--primary)' }}><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function CrmPipelinePage() {
@@ -705,12 +757,7 @@ export default function CrmPipelinePage() {
               {produtos.length > 0 && (
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Produtos / Serviços</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {produtos.map(p => {
-                      const on = nfProdutos.includes(p.id)
-                      return <button key={p.id} type="button" onClick={() => setNfProdutos(xs => on ? xs.filter(x => x !== p.id) : [...xs, p.id])} className="px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: on ? 'var(--primary)' : 'var(--surface-sunken)', color: on ? 'var(--primary-fg)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.name}</button>
-                    })}
-                  </div>
+                  <ProdutoMultiSelect options={produtos} value={nfProdutos} onChange={setNfProdutos} />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
