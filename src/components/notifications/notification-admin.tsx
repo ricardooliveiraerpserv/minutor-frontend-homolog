@@ -17,15 +17,20 @@ const INTERNAL_ROLES = [{ k: 'admin', l: 'Admin' }, { k: 'administrativo', l: 'A
 // Consultor deixou de ser um chip único → vira dois por VÍNCULO (work_bond): Interno | Free Lance.
 const CONSULTANT_BONDS = [{ k: 'fixo', l: 'Consultor Interno' }, { k: 'freelance', l: 'Consultor Free Lance' }]
 
-/** Chip de grupo: abre a lista de membros (só ATIVOS) p/ SELECIONAR quem recebe.
- *  Vem tudo DESMARCADO; botão "Selecionar todos"; campo de busca. Marcar adiciona aos destinatários. */
-function RecipientChip({ label, params, fetchMembers, picked, addUsers, removeUsers, chipStyle }: {
+/** Chip híbrido: clicar no LABEL seleciona o GRUPO inteiro; a seta ▾ abre a lista (só ATIVOS)
+ *  p/ escolher pessoas ou retirar do grupo. Grupo ativo → todos marcados (desmarcar retira);
+ *  grupo inativo → desmarcados (marcar adiciona pessoa). Campo de busca + Selecionar todos. */
+function RecipientChip({ label, active, onToggleGroup, params, fetchMembers, picked, addUsers, removeUsers, excluded, setExcluded, chipStyle }: {
   label: string
+  active: boolean
+  onToggleGroup: () => void
   params: string
   fetchMembers: (params: string) => Promise<{ id: number; name: string; sub?: string | null }[]>
-  picked: number[]                                       // ids já selecionados (target_users)
+  picked: number[]
   addUsers: (m: { id: number; name: string }[]) => void
   removeUsers: (ids: number[]) => void
+  excluded: number[]
+  setExcluded: (fn: (prev: number[]) => number[]) => void
   chipStyle: (on: boolean) => CSSProperties
 }) {
   const [open, setOpen] = useState(false)
@@ -40,35 +45,45 @@ function RecipientChip({ label, params, fetchMembers, picked, addUsers, removeUs
     }
   }
   const shown = (members ?? []).filter(m => !q || m.name.toLowerCase().includes(q.toLowerCase()))
-  const anyOn = shown.some(m => picked.includes(m.id))
-  const anyGroupSelected = (members ?? []).some(m => picked.includes(m.id))
+  // "recebe?" — grupo ativo: todos menos os excluídos; grupo inativo: só os escolhidos.
+  const isOn = (id: number) => active ? !excluded.includes(id) : picked.includes(id)
+  const toggleMember = (m: { id: number; name: string }) => {
+    if (active) setExcluded(prev => prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id])
+    else (picked.includes(m.id) ? removeUsers([m.id]) : addUsers([{ id: m.id, name: m.name }]))
+  }
+  const allOn = shown.length > 0 && shown.every(m => isOn(m.id))
+  const selectAll = () => {
+    const ids = shown.map(m => m.id)
+    if (active) setExcluded(prev => allOn ? [...new Set([...prev, ...ids])] : prev.filter(x => !ids.includes(x)))
+    else (allOn ? removeUsers(ids) : addUsers(shown.map(m => ({ id: m.id, name: m.name }))))
+  }
 
   return (
     <div className="inline-flex flex-col align-top">
-      <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(anyGroupSelected)}>
-        <button type="button" onClick={expand} className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
-        <button type="button" onClick={expand} title="Escolher pessoas" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
+      <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(active)}>
+        <button type="button" onClick={onToggleGroup} title="Selecionar o grupo inteiro" className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
+        <button type="button" onClick={expand} title="Escolher / retirar pessoas" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
           <ChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
         </button>
       </div>
       {open && (
         <div className="mt-1 rounded-lg p-2 max-h-56 overflow-auto min-w-[210px]" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>{active ? 'Grupo selecionado — desmarque p/ retirar' : 'Marque as pessoas ou clique no nome do grupo p/ todos'}</p>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
             className="w-full text-[11px] rounded px-2 py-1 mb-1.5 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           {loading && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
           {!loading && shown.length === 0 && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum ativo neste grupo.</p>}
           {!loading && shown.length > 0 && (
-            <button type="button" onClick={() => anyOn ? removeUsers(shown.map(m => m.id)) : addUsers(shown.map(m => ({ id: m.id, name: m.name })))}
-              className="text-[11px] mb-1 px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-              {anyOn ? 'Limpar seleção' : 'Selecionar todos'}
+            <button type="button" onClick={selectAll} className="text-[11px] mb-1 px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+              {allOn ? 'Limpar seleção' : 'Selecionar todos'}
             </button>
           )}
           {shown.map(m => {
-            const on = picked.includes(m.id)
+            const on = isOn(m.id)
             return (
               <label key={m.id} className="flex items-center gap-1.5 text-xs py-0.5 cursor-pointer">
-                <input type="checkbox" checked={on} onChange={() => on ? removeUsers([m.id]) : addUsers([{ id: m.id, name: m.name }])} />
-                <span style={{ color: 'var(--text)' }}>{m.name}{m.sub ? <span style={{ color: 'var(--text-light)' }}> — {m.sub}</span> : null}</span>
+                <input type="checkbox" checked={on} onChange={() => toggleMember(m)} />
+                <span style={{ textDecoration: on ? 'none' : 'line-through', opacity: on ? 1 : .5, color: 'var(--text)' }}>{m.name}{m.sub ? <span style={{ color: 'var(--text-light)' }}> — {m.sub}</span> : null}</span>
               </label>
             )
           })}
@@ -333,9 +348,16 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const msgRef = useRef<RichEditorHandle>(null)
   const [type, setType] = useState(draft.type ?? 'aviso')
   const [priority, setPriority] = useState(draft.priority ?? 'medium')
-  // Modelo atual = SELEÇÃO POSITIVA de pessoas (target_users). Os antigos grupos vão vazios.
-  const roles: string[] = [], bonds: string[] = [], excluded: number[] = [], contractTypes: string[] = []
+  // Dois modos: GRUPO inteiro (roles/bonds/contractTypes) e SELEÇÃO de pessoas (pickedUsers).
+  // excluded = pessoas retiradas de um grupo ativo.
+  const [roles, setRoles] = useState<string[]>(draft.target_roles ?? [])
+  const [bonds, setBonds] = useState<string[]>((draft as { target_bonds?: string[] }).target_bonds ?? [])
+  const [contractTypes, setContractTypes] = useState<string[]>(draft.target_contract_types ?? [])
+  const [excluded, setExcluded] = useState<number[]>((draft as { excluded_user_ids?: number[] }).excluded_user_ids ?? [])
   const [pickedUsers, setPickedUsers] = useState<MSOpt[]>([])
+  const toggleRole = (r: string) => setRoles(rs => rs.includes(r) ? rs.filter(x => x !== r) : [...rs, r])
+  const toggleBond = (b: string) => setBonds(bs => bs.includes(b) ? bs.filter(x => x !== b) : [...bs, b])
+  const toggleContract = (c: string) => setContractTypes(cs => cs.includes(c) ? cs.filter(x => x !== c) : [...cs, c])
   const [sendEmail, setSendEmail] = useState<boolean>(draft.send_email ?? true)
   const [ctaLabel, setCtaLabel] = useState(draft.cta_label ?? '')
   const [ctaUrl, setCtaUrl] = useState(draft.cta_url ?? '')
@@ -614,18 +636,18 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
         <div className="text-[12px] font-bold" style={{ color: 'var(--text)' }}>Destinatários</div>
 
         <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna <span className="text-[10px]">· clique no grupo p/ escolher as pessoas (só ativos)</span></label>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Equipe interna <span className="text-[10px]">· clique no nome = grupo inteiro · seta ▾ = escolher/retirar pessoas (só ativos)</span></label>
           <div className="flex flex-wrap gap-2 items-start">
             {INTERNAL_ROLES.map(r => (
-              <RecipientChip key={r.k} label={r.l}
-                params={`type=${r.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
+              <RecipientChip key={r.k} label={r.l} active={roles.includes(r.k)} onToggleGroup={() => toggleRole(r.k)}
+                params={`type=${r.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
             ))}
             {CONSULTANT_BONDS.map(b => (
-              <RecipientChip key={b.k} label={b.l}
-                params={`type=consultor&work_bond=${b.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
+              <RecipientChip key={b.k} label={b.l} active={bonds.includes(b.k)} onToggleGroup={() => toggleBond(b.k)}
+                params={`type=consultor&work_bond=${b.k}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
             ))}
-            <RecipientChip label="Parceiro"
-              params="type=parceiro_admin" fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
+            <RecipientChip label="Parceiro" active={roles.includes('parceiro_admin')} onToggleGroup={() => toggleRole('parceiro_admin')}
+              params="type=parceiro_admin" fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
           </div>
         </div>
 
@@ -633,8 +655,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Por tipo de contratação</label>
           <div className="flex flex-wrap gap-2 items-start">
             {contractOpts.map(c => (
-              <RecipientChip key={c.id} label={c.name}
-                params={`contract_type=${c.id}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} chipStyle={chip} />
+              <RecipientChip key={c.id} label={c.name} active={contractTypes.includes(String(c.id))} onToggleGroup={() => toggleContract(String(c.id))}
+                params={`contract_type=${c.id}`} fetchMembers={fetchMembers} picked={pickedUsers.map(u => u.id)} addUsers={addPicked} removeUsers={removePicked} excluded={excluded} setExcluded={setExcluded} chipStyle={chip} />
             ))}
           </div>
         </div>
