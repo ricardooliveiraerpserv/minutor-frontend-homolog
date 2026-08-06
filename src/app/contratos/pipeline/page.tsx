@@ -5970,12 +5970,15 @@ function KanbanContent() {
 // Histórico de dias por coluna: tabela projeto × colunas (dias) + total.
 function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   interface ColDef { key: string; label: string }
-  interface Row { project_id: number; code: string | null; name: string | null; customer: string; created_at?: string | null; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
+  interface Row { project_id: number; code: string | null; name: string | null; customer: string; coordinator?: string; executive?: string; created_at?: string | null; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
   const [columns, setColumns] = useState<ColDef[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [fCliente, setFCliente] = useState('')
   const [fProjeto, setFProjeto] = useState('')
+  const [fCoord, setFCoord] = useState('')
+  const [fStatus, setFStatus] = useState('')
+  const [fExec, setFExec] = useState('')
 
   useEffect(() => {
     api.get<{ columns: ColDef[]; rows: Row[] }>('/projects/kanban-column-history')
@@ -5987,13 +5990,20 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   const fmtD = (d?: number) => d == null || d === 0 ? '—' : `${Number(d).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
   const fmtDay = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'
   // Listas para os filtros (derivadas dos dados).
-  const clientes = Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const uniqSorted = (vals: (string | undefined)[]) => Array.from(new Set(vals.filter((v): v is string => !!v && v !== '—'))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const clientes = uniqSorted(rows.map(r => r.customer))
+  const coords = uniqSorted(rows.map(r => r.coordinator))
+  const execs = uniqSorted(rows.map(r => r.executive))
+  const statuses = uniqSorted(rows.map(r => r.current_label))
   const projetos = rows.filter(r => !fCliente || r.customer === fCliente)
     .map(r => ({ id: String(r.project_id), label: `${r.code ?? ''} · ${r.name ?? ''}` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
   const filtered = rows.filter(r =>
     (!fCliente || r.customer === fCliente) &&
-    (!fProjeto || String(r.project_id) === fProjeto))
+    (!fProjeto || String(r.project_id) === fProjeto) &&
+    (!fCoord || r.coordinator === fCoord) &&
+    (!fExec || r.executive === fExec) &&
+    (!fStatus || r.current_label === fStatus))
   // Ordenação por coluna (clique no cabeçalho). Default: total desc.
   const [sortKey, setSortKey] = useState<string>('total')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -6002,9 +6012,24 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
     if (k === 'total') return r.total
     if (k === 'name') return `${r.code ?? ''} ${r.name ?? ''}`.toLowerCase()
     if (k === 'customer') return r.customer.toLowerCase()
+    if (k === 'coordinator') return (r.coordinator ?? '').toLowerCase()
+    if (k === 'executive') return (r.executive ?? '').toLowerCase()
     if (k === 'created_at') return r.created_at ? new Date(r.created_at).getTime() : 0
     if (k === 'current') return (r.current_label ?? r.current).toLowerCase()
     return r.days_by_column[k] ?? 0   // coluna de dias
+  }
+  // Exporta a tabela (respeitando filtros/ordem) p/ CSV (abre no Excel).
+  const exportCsv = () => {
+    const head = ['Projeto', 'Cliente', 'Coordenador', 'Executivo', 'Criado em', 'Status atual', ...columns.map(c => c.label), 'Total (dias)']
+    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
+    const lines = sorted.map(r => [
+      `${r.code ?? ''} ${r.name ?? ''}`.trim(), r.customer, r.coordinator ?? '—', r.executive ?? '—',
+      fmtDay(r.created_at), r.current_label ?? r.current,
+      ...columns.map(c => r.days_by_column[c.key] ?? 0), r.total,
+    ].map(esc).join(';'))
+    const csv = '﻿' + [head.map(esc).join(';'), ...lines].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dias-por-coluna.csv'; a.click(); URL.revokeObjectURL(a.href)
   }
   const sorted = [...filtered].sort((a, b) => {
     const va = sortVal(a, sortKey), vb = sortVal(b, sortKey)
@@ -6022,10 +6047,17 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <div className="w-44"><SearchSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto('') }}
+            <div className="w-40"><SearchSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto('') }}
               options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" /></div>
-            <div className="w-56"><SearchSelect value={fProjeto} onChange={setFProjeto}
+            <div className="w-48"><SearchSelect value={fProjeto} onChange={setFProjeto}
               options={projetos.map(p => ({ id: p.id, name: p.label }))} placeholder="Todos os projetos" /></div>
+            <div className="w-40"><SearchSelect value={fCoord} onChange={setFCoord}
+              options={coords.map(c => ({ id: c, name: c }))} placeholder="Todos coordenadores" /></div>
+            <div className="w-40"><SearchSelect value={fExec} onChange={setFExec}
+              options={execs.map(e => ({ id: e, name: e }))} placeholder="Todos executivos" /></div>
+            <div className="w-40"><SearchSelect value={fStatus} onChange={setFStatus}
+              options={statuses.map(s => ({ id: s, name: s }))} placeholder="Todos os status" /></div>
+            <button onClick={exportCsv} title="Exportar Excel" className="inline-flex items-center gap-1.5 h-9 px-3 text-sm rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}><Download size={14} /> Excel</button>
             <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
           </div>
         </div>
@@ -6036,6 +6068,8 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                 <tr>
                   <th onClick={() => clickSort('name')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Projeto{arrow('name')}</th>
                   <th onClick={() => clickSort('customer')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Cliente{arrow('customer')}</th>
+                  <th onClick={() => clickSort('coordinator')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Coordenador{arrow('coordinator')}</th>
+                  <th onClick={() => clickSort('executive')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Executivo{arrow('executive')}</th>
                   <th onClick={() => clickSort('created_at')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Criado em{arrow('created_at')}</th>
                   <th onClick={() => clickSort('current')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Status atual{arrow('current')}</th>
                   {columns.map(c => <th key={c.key} onClick={() => clickSort(c.key)} className="text-right px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>{c.label}{arrow(c.key)}</th>)}
@@ -6047,6 +6081,8 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                   <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{r.coordinator ?? '—'}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{r.executive ?? '—'}</td>
                     <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDay(r.created_at)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="text-[10px] px-2 py-0.5 rounded-full"
@@ -6062,7 +6098,7 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                     <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtD(r.total)}</td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={columns.length + 5} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={columns.length + 7} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
               </tbody>
             </table>
           )}
