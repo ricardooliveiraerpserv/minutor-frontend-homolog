@@ -33,6 +33,7 @@ interface UserItem {
   daily_hours?: number
   bank_hours_start_date?: string | null
   consultant_type?: string | null
+  work_bond?: string | null
   contract_type?: 'cooperado' | 'clt' | 'pj' | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
@@ -179,6 +180,7 @@ export default function UsersPage() {
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
   const [hasNext, setHasNext] = useState(false)
+  const [counts, setCounts] = useState<Record<string, number>>({})
 
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
@@ -224,6 +226,8 @@ export default function UsersPage() {
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
+  const [bulkBondLoading, setBulkBondLoading] = useState(false)
+  const [bulkBond, setBulkBond] = useState<'' | 'fixo' | 'freelance'>('')
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   useEffect(() => {
@@ -253,6 +257,14 @@ export default function UsersPage() {
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
   }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, sort, sortDir])
+
+  // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
+  const loadCounts = useCallback(() => {
+    const p = new URLSearchParams()
+    if (filterEnabled) p.set('enabled', filterEnabled)
+    api.get<{ data: Record<string, number> }>(`/users/counts?${p}`).then(r => setCounts(r.data ?? {})).catch(() => {})
+  }, [filterEnabled])
+  useEffect(() => { loadCounts() }, [loadCounts])
 
   useEffect(() => { load() }, [load])
 
@@ -356,6 +368,21 @@ export default function UsersPage() {
     finally { setBulkSustLoading(false) }
   }
 
+  const bulkSetBond = async () => {
+    if (selectedIds.size === 0 || !bulkBond) return
+    setBulkBondLoading(true)
+    try {
+      const r = await api.post<{ applied: number; skipped: number }>(
+        '/users/bulk-work-bond',
+        { user_ids: [...selectedIds], work_bond: bulkBond },
+      )
+      const skippedMsg = r.skipped > 0 ? ` ${r.skipped} ignorado(s) (só consultores)` : ''
+      toast.success(`${r.applied} categorizado(s) como ${bulkBond === 'freelance' ? 'Free Lance' : 'Interno'}.${skippedMsg}`)
+      setSelectedIds(new Set()); setBulkBond(''); load(); loadCounts()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao categorizar vínculo') }
+    finally { setBulkBondLoading(false) }
+  }
+
   const bulkSetContractType = async () => {
     if (selectedIds.size === 0) return
     setBulkContractLoading(true)
@@ -407,12 +434,17 @@ export default function UsersPage() {
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
               onClick={() => setFilterRole(val)}
-              className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                 filterRole === val
                   ? 'bg-[var(--primary)] text-[var(--primary-fg)]'
                   : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}>
               {label}
+              {counts[val] != null && (
+                <span className="text-[10px] px-1.5 rounded-full" style={filterRole === val
+                  ? { background: 'rgba(255,255,255,.25)', color: 'var(--primary-fg)' }
+                  : { background: 'var(--surface)', color: 'var(--text-light)' }}>{counts[val]}</span>
+              )}
             </button>
           ))}
         </div>
@@ -494,6 +526,29 @@ export default function UsersPage() {
                 >
                   <Check size={12} />
                   {bulkContractLoading ? 'Aplicando...' : 'Aplicar'}
+                </button>
+              </div>
+
+              {/* ── Vínculo (Fixo/Free Lance) em massa — só consultores ── */}
+              <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                <span className="text-[11px] text-[var(--text-light)]">Vínculo:</span>
+                <select
+                  value={bulkBond}
+                  onChange={e => setBulkBond(e.target.value as '' | 'fixo' | 'freelance')}
+                  className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-7 px-2"
+                >
+                  <option value="">—</option>
+                  <option value="fixo">Consultor Interno</option>
+                  <option value="freelance">Consultor Free Lance</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={bulkSetBond}
+                  disabled={bulkBondLoading || !bulkBond}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  <Check size={12} />
+                  {bulkBondLoading ? 'Aplicando...' : 'Categorizar'}
                 </button>
               </div>
             </>
@@ -607,6 +662,13 @@ export default function UsersPage() {
                       <span className="text-[10px] text-[var(--text-light)]">
                         {CONSULTANT_OPTIONS.find(o => o.value === user.consultant_type)?.label ?? user.consultant_type}
                       </span>
+                    )}
+                    {user.type === 'consultor' && user.work_bond && (
+                      <Badge variant="outline" className={`text-[10px] ${user.work_bond === 'freelance'
+                        ? 'bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning-border)]'
+                        : 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'}`}>
+                        {user.work_bond === 'freelance' ? 'Free Lance' : 'Interno'}
+                      </Badge>
                     )}
                   </div>
                 </td>

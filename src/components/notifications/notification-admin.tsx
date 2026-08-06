@@ -23,13 +23,13 @@ function RecipientChip({ label, active, onToggle, params, fetchMembers, excluded
   active: boolean
   onToggle: () => void
   params: string   // query p/ /users (ex.: 'type=admin' | 'type=consultor&work_bond=fixo' | 'contract_type=3')
-  fetchMembers: (params: string) => Promise<{ id: number; name: string }[]>
+  fetchMembers: (params: string) => Promise<{ id: number; name: string; sub?: string | null }[]>
   excluded: number[]
   setExcluded: (fn: (prev: number[]) => number[]) => void
   chipStyle: (on: boolean) => CSSProperties
 }) {
   const [open, setOpen] = useState(false)
-  const [members, setMembers] = useState<{ id: number; name: string }[] | null>(null)
+  const [members, setMembers] = useState<{ id: number; name: string; sub?: string | null }[] | null>(null)
   const [loading, setLoading] = useState(false)
   const expand = async () => {
     const next = !open; setOpen(next)
@@ -56,7 +56,9 @@ function RecipientChip({ label, active, onToggle, params, fetchMembers, excluded
             return (
               <label key={m.id} className="flex items-center gap-1.5 text-xs py-0.5 cursor-pointer">
                 <input type="checkbox" checked={on} onChange={() => setExcluded(prev => on ? [...prev, m.id] : prev.filter(x => x !== m.id))} />
-                <span style={{ textDecoration: on ? 'none' : 'line-through', opacity: on ? 1 : .5, color: 'var(--text)' }}>{m.name}</span>
+                <span style={{ textDecoration: on ? 'none' : 'line-through', opacity: on ? 1 : .5, color: 'var(--text)' }}>
+                  {m.name}{m.sub ? <span style={{ color: 'var(--text-light)' }}> — {m.sub}</span> : null}
+                </span>
               </label>
             )
           })}
@@ -385,11 +387,11 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const toggleBond = (b: string) => setBonds(bs => bs.includes(b) ? bs.filter(x => x !== b) : [...bs, b])
   const toggleContract = (c: string) => setContractTypes(cs => cs.includes(c) ? cs.filter(x => x !== c) : [...cs, c])
   // Busca os membros de um grupo (p/ expandir e retirar do envio). Usa /users com filtros.
-  const fetchMembers = useCallback(async (params: string): Promise<{ id: number; name: string }[]> => {
+  const fetchMembers = useCallback(async (params: string): Promise<{ id: number; name: string; sub?: string | null }[]> => {
     const r = await api.get<{ data?: unknown; items?: unknown }>(`/users?${params}&pageSize=500`)
     const raw = (r as { data?: unknown; items?: unknown }).data ?? (r as { items?: unknown }).items ?? []
     const arr = Array.isArray(raw) ? raw : []
-    return arr.map((u) => ({ id: (u as { id: number }).id, name: (u as { name: string }).name })).filter(u => u.id && u.name)
+    return arr.map((u) => ({ id: (u as { id: number }).id, name: (u as { name: string }).name, sub: (u as { partner_name?: string | null }).partner_name })).filter(u => u.id && u.name)
   }, [])
 
   const setOption = (i: number, v: string) => setPollOptions(opts => opts.map((o, idx) => idx === i ? v : o))
