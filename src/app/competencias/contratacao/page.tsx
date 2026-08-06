@@ -11,11 +11,12 @@ import { CheckCircle2, UserPlus, ArrowRight, Pause, User as UserIcon, Loader2, T
 
 interface ChecklistItem { label: string; done: boolean }
 interface HireForm {
+  contato: string
   email: string
   perfil: string; coordinator_type: string
   contratacao_fixa: string; consultant_type: string; valor: string; start_date: string
   tem_garantia: string; guaranteed_hours: string; empresa: string
-  recursos: string[]; incluir_whatsapp: string
+  recursos: string[]; incluir_whatsapp: string; whatsapp_date: string
   cpf: string; nascimento: string; matricula: string
   cep: string; logradouro: string; numero: string
   complemento: string; bairro: string; cidade: string; estado: string; observacao: string
@@ -44,18 +45,39 @@ export default function ContratacaoPage() {
   const [open, setOpen] = useState<Card | null>(null)
   const [showNew, setShowNew] = useState(false)
   const [nTitle, setNTitle] = useState('')
-  const [nCargo, setNCargo] = useState('')
+  const [nContato, setNContato] = useState('')
+  const [nCargo, setNCargo] = useState('Analista de Sistema')
   const [nModal, setNModal] = useState('')
+  const [nFixa, setNFixa] = useState('')          // sim | nao
+  const [nRemun, setNRemun] = useState('')        // consultant_type: fixo (Fixa) | horista (Por hora)
+  const [nValor, setNValor] = useState('')
+  const [nRecursos, setNRecursos] = useState<string[]>([])
+  const [nWhats, setNWhats] = useState('')        // sim | nao
+  const [nWhatsDate, setNWhatsDate] = useState('')
+  const [nObs, setNObs] = useState('')
   const [creating, setCreating] = useState(false)
   const { confirm, confirmDialog } = useConfirm()
+
+  const toggleNRec = (v: string) => setNRecursos(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])
+  const resetNew = () => {
+    setNTitle(''); setNContato(''); setNCargo('Analista de Sistema'); setNModal(''); setNFixa('')
+    setNRemun(''); setNValor(''); setNRecursos([]); setNWhats(''); setNWhatsDate(''); setNObs('')
+  }
 
   const createHire = async () => {
     if (!nTitle.trim()) { toast.error('Informe o nome da contratação'); return }
     setCreating(true)
     try {
-      await api.post('/competencias/contratacao', { title: nTitle.trim(), cargo: nCargo || null, modalidade: nModal || null })
-      toast.success('Contratação incluída')
-      setShowNew(false); setNTitle(''); setNCargo(''); setNModal(''); load()
+      await api.post('/competencias/contratacao', {
+        title: nTitle.trim(), cargo: nCargo || null, modalidade: nModal || null,
+        form: {
+          contato: nContato, contratacao_fixa: nFixa, consultant_type: nRemun, valor: nValor,
+          recursos: nRecursos, incluir_whatsapp: nWhats,
+          whatsapp_date: nWhats === 'sim' ? nWhatsDate : '', observacao: nObs,
+        },
+      })
+      toast.success('Contratação incluída — tarefa atribuída à Jeniffer')
+      setShowNew(false); resetNew(); load()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao incluir') }
     finally { setCreating(false) }
   }
@@ -379,34 +401,91 @@ export default function ContratacaoPage() {
 
       {showNew && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setShowNew(false)}>
-          <div className="ds-card ds-card-pad w-full max-w-md" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
-            <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Nova contratação</h2>
-            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”.</p>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome <span style={{ color: 'var(--danger-border)' }}>*</span></label>
-                <input autoFocus value={nTitle} onChange={e => setNTitle(e.target.value)} placeholder="Nome da pessoa"
-                  className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cargo</label>
-                  <input value={nCargo} onChange={e => setNCargo(e.target.value)} placeholder="(opcional)"
-                    className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          <div className="ds-card w-full max-w-2xl max-h-[88vh] overflow-y-auto" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
+            <div className="ds-card-pad">
+              <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Nova contratação — script de passagem</h2>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”. Só o nome é obrigatório — o restante pode ser completado depois no card.</p>
+              <div className="space-y-4">
+                {/* 1. Nome + contato */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>1. Nome do contratado <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                    <input autoFocus value={nTitle} onChange={e => setNTitle(e.target.value)} placeholder="Nome da pessoa" className="ds-input" />
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Contato (telefone / e-mail)</label>
+                    <input value={nContato} onChange={e => setNContato(e.target.value)} placeholder="(11) 90000-0000" className="ds-input" />
+                  </div>
                 </div>
+                {/* 2. Modalidade */}
                 <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Modalidade</label>
-                  <select value={nModal} onChange={e => setNModal(e.target.value)}
-                    className="w-full text-sm rounded-lg px-2.5 py-2 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-                    <option value="">(opcional)</option>
-                    {modalidades.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                  </select>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>2. Modalidade</label>
+                  <Pills options={modalidades.map(m => [m.value, m.label] as [string, string])} value={nModal} onChange={setNModal} />
+                </div>
+                {/* 3. Contratação fixa + 4. Cargo */}
+                <div className="grid grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>3. Contratação fixa?</label>
+                    <Pills options={[['sim', 'Sim'], ['nao', 'Não']]} value={nFixa} onChange={setNFixa} />
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>4. Cargo</label>
+                    <input value={nCargo} onChange={e => setNCargo(e.target.value)} placeholder="Ex.: Analista de Sistema" className="ds-input" />
+                  </div>
+                </div>
+                {/* 5. Remuneração + valor */}
+                <div className="grid grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>5. Remuneração</label>
+                    <Pills options={[['fixo', 'Fixa'], ['horista', 'Por hora']]} value={nRemun} onChange={setNRemun} />
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Valor {nRemun === 'horista' ? '(hora)' : nRemun ? '(mensal)' : ''}</label>
+                    <input value={nValor} onChange={e => setNValor(e.target.value)} placeholder="R$ 0,00" className="ds-input" />
+                  </div>
+                </div>
+                {/* 6. Recursos */}
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>6. Recursos necessários</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {recursos.map(r => {
+                      const on = nRecursos.includes(r.value)
+                      return (
+                        <button key={r.value} type="button" onClick={() => toggleNRec(r.value)}
+                          className={on ? 'ds-filter-active' : 'ds-btn-secondary'} style={{ padding: '4px 14px', fontSize: 13 }}>
+                          {r.label}{r.value === 'email' ? ' (já criado!)' : ''}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                {/* 7. WhatsApp */}
+                <div className="grid grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>7. Incluir no WhatsApp?</label>
+                    <Pills options={[['sim', 'Sim'], ['nao', 'Não']]} value={nWhats} onChange={setNWhats} />
+                  </div>
+                  {nWhats === 'sim' && (
+                    <div>
+                      <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data em que poderá ser incluído</label>
+                      <input type="date" value={nWhatsDate} onChange={e => setNWhatsDate(e.target.value)} className="ds-input" />
+                    </div>
+                  )}
+                </div>
+                {/* Observação */}
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Observação</label>
+                  <textarea value={nObs} onChange={e => setNObs(e.target.value)} rows={2} placeholder="Anotações da passagem…" className="ds-input" />
+                </div>
+                {/* Reminder Jeniffer */}
+                <div className="text-[12px] rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+                  ⚠️ <b>Atenção:</b> ao incluir, uma tarefa é atribuída automaticamente à <b>Jeniffer</b> para providenciar a passagem/onboarding.
                 </div>
               </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setShowNew(false)} className="text-sm px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-              <button onClick={createHire} disabled={creating} className="ds-btn-primary text-sm px-4 py-2 rounded-lg disabled:opacity-50">{creating ? 'Incluindo…' : 'Incluir'}</button>
+              <div className="flex justify-end gap-2 mt-5">
+                <button onClick={() => setShowNew(false)} className="text-sm px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                <button onClick={createHire} disabled={creating} className="ds-btn-primary text-sm px-4 py-2 rounded-lg disabled:opacity-50">{creating ? 'Incluindo…' : 'Incluir'}</button>
+              </div>
             </div>
           </div>
         </div>
