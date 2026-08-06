@@ -422,7 +422,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
               </button>
               {stOpen && (<>
                 <div className="fixed inset-0 z-40" onClick={() => setStOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 rounded-lg py-1 min-w-[210px] max-h-[300px] overflow-y-auto" style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: '0 10px 28px rgba(0,0,0,.22)' }}>
+                <div className="absolute right-0 bottom-full mb-1 z-50 rounded-lg py-1 min-w-[210px] max-h-[300px] overflow-y-auto" style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: '0 -6px 28px rgba(0,0,0,.22)' }}>
                   {orderedStatuses.map(s => {
                     const crit = isCritical(s)
                     return (

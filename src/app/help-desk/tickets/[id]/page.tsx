@@ -668,9 +668,11 @@ function TicketDetailInner({ id }: { id: number }) {
   }
 
   // Edição inline dos campos de classificação do chamado (categoria, serviço, prioridade, canal).
-  const updateField = async (patch: Record<string, unknown>) => {
+  const updateField = async (patch: Record<string, unknown>, optimistic?: Record<string, unknown>) => {
+    // Otimista: reflete a escolha NA HORA (sem esperar o PUT + refetch). Depois sincroniza em background.
+    if (optimistic) setT(prev => (prev ? ({ ...prev, ...optimistic } as typeof prev) : prev))
     try { await api.put(`/help-desk/tickets/${id}`, patch); loadTicket() }
-    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar') }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar'); loadTicket() }
   }
 
   // Liga/desliga a chave de integração de horas do CONTRATO do chamado (substitui o Movidesk).
@@ -1300,18 +1302,18 @@ function TicketDetailInner({ id }: { id: number }) {
               </div>
               <SelectRow label="Categoria" value={t.category?.id ? String(t.category.id) : ''} placeholder="—"
                 options={categories.map(c => ({ value: String(c.id), label: c.name }))}
-                onChange={v => updateField({ category_id: v ? Number(v) : null })} />
+                onChange={v => updateField({ category_id: v ? Number(v) : null }, { category: v ? { id: Number(v), name: categories.find(c => String(c.id) === v)?.name ?? '' } : null })} />
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span style={{ color: 'var(--text-light)' }}>Serviço</span>
-                <div className="w-[62%]"><ServiceTreeSelect services={services} value={t.service?.id ?? null} onChange={sid => updateField({ service_id: sid })} /></div>
+                <div className="w-[62%]"><ServiceTreeSelect services={services} value={t.service?.id ?? null} onChange={sid => updateField({ service_id: sid }, { service: sid ? { id: sid, name: services.find(s => s.id === sid)?.name ?? '' } : null })} /></div>
               </div>
               {t.justification && <Row label="Justificativa" value={t.justification.name} />}
-              <SelectRow label="Urgência" value={t.priority}
+              <SelectRow label="Urgência" value={t.priority} colorFor={v => PRIO_COLOR[v]}
                 options={['baixa', 'normal', 'alta', 'urgente'].map(p => ({ value: p, label: PRIO_LABEL[p] }))}
-                onChange={v => updateField({ priority: v })} />
+                onChange={v => updateField({ priority: v }, { priority: v })} />
               <SelectRow label="Nível" value={t.level ?? ''} placeholder="—"
                 options={['N1', 'N2', 'N3'].map(n => ({ value: n, label: n }))}
-                onChange={v => updateField({ level: v || null })} />
+                onChange={v => updateField({ level: v || null }, { level: v || null })} />
               <Row label="Reaberturas" value={String(t.reopen_count)} />
               <Row label="Aberto em" value={fmtDate(t.created_at)} />
             </div>
@@ -1671,11 +1673,14 @@ function RequesterField({ name, email, onPick }: { name?: string | null; email?:
 }
 
 /** Linha de Detalhe EDITÁVEL — select inline que salva ao mudar (PUT no chamado). */
-function SelectRow({ label, value, options, onChange, placeholder }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void; placeholder?: string }) {
+const PRIO_COLOR: Record<string, string> = { baixa: '#16a34a', normal: '#ca8a04', alta: '#ea580c', urgente: '#dc2626' }
+
+function SelectRow({ label, value, options, onChange, placeholder, colorFor }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void; placeholder?: string; colorFor?: (v: string) => string | undefined }) {
+  const col = colorFor?.(value)
   return (
     <div className="flex items-center justify-between gap-2 text-sm">
       <span style={{ color: 'var(--text-light)' }}>{label}</span>
-      <select className="text-sm rounded-lg px-2 py-1 outline-none w-[62%] shrink-0 capitalize" style={inputStyle} value={value} onChange={e => onChange(e.target.value)}>
+      <select className="text-sm rounded-lg px-2 py-1 outline-none w-[62%] shrink-0 capitalize" style={{ ...inputStyle, ...(col ? { color: col, borderColor: col, fontWeight: 600 } : {}) }} value={value} onChange={e => onChange(e.target.value)}>
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
