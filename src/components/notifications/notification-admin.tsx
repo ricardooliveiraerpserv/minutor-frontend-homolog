@@ -37,6 +37,7 @@ function RecipientChip({ label, active, onToggleGroup, params, fetchMembers, pic
   const [members, setMembers] = useState<{ id: number; name: string; sub?: string | null }[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState('')
+  const boxRef = useRef<HTMLDivElement>(null)
   const expand = async () => {
     const next = !open; setOpen(next)
     if (next && members === null) {
@@ -44,6 +45,13 @@ function RecipientChip({ label, active, onToggleGroup, params, fetchMembers, pic
       try { setMembers(await fetchMembers(params)) } catch { setMembers([]) } finally { setLoading(false) }
     }
   }
+  // Clicar fora fecha a lista — sem alterar a seleção (que vive no estado do pai).
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
   const shown = (members ?? []).filter(m => !q || m.name.toLowerCase().includes(q.toLowerCase()))
   // "recebe?" — grupo ativo: todos menos os excluídos; grupo inativo: só os escolhidos.
   const isOn = (id: number) => active ? !excluded.includes(id) : picked.includes(id)
@@ -59,7 +67,7 @@ function RecipientChip({ label, active, onToggleGroup, params, fetchMembers, pic
   }
 
   return (
-    <div className="inline-flex flex-col align-top">
+    <div ref={boxRef} className="inline-flex flex-col align-top">
       <div className="inline-flex items-center rounded-lg overflow-hidden" style={chipStyle(active)}>
         <button type="button" onClick={onToggleGroup} title="Selecionar o grupo inteiro" className="text-xs pl-2.5 pr-1.5 py-1">{label}</button>
         <button type="button" onClick={expand} title="Escolher / retirar pessoas" className="px-1 py-1" style={{ borderLeft: '1px solid rgba(0,0,0,.08)' }}>
