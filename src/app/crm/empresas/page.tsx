@@ -51,6 +51,8 @@ export default function CrmEmpresasPage() {
   const [crmStatus, setCrmStatus] = useState('lead')
   const [cgc, setCgc] = useState('')
   const [profile, setProfile] = useState<CrmProfile>(EMPTY_PROFILE)
+  const [executiveId, setExecutiveId] = useState<number | ''>('')
+  const [executives, setExecutives] = useState<{ id: number; name: string; type?: string }[]>([])
   const [tagIds, setTagIds] = useState<number[]>([])
   const [newTag, setNewTag] = useState('')
   const [saving, setSaving] = useState(false)
@@ -72,14 +74,17 @@ export default function CrmEmpresasPage() {
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<{ data: CrmTag[] }>('/crm/tags').then(r => setAllTags(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/segments?only_active=1').then(r => setSegmentos(r?.data ?? [])).catch(() => {}) }, [])
+  // Executivo Comercial: quem for executivo (is_executive) + os admins (sempre presentes).
+  useEffect(() => { api.get<{ data: { id: number; name: string; type?: string }[] }>('/executives/comerciais').then(r => setExecutives(r?.data ?? [])).catch(() => {}) }, [])
 
   const open = async (c: Customer) => {
     setSel(c); setVinculos(null); setTimeline([])
     try {
-      const r = await api.get<{ data: { crm_status: string; cgc: string | null; profile: CrmProfile | null; tags: CrmTag[] } }>(`/customers/${c.id}/crm`)
+      const r = await api.get<{ data: { crm_status: string; cgc: string | null; profile: CrmProfile | null; tags: CrmTag[]; executive?: { id: number; name: string } | null } }>(`/customers/${c.id}/crm`)
       setCrmStatus(r.data.crm_status ?? 'lead')
       setCgc(r.data.cgc ?? '')
       setProfile(r.data.profile ?? EMPTY_PROFILE)
+      setExecutiveId(r.data.executive?.id ?? '')
       setTagIds((r.data.tags ?? []).map(t => t.id))
     } catch { toast.error('Erro ao carregar dados CRM') }
     api.get<{ data: { vinculos: Vinculos; timeline: TimelineItem[] } }>(`/customers/${c.id}/crm/timeline`)
@@ -103,11 +108,13 @@ export default function CrmEmpresasPage() {
       await api.put(`/customers/${sel.id}/crm`, {
         crm_status: crmStatus,
         cgc: cgc.trim() || null,
+        executive_id: executiveId === '' ? null : executiveId,
         profile: { ...profile, faturamento_estimado: profile.faturamento_estimado === ('' as any) ? null : profile.faturamento_estimado, num_funcionarios: profile.num_funcionarios === ('' as any) ? null : profile.num_funcionarios },
         tag_ids: tagIds,
       })
       toast.success('Empresa atualizada')
-      setList(xs => xs.map(x => x.id === sel.id ? { ...x, crm_status: crmStatus } : x))
+      const exec = executiveId === '' ? null : executives.find(e => e.id === executiveId) ?? null
+      setList(xs => xs.map(x => x.id === sel.id ? { ...x, crm_status: crmStatus, executive: exec ? { id: exec.id, name: exec.name } : null } : x))
       setSel(null)
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
   }
@@ -231,6 +238,15 @@ export default function CrmEmpresasPage() {
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Status comercial</label>
                 <select value={crmStatus} onChange={e => setCrmStatus(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                   {STATUS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Executivo Comercial</label>
+                <select value={executiveId} onChange={e => setExecutiveId(e.target.value === '' ? '' : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  <option value="">Sem executivo</option>
+                  {/* Se o executivo atual não estiver na lista (ex.: perdeu a flag), mantém-no visível. */}
+                  {executiveId !== '' && !executives.some(e => e.id === executiveId) && sel.executive && <option value={executiveId}>{sel.executive.name}</option>}
+                  {executives.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               </div>
               <div>

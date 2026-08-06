@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ShieldCheck, Table2, SlidersHorizontal, Users } from 'lucide-react'
+import { ShieldCheck, Table2, SlidersHorizontal, Users, Plus, Trash2, X } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Cap { key: string; label: string; control: 'scope' | 'toggle'; options?: string[]; danger?: boolean; sensitive?: boolean; help?: string }
 interface Block { id: string; label: string; caps: Cap[] }
@@ -29,6 +30,13 @@ export default function PerfisComerciaisPage() {
   const [selId, setSelId] = useState<number | null>(null)
   const [draft, setDraft] = useState<Record<string, unknown>>({})
   const [saving, setSaving] = useState(false)
+  // Criar / excluir perfil personalizado
+  const [showNew, setShowNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [cloneFrom, setCloneFrom] = useState<number | ''>('')
+  const [creatingRole, setCreatingRole] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const load = () => Promise.all([
     api.get<{ data: { blocks: Block[] } }>('/policies/crm/catalog').then(r => setBlocks(r?.data?.blocks ?? [])).catch(() => {}),
@@ -48,6 +56,39 @@ export default function PerfisComerciaisPage() {
       setRoles(rs => rs.map(x => x.id === sel.id ? { ...x, defaults: r.data.defaults ?? draft } : x))
       toast.success('Perfil atualizado')
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  // Criar perfil personalizado (clona os padrões do perfil selecionado por padrão).
+  const openNew = () => { setNewName(''); setCloneFrom(selId ?? ''); setShowNew(true) }
+  const createRole = async () => {
+    const name = newName.trim()
+    if (!name) { toast.error('Informe o nome do perfil'); return }
+    setCreatingRole(true)
+    try {
+      const body: Record<string, unknown> = { name }
+      if (cloneFrom !== '') body.clone_from = cloneFrom
+      const r = await api.post<{ data: Role }>('/policies/crm/roles', body)
+      setRoles(rs => [...rs, r.data])
+      pickRole(r.data)
+      setShowNew(false)
+      toast.success('Perfil criado')
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao criar perfil') } finally { setCreatingRole(false) }
+  }
+
+  // Excluir perfil personalizado (perfis de sistema são protegidos pelo BE).
+  const deleteRole = async () => {
+    if (!sel || sel.is_system) return
+    setDeleting(true)
+    try {
+      await api.delete(`/policies/crm/roles/${sel.id}`)
+      const rest = roles.filter(r => r.id !== sel.id)
+      setRoles(rest)
+      const next = rest[0] ?? null
+      setSelId(next?.id ?? null)
+      setDraft(next ? { ...(next.defaults ?? {}) } : {})
+      setConfirmDel(false)
+      toast.success('Perfil excluído')
+    } catch (e: any) { toast.error(e?.message ?? 'Não foi possível excluir o perfil') } finally { setDeleting(false) }
   }
 
   const allCaps: Cap[] = blocks.flatMap(b => b.caps)
@@ -76,10 +117,17 @@ export default function PerfisComerciaisPage() {
             {roles.map(r => (
               <button key={r.id} onClick={() => pickRole(r)} className="w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-2"
                 style={{ borderTop: '1px solid var(--border)', background: selId === r.id ? 'var(--primary-soft)' : 'transparent' }}>
-                <span className="text-sm font-medium" style={{ color: selId === r.id ? 'var(--primary)' : 'var(--text)' }}>{r.name}</span>
+                <span className="text-sm font-medium flex items-center gap-1.5" style={{ color: selId === r.id ? 'var(--primary)' : 'var(--text)' }}>
+                  {r.name}
+                  {!r.is_system && <span className="text-[9px] px-1 py-0.5 rounded font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>custom</span>}
+                </span>
                 <span className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-light)' }}><Users size={11} /> {r.people}</span>
               </button>
             ))}
+            <button onClick={openNew} className="w-full text-left px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-semibold"
+              style={{ borderTop: '1px solid var(--border)', color: 'var(--primary)' }}>
+              <Plus size={14} /> Novo perfil
+            </button>
           </div>
 
           {/* Editor do perfil selecionado */}
@@ -91,7 +139,15 @@ export default function PerfisComerciaisPage() {
                     <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{sel.name}</h2>
                     <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>{sel.is_system ? 'Perfil de sistema' : 'Perfil personalizado'} · {sel.people} pessoa(s)</p>
                   </div>
-                  <button onClick={save} disabled={!dirty || saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</button>
+                  <div className="flex items-center gap-2">
+                    {!sel.is_system && (
+                      <button onClick={() => setConfirmDel(true)} className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5"
+                        style={{ color: 'var(--danger)', border: '1px solid var(--danger)' }} title="Excluir perfil">
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    )}
+                    <button onClick={save} disabled={!dirty || saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : dirty ? 'Salvar' : 'Salvo'}</button>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {blocks.map(b => (
@@ -156,6 +212,49 @@ export default function PerfisComerciaisPage() {
           </table>
         </div>
       )}
+
+      {/* Novo perfil personalizado */}
+      {showNew && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setShowNew(false)}>
+          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Novo perfil comercial</h2>
+              <button onClick={() => setShowNew(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome do perfil *</label>
+                <input value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') createRole() }} autoFocus placeholder="Ex.: Executivo Sênior" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Copiar permissões de</label>
+                <select value={cloneFrom} onChange={e => setCloneFrom(e.target.value === '' ? '' : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <option value="">Começar em branco (tudo Nenhum)</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Você poderá ajustar todas as permissões depois de criar.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setShowNew(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={createRole} disabled={creatingRole} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{creatingRole ? 'Criando…' : 'Criar perfil'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmDel}
+        danger
+        title={`Excluir "${sel?.name}"?`}
+        message={sel && sel.people > 0
+          ? `Este perfil tem ${sel.people} pessoa(s) vinculada(s). Reatribua-as em Cadastros › Responsáveis antes de excluir.`
+          : 'O perfil será removido definitivamente. Esta ação não pode ser desfeita.'}
+        confirmLabel="Excluir perfil"
+        busy={deleting}
+        onConfirm={deleteRole}
+        onCancel={() => setConfirmDel(false)}
+      />
     </AppLayout>
   )
 }
