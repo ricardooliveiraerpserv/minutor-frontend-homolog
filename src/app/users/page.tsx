@@ -664,10 +664,10 @@ export default function UsersPage() {
               {filterRole === 'cliente' && (
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
+              <th onClick={() => { setSort('type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Perfil<SortIcon active={sort === 'type'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('enabled'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium cursor-pointer hover:text-[var(--text)] select-none">Status<SortIcon active={sort === 'enabled'} dir={sortDir as 'asc' | 'desc'} /></th>
             </tr>
           </thead>
           <tbody>
