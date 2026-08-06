@@ -105,7 +105,7 @@ export default function ReunioesPage() {
   )
 }
 
-interface PendRow { task_id: number; title: string; due_date: string | null; completed: boolean; meeting_id: number; meeting_title: string; assignees: { id: number; name: string }[] }
+interface PendRow { task_id: number; title: string; due_date: string | null; completed: boolean; completed_by_name?: string | null; completed_at?: string | null; meeting_id: number; meeting_title: string; assignees: { id: number; name: string }[] }
 interface PendGroup { user_id: number; user_name: string; tasks: PendRow[] }
 
 /** Lista consolidada das atividades pendentes de TODAS as reuniões, agrupadas por responsável,
@@ -138,6 +138,11 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
 
   const totalTasks = groups.reduce((s, g) => s + g.tasks.length, 0)
   const overdue = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
+  // Concluir/reabrir direto pela Central (avisa os envolvidos no backend) → recarrega a lista.
+  const toggleDone = async (r: PendRow) => {
+    try { await api.patch(`/meetings/${r.meeting_id}/tasks/${r.task_id}/toggle`, {}); toast.success(r.completed ? 'Tarefa reaberta' : 'Tarefa concluída ✓'); load() }
+    catch (e) { toast.error((e as { message?: string })?.message ?? 'Só um responsável conclui') }
+  }
   // Meses disponíveis (das reuniões visíveis), mais recentes primeiro.
   const months = Array.from(new Set(meetings.map(m => m.month).filter(Boolean) as string[])).sort().reverse()
   // Reuniões do mês selecionado (o dropdown filtra client-side).
@@ -185,13 +190,13 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
           </div>
           {g.tasks.map(t => (
             <div key={t.task_id} className="flex items-start gap-2 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
-              <span className="w-4 h-4 mt-0.5 rounded flex items-center justify-center shrink-0" style={{ border: `1.5px solid ${t.completed ? 'var(--success)' : 'var(--border)'}`, background: t.completed ? 'var(--success)' : 'transparent' }}>
+              <button onClick={() => toggleDone(t)} title={t.completed ? 'Reabrir tarefa' : 'Concluir tarefa'} className="w-4 h-4 mt-0.5 rounded flex items-center justify-center shrink-0" style={{ border: `1.5px solid ${t.completed ? 'var(--success)' : 'var(--border)'}`, background: t.completed ? 'var(--success)' : 'transparent' }}>
                 {t.completed && <Check size={11} color="#fff" />}
-              </span>
+              </button>
               <div className="flex-1 min-w-0">
                 <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? .6 : 1 }}>{t.title}</p>
                 <p className="text-[11px] mt-0.5" style={{ color: (!t.completed && overdue(t.due_date)) ? 'var(--danger-border)' : 'var(--text-light)' }}>
-                  {t.completed ? 'concluída' : (t.due_date ? `até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}${overdue(t.due_date) ? ' · atrasada' : ''}` : 'sem prazo')}
+                  {t.completed ? `✓ concluída${t.completed_by_name ? ` por ${t.completed_by_name}` : ''}${t.completed_at ? ` em ${new Date(t.completed_at).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}` : ''}` : (t.due_date ? `até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}${overdue(t.due_date) ? ' · atrasada' : ''}` : 'sem prazo')}
                   {t.assignees.length > 1 ? ` · 👥 ${t.assignees.map(a => a.name).join(', ')}` : ''}
                 </p>
               </div>
@@ -217,6 +222,7 @@ function NewMeetingModal({ onClose, onCreated, searchUsers }: { onClose: () => v
 
   const create = async () => {
     if (!title.trim()) { toast.error('Informe o assunto'); return }
+    if (!date) { toast.error('Informe a data e hora da reunião'); return }
     setSaving(true)
     try {
       const r = await api.post<{ data: { id: number } }>('/meetings', { title: title.trim(), meeting_date: date || null, location: location || null, description: description || null, participant_ids: parts.map(p => p.id) })
@@ -234,7 +240,7 @@ function NewMeetingModal({ onClose, onCreated, searchUsers }: { onClose: () => v
           <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Assunto *</label>
             <input autoFocus className={inputCls} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="Assunto da reunião" /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Data e hora</label>
+            <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Data e hora <span style={{ color: 'var(--danger-border)' }}>*</span></label>
               <input type="datetime-local" className={inputCls} style={inputStyle} value={date} onChange={e => setDate(e.target.value)} /></div>
             <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Local</label>
               <input className={inputCls} style={inputStyle} value={location} onChange={e => setLocation(e.target.value)} placeholder="Sala / Teams / …" /></div>
@@ -286,6 +292,7 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
 
   // Um único save: grava dados da reunião + anotações de uma vez.
   const saveAll = async () => {
+    if (!date) { toast.error('Informe a data e hora da reunião'); return }
     setSaving(true)
     try { const r = await api.put<{ data: MeetingDetail }>(`/meetings/${detail.id}`, { title: title.trim(), meeting_date: date || null, location: location || null, description: description || null, notes }); setDetail(r.data); toast.success('Reunião salva') }
     catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
@@ -335,7 +342,7 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
         <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Assunto</label>
           <input className={inputCls} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Data e hora</label>
+          <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Data e hora <span style={{ color: 'var(--danger-border)' }}>*</span></label>
             <input type="datetime-local" className={inputCls} style={inputStyle} value={date} onChange={e => setDate(e.target.value)} /></div>
           <div><label className={lblCls} style={{ color: 'var(--text-light)' }}>Local</label>
             <input className={inputCls} style={inputStyle} value={location} onChange={e => setLocation(e.target.value)} /></div>
