@@ -516,6 +516,13 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
     if (!isOnDemand && !isMensalidade && !form.horas_contratadas)        { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
     if (isMensalidade && !form.valor_projeto)                            { toast.error('Informe o Valor do Contrato (mensalidade)'); setActiveTab(4); return }
     if (isOnDemand && !isMensalidade && !form.valor_projeto)             { toast.error('Informe o Valor do Projeto'); setActiveTab(4); return }
+    // Anexo OBRIGATÓRIO em contratos NOVOS (qualquer documento: proposta/aprovação/contrato).
+    // Edição de contratos legados NÃO é travada — só a criação exige anexo.
+    if (!internalEdit && pendingFiles.length === 0) {
+      toast.error('Anexe ao menos um documento do contrato (proposta ou aprovação) antes de salvar.')
+      setActiveTab(9)
+      return
+    }
 
     setSaving(true)
     try {
@@ -708,7 +715,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
               <button key={t} onClick={() => setActiveTab(i)}
                 className="px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
                 style={{ color: activeTab === i ? 'var(--text)' : 'var(--text-muted)', borderBottom: activeTab === i ? '2px solid var(--primary)' : '2px solid transparent' }}>
-                {t}
+                {t}{t === 'Anexos' && !internalEdit && <span style={{ color: 'var(--danger-border)' }}> *</span>}
               </button>
             ))}
           </div>
