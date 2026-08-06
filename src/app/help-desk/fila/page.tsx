@@ -374,8 +374,8 @@ export default function HelpDeskFilaPage() {
   const pctSlaFila = totalFila > 0 ? Math.round(((totalFila - slaCnt.r) / totalFila) * 100) : 100
   const slaCorFila = pctSlaFila >= 90 ? '#16a34a' : pctSlaFila >= 70 ? '#f59e0b' : '#ef4444'
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
-    { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', highlight: true, hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
+    { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Total', value: totalFila, cor: '#64748b', hint: pendFilter ? 'clique para ver todos' : undefined, onClick: () => setPendFilter('') },
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
@@ -549,7 +549,7 @@ export default function HelpDeskFilaPage() {
                     style={m.active
                       ? { border: `2px solid ${m.cor}`, background: `${m.cor}2e`, boxShadow: `0 0 0 3px ${m.cor}55` }
                       : m.highlight
-                      ? { border: `2px solid ${m.cor}`, background: `${m.cor}26`, boxShadow: `0 0 0 3px ${m.cor}22` }
+                      ? { borderLeft: `4px solid ${m.cor}`, background: `${m.cor}24` }
                       : { borderLeft: `3px solid ${m.cor}`, background: `${m.cor}12` }}>
                     <div className="flex items-center gap-1.5">
                       {m.icon && <span className="text-base leading-none">{m.icon}</span>}
