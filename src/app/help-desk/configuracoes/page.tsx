@@ -27,7 +27,7 @@ interface Team { id: number; name: string; color: string | null; active: boolean
 interface Tag { id: number; name: string; color: string | null }
 interface SlaPause { status_key: string }
 interface SlaTarget { id?: number; priority: string; name?: string | null; enabled?: boolean; first_response_minutes: number | null; resolution_minutes: number | null; first_response_channels?: string[] | null; pause_on_approval?: boolean; max_agent_actions?: number | null; pauses?: SlaPause[] }
-interface SlaHoliday { id?: number; date: string; name?: string | null }
+interface SlaHoliday { id?: number; date: string; name?: string | null; yearly?: boolean }
 interface SlaPolicy { id: number; name: string; description?: string | null; customer_id?: number | null; is_default: boolean; active: boolean; timezone?: string | null; use_national_holidays?: boolean; business_hours?: Record<string, [string, string][]> | null; targets: SlaTarget[]; holidays?: SlaHoliday[]; customers?: { id: number; name: string }[]; customers_count?: number }
 
 const TABS = [
@@ -512,7 +512,7 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
   const [days, setDays] = useState<Record<number, { on: boolean; ms: string; me: string; ts: string; te: string }>>({})
   const [tgt, setTgt] = useState<Record<string, { enabled: boolean; fr: string; res: string; channels: string[]; pauses: string[]; maxA: string }>>({})
   const [holidays, setHolidays] = useState<SlaHoliday[]>([])
-  const [hDate, setHDate] = useState(''); const [hName, setHName] = useState('')
+  const [hDate, setHDate] = useState(''); const [hName, setHName] = useState(''); const [hYearly, setHYearly] = useState(false)
   const [linked, setLinked] = useState<{ id: number; name: string }[]>([])
 
   const loadDetail = useCallback(async () => {
@@ -561,14 +561,14 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
       } })
       await api.put(`/help-desk/sla-policies/${policy.id}`, {
         name, active, is_default: isDefault, timezone: tz, use_national_holidays: useNat,
-        business_hours, targets, holidays: holidays.filter(h => h.date).map(h => ({ date: h.date, name: h.name ?? null })),
+        business_hours, targets, holidays: holidays.filter(h => h.date).map(h => ({ date: h.date, name: h.name ?? null, yearly: !!h.yearly })),
         customer_ids: linked.map(c => c.id),
       })
       toast.success('Política salva'); onSaved(); setLoaded(false); loadDetail()
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
   const del = async () => { if (!confirm(`Excluir "${policy.name}"?`)) return; try { await api.delete(`/help-desk/sla-policies/${policy.id}`); onSaved() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
-  const addHoliday = () => { if (!hDate) return; if (holidays.some(h => h.date === hDate)) return; setHolidays(hs => [...hs, { date: hDate, name: hName || null }].sort((a, b) => a.date.localeCompare(b.date))); setHDate(''); setHName('') }
+  const addHoliday = () => { if (!hDate) return; if (holidays.some(h => h.date === hDate)) return; setHolidays(hs => [...hs, { date: hDate, name: hName || null, yearly: hYearly }].sort((a, b) => a.date.localeCompare(b.date))); setHDate(''); setHName(''); setHYearly(false) }
 
   return (
     <div className="ds-card p-0 overflow-hidden">
@@ -661,6 +661,7 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
               <div className="flex items-end gap-2 mb-2">
                 <input type="date" value={hDate} onChange={e => setHDate(e.target.value)} className={fieldCls} style={{ ...inputStyle, padding: '4px 8px' }} />
                 <input placeholder="nome (opcional)" value={hName} onChange={e => setHName(e.target.value)} className={`${fieldCls} w-40`} style={inputStyle} />
+                <label className="flex items-center gap-1 text-[11px] cursor-pointer" style={{ color: 'var(--text-muted)' }} title="Repete todo ano (dia/mês)"><input type="checkbox" checked={hYearly} onChange={e => setHYearly(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> todo ano</label>
                 <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addHoliday}><Plus size={13} /> Add</button>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -668,6 +669,7 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
                   <div key={i} className="flex items-center gap-1.5">
                     <input type="date" value={h.date} onChange={e => setHolidays(hs => hs.map((x, j) => j === i ? { ...x, date: e.target.value } : x))} className={fieldCls} style={{ ...inputStyle, padding: '4px 8px' }} />
                     <input placeholder="nome (opcional)" value={h.name ?? ''} onChange={e => setHolidays(hs => hs.map((x, j) => j === i ? { ...x, name: e.target.value || null } : x))} className={`${fieldCls} w-40`} style={inputStyle} />
+                    <label className="flex items-center gap-1 text-[11px] cursor-pointer" style={{ color: 'var(--text-muted)' }} title="Repete todo ano (dia/mês)"><input type="checkbox" checked={!!h.yearly} onChange={e => setHolidays(hs => hs.map((x, j) => j === i ? { ...x, yearly: e.target.checked } : x))} style={{ accentColor: 'var(--primary)' }} /> todo ano</label>
                     <button onClick={() => setHolidays(hs => hs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={13} style={{ color: 'var(--danger)' }} /></button>
                   </div>
                 ))}
