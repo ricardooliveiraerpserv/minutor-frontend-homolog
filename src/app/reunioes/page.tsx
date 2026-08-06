@@ -110,10 +110,15 @@ interface PendGroup { user_id: number; user_name: string; tasks: PendRow[] }
 
 /** Lista consolidada das atividades pendentes de TODAS as reuniões, agrupadas por responsável,
  *  com filtro por reunião e link p/ abrir a reunião de origem. */
+interface PendMeeting { id: number; title: string; meeting_date: string | null; month: string | null }
+const fmtDayUTC = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) : 'sem data'
+const fmtMonthLabel = (ym: string) => { const d = new Date(ym + '-01T00:00:00Z'); const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }); return s.charAt(0).toUpperCase() + s.slice(1) }
+
 function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; meUserId: number }) {
   const [groups, setGroups] = useState<PendGroup[]>([])
-  const [meetings, setMeetings] = useState<{ id: number; title: string }[]>([])
+  const [meetings, setMeetings] = useState<PendMeeting[]>([])
   const [meetingId, setMeetingId] = useState<string>('')
+  const [month, setMonth] = useState<string>('')
   const [showDone, setShowDone] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -121,17 +126,22 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
     setLoading(true)
     const p = new URLSearchParams()
     if (meetingId) p.set('meeting_id', meetingId)
+    if (month) p.set('month', month)
     if (showDone) p.set('include_done', '1')
     const qs = p.toString() ? `?${p.toString()}` : ''
-    api.get<{ data: { groups: PendGroup[]; meetings: { id: number; title: string }[] } }>(`/meetings/tasks/pending${qs}`)
+    api.get<{ data: { groups: PendGroup[]; meetings: PendMeeting[] } }>(`/meetings/tasks/pending${qs}`)
       .then(r => { setGroups(r.data?.groups ?? []); setMeetings(r.data?.meetings ?? []) })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [meetingId, showDone])
+  }, [meetingId, month, showDone])
   useEffect(() => { load() }, [load])
 
   const totalTasks = groups.reduce((s, g) => s + g.tasks.length, 0)
   const overdue = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
+  // Meses disponíveis (das reuniões visíveis), mais recentes primeiro.
+  const months = Array.from(new Set(meetings.map(m => m.month).filter(Boolean) as string[])).sort().reverse()
+  // Reuniões do mês selecionado (o dropdown filtra client-side).
+  const meetingChoices = month ? meetings.filter(m => m.month === month) : meetings
 
   return (
     <div className="space-y-3">
@@ -144,10 +154,17 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
             Mostrar concluídas
           </label>
           <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Mês:</span>
+            <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} value={month} onChange={e => { setMonth(e.target.value); setMeetingId('') }}>
+              <option value="">Todos os meses</option>
+              {months.map(ym => <option key={ym} value={ym}>{fmtMonthLabel(ym)}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Reunião:</span>
-            <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} value={meetingId} onChange={e => setMeetingId(e.target.value)}>
+            <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[240px]" style={inputStyle} value={meetingId} onChange={e => setMeetingId(e.target.value)}>
               <option value="">Todas as reuniões</option>
-              {meetings.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+              {meetingChoices.map(m => <option key={m.id} value={m.id}>{m.title} — {fmtDayUTC(m.meeting_date)}</option>)}
             </select>
           </div>
         </div>
