@@ -330,6 +330,42 @@ function ProdutoMultiSelect({ options, value, onChange }: { options: { id: numbe
   )
 }
 
+// Lista de escolhas com busca para ADICIONAR um produto na edição (adiciona ao clicar).
+function ProdutoAddSearch({ options, onPick, busy }: { options: { id: number; name: string; origem?: string | null }[]; onPick: (id: number) => void; busy?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+  const list = options.filter(o => o.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const inp = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  return (
+    <div ref={ref} className="relative mt-1.5">
+      <button type="button" disabled={busy} onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[11px] outline-none text-left disabled:opacity-50" style={inp}>
+        <span style={{ color: 'var(--primary)' }}>{busy ? 'Adicionando…' : '+ Adicionar produto…'}</span>
+        <ChevronDown size={13} style={{ color: 'var(--text-light)', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {open && (
+        <div className="absolute z-40 mt-1 w-full rounded-lg overflow-hidden shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+            <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Buscar…" className="w-full px-2 py-1 rounded text-[11px] outline-none" style={inp} />
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {list.map(o => (
+              <button key={o.id} type="button" onClick={() => { onPick(o.id); setOpen(false); setQ('') }} className="w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                {o.name}{o.origem === 'parceiro' ? <span className="text-[9px] ml-1" style={{ color: 'var(--warning-border)' }}>(Parceiro)</span> : ''}
+              </button>
+            ))}
+            {list.length === 0 && <p className="px-2.5 py-2 text-[10px]" style={{ color: 'var(--text-light)' }}>Nada encontrado.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CrmPipelinePage() {
   const { user } = useAuth()
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -898,7 +934,6 @@ type OppProduct = NonNullable<OppFull['products']>[number]
 /** Produtos/Serviços vinculados à oportunidade — Categoria e Precificação por linha. */
 function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; products: OppProduct[]; onChanged: () => void }) {
   const [catalog, setCatalog] = useState<{ id: number; name: string; origem: string | null }[]>([])
-  const [addId, setAddId] = useState('')
   const [busy, setBusy] = useState(false)
   const sel = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   useEffect(() => {
@@ -910,10 +945,10 @@ function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; pro
     try { await api.put(`/crm/opportunities/${oppId}/products/${productId}`, body); onChanged() }
     catch { toast.error('Erro ao salvar produto') }
   }
-  const add = async () => {
-    if (!addId) return
+  const add = async (id: number) => {
+    if (!id) return
     setBusy(true)
-    try { await api.post(`/crm/opportunities/${oppId}/products`, { crm_product_id: Number(addId) }); setAddId(''); onChanged() }
+    try { await api.post(`/crm/opportunities/${oppId}/products`, { crm_product_id: id }); onChanged() }
     catch { toast.error('Erro ao adicionar produto') } finally { setBusy(false) }
   }
   const remove = async (productId: number) => {
@@ -964,13 +999,7 @@ function ProdutosVinculados({ oppId, products, onChanged }: { oppId: number; pro
         ))}
       </div>
       {disponiveis.length > 0 && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <select value={addId} onChange={e => setAddId(e.target.value)} className="flex-1 text-[11px] rounded px-1.5 py-1 outline-none" style={sel}>
-            <option value="">+ Adicionar produto…</option>
-            {disponiveis.map(c => <option key={c.id} value={c.id}>{c.name}{c.origem === 'parceiro' ? ' (Parceiro)' : ''}</option>)}
-          </select>
-          <button onClick={add} disabled={!addId || busy} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{busy ? '…' : 'Adicionar'}</button>
-        </div>
+        <ProdutoAddSearch options={disponiveis} onPick={add} busy={busy} />
       )}
     </div>
   )
