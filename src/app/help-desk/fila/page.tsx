@@ -259,18 +259,27 @@ export default function HelpDeskFilaPage() {
     const key = `${f.search} ${f.ticket}`
     api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { const d = r?.data ?? []; setLocal(d); setLoaded(key); cacheFila(qs, d) }).catch(() => toast.error('Erro ao carregar'))
   }, [qs, f.search, f.ticket])
-  // 1ª carga: se voltamos pra uma visão já carregada (mesmo qs), hidrata do cache — instantâneo, sem refetch.
-  // Depois, mudanças de filtro recarregam com debounce de 350ms.
+  // 1ª carga: se voltamos pra uma visão já carregada (mesmo qs), hidrata do cache p/ pintar
+  // instantâneo — MAS revalida em background (stale-while-revalidate), senão o status muda no
+  // detalhe e a fila fica velha até dar refresh manual. Mudanças de filtro recarregam c/ debounce.
   const firstLoad = useRef(true)
   useEffect(() => {
     if (firstLoad.current) {
       firstLoad.current = false
       const cached = filaCache.get(qs)
-      if (cached) { setLocal(cached); setLoaded(`${f.search} ${f.ticket}`); return }
+      if (cached) { setLocal(cached); setLoaded(`${f.search} ${f.ticket}`) }
       load(); return
     }
     const t = setTimeout(() => load(), 350); return () => clearTimeout(t)
   }, [load]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revalida ao voltar o foco à aba/janela (troca de aba, volta do detalhe em nova aba etc.).
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === 'visible') load() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
+  }, [load])
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
       .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
