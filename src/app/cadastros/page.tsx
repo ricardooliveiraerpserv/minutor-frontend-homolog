@@ -1480,9 +1480,10 @@ function CustomerContactsTab() {
   const [contacts, setContacts]         = useState<CustomerContact[]>([])
   const [loading, setLoading]           = useState(false)
   const [modal, setModal]               = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
-  const [form, setForm]                 = useState({ name: '', cargo: '', email: '', phone: '' })
+  const [form, setForm]                 = useState({ customer_id: '', name: '', cargo: '', email: '', phone: '' })
   const [saving, setSaving]             = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
+  const [busca, setBusca]               = useState('')
 
   const inputCls  = 'w-full rounded-lg border px-3 py-2 text-xs text-[var(--text)] bg-transparent outline-none transition-colors focus:border-[var(--primary)]'
   const inputStyle = { borderColor: 'var(--border)' }
@@ -1492,42 +1493,50 @@ function CustomerContactsTab() {
     api.get<any>('/customers?pageSize=500').then(r => setCustomers(r?.items ?? [])).catch(() => {})
   }, [])
 
-  const load = useCallback(async (cid: string) => {
-    if (!cid) { setContacts([]); return }
+  // Catálogo GLOBAL — carrega TODOS os contatos; o cliente é filtro opcional.
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get<CustomerContact[]>(`/customer-contacts?customer_id=${cid}`)
-      setContacts(Array.isArray(r) ? r : [])
+      const r = await api.get<any>('/customer-contacts?per_page=1000')
+      setContacts(Array.isArray(r) ? r : r?.data ?? r?.items ?? [])
     } catch { toast.error('Erro ao carregar contatos') }
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load(customerId) }, [customerId, load])
+  useEffect(() => { load() }, [load])
+
+  const filtered = contacts.filter(c => {
+    if (customerId && String(c.customer_id) !== customerId) return false
+    const q = busca.trim().toLowerCase()
+    if (!q) return true
+    return [c.name, c.cargo, c.email, c.phone, c.customer?.name].some(v => (v ?? '').toLowerCase().includes(q))
+  })
 
   const openCreate = () => {
-    setForm({ name: '', cargo: '', email: '', phone: '' })
+    setForm({ customer_id: customerId || '', name: '', cargo: '', email: '', phone: '' })
     setModal({ open: true })
   }
   const openEdit = (item: CustomerContact) => {
-    setForm({ name: item.name, cargo: item.cargo ?? '', email: item.email ?? '', phone: item.phone ?? '' })
+    setForm({ customer_id: String(item.customer_id), name: item.name, cargo: item.cargo ?? '', email: item.email ?? '', phone: item.phone ?? '' })
     setModal({ open: true, item })
   }
 
   const save = async () => {
+    if (!form.customer_id) { toast.error('Selecione o cliente'); return }
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
     if (!form.email.trim()) { toast.error('E-mail obrigatório'); return }
-    if (!customerId) { toast.error('Selecione o cliente'); return }
     setSaving(true)
     try {
+      const payload = { ...form, customer_id: Number(form.customer_id) }
       if (modal.item) {
-        await api.put(`/customer-contacts/${modal.item.id}`, form)
+        await api.put(`/customer-contacts/${modal.item.id}`, payload)
         toast.success('Contato atualizado')
       } else {
-        await api.post('/customer-contacts', { ...form, customer_id: Number(customerId) })
+        await api.post('/customer-contacts', payload)
         toast.success('Contato criado')
       }
       setModal({ open: false })
-      load(customerId)
+      load()
     } catch (e: any) { toast.error(e?.message ?? 'Erro') }
     finally { setSaving(false) }
   }
@@ -1538,24 +1547,27 @@ function CustomerContactsTab() {
       await api.delete(`/customer-contacts/${deleteConfirm.item.id}`)
       toast.success('Contato excluído')
       setDeleteConfirm({ open: false })
-      load(customerId)
+      load()
     } catch { toast.error('Erro ao excluir') }
   }
 
   return (
     <div className="space-y-4">
-      {/* Seletor de cliente */}
-      <div className="flex items-end gap-4">
-        <div className="flex-1 max-w-sm">
-          <label className={labelCls}>Cliente</label>
-          <SearchSelect
-            value={customerId}
-            onChange={setCustomerId}
-            options={customers}
-            placeholder="Selecione o cliente..."
-          />
+      {/* Busca + filtro opcional por cliente (catálogo global — mostra todos por padrão) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className={labelCls}>Buscar</label>
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Nome, cargo, e-mail, empresa…"
+            className={inputCls + ' w-72'} style={inputStyle} />
         </div>
-        {customerId && !isDenied(screenKey, 'create') && (
+        <div className="flex items-end gap-1">
+          <div className="min-w-[12rem]">
+            <label className={labelCls}>Cliente (filtro)</label>
+            <SearchSelect value={customerId} onChange={setCustomerId} options={customers} placeholder="Todos os clientes" />
+          </div>
+          {customerId && <button onClick={() => setCustomerId('')} className="px-2 py-2 text-xs text-[var(--text-muted)]" title="Limpar filtro">✕</button>}
+        </div>
+        {!isDenied(screenKey, 'create') && (
           <button onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
             style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
@@ -1564,32 +1576,25 @@ function CustomerContactsTab() {
         )}
       </div>
 
-      {!customerId && (
-        <p className="text-xs text-[var(--text-muted)] py-8 text-center">Selecione um cliente para ver e gerenciar seus contatos.</p>
-      )}
-
-      {customerId && loading && (
-        <table className="w-full text-xs"><tbody><TableSkeleton cols={5} /></tbody></table>
-      )}
-
-      {customerId && !loading && contacts.length === 0 && (
-        <p className="text-xs text-[var(--text-muted)] py-6 text-center">Nenhum contato cadastrado para este cliente.</p>
-      )}
-
-      {customerId && !loading && contacts.length > 0 && (
+      {loading ? (
+        <table className="w-full text-xs"><tbody><TableSkeleton cols={6} /></tbody></table>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)] py-6 text-center">Nenhum contato encontrado.</p>
+      ) : (
         <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--border)' }}>
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)' }}>
               <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
                 <th className="w-10" />
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Nome</th>
+                <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Empresa</th>
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Cargo</th>
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">E-mail</th>
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Telefone</th>
               </tr>
             </thead>
             <tbody>
-              {contacts.map(c => (
+              {filtered.map(c => (
                 <tr key={c.id} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-2 py-2.5 w-10">
                     <RowMenu items={[
@@ -1598,6 +1603,7 @@ function CustomerContactsTab() {
                     ]} />
                   </td>
                   <td className="px-3 py-2.5 text-[var(--text)] font-medium">{c.name}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)]">{c.customer?.name ?? '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)]">{c.cargo || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)]">{c.email || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)]">{c.phone || '—'}</td>
@@ -1615,6 +1621,10 @@ function CustomerContactsTab() {
             <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{modal.item ? 'Editar Contato' : 'Novo Contato'}</h3>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className={labelCls}>Cliente *</label>
+                  <SearchSelect value={form.customer_id} onChange={v => setForm(f => ({ ...f, customer_id: v }))} options={customers} placeholder="Selecione o cliente..." />
+                </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Nome *</label>
                   <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
