@@ -411,11 +411,11 @@ export default function ContratacaoPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>1. Nome do contratado <span style={{ color: 'var(--danger-border)' }}>*</span></label>
-                    <input autoFocus value={nTitle} onChange={e => setNTitle(e.target.value)} placeholder="Nome da pessoa" className="ds-input" />
+                    <input autoFocus value={nTitle} onChange={e => setNTitle(e.target.value)} placeholder="Nome da pessoa" className="ds-input w-full" />
                   </div>
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Contato (telefone / e-mail)</label>
-                    <input value={nContato} onChange={e => setNContato(e.target.value)} placeholder="(11) 90000-0000" className="ds-input" />
+                    <input value={nContato} onChange={e => setNContato(e.target.value)} placeholder="(11) 90000-0000" className="ds-input w-full" />
                   </div>
                 </div>
                 {/* 2. Modalidade */}
@@ -431,7 +431,7 @@ export default function ContratacaoPage() {
                   </div>
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>4. Cargo</label>
-                    <input value={nCargo} onChange={e => setNCargo(e.target.value)} placeholder="Ex.: Analista de Sistema" className="ds-input" />
+                    <input value={nCargo} onChange={e => setNCargo(e.target.value)} placeholder="Ex.: Analista de Sistema" className="ds-input w-full" />
                   </div>
                 </div>
                 {/* 5. Remuneração + valor */}
@@ -442,7 +442,7 @@ export default function ContratacaoPage() {
                   </div>
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Valor {nRemun === 'horista' ? '(hora)' : nRemun ? '(mensal)' : ''}</label>
-                    <input value={nValor} onChange={e => setNValor(e.target.value)} placeholder="R$ 0,00" className="ds-input" />
+                    <input value={nValor} onChange={e => setNValor(e.target.value)} placeholder="R$ 0,00" className="ds-input w-full" />
                   </div>
                 </div>
                 {/* 6. Recursos */}
@@ -474,14 +474,14 @@ export default function ContratacaoPage() {
                   {nWhats === 'sim' && (
                     <div>
                       <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data em que poderá ser incluído</label>
-                      <input type="date" value={nWhatsDate} onChange={e => setNWhatsDate(e.target.value)} className="ds-input" />
+                      <input type="date" value={nWhatsDate} onChange={e => setNWhatsDate(e.target.value)} className="ds-input w-full" />
                     </div>
                   )}
                 </div>
                 {/* Observação */}
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Observação</label>
-                  <textarea value={nObs} onChange={e => setNObs(e.target.value)} rows={6} placeholder="Anotações da passagem…" className="ds-input" style={{ minHeight: 130, resize: 'vertical' }} />
+                  <textarea value={nObs} onChange={e => setNObs(e.target.value)} rows={3} placeholder="Anotações da passagem…" className="ds-input w-full" style={{ resize: 'vertical' }} />
                 </div>
                 {/* Reminder Jeniffer */}
                 <div className="text-[12px] rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
