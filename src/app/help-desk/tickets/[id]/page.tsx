@@ -86,7 +86,7 @@ function minutesToHHMM(m?: number | null): string {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 }
 interface MergedRow { id: number; ticket_number: string | null; subject: string; customer: string | null; status: string | null; comments: number }
-interface Event { id: number; event_type: string; field: string | null; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: Ref | number | null; triggeredBy?: Ref | null }
+interface Event { id: number; event_type: string; field: string | null; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: Ref | number | null; triggeredBy?: Ref | null; meta?: { to?: string[]; ok?: boolean; error?: string | null; publico?: string; regra?: string } | null }
 interface Att { id: number; original_name?: string; file_name?: string; human_size?: string; created_at?: string }
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
@@ -1221,7 +1221,8 @@ function TicketDetailInner({ id }: { id: number }) {
                     const detail = (e.event_type === 'status' || e.event_type === 'status_changed') ? `${stName(e.from_value)} → ${stName(e.to_value)}`
                       : e.event_type === 'team_changed' ? tmName(e.to_value)
                       : e.event_type === 'assigned' ? agName(e.to_value)
-                      : (e.event_type === 'comment' || e.event_type === 'comment_edited' || e.event_type === 'email_sent' || e.event_type === 'trigger') ? ''
+                      : e.event_type === 'email_sent' ? (e.to_value ? `${e.meta?.publico === 'cliente' ? 'ao cliente' : e.meta?.publico === 'responsavel' ? 'ao responsável' : 'para'} ${e.to_value}${e.meta?.ok === false ? '  ⚠️ falha no envio' : e.meta ? '  ✓ enviado' : ''}` : '')
+                      : (e.event_type === 'comment' || e.event_type === 'comment_edited' || e.event_type === 'trigger') ? ''
                       : (e.from_value || e.to_value) ? (e.from_value && e.to_value ? `${stName(e.from_value)} → ${stName(e.to_value)}` : (e.to_value ?? e.from_value ?? '')) : ''
                     return (
                       <div key={e.id} className="flex items-start gap-2 text-sm">
