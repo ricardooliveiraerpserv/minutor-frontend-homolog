@@ -557,11 +557,11 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
         resolution_minutes: t.res ? Math.round(Number(t.res) * 60) : null,
         first_response_channels: t.channels.length ? t.channels : null,
         max_agent_actions: t.maxA ? Number(t.maxA) : null,
-        pauses: t.pauses,
+        pauses: [], // pausa é global (flag sla_paused no status), não mais por-prioridade
       } })
       await api.put(`/help-desk/sla-policies/${policy.id}`, {
         name, active, is_default: isDefault, timezone: tz, use_national_holidays: useNat,
-        business_hours, targets, holidays: holidays.map(h => ({ date: h.date, name: h.name ?? null })),
+        business_hours, targets, holidays: holidays.filter(h => h.date).map(h => ({ date: h.date, name: h.name ?? null })),
         customer_ids: linked.map(c => c.id),
       })
       toast.success('Política salva'); onSaved(); setLoaded(false); loadDetail()
@@ -647,16 +647,12 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
                     <span style={{ color: 'var(--text-muted)' }}>máx. ações <input type="number" min="0" className={`${fieldCls} w-14`} style={{ ...inputStyle, padding: '2px 6px' }} value={t.maxA} onChange={e => setT(pr, { maxA: e.target.value })} /></span>
                   </div>
                   <div className="flex items-start gap-2 flex-wrap">
-                    <span className="text-[11px] w-24 pt-0.5" style={{ color: 'var(--text-light)' }}>Pausa em:</span>
-                    <div className="flex gap-1 flex-wrap flex-1">{statuses.map(s => <Chip key={s.key} active={t.pauses.includes(s.key)} label={s.label} onClick={() => setT(pr, { pauses: toggleIn(t.pauses, s.key) })} />)}</div>
-                  </div>
-                  <div className="flex items-start gap-2 flex-wrap">
                     <span className="text-[11px] w-24 pt-0.5" style={{ color: 'var(--text-light)' }}>Canais 1ª resp:</span>
                     <div className="flex gap-1 flex-wrap flex-1">{channels.map(c => <Chip key={c} active={t.channels.includes(c)} label={c} onClick={() => setT(pr, { channels: toggleIn(t.channels, c) })} />)}</div>
                   </div>
                 </div>
               ) })}
-              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem canais marcados = todos os canais disparam a 1ª resposta. Sem pausas em nenhuma regra = usa o “pausa” global do status.</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem canais marcados = todos os canais disparam a 1ª resposta. Campo em branco = SLA daquele tipo não é calculado. <b>A pausa de SLA é global, definida em cada status</b> (flag “SLA pausa”, na aba Status) — vale para todas as prioridades.</p>
             </div>
 
             {/* Feriados do contrato */}
@@ -667,12 +663,13 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
                 <input placeholder="nome (opcional)" value={hName} onChange={e => setHName(e.target.value)} className={`${fieldCls} w-40`} style={inputStyle} />
                 <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addHoliday}><Plus size={13} /> Add</button>
               </div>
-              <div className="flex gap-1.5 flex-wrap">
-                {holidays.map(h => (
-                  <span key={h.date} className="text-[11px] px-2 py-0.5 rounded inline-flex items-center gap-1.5" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                    {h.date.slice(8, 10)}/{h.date.slice(5, 7)}{h.name ? ` · ${h.name}` : ''}
-                    <button onClick={() => setHolidays(hs => hs.filter(x => x.date !== h.date))}><Trash2 size={11} style={{ color: 'var(--danger)' }} /></button>
-                  </span>
+              <div className="flex flex-col gap-1.5">
+                {holidays.map((h, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input type="date" value={h.date} onChange={e => setHolidays(hs => hs.map((x, j) => j === i ? { ...x, date: e.target.value } : x))} className={fieldCls} style={{ ...inputStyle, padding: '4px 8px' }} />
+                    <input placeholder="nome (opcional)" value={h.name ?? ''} onChange={e => setHolidays(hs => hs.map((x, j) => j === i ? { ...x, name: e.target.value || null } : x))} className={`${fieldCls} w-40`} style={inputStyle} />
+                    <button onClick={() => setHolidays(hs => hs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={13} style={{ color: 'var(--danger)' }} /></button>
+                  </div>
                 ))}
                 {holidays.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum feriado específico.</span>}
               </div>
