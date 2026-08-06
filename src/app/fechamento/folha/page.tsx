@@ -670,7 +670,7 @@ export default function FechamentoFolhaPage() {
     setExporting(true)
     try {
       const res = await fetch(
-        `/api/v1/fechamento-folha/${yearMonth}/export`,
+        `/api/v1/fechamento-folha/${yearMonth}/export?empresa=${empresa}`,   // sem isto, o BE cai no default ERPSERV
         { credentials: 'same-origin', headers: { Accept: 'application/vnd.ms-excel' } },
       )
       if (!res.ok) throw new Error(`Erro ${res.status}`)
