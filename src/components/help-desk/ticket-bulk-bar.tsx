@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Ref { id: number; name: string }
 interface ServiceOpt { id: number; parent_id?: number | null; name: string }
@@ -29,19 +30,24 @@ export function TicketBulkBar({ ids, perms, agents, categories, services, priori
   const [action, setAction] = useState('')
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
 
   if (!perms?.enabled || ids.length === 0) return null
 
-  const apply = async () => {
-    if (!action) return
-    if (action === 'delete') { if (!confirm(`Excluir ${ids.length} chamado(s) selecionado(s)?`)) return }
-    else if (action !== 'responsible' && !value) { toast.error('Selecione um valor para aplicar'); return }
-    setBusy(true)
+  const execute = async () => {
+    setConfirmDel(false); setBusy(true)
     try {
       const r = await api.post<{ data: { updated: number } }>('/help-desk/tickets/bulk', { action, ticket_ids: ids, value: value || null })
       toast.success(`${r?.data?.updated ?? 0} chamado(s) ${action === 'delete' ? 'excluído(s)' : 'atualizado(s)'}`)
       setAction(''); setValue(''); onDone()
     } catch (e: any) { toast.error(e?.message || 'Erro na ação em massa') } finally { setBusy(false) }
+  }
+
+  const apply = () => {
+    if (!action) return
+    if (action === 'delete') { setConfirmDel(true); return }
+    if (action !== 'responsible' && !value) { toast.error('Selecione um valor para aplicar'); return }
+    execute()
   }
 
   const prios = priorities?.length ? priorities : ['baixa', 'normal', 'alta', 'urgente']
@@ -96,6 +102,17 @@ export function TicketBulkBar({ ids, perms, agents, categories, services, priori
         </button>
       )}
       <button onClick={() => { setAction(''); setValue(''); onClear() }} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Limpar seleção</button>
+
+      <ConfirmDialog
+        open={confirmDel}
+        danger
+        title={`Excluir ${ids.length} chamado${ids.length > 1 ? 's' : ''}?`}
+        message="Esta ação remove os chamados selecionados. Não é possível desfazer."
+        confirmLabel="Excluir"
+        busy={busy}
+        onConfirm={execute}
+        onCancel={() => setConfirmDel(false)}
+      />
     </div>
   )
 }
