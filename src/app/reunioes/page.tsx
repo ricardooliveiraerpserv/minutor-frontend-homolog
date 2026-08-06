@@ -16,7 +16,7 @@ const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)',
 const lblCls = 'text-xs font-medium mb-1 block'
 
 interface MeetingRow { id: number; title: string; meeting_date: string | null; location: string | null; creator: string | null; participants: MSOpt[]; participants_count: number; tasks_count: number; open_tasks_count: number }
-interface MTask { id: number; title: string; description: string | null; assigned_to: number; assignee_name: string | null; created_by: number; due_date: string | null; completed: boolean }
+interface MTask { id: number; title: string; description: string | null; assigned_to: number; assignee_name: string | null; assignees: { id: number; name: string }[]; assignee_ids: number[]; created_by: number; due_date: string | null; completed: boolean }
 interface MeetingDetail { id: number; title: string; meeting_date: string | null; location: string | null; description: string | null; notes: string | null; creator: string | null; created_by_id: number; can_delete: boolean; participants: MSOpt[]; tasks: MTask[] }
 
 // A data/hora da reunião é "wall-clock" (o horário digitado). O backend roda em UTC e
@@ -32,6 +32,7 @@ export default function ReunioesPage() {
   const [sel, setSel] = useState<MeetingDetail | null>(null)
   const [showNew, setShowNew] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'meetings' | 'pending'>('meetings')
 
   useEffect(() => { if (user && !MANAGERS.includes(user.type ?? '')) router.replace('/inicio') }, [user, router])
 
@@ -53,7 +54,20 @@ export default function ReunioesPage() {
           <span className="text-xs" style={{ color: 'var(--text-light)' }}>· Detalhes, participantes e tarefas</span>
         </div>
 
-        {!sel ? (
+        {!sel && (
+          <div className="flex items-center gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-sunken)' }}>
+            {([['meetings', 'Reuniões'], ['pending', 'Atividades pendentes']] as const).map(([k, label]) => (
+              <button key={k} onClick={() => setTab(k)} className="text-sm px-3 py-1.5 rounded-md font-medium"
+                style={tab === k ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(0,0,0,.06)' } : { color: 'var(--text-muted)' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!sel && tab === 'pending' ? (
+          <PendingTasksView openMeeting={open} meUserId={user?.id ?? 0} />
+        ) : !sel ? (
           <>
             <button onClick={() => setShowNew(true)} className="text-sm px-3 py-2 rounded-lg font-medium inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
               <Plus size={16} /> Nova reunião
@@ -88,6 +102,74 @@ export default function ReunioesPage() {
 
       {showNew && <NewMeetingModal onClose={() => setShowNew(false)} onCreated={(id) => { setShowNew(false); load(); open(id) }} searchUsers={searchUsers} />}
     </AppLayout>
+  )
+}
+
+interface PendRow { task_id: number; title: string; due_date: string | null; completed: boolean; meeting_id: number; meeting_title: string; assignees: { id: number; name: string }[] }
+interface PendGroup { user_id: number; user_name: string; tasks: PendRow[] }
+
+/** Lista consolidada das atividades pendentes de TODAS as reuniões, agrupadas por responsável,
+ *  com filtro por reunião e link p/ abrir a reunião de origem. */
+function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; meUserId: number }) {
+  const [groups, setGroups] = useState<PendGroup[]>([])
+  const [meetings, setMeetings] = useState<{ id: number; title: string }[]>([])
+  const [meetingId, setMeetingId] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    const qs = meetingId ? `?meeting_id=${meetingId}` : ''
+    api.get<{ data: { groups: PendGroup[]; meetings: { id: number; title: string }[] } }>(`/meetings/tasks/pending${qs}`)
+      .then(r => { setGroups(r.data?.groups ?? []); setMeetings(r.data?.meetings ?? []) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [meetingId])
+  useEffect(() => { load() }, [load])
+
+  const totalTasks = groups.reduce((s, g) => s + g.tasks.length, 0)
+  const overdue = (d: string | null) => !!d && d < new Date().toISOString().slice(0, 10)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Atividades pendentes</span>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· o que ficou pendente nas reuniões, por responsável</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Reunião:</span>
+          <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} value={meetingId} onChange={e => setMeetingId(e.target.value)}>
+            <option value="">Todas as reuniões</option>
+            {meetings.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {loading && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
+      {!loading && totalTasks === 0 && <div className="ds-card p-6 text-center"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma atividade pendente 🎉</p></div>}
+
+      {!loading && groups.map(g => (
+        <div key={g.user_id} className="ds-card p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Users size={14} style={{ color: 'var(--primary)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{g.user_name}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{g.tasks.length}</span>
+          </div>
+          {g.tasks.map(t => (
+            <div key={t.task_id} className="flex items-start gap-2 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)' }}>{t.title}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: overdue(t.due_date) ? 'var(--danger-border)' : 'var(--text-light)' }}>
+                  {t.due_date ? `até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}${overdue(t.due_date) ? ' · atrasada' : ''}` : 'sem prazo'}
+                  {t.assignees.length > 1 ? ` · 👥 ${t.assignees.map(a => a.name).join(', ')}` : ''}
+                </p>
+              </div>
+              <button onClick={() => openMeeting(t.meeting_id)} title="Abrir reunião de origem" className="shrink-0 text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                {t.meeting_title} <ChevronRight size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -149,15 +231,20 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
   const notesDraftKey = `meeting_notes_draft_${detail.id}`
   const [notes, setNotes] = useState(() => { try { const d = localStorage.getItem(notesDraftKey); return d != null ? d : (detail.notes ?? '') } catch { return detail.notes ?? '' } })
   const [saving, setSaving] = useState(false)
-  // nova tarefa
+  // nova tarefa (múltiplos responsáveis)
   const [tTitle, setTTitle] = useState('')
-  const [tWho, setTWho] = useState<string>('')
+  const [tWho, setTWho] = useState<MSOpt[]>([])
   const [tDue, setTDue] = useState('')
   // edição de tarefa existente
   const [editTaskId, setEditTaskId] = useState<number | null>(null)
   const [etTitle, setEtTitle] = useState('')
-  const [etWho, setEtWho] = useState<string>('')
+  const [etWho, setEtWho] = useState<MSOpt[]>([])
   const [etDue, setEtDue] = useState('')
+  // responsáveis = restritos aos participantes da reunião (busca local nos envolvidos)
+  const searchParticipants = useCallback(
+    async (q: string): Promise<MSOpt[]> => detail.participants.filter(p => p.name.toLowerCase().includes(q.trim().toLowerCase())),
+    [detail.participants],
+  )
   // Rascunho auto-salvo das anotações: sobrevive a reload/erro; limpa quando bate com o salvo.
   useEffect(() => {
     try { if (notes !== (detail.notes ?? '')) localStorage.setItem(notesDraftKey, notes); else localStorage.removeItem(notesDraftKey) } catch { /* ignore */ }
@@ -174,22 +261,22 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
     catch { toast.error('Erro ao atualizar participantes') }
   }
   const addTask = async () => {
-    if (!tTitle.trim() || !tWho) { toast.error('Informe a tarefa e o responsável'); return }
-    try { const r = await api.post<{ data: MTask }>(`/meetings/${detail.id}/tasks`, { title: tTitle.trim(), assigned_to: Number(tWho), due_date: tDue || null }); setDetail({ ...detail, tasks: [...detail.tasks, r.data] }); setTTitle(''); setTWho(''); setTDue('') }
+    if (!tTitle.trim() || tWho.length === 0 || !tDue) { toast.error('Informe a tarefa, ao menos um responsável e o prazo'); return }
+    try { const r = await api.post<{ data: MTask }>(`/meetings/${detail.id}/tasks`, { title: tTitle.trim(), assigned_to: tWho.map(w => w.id), due_date: tDue }); setDetail({ ...detail, tasks: [...detail.tasks, r.data] }); setTTitle(''); setTWho([]); setTDue('') }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao criar tarefa') }
   }
-  const startEditTask = (t: MTask) => { setEditTaskId(t.id); setEtTitle(t.title); setEtWho(String(t.assigned_to)); setEtDue(t.due_date ?? '') }
-  const cancelEditTask = () => { setEditTaskId(null); setEtTitle(''); setEtWho(''); setEtDue('') }
+  const startEditTask = (t: MTask) => { setEditTaskId(t.id); setEtTitle(t.title); setEtWho((t.assignees?.length ? t.assignees : (t.assignee_name ? [{ id: t.assigned_to, name: t.assignee_name }] : [])).map(a => ({ id: a.id, name: a.name }))); setEtDue(t.due_date ?? '') }
+  const cancelEditTask = () => { setEditTaskId(null); setEtTitle(''); setEtWho([]); setEtDue('') }
   const saveEditTask = async () => {
-    if (!etTitle.trim() || !etWho) { toast.error('Informe a tarefa e o responsável'); return }
+    if (!etTitle.trim() || etWho.length === 0 || !etDue) { toast.error('Informe a tarefa, ao menos um responsável e o prazo'); return }
     try {
-      const r = await api.put<{ data: MTask }>(`/meetings/${detail.id}/tasks/${editTaskId}`, { title: etTitle.trim(), assigned_to: Number(etWho), due_date: etDue || null })
+      const r = await api.put<{ data: MTask }>(`/meetings/${detail.id}/tasks/${editTaskId}`, { title: etTitle.trim(), assigned_to: etWho.map(w => w.id), due_date: etDue })
       setDetail({ ...detail, tasks: detail.tasks.map(x => x.id === editTaskId ? r.data : x) }); cancelEditTask()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar tarefa') }
   }
   const toggleTask = async (t: MTask) => {
     try { const r = await api.patch<{ data: MTask }>(`/meetings/${detail.id}/tasks/${t.id}/toggle`, {}); setDetail({ ...detail, tasks: detail.tasks.map(x => x.id === t.id ? r.data : x) }) }
-    catch (e) { toast.error((e as { message?: string })?.message ?? 'Só o responsável conclui') }
+    catch (e) { toast.error((e as { message?: string })?.message ?? 'Só um responsável conclui') }
   }
   const delTask = async (t: MTask) => {
     if (!confirm(`Remover a tarefa "${t.title}"?`)) return
@@ -238,46 +325,42 @@ function MeetingDetailView({ detail, setDetail, onBack, searchUsers, meUserId }:
 
       {/* Tarefas */}
       <div className="ds-card p-4 space-y-2">
-        <div className="flex items-center gap-2"><ClipboardList size={15} style={{ color: 'var(--primary)' }} /><span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Tarefas</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· vão pro “Meu Dia” do responsável</span></div>
+        <div className="flex items-center gap-2"><ClipboardList size={15} style={{ color: 'var(--primary)' }} /><span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Tarefas</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· vão pro “Meu Dia” de cada responsável</span></div>
         {detail.tasks.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma tarefa ainda.</p>}
         {detail.tasks.map(t => (
           editTaskId === t.id ? (
             <div key={t.id} className="py-2 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
               <textarea className={inputCls} style={{ ...inputStyle, minHeight: 90 }} value={etTitle} onChange={e => setEtTitle(e.target.value)} placeholder="Descrição da tarefa…" />
-              <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 150px auto auto' }}>
-                <select className={inputCls} style={inputStyle} value={etWho} onChange={e => setEtWho(e.target.value)}>
-                  <option value="">Responsável…</option>
-                  {detail.participants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input type="date" className={inputCls} style={inputStyle} value={etDue} onChange={e => setEtDue(e.target.value)} />
-                <button onClick={saveEditTask} className="px-3 rounded-lg text-sm font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Salvar</button>
-                <button onClick={cancelEditTask} className="px-3 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>Cancelar</button>
+              <MultiSelect placeholder="Responsáveis… (um ou mais)" selected={etWho} onChange={setEtWho} search={searchParticipants} />
+              <div className="flex gap-2 items-center flex-wrap">
+                <input type="date" className="text-sm rounded-lg px-3 py-2 outline-none" style={{ ...inputStyle, width: 160 }} value={etDue} onChange={e => setEtDue(e.target.value)} />
+                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>prazo obrigatório</span>
+                <button onClick={saveEditTask} className="ml-auto px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Salvar</button>
+                <button onClick={cancelEditTask} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>Cancelar</button>
               </div>
             </div>
           ) : (
           <div key={t.id} className="flex items-start gap-2 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
-            <button onClick={() => toggleTask(t)} title={t.assigned_to === meUserId ? 'Concluir/reabrir' : 'Só o responsável conclui'} className="w-5 h-5 mt-0.5 rounded flex items-center justify-center shrink-0" style={{ border: `1.5px solid ${t.completed ? 'var(--success)' : 'var(--border)'}`, background: t.completed ? 'var(--success)' : 'transparent' }}>
+            <button onClick={() => toggleTask(t)} title={t.assignee_ids?.includes(meUserId) ? 'Concluir/reabrir' : 'Só um responsável conclui'} className="w-5 h-5 mt-0.5 rounded flex items-center justify-center shrink-0" style={{ border: `1.5px solid ${t.completed ? 'var(--success)' : 'var(--border)'}`, background: t.completed ? 'var(--success)' : 'transparent' }}>
               {t.completed && <Check size={13} color="#fff" />}
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? .6 : 1 }}>{t.title}</p>
-              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>👤 {t.assignee_name ?? '—'}{t.due_date ? ` · até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}` : ''}</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>👤 {(t.assignees?.length ? t.assignees.map(a => a.name).join(', ') : (t.assignee_name ?? '—'))}{t.due_date ? ` · até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}` : ''}</p>
             </div>
             {(t.created_by === meUserId) && <button onClick={() => startEditTask(t)} title="Editar tarefa" className="mt-0.5"><PenLine size={14} style={{ color: 'var(--text-muted)' }} /></button>}
             {(t.created_by === meUserId) && <button onClick={() => delTask(t)} title="Remover tarefa" className="mt-0.5"><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>}
           </div>
           )
         ))}
-        {/* nova tarefa — caixa de texto maior (aceita texto longo/colado) */}
+        {/* nova tarefa — caixa de texto maior (aceita texto longo/colado) + múltiplos responsáveis */}
         <div className="pt-2 space-y-2">
           <textarea className={inputCls} style={{ ...inputStyle, minHeight: 90 }} value={tTitle} onChange={e => setTTitle(e.target.value)} placeholder="Nova tarefa… (pode colar pautas/listas longas)" />
-          <div className="grid gap-2" style={{ gridTemplateColumns: '1fr 150px auto' }}>
-            <select className={inputCls} style={inputStyle} value={tWho} onChange={e => setTWho(e.target.value)}>
-              <option value="">Responsável…</option>
-              {detail.participants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input type="date" className={inputCls} style={inputStyle} value={tDue} onChange={e => setTDue(e.target.value)} />
-            <button onClick={addTask} className="px-4 rounded-lg text-sm font-medium inline-flex items-center gap-1" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Adicionar</button>
+          <MultiSelect placeholder="Responsáveis… (um ou mais)" selected={tWho} onChange={setTWho} search={searchParticipants} />
+          <div className="flex gap-2 items-center flex-wrap">
+            <input type="date" className="text-sm rounded-lg px-3 py-2 outline-none" style={{ ...inputStyle, width: 160 }} value={tDue} onChange={e => setTDue(e.target.value)} />
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>prazo obrigatório · conclusão vale p/ todos</span>
+            <button onClick={addTask} className="ml-auto px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-1" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Adicionar</button>
           </div>
         </div>
       </div>
