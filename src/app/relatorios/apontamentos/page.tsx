@@ -40,6 +40,16 @@ interface TicketSummaryRow {
   lifetime_count: number
 }
 
+interface ProjectSummaryRow {
+  project_id: number
+  code: string | null
+  name: string | null
+  period_minutes: number
+  period_count: number
+  lifetime_minutes: number
+  lifetime_count: number
+}
+
 interface RawTimesheet {
   date: string
   created_at?: string | null
@@ -129,6 +139,7 @@ export default function RelatorioApontamentosPage() {
 
   const [items,    setItems]    = useState<RawTimesheet[]>([])
   const [ticketSummary, setTicketSummary] = useState<TicketSummaryRow[]>([])
+  const [projectSummary, setProjectSummary] = useState<ProjectSummaryRow[]>([])
   const [loaded,   setLoaded]   = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [showPreview, setShowPreview] = useState(false)
@@ -319,9 +330,10 @@ export default function RelatorioApontamentosPage() {
       projectIds.forEach(id => summaryParams.append('project_id[]', id))
       serviceTypeIds.forEach(id => summaryParams.append('service_type_id[]', id))
 
-      const [r, sumR] = await Promise.all([
+      const [r, sumR, projR] = await Promise.all([
         api.get<any>(`/timesheets?${p}`),
         api.get<any>(`/timesheets/summary-by-ticket?${summaryParams}`).catch(() => ({ tickets: [] })),
+        api.get<any>(`/timesheets/summary-by-project?${summaryParams}`).catch(() => ({ projects: [] })),
       ])
 
       const list: RawTimesheet[] = Array.isArray(r?.items) ? r.items : []
@@ -338,6 +350,10 @@ export default function RelatorioApontamentosPage() {
       const tickets: TicketSummaryRow[] = Array.isArray(sumR?.tickets) ? sumR.tickets : []
       tickets.sort((a, b) => a.ticket.localeCompare(b.ticket, 'pt-BR', { numeric: true }))
       setTicketSummary(tickets)
+
+      const projects: ProjectSummaryRow[] = Array.isArray(projR?.projects) ? projR.projects : []
+      projects.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'pt-BR'))
+      setProjectSummary(projects)
 
       setLoaded(true)
       setShowPreview(false)
@@ -832,6 +848,38 @@ export default function RelatorioApontamentosPage() {
                   </tfoot>
                 </table>
               </div>
+
+              {/* Apuração por Projeto — total do projeto inteiro (com+sem ticket): período + histórico */}
+              {projectSummary.length > 0 && (
+                <div className="px-10 pb-6 table-scroll">
+                  <h2 className="text-sm font-bold text-gray-800 mb-3 mt-2">Apuração por Projeto</h2>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Projetos com apontamento no período, mostrando o total no período selecionado e o total
+                    do projeto inteiro (todos os apontamentos, com ou sem ticket, desde o primeiro).
+                  </p>
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr style={{ background: '#f5f3ff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600 whitespace-nowrap">Código</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Projeto</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600 whitespace-nowrap">Total no período</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600 whitespace-nowrap">Total do projeto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectSummary.map((pr, i) => (
+                        <tr key={pr.project_id}
+                          style={{ background: i % 2 === 0 ? '#fff' : '#faf9ff', borderBottom: '1px solid #e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                          <td className="px-3 py-2 text-xs whitespace-nowrap" style={{ color: '#5b21b6' }}>{pr.code ?? '—'}</td>
+                          <td className="px-3 py-2 text-xs text-gray-700">{pr.name ?? '—'}</td>
+                          <td className="px-3 py-2 text-xs text-right font-semibold text-gray-800 tabular-nums whitespace-nowrap">{fmtHoras(pr.period_minutes)}</td>
+                          <td className="px-3 py-2 text-xs text-right font-semibold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>{fmtHoras(pr.lifetime_minutes)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               {/* 2ª tabela: Apuração por Ticket — total no período + histórico */}
               {ticketSummary.length > 0 && (
