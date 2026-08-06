@@ -1119,6 +1119,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
   const fmtMoney = (val: any) => val != null ? `R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
   const fmtHours = (val: any) => val != null ? `${val}h` : '—'
   const fmtDate  = (val: any) => val ? new Date(val).toLocaleDateString('pt-BR') : '—'
+  const fmtDateTime = (val: any) => val ? new Date(val).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
   const fmtSize  = (b: any) => b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`
   const ATT_LABEL: Record<string, string> = { proposta: 'Proposta', contrato: 'Contrato', logo: 'Logo' }
 
@@ -1133,6 +1134,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
   }
 
   const fields: [string, string][] = full ? [
+    ['Criado em',           fmtDateTime(card.created_at)],
     ['Categoria',           full.categoria === 'sustentacao' ? 'Sustentação' : 'Projeto'],
     ['Tipo de Contrato',    full.contract_type?.name ?? '—'],
     ['Tipo de Serviço',     full.service_type?.name ?? '—'],
@@ -1160,6 +1162,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
     ['Status Contrato',     full.status ?? '—'],
     ['Projeto Gerado',      full.project?.code ?? '—'],
   ] : [
+    ['Criado em',         fmtDateTime(card.created_at)],
     ['Categoria',         card.categoria === 'sustentacao' ? 'Sustentação' : 'Projeto'],
     ['Tipo de Contrato',  card.contract_type ?? '—'],
     ['Faturamento',       card.tipo_faturamento ? (TIPO_LABEL[card.tipo_faturamento] ?? card.tipo_faturamento) : '—'],
