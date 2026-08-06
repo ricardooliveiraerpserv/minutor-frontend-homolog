@@ -4275,6 +4275,7 @@ function KanbanContent() {
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
   const delReasonRef = useRef<HTMLTextAreaElement>(null) // motivo da exclusão (vai pro log)
   const [showDelLog, setShowDelLog] = useState(false)    // visualizador do log de exclusões
+  const [showColHist, setShowColHist] = useState(false)  // histórico de dias por coluna
   const [delRequest, setDelRequest] = useState<RequestCard | null>(null) // requisição a excluir (com log)
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
   const [editContractData, setEditContractData] = useState<any | null>(null)
@@ -5000,6 +5001,14 @@ function KanbanContent() {
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
                 title="Log de exclusões de requisições/contratos">
                 <Clock size={13} /> Log de exclusões
+              </button>
+            )}
+            {(user?.type === 'admin' || user?.type === 'coordenador' || user?.type === 'administrativo') && (
+              <button onClick={() => setShowColHist(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                title="Histórico de dias por coluna de cada projeto">
+                <Clock size={13} /> Dias por Coluna
               </button>
             )}
             {/* Exportar Excel — todos os perfis; exporta a lista de projetos com os filtros aplicados */}
@@ -5929,6 +5938,7 @@ function KanbanContent() {
         return null
       })()}
       {showDelLog && <DeletionLogModal onClose={() => setShowDelLog(false)} />}
+      {showColHist && <ColumnHistoryModal onClose={() => setShowColHist(false)} />}
       {delRequest && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setDelRequest(null)}>
           <div className="rounded-2xl p-6 flex flex-col gap-3 w-96 max-w-full" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
@@ -5956,6 +5966,70 @@ function KanbanContent() {
 }
 
 // Modal admin: log de exclusões de requisições/contratos (auditoria).
+// Histórico de dias por coluna: tabela projeto × colunas (dias) + total.
+function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
+  interface ColDef { key: string; label: string }
+  interface Row { project_id: number; code: string | null; name: string | null; customer: string; current: string; days_by_column: Record<string, number>; total: number }
+  const [columns, setColumns] = useState<ColDef[]>([])
+  const [rows, setRows] = useState<Row[]>([])
+  const [loading, setLoading] = useState(true)
+  const [q, setQ] = useState('')
+
+  useEffect(() => {
+    api.get<{ columns: ColDef[]; rows: Row[] }>('/projects/kanban-column-history')
+      .then(r => { setColumns(r.columns ?? []); setRows(r.rows ?? []) })
+      .catch(() => toast.error('Erro ao carregar histórico'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const fmtD = (d?: number) => d == null || d === 0 ? '—' : `${Number(d).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
+  const filtered = rows.filter(r => !q || `${r.code ?? ''} ${r.name ?? ''} ${r.customer}`.toLowerCase().includes(q.toLowerCase()))
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
+      <div className="rounded-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Dias por Coluna — histórico</h2>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar projeto/cliente…"
+              className="text-sm rounded-lg px-3 py-1.5 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+            <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto">
+          {loading ? <p className="p-6 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+            <table className="w-full text-xs border-collapse">
+              <thead className="sticky top-0" style={{ background: 'var(--surface-sunken)' }}>
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Projeto</th>
+                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Cliente</th>
+                  {columns.map(c => <th key={c.key} className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{c.label}</th>)}
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Total (dias)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
+                    <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
+                    {columns.map(c => <td key={c.key} className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtD(r.days_by_column[c.key])}</td>)}
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtD(r.total)}</td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && <tr><td colSpan={columns.length + 3} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="px-5 py-2 border-t text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>{filtered.length} projeto(s)</div>
+      </div>
+    </div>
+  )
+}
+
 function DeletionLogModal({ onClose }: { onClose: () => void }) {
   const [logs, setLogs] = useState<{ id: number; contract_name: string | null; customer_name: string | null; kanban_status: string | null; deleted_by_name: string | null; reason: string | null; deleted_at: string | null }[]>([])
   const [loading, setLoading] = useState(true)
