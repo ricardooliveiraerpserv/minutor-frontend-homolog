@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil } from 'lucide-react'
+import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil, Copy } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { AccessProfiles, HelpDeskPeople } from '@/components/help-desk/access-profiles'
 import { Departments } from '@/components/help-desk/departments'
@@ -570,16 +570,26 @@ function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy
   const del = async () => { if (!confirm(`Excluir "${policy.name}"?`)) return; try { await api.delete(`/help-desk/sla-policies/${policy.id}`); onSaved() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
   const addHoliday = () => { if (!hDate) return; if (holidays.some(h => h.date === hDate)) return; setHolidays(hs => [...hs, { date: hDate, name: hName || null, yearly: hYearly }].sort((a, b) => a.date.localeCompare(b.date))); setHDate(''); setHName(''); setHYearly(false) }
 
+  const [dup, setDup] = useState(false)
+  const duplicate = async () => {
+    setDup(true)
+    try { await api.post(`/help-desk/sla-policies/${policy.id}/duplicate`, {}); toast.success('Política duplicada — abra a cópia e vincule ao contrato/cliente'); onSaved() }
+    catch { toast.error('Erro ao duplicar política') } finally { setDup(false) }
+  }
+
   return (
     <div className="ds-card p-0 overflow-hidden">
-      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3">
-        <span className="font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
-          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {policy.name}
-          {policy.is_default && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>padrão</span>}
-          {!policy.active && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>inativa</span>}
-        </span>
-        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{policy.targets?.length ?? 0} regras · {policy.customers_count ?? 0} cliente(s)</span>
-      </button>
+      <div className="flex items-center">
+        <button type="button" onClick={() => setOpen(o => !o)} className="flex-1 min-w-0 flex items-center justify-between px-4 py-3">
+          <span className="font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+            {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {policy.name}
+            {policy.is_default && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>padrão</span>}
+            {!policy.active && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>inativa</span>}
+          </span>
+          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{policy.targets?.length ?? 0} regras · {policy.customers_count ?? 0} cliente(s)</span>
+        </button>
+        <button type="button" onClick={duplicate} disabled={dup} className="shrink-0 px-3 py-3 text-xs inline-flex items-center gap-1 disabled:opacity-50" style={{ color: 'var(--text-muted)', borderLeft: '1px solid var(--border)' }} title="Duplicar para vincular a um contrato específico"><Copy size={13} /> {dup ? '…' : 'Duplicar'}</button>
+      </div>
 
       {open && (
         <div className="px-4 pb-4 space-y-4 border-t" style={{ borderColor: 'var(--border)' }}>
