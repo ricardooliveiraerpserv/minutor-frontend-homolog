@@ -202,6 +202,7 @@ export default function FechamentoSemanalPage() {
                 {open ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
                 <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{m.label}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: mst.bg, color: mst.fg }}>{mst.label}</span>
+                {m.deadline && <span className="text-[10px] inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }} title="Prazo de fechamento do mês — 1º dia útil do mês seguinte, 23:59"><CalendarClock size={11} /> Prazo: {fmtDeadline(m.deadline)}</span>}
                 {m.status === 'reaberta' && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>até {fmtDT(m.reopen_auto_close_at)}</span>}
                 <div className="flex-1" />
                 <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
