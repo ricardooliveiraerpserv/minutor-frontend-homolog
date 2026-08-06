@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X, Mail, Phone, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Mail, Phone, User, Search } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 interface CustomerContact {
@@ -33,6 +33,13 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
   const [deleting, setDeleting] = useState(false)
+  const [busca, setBusca] = useState('')
+  // Busca por texto no contato (nome/cargo/e-mail/telefone).
+  const filteredContacts = contacts.filter(c => {
+    const q = busca.trim().toLowerCase()
+    if (!q) return true
+    return [c.name, c.cargo, c.email, c.phone].some(v => (v ?? '').toLowerCase().includes(q))
+  })
 
   const load = useCallback(async (cid: number) => {
     setLoading(true)
@@ -59,6 +66,7 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
+    if (!form.email.trim()) { toast.error('E-mail obrigatório'); return }
     if (customerId == null) { toast.error('Selecione um cliente'); return }
     setSaving(true)
     try {
@@ -115,6 +123,15 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
         )}
       </div>
 
+      {customerId != null && contacts.length > 0 && (
+        <div className="relative mb-2">
+          <Search size={12} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-light)' }} />
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar contato…"
+            className="w-full rounded-lg pl-7 pr-3 py-1.5 text-[11px] bg-transparent outline-none"
+            style={{ border: '1px solid var(--border)', color: 'var(--text)' }} />
+        </div>
+      )}
+
       <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         {customerId == null ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-light)' }}>Selecione um cliente</p>
@@ -122,9 +139,11 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-light)' }}>Carregando...</p>
         ) : contacts.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-light)' }}>Nenhum contato cadastrado</p>
+        ) : filteredContacts.length === 0 ? (
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-light)' }}>Nenhum contato encontrado</p>
         ) : (
           <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-            {contacts.map(c => (
+            {filteredContacts.map(c => (
               <div key={c.id} className="flex items-start justify-between gap-2 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
@@ -195,7 +214,7 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
                     className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} />
                 </div>
                 <div className="col-span-2">
-                  <label className={labelCls} style={labelStyle}>E-mail</label>
+                  <label className={labelCls} style={labelStyle}>E-mail *</label>
                   <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     className={inputCls} style={inputStyle} placeholder="email@empresa.com"
                     pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" />
@@ -207,7 +226,7 @@ export function CustomerContactsSection({ customerId, customerName, title = 'Con
                   style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   Cancelar
                 </button>
-                <button onClick={save} disabled={saving || !form.name.trim()}
+                <button onClick={save} disabled={saving || !form.name.trim() || !form.email.trim()}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                   style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                   {saving ? 'Salvando…' : 'Salvar'}
