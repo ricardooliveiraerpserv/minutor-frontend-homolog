@@ -5969,7 +5969,7 @@ function KanbanContent() {
 // Histórico de dias por coluna: tabela projeto × colunas (dias) + total.
 function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   interface ColDef { key: string; label: string }
-  interface Row { project_id: number; code: string | null; name: string | null; customer: string; current: string; days_by_column: Record<string, number>; total: number }
+  interface Row { project_id: number; code: string | null; name: string | null; customer: string; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
   const [columns, setColumns] = useState<ColDef[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -6006,6 +6006,7 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                 <tr>
                   <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Projeto</th>
                   <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Cliente</th>
+                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Status atual</th>
                   {columns.map(c => <th key={c.key} className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{c.label}</th>)}
                   <th className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Total (dias)</th>
                 </tr>
@@ -6015,11 +6016,21 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
                   <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full"
+                        style={r.current === 'cancelled'
+                          ? { background: 'var(--danger-bg)', color: 'var(--danger)' }
+                          : r.current === 'finished'
+                          ? { background: 'var(--success-bg)', color: 'var(--success)' }
+                          : { background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                        {r.current_label ?? r.current}
+                      </span>
+                    </td>
                     {columns.map(c => <td key={c.key} className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtD(r.days_by_column[c.key])}</td>)}
                     <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtD(r.total)}</td>
                   </tr>
                 ))}
-                {filtered.length === 0 && <tr><td colSpan={columns.length + 3} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={columns.length + 4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
               </tbody>
             </table>
           )}
