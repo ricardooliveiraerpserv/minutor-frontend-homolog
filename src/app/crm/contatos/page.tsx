@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { toast } from 'sonner'
-import { Contact, Plus, Pencil, Trash2, X, Search, Building2 } from 'lucide-react'
+import { Contact, Plus, Pencil, Trash2, X, Search, Building2, ChevronDown, Check } from 'lucide-react'
 
 interface Customer { id: number; name: string }
 interface CrmContact {
@@ -19,9 +19,60 @@ const INFLU = [{ v: '', l: '—' }, { v: 'alta', l: 'Alta' }, { v: 'media', l: '
 const CANAL = [{ v: '', l: '—' }, { v: 'email', l: 'E-mail' }, { v: 'whatsapp', l: 'WhatsApp' }, { v: 'telefone', l: 'Telefone' }, { v: 'linkedin', l: 'LinkedIn' }]
 const EMPTY = { customer_id: '', name: '', cargo: '', departamento: '', email: '', phone: '', whatsapp: '', linkedin: '', influencia_decisao: '', canal_preferido: '' }
 
+// Filtro de empresas: busca por texto + seleção múltipla (checkbox). Vazio = todas.
+function EmpresaFilter({ customers, selected, onChange }: { customers: Customer[]; selected: number[]; onChange: (ids: number[]) => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+  const list = customers.filter(c => c.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const toggle = (id: number) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  const label = selected.length === 0 ? 'Todas as empresas' : selected.length === 1 ? (customers.find(c => c.id === selected[0])?.name ?? '1 empresa') : `${selected.length} empresas`
+  const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(o => !o)} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm outline-none w-64 text-left" style={inputStyle}>
+        <span className="truncate" style={{ color: selected.length ? 'var(--text)' : 'var(--text-muted)' }}>{label}</span>
+        <ChevronDown size={15} style={{ color: 'var(--text-light)', transform: open ? 'rotate(180deg)' : 'none' }} />
+      </button>
+      {open && (
+        <div className="absolute z-40 mt-1 w-72 rounded-lg overflow-hidden shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-light)' }} />
+              <input value={q} onChange={e => setQ(e.target.value)} autoFocus placeholder="Buscar empresa…" className="pl-8 pr-3 py-2 rounded-lg text-sm outline-none w-full" style={inputStyle} />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            <button onClick={() => onChange([])} className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)]" style={{ color: selected.length === 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
+              Todas as empresas {selected.length === 0 && <Check size={14} />}
+            </button>
+            {list.map(c => {
+              const on = selected.includes(c.id)
+              return (
+                <button key={c.id} onClick={() => toggle(c.id)} className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]">
+                  <span className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary)' : 'transparent' }}>{on && <Check size={12} style={{ color: 'var(--primary-fg)' }} />}</span>
+                  <span className="truncate" style={{ color: 'var(--text)' }}>{c.name}</span>
+                </button>
+              )
+            })}
+            {list.length === 0 && <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma empresa.</p>}
+          </div>
+          {selected.length > 0 && (
+            <button onClick={() => onChange([])} className="w-full px-3 py-2 text-xs font-semibold text-left" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>Limpar seleção ({selected.length})</button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CrmContatosPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [filtroEmpresa, setFiltroEmpresa] = useState<string>('')  // filtro opcional (vazio = todas)
+  const [empresasSel, setEmpresasSel] = useState<number[]>([])  // filtro opcional multi (vazio = todas)
   const [contacts, setContacts] = useState<CrmContact[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
@@ -32,7 +83,7 @@ export default function CrmContatosPage() {
 
   // Filtro por texto (nome/cargo/depto/e-mail/telefone/whatsapp/empresa) + empresa opcional. Tudo local, instantâneo.
   const filtered = contacts.filter(c => {
-    if (filtroEmpresa && String(c.customer_id) !== filtroEmpresa) return false
+    if (empresasSel.length && !empresasSel.includes(c.customer_id)) return false
     const q = busca.trim().toLowerCase()
     if (!q) return true
     return [c.name, c.cargo, c.departamento, c.email, c.phone, c.whatsapp, c.customer?.name].some(v => (v ?? '').toLowerCase().includes(q))
@@ -54,7 +105,7 @@ export default function CrmContatosPage() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const openNew = () => { setEditId(null); setForm({ ...EMPTY, customer_id: filtroEmpresa || '' }); setModal(true) }
+  const openNew = () => { setEditId(null); setForm({ ...EMPTY, customer_id: empresasSel.length === 1 ? String(empresasSel[0]) : '' }); setModal(true) }
   const openEdit = (c: CrmContact) => {
     setEditId(c.id)
     setForm({ customer_id: String(c.customer_id), name: c.name, cargo: c.cargo ?? '', departamento: c.departamento ?? '', email: c.email ?? '', phone: c.phone ?? '', whatsapp: c.whatsapp ?? '', linkedin: c.linkedin ?? '', influencia_decisao: c.influencia_decisao ?? '', canal_preferido: c.canal_preferido ?? '' })
@@ -64,6 +115,7 @@ export default function CrmContatosPage() {
   const save = async () => {
     if (!form.customer_id) { toast.error('Selecione a empresa do contato'); return }
     if (!form.name.trim()) { toast.error('Informe o nome'); return }
+    if (!form.email.trim()) { toast.error('Informe o e-mail'); return }
     setSaving(true)
     const payload: any = { ...form, customer_id: Number(form.customer_id) }
     Object.keys(payload).forEach(k => { if (payload[k] === '') payload[k] = null })
@@ -98,10 +150,7 @@ export default function CrmContatosPage() {
           <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-light)' }} />
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome, cargo, e-mail, empresa…" className="pl-8 pr-3 py-2 rounded-lg text-sm outline-none w-72" style={inputStyle} />
         </div>
-        <select value={filtroEmpresa} onChange={e => setFiltroEmpresa(e.target.value)} className="px-3 py-2 rounded-lg text-sm outline-none w-64" style={inputStyle}>
-          <option value="">Todas as empresas</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <EmpresaFilter customers={customers} selected={empresasSel} onChange={setEmpresasSel} />
         <button onClick={openNew} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
           <Plus size={15} /> Novo contato
         </button>
@@ -156,7 +205,7 @@ export default function CrmContatosPage() {
               <div className="col-span-2"><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome *</label><input value={form.name} onChange={e => setF('name', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</label><input value={form.cargo} onChange={e => setF('cargo', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Departamento</label><input value={form.departamento} onChange={e => setF('departamento', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
-              <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>E-mail</label><input type="email" value={form.email} onChange={e => setF('email', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
+              <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>E-mail <span style={{ color: 'var(--danger-border)' }}>*</span></label><input type="email" value={form.email} onChange={e => setF('email', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Telefone</label><input value={form.phone} onChange={e => setF('phone', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>WhatsApp</label><input value={form.whatsapp} onChange={e => setF('whatsapp', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>LinkedIn (URL)</label><input value={form.linkedin} onChange={e => setF('linkedin', e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
