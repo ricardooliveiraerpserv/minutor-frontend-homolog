@@ -114,16 +114,20 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
   const [groups, setGroups] = useState<PendGroup[]>([])
   const [meetings, setMeetings] = useState<{ id: number; title: string }[]>([])
   const [meetingId, setMeetingId] = useState<string>('')
+  const [showDone, setShowDone] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(() => {
     setLoading(true)
-    const qs = meetingId ? `?meeting_id=${meetingId}` : ''
+    const p = new URLSearchParams()
+    if (meetingId) p.set('meeting_id', meetingId)
+    if (showDone) p.set('include_done', '1')
+    const qs = p.toString() ? `?${p.toString()}` : ''
     api.get<{ data: { groups: PendGroup[]; meetings: { id: number; title: string }[] } }>(`/meetings/tasks/pending${qs}`)
       .then(r => { setGroups(r.data?.groups ?? []); setMeetings(r.data?.meetings ?? []) })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [meetingId])
+  }, [meetingId, showDone])
   useEffect(() => { load() }, [load])
 
   const totalTasks = groups.reduce((s, g) => s + g.tasks.length, 0)
@@ -134,31 +138,43 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Atividades pendentes</span>
         <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· o que ficou pendente nas reuniões, por responsável</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Reunião:</span>
-          <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} value={meetingId} onChange={e => setMeetingId(e.target.value)}>
-            <option value="">Todas as reuniões</option>
-            {meetings.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-          </select>
+        <div className="ml-auto flex items-center gap-3 flex-wrap">
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+            <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} />
+            Mostrar concluídas
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Reunião:</span>
+            <select className="text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} value={meetingId} onChange={e => setMeetingId(e.target.value)}>
+              <option value="">Todas as reuniões</option>
+              {meetings.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
       {loading && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
-      {!loading && totalTasks === 0 && <div className="ds-card p-6 text-center"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma atividade pendente 🎉</p></div>}
+      {!loading && totalTasks === 0 && <div className="ds-card p-6 text-center"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>{showDone ? 'Nenhuma atividade encontrada.' : 'Nenhuma atividade pendente 🎉'}</p></div>}
 
-      {!loading && groups.map(g => (
+      {!loading && groups.map(g => {
+        const openCount = g.tasks.filter(t => !t.completed).length
+        return (
         <div key={g.user_id} className="ds-card p-4 space-y-2">
           <div className="flex items-center gap-2">
             <Users size={14} style={{ color: 'var(--primary)' }} />
             <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{g.user_name}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{g.tasks.length}</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{openCount} aberta(s)</span>
+            {showDone && g.tasks.length - openCount > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>{g.tasks.length - openCount} concluída(s)</span>}
           </div>
           {g.tasks.map(t => (
             <div key={t.task_id} className="flex items-start gap-2 py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+              <span className="w-4 h-4 mt-0.5 rounded flex items-center justify-center shrink-0" style={{ border: `1.5px solid ${t.completed ? 'var(--success)' : 'var(--border)'}`, background: t.completed ? 'var(--success)' : 'transparent' }}>
+                {t.completed && <Check size={11} color="#fff" />}
+              </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)' }}>{t.title}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: overdue(t.due_date) ? 'var(--danger-border)' : 'var(--text-light)' }}>
-                  {t.due_date ? `até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}${overdue(t.due_date) ? ' · atrasada' : ''}` : 'sem prazo'}
+                <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? .6 : 1 }}>{t.title}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: (!t.completed && overdue(t.due_date)) ? 'var(--danger-border)' : 'var(--text-light)' }}>
+                  {t.completed ? 'concluída' : (t.due_date ? `até ${new Date(t.due_date + 'T00:00').toLocaleDateString('pt-BR')}${overdue(t.due_date) ? ' · atrasada' : ''}` : 'sem prazo')}
                   {t.assignees.length > 1 ? ` · 👥 ${t.assignees.map(a => a.name).join(', ')}` : ''}
                 </p>
               </div>
@@ -168,7 +184,8 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
             </div>
           ))}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
