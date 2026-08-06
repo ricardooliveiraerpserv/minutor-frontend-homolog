@@ -465,6 +465,21 @@ export default function UsersPage() {
             {partners.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </select>
         )}
+        {filterRole === 'parceiro_admin' && (
+          <>
+            <select value={filterContract} onChange={e => setFilterContract(e.target.value)} title="Tipo de contrato"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Contrato: todos</option>
+              {CONTRACT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select value={filterSust} onChange={e => setFilterSust(e.target.value)} title="Sustentação"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Sustentação: todos</option>
+              <option value="1">Liberado</option>
+              <option value="0">Bloqueado</option>
+            </select>
+          </>
+        )}
         {filterRole === 'cliente' && customers.length > 0 && (
           <select
             value={filterCustomer}
