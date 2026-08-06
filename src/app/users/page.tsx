@@ -185,14 +185,18 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', page: 1 } as any) }
+  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
+  const setFilterBond          = (v: string) => setFilter({ filterBond: v, page: 1 } as any)
+  const setFilterContract      = (v: string) => setFilter({ filterContract: v, page: 1 } as any)
+  const setFilterConsultantType= (v: string) => setFilter({ filterConsultantType: v, page: 1 } as any)
+  const setFilterSust          = (v: string) => setFilter({ filterSust: v, page: 1 } as any)
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -248,6 +252,10 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
+      if (filterBond)          p.set('work_bond', filterBond)
+      if (filterContract)      p.set('contract_type', filterContract)
+      if (filterConsultantType) p.set('consultant_type', filterConsultantType)
+      if (filterSust)          p.set('sustentacao', filterSust)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
       const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
@@ -256,7 +264,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
 
   // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
   const loadCounts = useCallback(() => {
@@ -465,6 +473,32 @@ export default function UsersPage() {
             <option value="">Todos os clientes</option>
             {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
+        )}
+        {filterRole === 'consultor' && (
+          <>
+            <select value={filterBond} onChange={e => setFilterBond(e.target.value)} title="Vínculo"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Vínculo: todos</option>
+              <option value="fixo">Consultor Interno</option>
+              <option value="freelance">Consultor Free Lance</option>
+            </select>
+            <select value={filterConsultantType} onChange={e => setFilterConsultantType(e.target.value)} title="Perfil"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Perfil: todos</option>
+              {CONSULTANT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select value={filterContract} onChange={e => setFilterContract(e.target.value)} title="Tipo de contrato"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Contrato: todos</option>
+              {CONTRACT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select value={filterSust} onChange={e => setFilterSust(e.target.value)} title="Sustentação"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+              <option value="">Sustentação: todos</option>
+              <option value="1">Liberado</option>
+              <option value="0">Bloqueado</option>
+            </select>
+          </>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
