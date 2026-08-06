@@ -415,7 +415,8 @@ export default function CrmPipelinePage() {
     try { origem = localStorage.getItem('crm:last_origem') || '' } catch {}
     const euResponsavel = crmUsers.some(u => u.id === user?.id) ? String(user?.id) : ''
     const em2dias = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
-    setNf({ ...NF0, responsavel_id: euResponsavel, lead_source_id: origem, proxima_acao: 'Primeiro contato', proxima_acao_at: em2dias })
+    // Já nasce no funil que estou usando (aba ativa do Kanban).
+    setNf({ ...NF0, pipeline_id: pipeId ? String(pipeId) : '', responsavel_id: euResponsavel, lead_source_id: origem, proxima_acao: 'Primeiro contato', proxima_acao_at: em2dias })
     setContacts([]); setNovoLead(NL0); setNfProdutos([]); setNewOpen(true)
   }
 
