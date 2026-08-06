@@ -1515,6 +1515,7 @@ function CustomerContactsTab() {
 
   const save = async () => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
+    if (!form.email.trim()) { toast.error('E-mail obrigatório'); return }
     if (!customerId) { toast.error('Selecione o cliente'); return }
     setSaving(true)
     try {
@@ -1631,7 +1632,7 @@ function CustomerContactsTab() {
                     className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} />
                 </div>
                 <div className="col-span-2">
-                  <label className={labelCls}>E-mail</label>
+                  <label className={labelCls}>E-mail <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                   <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     className={inputCls} style={inputStyle} placeholder="email@empresa.com"
                     pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" />
