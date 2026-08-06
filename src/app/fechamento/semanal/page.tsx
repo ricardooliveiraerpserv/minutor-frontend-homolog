@@ -73,7 +73,9 @@ export default function FechamentoSemanalPage() {
 
   useEffect(() => {
     api.get<{ data?: unknown }>('/customers?pageSize=500').then(r => setCustomers((norm(r) as Opt[]).map(c => ({ id: c.id, name: c.name })).filter(c => c.id && c.name))).catch(() => {})
-    api.get<{ data?: unknown }>('/projects?pageSize=1000').then(r => setProjects((norm(r) as ProjOpt[]).map(p => ({ id: p.id, name: p.name, customer_id: p.customer_id })).filter(p => p.id && p.name))).catch(() => {})
+    // minimal + status=open: traz TODOS os projetos NÃO encerrados/cancelados (inclui os aguardando início);
+    // status=open exclui finished/cancelled; minimal eleva o cap p/ vir a lista completa (não só 200 por nome).
+    api.get<{ data?: unknown }>('/projects?minimal=1&status=open&pageSize=2000').then(r => setProjects((norm(r) as ProjOpt[]).map(p => ({ id: p.id, name: p.name, customer_id: p.customer_id })).filter(p => p.id && p.name))).catch(() => {})
     api.get<{ data?: unknown }>('/users?pageSize=1000').then(r => setUsers((norm(r) as Opt[]).map(u => ({ id: u.id, name: u.name })).filter(u => u.id && u.name))).catch(() => {})
   }, [])
 

@@ -79,7 +79,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
+        <span className="truncate text-sm" title={selected ? selected.name : undefined}>{selected ? selected.name : placeholder}</span>
         <ChevronDown size={13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
 
@@ -114,8 +114,8 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
             {filtered.length === 0
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
               : filtered.map(o => (
-                <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                <button key={o.id} type="button" onClick={() => select(String(o.id))} title={o.name}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors whitespace-normal break-words leading-snug"
                   style={{ color: String(o.id) === String(value) ? 'var(--primary)' : 'var(--text)' }}>
                   {o.name}
                 </button>
