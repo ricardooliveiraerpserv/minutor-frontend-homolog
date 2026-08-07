@@ -115,8 +115,9 @@ function ExcedentesPage() {
     setReportFor({ customerId: r.customer_id, name: r.customer_name, envio_em: r.envio_em })
     setEmails(''); setMessage(''); setReportHtml(''); setReportLoading(true)
     try {
-      const res = await api.get<{ html: string }>(`/fechamento-excedente/${r.customer_id}/${ym}/report-html`)
+      const res = await api.get<{ html: string; default_message?: string }>(`/fechamento-excedente/${r.customer_id}/${ym}/report-html`)
       setReportHtml(res.html ?? '')
+      setMessage(res.default_message ?? '')
     } catch {
       toast.error('Erro ao gerar o relatório')
     } finally { setReportLoading(false) }
@@ -306,8 +307,8 @@ function ExcedentesPage() {
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
             </div>
             <div>
-              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Mensagem (opcional)</label>
-              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} placeholder="Deixe em branco para usar a mensagem padrão."
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Mensagem (modelo preenchido — edite se quiser)</label>
+              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={14} placeholder="Deixe em branco para usar a mensagem padrão."
                 className="w-full mt-1 px-3 py-2 rounded-lg text-sm"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
             </div>
