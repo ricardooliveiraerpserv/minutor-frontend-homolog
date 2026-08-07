@@ -278,6 +278,9 @@ function optimisticMoveCard(cols: Column[], oppId: number, fromStageId: number, 
   })
 }
 
+const INFLU_OPTS = [{ v: '', l: 'Influência…' }, { v: 'alta', l: 'Alta' }, { v: 'media', l: 'Média' }, { v: 'baixa', l: 'Baixa' }]
+const CANAL_OPTS = [{ v: '', l: 'Canal preferido…' }, { v: 'email', l: 'E-mail' }, { v: 'whatsapp', l: 'WhatsApp' }, { v: 'telefone', l: 'Telefone' }, { v: 'linkedin', l: 'LinkedIn' }]
+
 // Lista de escolhas (multi-seleção com busca) — para Produtos/Serviços na oportunidade.
 function ProdutoMultiSelect({ options, value, onChange }: { options: { id: number; name: string }[]; value: number[]; onChange: (ids: number[]) => void }) {
   const [open, setOpen] = useState(false)
@@ -383,7 +386,7 @@ export default function CrmPipelinePage() {
   const NL0 = { open: false, empresa: '', cnpj: '', contato: '', email: '', telefone: '', lead_source_id: '' }
   const [novoLead, setNovoLead] = useState(NL0)
   // Novo contato inline (criar contato da empresa sem sair da tela).
-  const NC0 = { open: false, name: '', email: '', phone: '', cargo: '' }
+  const NC0 = { open: false, name: '', email: '', phone: '', cargo: '', departamento: '', whatsapp: '', linkedin: '', influencia_decisao: '', canal_preferido: '' }
   const [novoContato, setNovoContato] = useState(NC0)
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
@@ -438,9 +441,12 @@ export default function CrmPipelinePage() {
   const createContatoAction = useAsyncAction(async () => {
     if (!nf.customer_id) { toast.error('Selecione a empresa primeiro'); return }
     if (!novoContato.name.trim()) { toast.error('Informe o nome do contato'); return }
+    if (!novoContato.email.trim()) { toast.error('Informe o e-mail do contato'); return }
     const r = await api.post<{ data?: { id: number }; id?: number }>('/customer-contacts', {
       customer_id: Number(nf.customer_id), name: novoContato.name,
       email: novoContato.email || null, phone: novoContato.phone || null, cargo: novoContato.cargo || null,
+      departamento: novoContato.departamento || null, whatsapp: novoContato.whatsapp || null, linkedin: novoContato.linkedin || null,
+      influencia_decisao: novoContato.influencia_decisao || null, canal_preferido: novoContato.canal_preferido || null,
     })
     const novo = (r as any)?.data ?? r
     if (novo?.id) {
@@ -766,8 +772,17 @@ export default function CrmPipelinePage() {
                     <input value={novoContato.name} onChange={e => setNovoContato(n => ({ ...n, name: e.target.value }))} placeholder="Nome do contato *" className="w-full px-3 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
                     <div className="grid grid-cols-3 gap-2">
                       <input value={novoContato.cargo} onChange={e => setNovoContato(n => ({ ...n, cargo: e.target.value }))} placeholder="Cargo" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
-                      <input value={novoContato.email} onChange={e => setNovoContato(n => ({ ...n, email: e.target.value }))} placeholder="E-mail" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                      <input value={novoContato.email} onChange={e => setNovoContato(n => ({ ...n, email: e.target.value }))} placeholder="E-mail *" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input value={novoContato.phone} onChange={e => setNovoContato(n => ({ ...n, phone: e.target.value }))} placeholder="Telefone" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input value={novoContato.departamento} onChange={e => setNovoContato(n => ({ ...n, departamento: e.target.value }))} placeholder="Departamento" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                      <input value={novoContato.whatsapp} onChange={e => setNovoContato(n => ({ ...n, whatsapp: e.target.value }))} placeholder="WhatsApp" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                      <input value={novoContato.linkedin} onChange={e => setNovoContato(n => ({ ...n, linkedin: e.target.value }))} placeholder="LinkedIn (URL)" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={novoContato.influencia_decisao} onChange={e => setNovoContato(n => ({ ...n, influencia_decisao: e.target.value }))} className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle}>{INFLU_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select>
+                      <select value={novoContato.canal_preferido} onChange={e => setNovoContato(n => ({ ...n, canal_preferido: e.target.value }))} className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle}>{CANAL_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select>
                     </div>
                     <div className="flex justify-end gap-2">
                       <button type="button" onClick={() => setNovoContato(NC0)} className="px-3 py-1 rounded-lg text-xs" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
