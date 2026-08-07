@@ -371,6 +371,7 @@ function ProdutoAddSearch({ options, onPick, busy }: { options: { id: number; na
 
 export default function CrmPipelinePage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [pipeId, setPipeId] = useState<number | null>(null)
   const [cols, setCols] = useState<Column[]>([])
@@ -658,7 +659,7 @@ export default function CrmPipelinePage() {
                 {col.opportunities.map((o, idx) => (
                   <Draggable key={o.id} draggableId={`opp-${o.id}`} index={idx}>
                     {(dp, ds) => (
-                  <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps} onClick={() => abrirDetalhe(o.id)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--surface)', border: '1px solid var(--border)', ...dp.draggableProps.style, boxShadow: ds.isDragging ? '0 8px 20px rgba(0,0,0,0.18)' : undefined }}>
+                  <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps} onClick={() => router.push(`/crm/oportunidades/${o.id}`)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--surface)', border: '1px solid var(--border)', ...dp.draggableProps.style, boxShadow: ds.isDragging ? '0 8px 20px rgba(0,0,0,0.18)' : undefined }}>
                     <div className="flex items-start justify-between gap-1">
                       <span className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>{o.title}</span>
                       <span className="flex items-center gap-1 shrink-0">
@@ -694,7 +695,7 @@ export default function CrmPipelinePage() {
                       )
                     })()}
                     {/* Botão de adicionar tarefa — sempre disponível */}
-                    <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); abrirDetalhe(o.id, 'followups') }} className="mt-1.5 w-full flex items-center justify-center gap-1 text-[10px] rounded px-1.5 py-1 font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--primary)' }}>
+                    <button onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); router.push(`/crm/oportunidades/${o.id}?tab=followups`) }} className="mt-1.5 w-full flex items-center justify-center gap-1 text-[10px] rounded px-1.5 py-1 font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--primary)' }}>
                       <Plus size={11} /> Adicionar tarefa
                     </button>
                     {!col.stage.is_won && !col.stage.is_lost && (
