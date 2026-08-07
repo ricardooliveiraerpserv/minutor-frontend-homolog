@@ -16,6 +16,7 @@ interface Opp {
   saude?: { status: string; diagnostico?: string } | null
   customer?: { name: string } | null; pipeline?: { name: string } | null
   stage?: { name: string } | null; responsavel?: { id?: number; name: string } | null
+  campaign?: { id: number; name: string } | null
   custom_fields?: Record<string, string> | null
 }
 interface Opt { id: number; name: string }
@@ -25,6 +26,11 @@ interface CfDef { id: number; label: string; key: string; type: 'text' | 'number
 const fmtBRL = (n: number | string) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('pt-BR') : '—'
 const STATUS = ['aberto', 'ganho', 'perdido']
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  aberto:  { label: 'Aberto',  color: '#0ea5e9', bg: 'rgba(14,165,233,.14)' },
+  ganho:   { label: 'Ganho',   color: 'var(--success-border)', bg: 'var(--success-bg)' },
+  perdido: { label: 'Perdido', color: 'var(--danger-border)',  bg: 'var(--danger-bg)' },
+}
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 
 // Saúde (sinal de leitura instantânea — sem clique/modal)
@@ -50,6 +56,8 @@ export default function CrmOportunidadesPage() {
   const [origens, setOrigens] = useState<Opt[]>([])
   const [motivos, setMotivos] = useState<Opt[]>([])
   const [produtos, setProdutos] = useState<Opt[]>([])
+  const [campanhas, setCampanhas] = useState<Opt[]>([])
+  const [statusModal, setStatusModal] = useState<Opp | null>(null) // marcar perdido → escolher motivo
   const [mais, setMais] = useState(false)
   const [soRisco, setSoRisco] = useState(false) // filtro de leitura (cliente) — saúde não é filtro de API
   const [soMes, setSoMes] = useState(false)     // só com previsão no mês atual
@@ -62,7 +70,7 @@ export default function CrmOportunidadesPage() {
   const [cfCols, setCfCols] = useState<string[]>([]) // keys exibidas como coluna na tabela (persiste em localStorage)
   const [cfFilters, setCfFilters] = useState<Record<string, string>>({}) // filtro por coluna personalizada (client-side)
   const [colsMenu, setColsMenu] = useState(false)
-  const F0 = { customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', status: '', de: '', ate: '', search: '', lead_source_id: '', loss_reason_id: '', produto_id: '', valor_min: '', valor_max: '', lc_de: '', lc_ate: '', sem_proxima_acao: '' }
+  const F0 = { customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', status: '', de: '', ate: '', search: '', lead_source_id: '', loss_reason_id: '', campaign_id: '', produto_id: '', valor_min: '', valor_max: '', lc_de: '', lc_ate: '', sem_proxima_acao: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v, ...(k === 'pipeline_id' ? { stage_id: '' } : {}) }))
 
@@ -98,6 +106,7 @@ export default function CrmOportunidadesPage() {
     api.get<{ data: any[] }>('/crm/lead-sources').then(r => setOrigens((r?.data ?? []).map((o: any) => ({ id: o.id, name: o.name })))).catch(() => {})
     api.get<{ data: any[] }>('/crm/loss-reasons').then(r => setMotivos((r?.data ?? []).map((m: any) => ({ id: m.id, name: m.name })))).catch(() => {})
     api.get<{ data: any[] }>('/crm/products').then(r => setProdutos((r?.data ?? []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => {})
+    api.get<{ data: any[] }>('/crm/campaigns?active=1').then(r => setCampanhas((r?.data ?? []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {})
     // Meta da empresa (competência atual) — dá contexto ao forecast (endpoint existente).
     const ym = new Date().toISOString().slice(0, 7)
     api.get<{ data: { empresa: number } }>(`/crm/sales-targets?periodo=${ym}`).then(r => setMetaMes(Number(r?.data?.empresa ?? 0))).catch(() => {})
@@ -166,6 +175,16 @@ export default function CrmOportunidadesPage() {
   const totalValor = visible.reduce((s, r) => s + (Number(r.valor) || 0), 0)
   const totalForecastVis = visible.reduce((s, r) => s + (Number(r.forecast) || 0), 0)
 
+  // Edição rápida do status na lista. 'perdido' exige motivo → abre o seletor.
+  const mudarStatus = async (o: Opp, status: string, loss_reason_id?: string) => {
+    if (status === o.status) return
+    if (status === 'perdido' && !loss_reason_id) { setStatusModal(o); return }
+    try {
+      await api.patch(`/crm/opportunities/${o.id}/status`, { status, ...(loss_reason_id ? { loss_reason_id } : {}) })
+      toast.success('Status atualizado'); load()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao mudar status'); load() }
+  }
+
   const exportCsv = async () => {
     try {
       const res = await fetch(`/api/v1/crm/opportunities/export${qs ? `?${qs}` : ''}`, { credentials: 'same-origin' })
@@ -222,6 +241,14 @@ export default function CrmOportunidadesPage() {
         <input value={f.search} onChange={e => set('search', e.target.value)} placeholder="Buscar título…" className="px-3 py-2 rounded-lg text-sm outline-none" style={{ ...inputStyle, minWidth: 160 }} />
         <select value={f.responsavel_id} onChange={e => set('responsavel_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={{ ...inputStyle, borderColor: f.responsavel_id ? 'var(--primary)' : 'var(--border)' }}><option value="">Responsável</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
         <select value={f.stage_id} onChange={e => set('stage_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={{ ...inputStyle, borderColor: f.stage_id ? 'var(--primary)' : 'var(--border)' }}><option value="">Etapa</option>{stageOpts.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+        <select value={f.status} onChange={e => set('status', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={{ ...inputStyle, borderColor: f.status ? 'var(--primary)' : 'var(--border)' }}><option value="">Status</option>{STATUS.map(s => <option key={s} value={s}>{STATUS_META[s]?.label ?? s}</option>)}</select>
+        <select value={f.campaign_id} onChange={e => set('campaign_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={{ ...inputStyle, borderColor: f.campaign_id ? 'var(--primary)' : 'var(--border)' }}><option value="">Campanha</option>{campanhas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <span className="flex items-center gap-1 text-xs px-1.5 py-1 rounded-lg" style={{ background: (f.de || f.ate) ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: 'var(--text-muted)' }} title="Intervalo de abertura da oportunidade">
+          <span className="text-[10px] font-semibold">Abertura</span>
+          <input type="date" value={f.de} onChange={e => set('de', e.target.value)} className="px-1.5 py-1 rounded text-xs outline-none" style={inputStyle} />
+          <span className="text-[10px]">–</span>
+          <input type="date" value={f.ate} onChange={e => set('ate', e.target.value)} className="px-1.5 py-1 rounded text-xs outline-none" style={inputStyle} />
+        </span>
         <button onClick={() => set('sem_proxima_acao', f.sem_proxima_acao === '1' ? '' : '1')} className="px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5" style={{ background: f.sem_proxima_acao === '1' ? 'var(--warning-bg)' : 'var(--surface-sunken)', color: f.sem_proxima_acao === '1' ? 'var(--warning-border)' : 'var(--text-muted)' }}><AlertTriangle size={12} /> Sem próxima ação</button>
         <button onClick={() => setSoRisco(v => !v)} className="px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5" style={{ background: soRisco ? 'var(--danger-bg)' : 'var(--surface-sunken)', color: soRisco ? 'var(--danger-border)' : 'var(--text-muted)' }}>🔴 Em risco</button>
         <button onClick={() => setMais(m => !m)} className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold" style={{ background: mais ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: mais ? 'var(--primary)' : 'var(--text-muted)' }}><SlidersHorizontal size={13} /> Filtros avançados</button>
@@ -318,15 +345,15 @@ export default function CrmOportunidadesPage() {
       <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full text-sm whitespace-nowrap">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-            {['Saúde', 'Empresa', 'Oportunidade', 'Valor', 'Resp.', 'Próxima ação', 'Contato'].map((h, i) => (
+            {['Saúde', 'Empresa', 'Oportunidade', 'Valor', 'Status', 'Campanha', 'Resp.', 'Próxima ação', 'Contato'].map((h, i) => (
               <th key={i} className={`px-3 py-2 text-xs font-semibold ${h === 'Valor' ? 'text-right' : 'text-left'}`}>{h}</th>
             ))}
             {activeCols.map(k => <th key={k} className="px-3 py-2 text-xs font-semibold text-left" title="Campo personalizado">{cfDefByKey[k]?.label ?? k}</th>)}
             <th className="px-3 py-2" />
           </tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan={8 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
-            : ordered.length === 0 ? <tr><td colSpan={8 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma oportunidade.</td></tr>
+            {loading ? <tr><td colSpan={10 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+            : ordered.length === 0 ? <tr><td colSpan={10 + activeCols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma oportunidade.</td></tr>
             : ordered.map(o => {
               const s = SAUDE[o.saude?.status ?? ''] ?? null
               const saud = o.saude?.status === 'saudavel'
@@ -341,6 +368,16 @@ export default function CrmOportunidadesPage() {
                 </td>
                 {/* VALOR em destaque */}
                 <td className="px-3 py-1.5 text-right tabular-nums text-[15px] font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(o.valor)}</td>
+                {/* STATUS — badge editável direto na lista (perdido pede motivo) */}
+                <td className="px-3 py-1.5">
+                  <select value={o.status} onChange={e => mudarStatus(o, e.target.value)} title="Alterar status"
+                    className="text-[11px] font-semibold rounded-full px-2 py-0.5 outline-none cursor-pointer appearance-none border-0"
+                    style={{ background: STATUS_META[o.status]?.bg ?? 'var(--surface-sunken)', color: STATUS_META[o.status]?.color ?? 'var(--text-muted)' }}>
+                    {STATUS.map(s => <option key={s} value={s} style={{ background: 'var(--surface)', color: 'var(--text)' }}>{STATUS_META[s]?.label ?? s}</option>)}
+                  </select>
+                </td>
+                {/* CAMPANHA */}
+                <td className="px-3 py-1.5" style={{ color: o.campaign ? 'var(--text-muted)' : 'var(--text-light)' }}>{o.campaign?.name ?? '—'}</td>
                 {/* RESPONSÁVEL avatar-only clicável */}
                 <td className="px-3 py-1.5">
                   <button onClick={() => o.responsavel?.id && set('responsavel_id', String(o.responsavel.id))} title={o.responsavel?.name ?? 'Sem responsável'} className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{iniciais(o.responsavel?.name)}</button>
@@ -364,7 +401,7 @@ export default function CrmOportunidadesPage() {
             <tfoot><tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface-sunken)' }}>
               <td colSpan={3} className="px-3 py-2 text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Totais ({ordered.length})</td>
               <td className="px-3 py-2 text-right tabular-nums font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(totalValor)}</td>
-              <td colSpan={4 + activeCols.length} className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>forecast {fmtBRL(totalForecastVis)}</td>
+              <td colSpan={6 + activeCols.length} className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>forecast {fmtBRL(totalForecastVis)}</td>
             </tr></tfoot>
           )}
         </table>
@@ -372,7 +409,30 @@ export default function CrmOportunidadesPage() {
 
       {quick && <QuickAction opp={quick} contactTypes={contactTypes} onClose={() => setQuick(null)} onSaved={() => { setQuick(null); load() }} />}
       {detail && <OppDetail opp={detail} onClose={() => setDetail(null)} />}
+      {statusModal && <LossReasonModal opp={statusModal} motivos={motivos} onClose={() => setStatusModal(null)} onConfirm={rid => { const o = statusModal; setStatusModal(null); mudarStatus(o, 'perdido', rid) }} />}
     </AppLayout>
+  )
+}
+
+// Marcar oportunidade como PERDIDA exige o motivo de perda (cadastro).
+function LossReasonModal({ opp, motivos, onClose, onConfirm }: { opp: Opp; motivos: Opt[]; onClose: () => void; onConfirm: (rid: string) => void }) {
+  const [rid, setRid] = useState('')
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Marcar como perdida</h2>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>{opp.customer?.name} · {opp.title}</p>
+        <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Motivo da perda *</label>
+        <select value={rid} onChange={e => setRid(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3" style={inputStyle}>
+          <option value="">Selecione…</option>
+          {motivos.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+          <button onClick={() => rid && onConfirm(rid)} disabled={!rid} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: rid ? 'var(--danger)' : 'var(--surface-sunken)', color: rid ? '#fff' : 'var(--text-light)' }}>Confirmar perda</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -402,6 +462,7 @@ function OppDetail({ opp, onClose }: { opp: Opp; onClose: () => void }) {
 
         <div className="rounded-lg px-3 py-1 mb-4" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
           {row('Etapa', opp.stage?.name ?? '—')}
+          {opp.campaign && row('Campanha', opp.campaign.name)}
           {row('Probabilidade', `${opp.probabilidade}%`)}
           {row('Previsão de fechamento', fmtDate(opp.previsao_fechamento ?? null))}
           {row('Próxima ação', opp.sem_proxima_acao ? 'Sem próxima ação' : `${opp.proxima_acao || '—'} · ${fmtDate(opp.proxima_acao_at)}`)}

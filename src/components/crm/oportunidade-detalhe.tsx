@@ -20,6 +20,7 @@ interface OppFull {
   contato?: { id: number; name: string; email?: string | null; phone?: string | null; whatsapp?: string | null } | null
   responsavel?: { id: number; name: string } | null
   customer?: { id: number; name: string; cgc?: string | null } | null
+  campaign?: { id: number; name: string } | null; campaign_id?: number | null
   contract_id?: number | null
   derivado?: Record<string, any> | null
   motivo_parada?: string | null
@@ -85,6 +86,8 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   const load = useCallback(() => api.get<{ data: OppFull }>(`/crm/opportunities/${id}`).then(r => setO(r?.data ?? null)).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false)), [id])
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<{ data: ContactType[] }>('/crm/contact-types').then(r => setCTypes(r?.data ?? [])).catch(() => {}) }, [])
+  const [campaigns, setCampaigns] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/campaigns?active=1').then(r => setCampaigns(r?.data ?? [])).catch(() => {}) }, [])
   const loadProps = useCallback(() => api.get<{ data: Proposal[] }>(`/crm/proposals?opportunity_id=${id}`).then(r => setProposals(r?.data ?? [])).catch(() => {}), [id])
   const loadAtts = useCallback(() => api.get<{ data: Attachment[] }>(`/crm/opportunities/${id}/attachments`).then(r => setAtts(r?.data ?? [])).catch(() => {}), [id])
   useEffect(() => { if (tab === 'propostas') loadProps(); if (tab === 'anexos') loadAtts() }, [tab, loadProps, loadAtts])
@@ -369,6 +372,14 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                 <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Previsão</label>
                 <input key={`pf${o.id}`} type="date" defaultValue={o.previsao_fechamento ?? ''} onBlur={e => { if (e.target.value !== (o.previsao_fechamento ?? '')) patch({ previsao_fechamento: e.target.value || null }) }} className="w-full px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
               </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Campanha</label>
+              <select value={o.campaign?.id ?? o.campaign_id ?? ''} onChange={e => patch({ campaign_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                <option value="">— sem campanha</option>
+                {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {o.campaign && !campaigns.some(c => c.id === o.campaign!.id) && <option value={o.campaign.id}>{o.campaign.name}</option>}
+              </select>
             </div>
           </div>
 

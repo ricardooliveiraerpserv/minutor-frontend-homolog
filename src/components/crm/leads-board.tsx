@@ -24,7 +24,7 @@ interface Lead {
   dias_sem_interacao?: number | null; temperatura?: string
   valor_potencial?: number | null; faixa_potencial?: string | null; followups_count?: number
   sem_responsavel?: boolean; primeiro_contato_horas?: number | null; primeiro_contato_feito?: boolean; sla_primeiro_contato_estourado?: boolean
-  lost_at: string | null; lost_reason: string | null; sem_proxima_acao: boolean
+  lost_at: string | null; lost_reason: string | null; discard_reason_id?: number | null; repescar_em?: string | null; sem_proxima_acao: boolean
   contato?: { id: number; name: string; email: string | null; phone: string | null; whatsapp: string | null } | null
 }
 interface Health { temperatura: string; dias_sem_interacao: number | null; proxima_acao: string | null; proxima_objetivo: string | null; proxima_acao_atrasada: boolean; followups_count: number; valor_potencial: number | null; previsao_label: string | null; risco: string; motivos: string[]; diagnostico: string }
@@ -52,6 +52,7 @@ export function LeadsBoard() {
   const [contactTypes, setContactTypes] = useState<ContactType[]>([])
   const [loading, setLoading] = useState(true)
   const [sel, setSel] = useState<Lead | null>(null)
+  const [descarte, setDescarte] = useState<{ leadId: number; stageId: number; empresa: string } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [fOrigem, setFOrigem] = useState('')
   const [fResp, setFResp] = useState('')
@@ -107,6 +108,8 @@ export function LeadsBoard() {
     const st = stages.find(s => s.id === toId)
     if (!st) return
     if (st.is_won) { toast('Use "Converter para Prospect" para qualificar este lead.'); return }
+    // Descarte: soltar numa etapa de perda pede o motivo (pode agendar repescagem).
+    if (st.is_lost) { setDescarte({ leadId: lead.customer_id, stageId: toId, empresa: lead.empresa }); return }
     const prev = leads
     setLeads(ls => ls.map(l => l.customer_id === lead.customer_id ? { ...l, stage_id: toId } : l))
     try { await api.patch(`/crm/leads/${lead.customer_id}/stage`, { stage_id: toId }); load() }
@@ -184,7 +187,7 @@ export function LeadsBoard() {
                         </p>
                       )}
                       {/* Próxima ação (Nível 1). Última interação e objetivo saem do card. */}
-                      {l.lost_at ? <p className="text-[10px] mt-1.5" style={{ color: 'var(--danger-border)' }}>Perdido</p>
+                      {l.lost_at ? <p className="text-[10px] mt-1.5" style={{ color: 'var(--danger-border)' }}>Descartado{l.lost_reason ? ` · ${l.lost_reason}` : ''}{l.repescar_em ? ` · 🔁 repesca ${new Date(l.repescar_em + 'T00:00:00').toLocaleDateString('pt-BR')}` : ''}</p>
                         : l.proxima_acao_at ? (
                           <div className="mt-1.5 rounded px-1.5 py-1 text-[10px] flex items-center gap-1.5" style={{ background: 'var(--surface-sunken)', color: l.proxima_acao_atrasada ? 'var(--danger-border)' : 'var(--text-muted)' }}>
                             <Clock size={10} className="shrink-0" />
@@ -211,6 +214,10 @@ export function LeadsBoard() {
 
       {addOpen && <AddLeadModal sources={sources} users={users} onClose={() => setAddOpen(false)} onSaved={() => { setAddOpen(false); load() }} />}
       {sel && <LeadDrawer lead={sel} stages={stages} contactTypes={contactTypes} users={users} onClose={() => setSel(null)} onChanged={load} onConverted={() => { setSel(null); load() }} />}
+      {descarte && <DescarteModal empresa={descarte.empresa} onClose={() => setDescarte(null)} onConfirm={async rid => {
+        try { await api.patch(`/crm/leads/${descarte.leadId}/stage`, { stage_id: descarte.stageId, discard_reason_id: rid }); setDescarte(null); load(); toast.success('Lead descartado') }
+        catch { toast.error('Erro ao descartar') }
+      }} />}
     </div>
   )
 }
@@ -290,6 +297,7 @@ function AddLeadModal({ sources, users, onClose, onSaved }: { sources: Source[];
 function LeadDrawer({ lead, stages, contactTypes, users, onClose, onChanged, onConverted }: { lead: Lead; stages: Stage[]; contactTypes: ContactType[]; users: UserOpt[]; onClose: () => void; onChanged: () => void; onConverted: () => void }) {
   const [convOpen, setConvOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  const [descarteStage, setDescarteStage] = useState<Stage | null>(null)
   const [busy, setBusy] = useState(false)
   const [followups, setFollowups] = useState<Followup[]>([])
 
@@ -332,11 +340,17 @@ function LeadDrawer({ lead, stages, contactTypes, users, onClose, onChanged, onC
     } catch { toast.error('Erro ao registrar') } finally { setFuSaving(false) }
   }
   const move = async (st: Stage) => {
-    let lost_reason: string | null = null
-    if (st.is_lost) { lost_reason = window.prompt('Motivo da perda (opcional):') }
+    // Descarte pede o motivo cadastrado (pode agendar repescagem) → modal.
+    if (st.is_lost) { setDescarteStage(st); return }
     setBusy(true)
-    try { await api.patch(`/crm/leads/${lead.customer_id}/stage`, { stage_id: st.id, lost_reason }); toast.success('Lead movido'); onChanged(); onClose() }
+    try { await api.patch(`/crm/leads/${lead.customer_id}/stage`, { stage_id: st.id }); toast.success('Lead movido'); onChanged(); onClose() }
     catch { toast.error('Erro ao mover') } finally { setBusy(false) }
+  }
+  const confirmarDescarte = async (rid: number | null) => {
+    if (!descarteStage) return
+    setBusy(true)
+    try { await api.patch(`/crm/leads/${lead.customer_id}/stage`, { stage_id: descarteStage.id, discard_reason_id: rid }); setDescarteStage(null); toast.success('Lead descartado'); onChanged(); onClose() }
+    catch { toast.error('Erro ao descartar') } finally { setBusy(false) }
   }
   const converter = () => {
     if (lead.sem_responsavel) { toast.error('Defina um responsável antes de converter para Prospect'); return }
@@ -446,6 +460,7 @@ function LeadDrawer({ lead, stages, contactTypes, users, onClose, onChanged, onC
 
         {convOpen && <ConvertModal lead={lead} onClose={() => setConvOpen(false)} onConverted={onConverted} />}
         {healthOpen && <HealthModal customerId={lead.customer_id} onClose={() => setHealthOpen(false)} />}
+        {descarteStage && <DescarteModal empresa={lead.empresa} onClose={() => setDescarteStage(null)} onConfirm={confirmarDescarte} />}
       </div>
     </div>
   )
@@ -521,6 +536,41 @@ function ConvertModal({ lead, onClose, onConverted }: { lead: Lead; onClose: () 
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
           <button onClick={go} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--success)', color: '#fff' }}>{saving ? 'Qualificando…' : 'Converter para Prospect'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Descarte de lead com motivo cadastrado. Se o motivo tiver dias de repescagem,
+// avisa que o lead voltará ao funil automaticamente (com atividade de retomada).
+interface DiscardReason { id: number; name: string; dias_repescagem: number | null }
+function DescarteModal({ empresa, onClose, onConfirm }: { empresa: string; onClose: () => void; onConfirm: (rid: number | null) => void }) {
+  const [reasons, setReasons] = useState<DiscardReason[]>([])
+  const [rid, setRid] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { api.get<{ data: DiscardReason[] }>('/crm/discard-reasons?active=1').then(r => setReasons(r?.data ?? [])).catch(() => {}) }, [])
+  const sel = reasons.find(r => String(r.id) === rid)
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Descartar lead</h2>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>{empresa}</p>
+        <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Motivo do descarte</label>
+        <select value={rid} onChange={e => setRid(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          <option value="">Selecione…</option>
+          {reasons.map(r => <option key={r.id} value={r.id}>{r.name}{r.dias_repescagem ? ` (repesca em ${r.dias_repescagem}d)` : ''}</option>)}
+        </select>
+        {sel && (
+          <p className="text-[11px] mb-3 rounded-lg px-2 py-1.5" style={{ background: sel.dias_repescagem ? 'var(--primary-soft)' : 'var(--surface-sunken)', color: sel.dias_repescagem ? 'var(--primary)' : 'var(--text-light)' }}>
+            {sel.dias_repescagem
+              ? `🔁 Repescagem automática em ${sel.dias_repescagem} dias: o lead volta ao funil e uma atividade de retomada é criada.`
+              : 'Sem repescagem automática para este motivo.'}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+          <button onClick={() => { setBusy(true); onConfirm(rid ? Number(rid) : null) }} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--danger)', color: '#fff' }}>{busy ? 'Descartando…' : 'Descartar'}</button>
         </div>
       </div>
     </div>

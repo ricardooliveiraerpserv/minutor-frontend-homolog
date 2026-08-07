@@ -380,7 +380,7 @@ export default function CrmPipelinePage() {
   const [customers, setCustomers] = useState<Customer[]>([])
 
   const [newOpen, setNewOpen] = useState(false)
-  const NF0 = { title: '', descricao: '', pipeline_id: '', customer_id: '', customer_contact_id: '', lead_source_id: '', responsavel_id: '', valor: '', previsao_fechamento: '', proxima_acao: '', proxima_acao_at: '' }
+  const NF0 = { title: '', descricao: '', pipeline_id: '', customer_id: '', customer_contact_id: '', lead_source_id: '', responsavel_id: '', valor: '', previsao_fechamento: '', campaign_id: '', proxima_acao: '', proxima_acao_at: '' }
   const [nf, setNf] = useState(NF0)
   const [sources, setSources] = useState<Source[]>([])
   const [crmUsers, setCrmUsers] = useState<CrmUser[]>([])
@@ -391,6 +391,7 @@ export default function CrmPipelinePage() {
   const NC0 = { open: false, name: '', email: '', phone: '', cargo: '', departamento: '', whatsapp: '', linkedin: '', influencia_decisao: '', canal_preferido: '' }
   const [novoContato, setNovoContato] = useState(NC0)
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
+  const [campaigns, setCampaigns] = useState<{ id: number; name: string }[]>([])
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
   const [qualModal, setQualModal] = useState<{ oppId: number; stageName: string } | null>(null)
   const [wonModal, setWonModal] = useState<{ oppId: number; prefill: any; prefillContacts: any[] } | null>(null)
@@ -412,6 +413,7 @@ export default function CrmPipelinePage() {
     api.get<{ data: CrmUser[] }>('/crm/users').then(r => setCrmUsers(r?.data ?? [])).catch(() => {})
     api.get<{ data: { id: number; name: string; ativo?: boolean }[] }>('/crm/products').then(r => setProdutos((r?.data ?? []).filter(p => p.ativo !== false).map(p => ({ id: p.id, name: p.name })))).catch(() => {})
     api.get<{ data: { id: number; name: string; active?: boolean }[] }>('/crm/loss-reasons').then(r => setLossReasons((r?.data ?? []).filter(x => x.active !== false))).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/crm/campaigns?active=1').then(r => setCampaigns(r?.data ?? [])).catch(() => {})
     // "Converter em Oportunidade" vindo da ficha do Lead (já qualificado a prospect).
     const opp_for = new URLSearchParams(window.location.search).get('opp_for')
     if (opp_for) { setNf(f => ({ ...f, customer_id: opp_for })); loadContacts(opp_for); setNewOpen(true) }
@@ -492,6 +494,7 @@ export default function CrmPipelinePage() {
       responsavel_id: Number(nf.responsavel_id), valor: nf.valor ? Number(nf.valor) : 0,
       descricao: nf.descricao || null,
       previsao_fechamento: nf.previsao_fechamento || null,
+      campaign_id: nf.campaign_id ? Number(nf.campaign_id) : null,
       proxima_acao: nf.proxima_acao, proxima_acao_at: nf.proxima_acao_at,
     })
     const novoId = r?.data?.id
@@ -810,6 +813,13 @@ export default function CrmPipelinePage() {
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Valor (R$)</label><input type="number" value={nf.valor} onChange={e => setNf(f => ({ ...f, valor: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Previsão fechamento</label><input type="date" value={nf.previsao_fechamento} onChange={e => setNf(f => ({ ...f, previsao_fechamento: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               </div>
+              {campaigns.length > 0 && (
+                <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Campanha</label>
+                  <select value={nf.campaign_id} onChange={e => setNf(f => ({ ...f, campaign_id: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                    <option value="">— sem campanha</option>
+                    {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select></div>
+              )}
               {produtos.length > 0 && (
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Produtos / Serviços</label>

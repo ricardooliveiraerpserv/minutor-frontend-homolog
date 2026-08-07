@@ -429,9 +429,11 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Pipelines',           href: '/crm/pipelines', icon: GitBranch },
       { label: 'Produtos e Serviços', href: '/crm/produtos', icon: Tag },
+      { label: 'Campanhas',           href: '/crm/campanhas', icon: Megaphone },
       { label: 'Origens',             href: '/crm/origens',  icon: Tag },
       { label: 'Segmentos',           href: '/crm/segmentos', icon: Tag },
       { label: 'Motivos de Perda',    href: '/crm/motivos-perda', icon: XCircle },
+      { label: 'Motivos de Descarte', href: '/crm/motivos-descarte', icon: XCircle },
       { label: 'Tipos de Contato',    href: '/crm/tipos-contato', icon: Tag },
       { label: 'Tags',                href: '/crm/tags', icon: Tag },
       { label: 'Campos Personalizados', href: '/crm/campos-personalizados', icon: SlidersHorizontal },
