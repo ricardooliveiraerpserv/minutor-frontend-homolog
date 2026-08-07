@@ -7,14 +7,14 @@ import { api } from '@/lib/api'
 import { CustomFieldsSection } from '@/components/crm/custom-fields-section'
 import { LeadsBoard } from '@/components/crm/leads-board'
 import { toast } from 'sonner'
-import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil, ChevronDown } from 'lucide-react'
+import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil, ChevronDown, Star } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useAsyncAction } from '@/hooks/use-async-action'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 
-interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean; cor?: string | null; is_inicial?: boolean }
+interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean; cor?: string | null; is_inicial?: boolean; requer_qualificacao?: boolean }
 interface Pipeline { id: number; name: string; code: string; tipo?: string; tipos_empresa?: string[] | null; stages: Stage[] }
 interface Opp {
   id: number; title: string; valor: number; status: string; stage_id: number
@@ -390,6 +390,7 @@ export default function CrmPipelinePage() {
   const [novoContato, setNovoContato] = useState(NC0)
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
+  const [qualModal, setQualModal] = useState<{ oppId: number; stageName: string } | null>(null)
   const [wonModal, setWonModal] = useState<{ oppId: number; prefill: any; prefillContacts: any[] } | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [detailTab, setDetailTab] = useState<'resumo' | 'timeline' | 'followups' | 'propostas' | 'anexos'>('resumo')
@@ -533,6 +534,8 @@ export default function CrmPipelinePage() {
     const stage = pipelines.flatMap(p => p.stages).find(s => s.id === stageId)
     if (stage?.is_lost) { setLossModal({ oppId: opp.id, stageId }); return } // motivo obrigatório antes
     moveAction.run(opp, stageId, !!stage?.is_won)
+    // Etapa que exige qualificação → abre o relatório (qualidade + aceite exec. + estrelas) após entrar.
+    if (stage?.requer_qualificacao && !stage?.is_won && !stage?.is_lost) setQualModal({ oppId: opp.id, stageName: stage.name })
   }
   // GANHO → monta o pré-preenchimento (proposta mais recente + contatos + tipo) e abre o Novo Contrato.
   const openWonContract = async (opp: Opp) => {
@@ -824,6 +827,10 @@ export default function CrmPipelinePage() {
       {lossModal && (
         <LossModal reasons={lossReasons} onCancel={() => setLossModal(null)} onConfirm={confirmLoss} />
       )}
+      {qualModal && (
+        <QualificacaoModal oppId={qualModal.oppId} stageName={qualModal.stageName}
+          onCancel={() => setQualModal(null)} onSaved={() => { setQualModal(null); loadBoard() }} />
+      )}
 
       {wonModal && (
         <ContractFormModal open opportunityId={wonModal.oppId} prefill={wonModal.prefill} prefillContacts={wonModal.prefillContacts}
@@ -850,6 +857,69 @@ function LossModal({ reasons, onCancel, onConfirm }: { reasons: { id: number; na
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
           <button onClick={() => reasonId ? onConfirm(Number(reasonId)) : toast.error('Selecione o motivo')} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--danger)', color: '#fff' }}>Confirmar perda</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Relatório de qualificação ao entrar numa etapa que exige: qualidade + aceite executivos + estrelas de fechamento. */
+function QualificacaoModal({ oppId, stageName, onCancel, onSaved }: { oppId: number; stageName: string; onCancel: () => void; onSaved: () => void }) {
+  const [estrelas, setEstrelas] = useState(3)
+  const [aceite, setAceite] = useState(false)
+  const [aceitePor, setAceitePor] = useState('')
+  const [sinais, setSinais] = useState({ necessidade: false, decisor: false, champion: false, budget_confirmado: false })
+  const [obs, setObs] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  const toggle = (k: keyof typeof sinais) => setSinais(s => ({ ...s, [k]: !s[k] }))
+  const CRIT: [keyof typeof sinais, string][] = [['necessidade', 'Necessidade clara'], ['decisor', 'Decisor identificado'], ['champion', 'Champion interno'], ['budget_confirmado', 'Budget confirmado']]
+  const save = async () => {
+    setSaving(true)
+    try {
+      await api.put(`/crm/opportunities/${oppId}/qualificacao`, { estrelas, aceite_executivos: aceite, aceite_por: aceitePor.trim() || null, observacao: obs.trim() || null, ...sinais })
+      toast.success('Qualificação registrada'); onSaved()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar qualificação') } finally { setSaving(false) }
+  }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onCancel}>
+      <div className="w-full max-w-md rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Qualificação do lead</h2>
+          <button onClick={onCancel} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-light)' }}>Etapa <b>{stageName}</b> — valide a qualidade e defina a possibilidade de fechamento.</p>
+
+        <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Possibilidade de fechamento</label>
+        <div className="flex items-center gap-1 mb-4">
+          {[1, 2, 3, 4, 5].map(n => (
+            <button key={n} type="button" onClick={() => setEstrelas(n)} title={`${n} estrela(s) · ${n * 20}%`}>
+              <Star size={26} style={{ color: estrelas >= n ? '#f59e0b' : 'var(--border)' }} fill={estrelas >= n ? '#f59e0b' : 'none'} />
+            </button>
+          ))}
+          <span className="text-xs ml-2 font-semibold" style={{ color: 'var(--text-muted)' }}>{estrelas * 20}%</span>
+        </div>
+
+        <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Qualidade do lead</label>
+        <div className="grid grid-cols-2 gap-1.5 mb-4">
+          {CRIT.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => toggle(k)} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left"
+              style={sinais[k] ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+              {sinais[k] ? <Check size={13} /> : <span className="w-3.5 h-3.5 rounded shrink-0" style={{ border: '1px solid var(--border)' }} />} {l}
+            </button>
+          ))}
+        </div>
+
+        <label className="flex items-center gap-2 text-sm mb-2 cursor-pointer" style={{ color: 'var(--text)' }}>
+          <input type="checkbox" checked={aceite} onChange={e => setAceite(e.target.checked)} /> Aceito pelo time de executivos
+        </label>
+        {aceite && <input value={aceitePor} onChange={e => setAceitePor(e.target.value)} placeholder="Aceito por (nome)" className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3" style={inputStyle} />}
+
+        <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="Observações da qualificação (opcional)" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onCancel} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Depois</button>
+          <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar qualificação'}</button>
         </div>
       </div>
     </div>

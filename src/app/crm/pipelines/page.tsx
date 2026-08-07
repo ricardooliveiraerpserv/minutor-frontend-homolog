@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import { useAsyncAction } from '@/hooks/use-async-action'
-import { GitBranch, Plus, Trash2, Lock, Unlock, GripVertical, Trophy, XCircle, Flag, Zap, X, Archive, Copy, History } from 'lucide-react'
+import { GitBranch, Plus, Trash2, Lock, Unlock, GripVertical, Trophy, XCircle, Flag, Zap, X, Archive, Copy, History, Star } from 'lucide-react'
 
 const AUTO_TIPOS: { k: string; l: string }[] = [
   { k: 'criar_tarefa', l: 'Criar tarefa / follow-up' },
@@ -23,7 +23,7 @@ const CRM_STATUS_OPTS = ['lead', 'prospect', 'cliente', 'em_renovacao', 'inativo
 interface Stage {
   id: number; name: string; ordem: number; cor: string | null; probabilidade: number | null; sla_dias: number | null
   is_won: boolean; is_lost: boolean; is_inicial: boolean; ativa: boolean; oportunidades_count: number
-  regras: string[] | null
+  regras: string[] | null; requer_qualificacao?: boolean
 }
 const REGRAS: { k: string; l: string }[] = [
   { k: 'produto', l: 'Produto' }, { k: 'valor', l: 'Valor' }, { k: 'responsavel', l: 'Responsável' },
@@ -232,6 +232,7 @@ export default function CrmPipelinesPage() {
                                 <button onClick={() => patchStage(st, { is_inicial: !st.is_inicial })} title="Etapa inicial" className="p-1 rounded" style={{ color: st.is_inicial ? 'var(--primary)' : 'var(--text-light)' }}><Flag size={13} /></button>
                                 <button onClick={() => patchStage(st, { is_won: !st.is_won, is_lost: false })} title="Ganho" className="p-1 rounded" style={{ color: st.is_won ? '#22c55e' : 'var(--text-light)' }}><Trophy size={13} /></button>
                                 <button onClick={() => patchStage(st, { is_lost: !st.is_lost, is_won: false })} title="Perda" className="p-1 rounded" style={{ color: st.is_lost ? 'var(--danger-border)' : 'var(--text-light)' }}><XCircle size={13} /></button>
+                                <button onClick={() => patchStage(st, { requer_qualificacao: !st.requer_qualificacao })} title="Exige qualificação ao entrar (estrelas + aceite executivos)" className="p-1 rounded" style={{ color: st.requer_qualificacao ? '#f59e0b' : 'var(--text-light)' }}><Star size={13} /></button>
                                 <label className="text-[10px] flex items-center gap-1" style={{ color: 'var(--text-light)' }}><input type="checkbox" checked={st.ativa} onChange={e => patchStage(st, { ativa: e.target.checked })} />ativa</label>
                                 <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{st.oportunidades_count} opp</span>
                                 <button onClick={() => setAutoStage(st)} className="p-1 rounded" style={{ color: 'var(--primary)' }} title="Automações"><Zap size={13} /></button>
