@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip } from 'lucide-react'
+import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star } from 'lucide-react'
 
 interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; responsavel?: { name: string } | null }
 interface Evt { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }
@@ -73,6 +73,18 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
 
   const patch = async (body: Record<string, any>) => { try { await api.put(`/crm/opportunities/${id}`, body); load() } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } }
 
+  // Pesquisa de qualificação (dirige a previsibilidade automática). Sincroniza quando a oportunidade carrega.
+  const [q, setQ] = useState({ estrelas: 3, aceite: false, necessidade: false, decisor: false, champion: false, budget_confirmado: false })
+  const [qOpen, setQOpen] = useState(false)
+  useEffect(() => {
+    if (!o) return
+    const r = (o.detalhes?.qualificacao_report ?? {}) as any
+    setQ({ estrelas: r.estrelas ?? 3, aceite: !!r.aceite_executivos, necessidade: !!r.necessidade, decisor: !!o.detalhes?.decisor, champion: !!o.detalhes?.champion, budget_confirmado: !!o.detalhes?.budget_confirmado })
+  }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const saveQual = async () => {
+    try { await api.put(`/crm/opportunities/${id}/qualificacao`, { estrelas: q.estrelas, aceite_executivos: q.aceite, necessidade: q.necessidade, decisor: q.decisor, champion: q.champion, budget_confirmado: q.budget_confirmado }); setQOpen(false); load(); toast.success('Pesquisa atualizada') } catch { toast.error('Erro ao salvar pesquisa') }
+  }
+
   const [nt, setNt] = useState({ tipo: '', titulo: '', data: '' })
   const addTask = async () => {
     if (!nt.titulo.trim() && !nt.tipo) { toast.error('Descreva a atividade'); return }
@@ -111,6 +123,8 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   const totMargem = totReceita - totCusto
   const tipoNome = (slug: string) => cTypes.find(c => c.slug === slug)?.nome ?? slug
   const paAtrasada = !!o.proxima_acao_at && new Date(o.proxima_acao_at) < new Date()
+  const rep = (o.detalhes?.qualificacao_report ?? null) as any
+  const QK: ['necessidade' | 'decisor' | 'champion' | 'budget_confirmado', string][] = [['necessidade', 'Necessidade'], ['decisor', 'Decisor'], ['champion', 'Champion'], ['budget_confirmado', 'Budget']]
 
   const TABS: [typeof tab, string, any][] = [['atividades', 'Atividades', ListChecks], ['historico', 'Histórico', HistoryIcon], ['propostas', 'Propostas', FileText], ['anexos', 'Anexos', Paperclip]]
 
@@ -292,9 +306,38 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
             <input key={`pad${o.id}`} type="date" defaultValue={o.proxima_acao_at ? o.proxima_acao_at.slice(0, 10) : ''} onBlur={e => { if (e.target.value !== (o.proxima_acao_at?.slice(0, 10) ?? '')) patch({ proxima_acao_at: e.target.value || null }) }} className="w-full px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
           </div>
 
+          {/* Pesquisa de qualificação → dirige a previsibilidade automática */}
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-1.5">
+              <h3 className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-light)' }}>Qualificação (pesquisa)</h3>
+              <button onClick={() => setQOpen(v => !v)} className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>{qOpen ? 'Cancelar' : 'Atualizar'}</button>
+            </div>
+            {!qOpen ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex gap-0.5">{[1, 2, 3, 4, 5].map(n => <Star key={n} size={15} style={{ color: (rep?.estrelas ?? 0) >= n ? '#f59e0b' : 'var(--border)' }} fill={(rep?.estrelas ?? 0) >= n ? '#f59e0b' : 'none'} />)}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.qualificacao ?? 'sem pesquisa'}</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(n => <button key={n} type="button" onClick={() => setQ(s => ({ ...s, estrelas: n }))}><Star size={22} style={{ color: q.estrelas >= n ? '#f59e0b' : 'var(--border)' }} fill={q.estrelas >= n ? '#f59e0b' : 'none'} /></button>)}
+                  <span className="text-[11px] ml-1 font-semibold" style={{ color: 'var(--text-muted)' }}>{q.estrelas * 20}%</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {QK.map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setQ(s => ({ ...s, [k]: !s[k] }))} className="flex items-center gap-1 px-2 py-1 rounded text-[11px]" style={q[k] ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{q[k] ? <Check size={11} /> : null}{l}</button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text)' }}><input type="checkbox" checked={q.aceite} onChange={e => setQ(s => ({ ...s, aceite: e.target.checked }))} /> Aceito pelos executivos</label>
+                <button onClick={saveQual} className="w-full px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Salvar pesquisa</button>
+              </div>
+            )}
+          </div>
+
           <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <h3 className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-light)' }}>Previsibilidade</h3>
-            <Row l="Probabilidade" v={`${o.probabilidade ?? 0}%`} />
+            <h3 className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-light)' }}>Previsibilidade <span className="normal-case font-normal" style={{ color: 'var(--text-light)' }}>(automática)</span></h3>
+            <Row l="Probabilidade" v={<b style={{ color: 'var(--primary)' }}>{o.probabilidade ?? 0}%</b>} />
+            <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Calculada pela etapa do funil + a pesquisa de qualificação.</p>
             <Row l="Valor ponderado" v={fmtBRL(o.valor_ponderado)} />
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs" style={{ color: 'var(--text-light)' }}>Categoria forecast</span>
