@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star, ChevronDown, FileSignature } from 'lucide-react'
+import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Pencil, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star, ChevronDown, FileSignature } from 'lucide-react'
 
 interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; responsavel?: { name: string } | null }
 interface Evt { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }
@@ -34,6 +34,8 @@ const num = (x: any) => Number(x) || 0
 const fmtBRL = (n: any) => num(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtDate = (s: string | null | undefined) => s ? new Date(s).toLocaleDateString('pt-BR') : '—'
 const fmtDateHora = (s: string | null | undefined) => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
+// ISO (UTC) → valor local "YYYY-MM-DDTHH:mm" pro <input type="datetime-local">, sem o drift de fuso do .slice()
+const toLocalInput = (s: string | null | undefined) => { if (!s) return ''; const d = new Date(s); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16) }
 const SAUDE: Record<string, { l: string; c: string; b: string }> = {
   saudavel: { l: 'Saudável', c: '#16a34a', b: 'rgba(34,197,94,.15)' },
   atencao: { l: 'Atenção', c: '#f59e0b', b: 'rgba(245,158,11,.15)' },
@@ -120,6 +122,18 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
     } catch { toast.error('Erro ao adicionar atividade') }
   }
   const toggleTask = async (t: Task) => { try { await api.patch(`/crm/tasks/${t.id}/complete`, { done: !t.concluida_at }); load() } catch { toast.error('Erro') } }
+  // Edição inline de atividade (título/tipo/prazo) + exclusão.
+  const [edit, setEdit] = useState<{ id: number; tipo: string; titulo: string; data: string } | null>(null)
+  const startEdit = (t: Task) => setEdit({ id: t.id, tipo: t.tipo, titulo: t.titulo ?? '', data: toLocalInput(t.data) })
+  const saveEdit = async () => {
+    if (!edit) return
+    if (!edit.titulo.trim() && !edit.tipo) { toast.error('Descreva a atividade'); return }
+    try {
+      await api.put(`/crm/tasks/${edit.id}`, { tipo: edit.tipo || (cTypes[0]?.slug ?? 'ligacao'), titulo: edit.titulo.trim() || null, data: edit.data ? new Date(edit.data).toISOString() : null })
+      setEdit(null); load(); toast.success('Atividade atualizada')
+    } catch { toast.error('Erro ao salvar atividade') }
+  }
+  const delTask = async (t: Task) => { if (!confirm('Excluir esta atividade?')) return; try { await api.delete(`/crm/tasks/${t.id}`); load(); toast.success('Atividade excluída') } catch { toast.error('Erro ao excluir') } }
 
   const setPropStatus = async (p: Proposal, status: string) => { try { await api.put(`/crm/proposals/${p.id}`, { status }); loadProps() } catch { toast.error('Erro') } }
   const delProp = async (p: Proposal) => { if (!confirm('Excluir proposta?')) return; try { await api.delete(`/crm/proposals/${p.id}`); loadProps() } catch { toast.error('Erro') } }
@@ -239,8 +253,21 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>A fazer ({abertas.length})</h3>
                 {abertas.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma atividade pendente. 🎉</p> : (
                   <div className="space-y-1.5">
-                    {abertas.map(t => (
-                      <div key={t.id} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5" style={{ background: 'var(--surface)', border: `1px solid ${atrasada(t) ? 'var(--danger-border)' : 'var(--border)'}` }}>
+                    {abertas.map(t => edit?.id === t.id ? (
+                      <div key={t.id} className="rounded-lg px-3 py-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--primary)' }}>
+                        <input autoFocus value={edit.titulo} onChange={e => setEdit(v => v && { ...v, titulo: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEdit(null) }} placeholder="Atividade" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                        <div className="flex gap-2 flex-wrap items-center">
+                          <select value={edit.tipo} onChange={e => setEdit(v => v && { ...v, tipo: e.target.value })} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                            <option value="">Tipo…</option>
+                            {cTypes.map(c => <option key={c.id} value={c.slug}>{c.nome}</option>)}
+                          </select>
+                          <input type="datetime-local" value={edit.data} onChange={e => setEdit(v => v && { ...v, data: e.target.value })} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                          <button onClick={saveEdit} className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Check size={14} /> Salvar</button>
+                          <button onClick={() => setEdit(null)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={t.id} className="group flex items-center gap-2.5 rounded-lg px-3 py-2.5" style={{ background: 'var(--surface)', border: `1px solid ${atrasada(t) ? 'var(--danger-border)' : 'var(--border)'}` }}>
                         <button onClick={() => toggleTask(t)} title="Concluir" className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center" style={{ border: '1.5px solid var(--border)' }} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{t.titulo || tipoNome(t.tipo)}</p>
@@ -249,6 +276,8 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                           </p>
                         </div>
                         {atrasada(t) && <AlertTriangle size={15} style={{ color: 'var(--danger-border)' }} />}
+                        <button onClick={() => startEdit(t)} title="Editar" className="p-1.5 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
+                        <button onClick={() => delTask(t)} title="Excluir" className="p-1.5 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
                       </div>
                     ))}
                   </div>
@@ -260,10 +289,11 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Concluídas ({feitas.length})</h3>
                   <div className="space-y-1">
                     {feitas.slice(0, 20).map(t => (
-                      <div key={t.id} className="flex items-center gap-2.5 rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)' }}>
+                      <div key={t.id} className="group flex items-center gap-2.5 rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)' }}>
                         <button onClick={() => toggleTask(t)} title="Reabrir" className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center" style={{ background: '#16a34a' }}><Check size={12} style={{ color: '#fff' }} /></button>
                         <span className="flex-1 text-sm truncate" style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{t.titulo || tipoNome(t.tipo)}</span>
                         <span className="text-[11px] shrink-0" style={{ color: 'var(--text-light)' }}>{fmtDate(t.concluida_at)}</span>
+                        <button onClick={() => delTask(t)} title="Excluir" className="p-1 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></button>
                       </div>
                     ))}
                   </div>
