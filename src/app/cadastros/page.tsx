@@ -1057,7 +1057,7 @@ function HolidaysTab() {
 
 // ─── TAB: Modelos de E-mail dos Fechamentos ──────────────────────────────────
 interface EmailTpl { id: number; categoria: string; contract_type: string | null; empresa: string | null; nome: string | null; subject: string; body: string; pay_day: number | null; active: boolean }
-const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'parceiro', label: 'Parceiro' }, { value: 'cliente', label: 'Cliente' }]
+const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'parceiro', label: 'Parceiro' }, { value: 'cliente', label: 'Cliente' }, { value: 'excedente', label: 'Horas Excedentes' }]
 const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }]
 const TPL_EMPRESAS   = [{ value: 'erpserv', label: 'ERPSERV' }, { value: 'bizify', label: 'Bizify' }]
 
@@ -1079,10 +1079,15 @@ function EmailTemplatesTab() {
     nome: 'nome do destinatário (cliente = nome da empresa)', periodo: 'mês/ano (ex.: Maio de 2026)',
     valor: 'valor total (R$)', data: 'data do "dia do mês" no mês seguinte (dia útil)',
     empresa: 'nome de exibição da empresa', razao_social: 'razão social (cai pro nome se vazio)',
+    competencia: 'competência (ex.: 07/2026)', horas_contratadas: 'horas contratadas acumuladas',
+    horas_consumidas: 'horas consumidas', horas_excedentes: 'horas excedentes',
+    valor_hora: 'valor da hora excedente (R$)', valor_total: 'valor total a faturar (R$)',
   }
-  const availableVars = ['nome', 'periodo', 'valor',
-    ...(form.categoria === 'cliente' ? ['empresa', 'razao_social'] : []),
-    ...(form.pay_day.trim() !== '' ? ['data'] : [])]
+  const availableVars = form.categoria === 'excedente'
+    ? ['nome', 'competencia', 'periodo', 'horas_contratadas', 'horas_consumidas', 'horas_excedentes', 'valor_hora', 'valor_total']
+    : ['nome', 'periodo', 'valor',
+        ...(form.categoria === 'cliente' ? ['empresa', 'razao_social'] : []),
+        ...(form.pay_day.trim() !== '' ? ['data'] : [])]
 
   const onVarField = (field: 'subject' | 'body', e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -1116,7 +1121,7 @@ function EmailTemplatesTab() {
     if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
     setSaving(true)
     try {
-      const payload = { categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, empresa: form.categoria === 'consultor' ? form.empresa : 'erpserv', nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active }
+      const payload = { categoria: form.categoria, contract_type: (form.categoria === 'cliente' || form.categoria === 'excedente') ? null : form.contract_type, empresa: form.categoria === 'consultor' ? form.empresa : 'erpserv', nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active }
       if (modal.item) await api.put(`/fechamento-email-templates/${modal.item.id}`, payload)
       else await api.post('/fechamento-email-templates', payload)
       toast.success('Modelo salvo'); setModal({ open: false }); load()
@@ -1191,7 +1196,7 @@ function EmailTemplatesTab() {
                     {TPL_CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
-                {form.categoria !== 'cliente' && (
+                {form.categoria !== 'cliente' && form.categoria !== 'excedente' && (
                   <div>
                     <Label className="text-xs text-[var(--text-muted)]">Tipo de contrato *</Label>
                     <select value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))}
