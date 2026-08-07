@@ -21,6 +21,9 @@ interface OppFull {
   responsavel?: { id: number; name: string } | null
   customer?: { id: number; name: string; cgc?: string | null } | null
   contract_id?: number | null
+  motivo_parada?: string | null
+  sla_dias?: number; sla_multiplo?: number; bloqueio_pendente?: boolean
+  paradas_historico?: { multiplo: number; sla_dias: number; dias_na_etapa: number; motivo: string; observacao?: string | null; by?: string | null; at: string }[]
 }
 interface ContactType { id: number; nome: string; slug: string }
 interface Proposal { id: number; numero?: string; versao?: number; total?: number; valor?: number; status: string; data_validade?: string | null; document_id?: number | null }
@@ -41,6 +44,7 @@ const STATUS_INFO: Record<string, { l: string; c: string; b: string }> = {
   perdido: { l: 'Perdido', c: 'var(--danger-border)', b: 'var(--danger-bg)' },
 }
 const FORECAST_CAT: [string, string][] = [['', '— categoria'], ['commit', 'Comprometido'], ['best_case', 'Melhor cenário'], ['pipeline', 'Pipeline'], ['omitido', 'Omitido']]
+const MOTIVOS_PARADA = ['Cliente avaliando', 'Sem budget', 'Falta acesso ao decisor', 'Aguardando jurídico/compras', 'Concorrência', 'Preço/condição comercial', 'Mudança de prioridade', 'Sem retorno', 'Outro']
 const EVT_LABEL: Record<string, string> = {
   created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado', probabilidade_alterada: 'Probabilidade alterada',
   previsao_alterada: 'Previsão alterada', parada_alterada: 'Motivo da parada', task_done: 'Tarefa concluída', task_reopened: 'Tarefa reaberta',
@@ -83,6 +87,13 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const saveQual = async () => {
     try { await api.put(`/crm/opportunities/${id}/qualificacao`, { estrelas: q.estrelas, aceite_executivos: q.aceite, necessidade: q.necessidade, decisor: q.decisor, champion: q.champion, budget_confirmado: q.budget_confirmado }); setQOpen(false); load(); toast.success('Pesquisa atualizada') } catch { toast.error('Erro ao salvar pesquisa') }
+  }
+
+  // Bloqueio por SLA ("o que está impedindo?") — obrigatório a cada múltiplo do SLA da etapa.
+  const [blk, setBlk] = useState({ motivo: '', obs: '' })
+  const registrarBloqueio = async () => {
+    if (!blk.motivo) { toast.error('Selecione o motivo'); return }
+    try { await api.post(`/crm/opportunities/${id}/bloqueio`, { motivo: blk.motivo, observacao: blk.obs.trim() || null }); setBlk({ motivo: '', obs: '' }); load(); toast.success('Bloqueio registrado') } catch { toast.error('Erro ao registrar') }
   }
 
   const [nt, setNt] = useState({ tipo: '', titulo: '', data: '' })
@@ -158,6 +169,22 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{o.proxima_acao || '—'}</span>
         <span className="text-xs" style={{ color: 'var(--text-light)' }}>· {fmtDateHora(o.proxima_acao_at)}</span>
       </div>
+
+      {/* Bloqueio por SLA — só aparece (e é obrigatório) quando o SLA da etapa é atingido */}
+      {o.bloqueio_pendente && (
+        <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--warning-bg)', border: '2px solid var(--warning-border)' }}>
+          <p className="text-sm font-bold" style={{ color: 'var(--warning-border)' }}>⚠ SLA da etapa atingido — {o.sla_multiplo}× o prazo de {o.sla_dias} dia(s). O que está impedindo o avanço? *</p>
+          <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>Obrigatório registrar o motivo. Fica no histórico de bloqueios abaixo e a pergunta volta a cada múltiplo do SLA.</p>
+          <div className="flex gap-2 flex-wrap">
+            <select value={blk.motivo} onChange={e => setBlk(b => ({ ...b, motivo: e.target.value }))} className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+              <option value="">Selecione o motivo…</option>
+              {MOTIVOS_PARADA.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <input value={blk.obs} onChange={e => setBlk(b => ({ ...b, obs: e.target.value }))} placeholder="Observação (opcional)" className="flex-1 min-w-40 px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+            <button onClick={registrarBloqueio} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--warning-border)', color: '#fff' }}>Registrar</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(300px,360px)' }}>
         {/* PRINCIPAL: atividades + histórico em foco */}
@@ -373,6 +400,24 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
               </div>
               <div className="flex justify-between text-[11px] mt-2 pt-2" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 <span>Σ receita {fmtBRL(totReceita)} · custo {fmtBRL(totCusto)}</span>
+              </div>
+            </div>
+          )}
+
+          {(o.paradas_historico?.length ?? 0) > 0 && (
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <h3 className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: 'var(--text-light)' }}>Bloqueios (SLA)</h3>
+              <div className="space-y-2">
+                {[...(o.paradas_historico ?? [])].reverse().map((h, i) => (
+                  <div key={i} className="text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium" style={{ color: 'var(--text)' }}>{h.motivo}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>{h.multiplo}× SLA</span>
+                    </div>
+                    {h.observacao && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{h.observacao}</p>}
+                    <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmtDateHora(h.at)}{h.by ? ` · ${h.by}` : ''}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
