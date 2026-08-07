@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star } from 'lucide-react'
+import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star, ChevronDown, FileSignature } from 'lucide-react'
 
 interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; responsavel?: { name: string } | null }
 interface Evt { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }
@@ -21,6 +21,7 @@ interface OppFull {
   responsavel?: { id: number; name: string } | null
   customer?: { id: number; name: string; cgc?: string | null } | null
   contract_id?: number | null
+  derivado?: Record<string, any> | null
   motivo_parada?: string | null
   sla_dias?: number; sla_multiplo?: number; bloqueio_pendente?: boolean
   paradas_historico?: { multiplo: number; sla_dias: number; dias_na_etapa: number; motivo: string; observacao?: string | null; by?: string | null; at: string }[]
@@ -45,6 +46,17 @@ const STATUS_INFO: Record<string, { l: string; c: string; b: string }> = {
 }
 const FORECAST_CAT: [string, string][] = [['', '— categoria'], ['commit', 'Comprometido'], ['best_case', 'Melhor cenário'], ['pipeline', 'Pipeline'], ['omitido', 'Omitido']]
 const MOTIVOS_PARADA = ['Cliente avaliando', 'Sem budget', 'Falta acesso ao decisor', 'Aguardando jurídico/compras', 'Concorrência', 'Preço/condição comercial', 'Mudança de prioridade', 'Sem retorno', 'Outro']
+// Campos da NEGOCIAÇÃO que são da OPORTUNIDADE (fase comercial). Status/assinatura/condição de pagamento
+// saíram daqui → passam a vir do CONTRATO vinculado (bloco Contrato, read-only).
+const DET_OPP: { k: string; label: string; type?: 'date' | 'textarea' }[] = [
+  { k: 'indicacao', label: 'Indicação / quem indicou' },
+  { k: 'arquiteto', label: 'Arquiteto de soluções' },
+  { k: 'categoria', label: 'Categoria' },
+  { k: 'tipo_alocacao', label: 'Tipo de alocação' },
+  { k: 'expectativa_inicio', label: 'Expectativa de início', type: 'date' },
+  { k: 'observacoes', label: 'Observações do projeto', type: 'textarea' },
+  { k: 'proximos_passos', label: 'Próximos passos', type: 'textarea' },
+]
 const EVT_LABEL: Record<string, string> = {
   created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado', probabilidade_alterada: 'Probabilidade alterada',
   previsao_alterada: 'Previsão alterada', parada_alterada: 'Motivo da parada', task_done: 'Tarefa concluída', task_reopened: 'Tarefa reaberta',
@@ -95,6 +107,9 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
     if (!blk.motivo) { toast.error('Selecione o motivo'); return }
     try { await api.post(`/crm/opportunities/${id}/bloqueio`, { motivo: blk.motivo, observacao: blk.obs.trim() || null }); setBlk({ motivo: '', obs: '' }); load(); toast.success('Bloqueio registrado') } catch { toast.error('Erro ao registrar') }
   }
+
+  const [detOpen, setDetOpen] = useState(false)
+  const patchDet = (k: string, v: string) => { if (v !== ((o?.detalhes?.[k] ?? '') as string)) patch({ detalhes: { [k]: v || null } }) }
 
   const [nt, setNt] = useState({ tipo: '', titulo: '', data: '' })
   const addTask = async () => {
@@ -427,6 +442,40 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
             {o.contato && <div className="text-xs"><span style={{ color: 'var(--text-light)' }}>Contato: </span><span style={{ color: 'var(--text)' }}>{o.contato.name}</span>{o.contato.email && <span style={{ color: 'var(--text-light)' }}> · {o.contato.email}</span>}</div>}
             <Row l="Responsável" v={o.responsavel?.name ?? '—'} />
             {o.customer?.cgc && <Row l="CNPJ/CPF" v={o.customer.cgc} />}
+          </div>
+
+          {/* Dados da oportunidade (negociação) — só campos da fase comercial */}
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <button onClick={() => setDetOpen(v => !v)} className="w-full flex items-center justify-between">
+              <h3 className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-light)' }}>Dados da oportunidade</h3>
+              <ChevronDown size={15} style={{ color: 'var(--text-light)', transform: detOpen ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {detOpen && (
+              <div className="space-y-2 mt-2">
+                {DET_OPP.map(f => (
+                  <div key={f.k}>
+                    <label className="block text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
+                    {f.type === 'textarea'
+                      ? <textarea key={`${f.k}${o.id}`} defaultValue={(o.detalhes?.[f.k] ?? '') as string} onBlur={e => patchDet(f.k, e.target.value)} rows={2} className="w-full px-2 py-1.5 rounded-lg text-sm outline-none resize-y" style={inputStyle} />
+                      : <input key={`${f.k}${o.id}`} type={f.type === 'date' ? 'date' : 'text'} defaultValue={(o.detalhes?.[f.k] ?? '') as string} onBlur={e => patchDet(f.k, e.target.value)} className="w-full px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Contrato — read-only, vem do contrato/proposta vinculada (fonte da verdade) */}
+          <div className="rounded-xl p-4 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <h3 className="text-[10px] uppercase tracking-wider font-bold flex items-center gap-1" style={{ color: 'var(--text-light)' }}><FileSignature size={12} /> Contrato</h3>
+            {(o.contract_id || (o.derivado && Object.keys(o.derivado).length > 0)) ? (
+              <>
+                <Row l="Status" v={o.derivado?.proposta_status ?? (o.contract_id ? 'Ativo' : '—')} />
+                <Row l="Assinatura" v={fmtDate(o.derivado?.data_assinatura)} />
+                <Row l="Condição de pgto." v={o.derivado?.condicao_pagamento ?? '—'} />
+                <Row l="Código do projeto" v={o.derivado?.codigo_projeto ?? '—'} />
+                <Row l="Valor" v={o.derivado?.valor_proposta != null ? fmtBRL(o.derivado.valor_proposta) : '—'} />
+              </>
+            ) : <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem contrato/proposta vinculada. Preenche automaticamente ao ganhar a oportunidade.</p>}
           </div>
         </div>
       </div>
