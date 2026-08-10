@@ -16,6 +16,7 @@ interface ContractContact {
   email: string
   phone: string
 }
+import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload } from '@/lib/contract-items'
 
 interface CustomerContact {
   id: number
@@ -221,6 +222,10 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
   // Form state
   const [form, setForm]       = useState<FormState>({ ...EMPTY_FORM })
   const [contacts, setContacts] = useState<ContractContact[]>([])
+  const [items, setItems] = useState<ContractItemForm[]>([])
+  const addItem    = () => setItems(it => [...it, emptyContractItem()])
+  const updateItem = (i: number, field: keyof ContractItemForm, value: string) => setItems(it => it.map((x, idx) => idx === i ? computeContractItem(x, field, value) : x))
+  const removeItem = (i: number) => setItems(it => it.filter((_, idx) => idx !== i))
   const [saving, setSaving]   = useState(false)
   const [activeTab, setActiveTab] = useState(0)
 
@@ -308,11 +313,21 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
           aporte_data:              '',
         })
         setContacts(full.contacts ?? [])
+        setItems((((full as any).items ?? []) as any[]).map((it) => ({
+          id: it.id, tipo: it.tipo, descricao: it.descricao ?? '',
+          horas_contratadas: it.horas_contratadas != null ? String(it.horas_contratadas) : '',
+          valor_hora: it.valor_hora != null ? String(it.valor_hora) : '',
+          valor_projeto: it.valor_projeto != null ? String(it.valor_projeto) : '',
+          hora_adicional: it.hora_adicional != null ? String(it.hora_adicional) : '',
+          condicao_pagamento: it.condicao_pagamento ?? '',
+          project: it.project ?? null,
+        })))
       }).catch(() => toast.error('Erro ao carregar contrato'))
     } else {
       setInternalEdit(null)
       setForm({ ...EMPTY_FORM })
       setContacts([])
+      setItems([])
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editContract])
@@ -515,6 +530,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
     if (form.is_subproject && !form.parent_project_id)                   { toast.error('Selecione o projeto pai para o subprojeto'); setActiveTab(0); return }
     if (!isOnDemand && !isMensalidade && !form.horas_contratadas)        { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
     if (isMensalidade && !form.valor_projeto)                            { toast.error('Informe o Valor do Contrato (mensalidade)'); setActiveTab(4); return }
+    if (isMensalidade) { const itErr = validateContractItems(items); if (itErr) { toast.error(itErr); setActiveTab(4); return } }
     if (isOnDemand && !isMensalidade && !form.valor_projeto)             { toast.error('Informe o Valor do Projeto'); setActiveTab(4); return }
     // Anexo OBRIGATÓRIO em contratos NOVOS (qualquer documento: proposta/aprovação/contrato).
     // Edição de contratos legados NÃO é travada — só a criação exige anexo.
@@ -551,6 +567,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
         vendedor_id:           form.vendedor_id ? Number(form.vendedor_id) : null,
         observacoes:           form.observacoes || null,
         contacts,
+        items: isMensalidade ? contractItemsPayload(items) : [],
       }
 
       let contract: Contract
@@ -1292,6 +1309,50 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
                   )}
                 </div>
               </div>
+
+              {/* Itens SaaS/Cloud — Setup / Desenvolvimento → cada um vira um card de projeto Fechado */}
+              {isMensalidade && (
+                <div className="mt-5 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)]">Itens do contrato (Setup / Desenvolvimento)</p>
+                    <button type="button" onClick={addItem} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Plus size={12} /> Adicionar item</button>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-light)] mb-3">Cada item vira um <b>card de projeto próprio</b> (tipo Fechado), com o mesmo código do contrato + sufixo de letra (ex.: <code>…-A</code>, <code>…-B</code>). O card mensal fica com o código puro.</p>
+                  {items.length === 0 ? (
+                    <p className="text-[11px] text-[var(--text-muted)]">Nenhum item. Use “Adicionar item” para incluir Setup / Desenvolvimento.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((it, i) => (
+                        <div key={i} className="rounded-lg p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                              Item {i + 1}
+                              {it.project?.code && <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>card {it.project.code}</span>}
+                            </span>
+                            <button type="button" onClick={() => removeItem(i)} disabled={!!it.project} title={it.project ? 'Card já gerado' : 'Remover item'} style={{ color: it.project ? 'var(--text-light)' : 'var(--danger)', opacity: it.project ? 0.5 : 1 }}><Trash2 size={13} /></button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><label className={labelCls}>Tipo <span className="text-[var(--danger)]">*</span></label>
+                              <select value={it.tipo} onChange={e => updateItem(i, 'tipo', e.target.value)} className={inputCls} style={inputStyle}>{ITEM_TIPO_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select></div>
+                            <div><label className={labelCls}>Horas contratadas <span className="text-[var(--danger)]">*</span></label>
+                              <input type="number" min="0" value={it.horas_contratadas} onChange={e => updateItem(i, 'horas_contratadas', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls}>Valor da Hora (R$) <span className="text-[var(--danger)]">*</span></label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.valor_hora} onChange={e => updateItem(i, 'valor_hora', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls}>Valor Total (R$) <span className="text-[var(--danger)]">*</span></label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.valor_projeto} onChange={e => updateItem(i, 'valor_projeto', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls}>Hora Adicional (R$)</label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.hora_adicional} onChange={e => updateItem(i, 'hora_adicional', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls}>Condição de Pagamento <span className="text-[var(--danger)]">*</span></label>
+                              <input value={it.condicao_pagamento} onChange={e => updateItem(i, 'condicao_pagamento', e.target.value)} placeholder="ex.: 50% assinatura / 50% entrega" className={inputCls} style={inputStyle} /></div>
+                            <div className="col-span-2"><label className={labelCls}>Descrição <span className="text-[var(--danger)]">*</span></label>
+                              <textarea rows={2} value={it.descricao} onChange={e => updateItem(i, 'descricao', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

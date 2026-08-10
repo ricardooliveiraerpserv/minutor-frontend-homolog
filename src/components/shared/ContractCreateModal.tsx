@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { toast } from 'sonner'
-import { Plus, X, CheckCircle, ExternalLink } from 'lucide-react'
+import { Plus, X, CheckCircle, ExternalLink, Trash2 } from 'lucide-react'
+import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload } from '@/lib/contract-items'
 import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -171,6 +172,10 @@ export function ContractCreateModal({
     sub_seq:           initialSubSeq           ?? '',
   })
   const [contacts, setContacts] = useState<ContractContact[]>([])
+  const [items, setItems] = useState<ContractItemForm[]>([])
+  const addItem    = () => setItems(it => [...it, emptyContractItem()])
+  const updateItem = (i: number, field: keyof ContractItemForm, value: string) => setItems(it => it.map((x, idx) => idx === i ? computeContractItem(x, field, value) : x))
+  const removeItem = (i: number) => setItems(it => it.filter((_, idx) => idx !== i))
   const [codeExists, setCodeExists]   = useState(false)
   const [codeChecking, setCodeChecking] = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
@@ -461,6 +466,7 @@ export function ContractCreateModal({
         if (!isOnDemand && !isMensalidade && !form.horas_contratadas)        { toast.error('Informe as Horas Contratadas'); return false }
         if (!form.expectativa_inicio)                                        { toast.error('Informe a Expectativa de Início'); return false }
         if (isMensalidade && !form.valor_projeto)                            { toast.error('Informe o Valor do Contrato (mensalidade)'); return false }
+        if (isMensalidade) { const itErr = validateContractItems(items); if (itErr) { toast.error(itErr); return false } }
         if (isOnDemand && !isMensalidade && !form.valor_projeto)             { toast.error('Informe o Valor do Projeto'); return false }
         if (!isMensalidade && !isOnDemand && !form.valor_hora)               { toast.error('Informe o Valor da Hora'); return false }
         // On Demand consome do pai por apontamento (horas_contratadas=0, cobrado por hora
@@ -697,6 +703,7 @@ export function ContractCreateModal({
         // Só subprojeto faturado dispara o aporte no pai.
         sera_faturado:         form.is_subproject && form.sera_faturado,
         contacts,
+        items: isMensalidade ? contractItemsPayload(items) : [],
       }
 
       const contract = await api.post<{ id: number }>('/contracts', payload)
@@ -1583,6 +1590,47 @@ export function ContractCreateModal({
                   )}
                 </div>
               </div>
+
+              {/* Itens SaaS/Cloud — Setup / Desenvolvimento → cada um vira um card de projeto Fechado */}
+              {isMensalidade && (
+                <div className="mt-5 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Itens do contrato (Setup / Desenvolvimento)</p>
+                    <button type="button" onClick={addItem} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Plus size={12} /> Adicionar item</button>
+                  </div>
+                  <p className="text-[10px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada item vira um <b>card de projeto próprio</b> (tipo Fechado), com o mesmo código do contrato + sufixo de letra (ex.: <code>…-A</code>, <code>…-B</code>). O card mensal fica com o código puro.</p>
+                  {items.length === 0 ? (
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Nenhum item. Use “Adicionar item” para incluir Setup / Desenvolvimento.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((it, i) => (
+                        <div key={i} className="rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>Item {i + 1}</span>
+                            <button type="button" onClick={() => removeItem(i)} title="Remover item" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Tipo <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <select value={it.tipo} onChange={e => updateItem(i, 'tipo', e.target.value)} className={inputCls} style={inputStyle}>{ITEM_TIPO_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select></div>
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas contratadas <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <input type="number" min="0" value={it.horas_contratadas} onChange={e => updateItem(i, 'horas_contratadas', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Valor da Hora (R$) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.valor_hora} onChange={e => updateItem(i, 'valor_hora', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Valor Total (R$) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.valor_projeto} onChange={e => updateItem(i, 'valor_projeto', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Hora Adicional (R$)</label>
+                              <input type="number" min="0" step="0.01" placeholder="0,00" value={it.hora_adicional} onChange={e => updateItem(i, 'hora_adicional', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                            <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Condição de Pagamento <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <input value={it.condicao_pagamento} onChange={e => updateItem(i, 'condicao_pagamento', e.target.value)} placeholder="ex.: 50% assinatura / 50% entrega" className={inputCls} style={inputStyle} /></div>
+                            <div className="col-span-2"><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Descrição <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <textarea rows={2} value={it.descricao} onChange={e => updateItem(i, 'descricao', e.target.value)} className={inputCls} style={inputStyle} /></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
