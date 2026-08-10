@@ -60,6 +60,7 @@ import {
   Radar,
   SlidersHorizontal,
   Eye,
+  History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
@@ -375,6 +376,7 @@ const NAV: NavEntry[] = [
           { label: 'Usuários',         href: '/users',               icon: Users },
           { label: 'Cargos por Perfil', href: '/settings?tab=cargos', icon: Briefcase },
           { label: 'Liberação de Visualização', href: '/liberacao-pipeline', icon: SlidersHorizontal },
+          { label: 'Auditoria de Projetos', href: '/auditoria-projetos', icon: History },
         ],
       },
     ],

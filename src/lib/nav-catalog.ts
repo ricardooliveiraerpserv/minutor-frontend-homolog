@@ -85,6 +85,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
   { key: '/configuracoes/empresas', label: 'Empresas do Grupo', group: 'Sistema' },
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
+  { key: '/auditoria-projetos', label: 'Auditoria de Projetos', group: 'Sistema' },
 
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
