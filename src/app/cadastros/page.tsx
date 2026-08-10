@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail, Copy } from 'lucide-react'
+import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail, Copy, Eye } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -1061,6 +1061,20 @@ const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'pa
 const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }]
 const TPL_EMPRESAS   = [{ value: 'erpserv', label: 'ERPSERV' }, { value: 'bizify', label: 'Bizify' }]
 
+// Valores de exemplo p/ a prévia — substituem {variavel} no assunto/corpo. Ajusta o {nome} p/ cliente/excedente.
+const tplSampleValues = (categoria: string): Record<string, string> => ({
+  nome: categoria === 'cliente' || categoria === 'excedente' ? 'ACME Comércio Ltda' : 'João da Silva',
+  periodo: 'Julho de 2026', valor: 'R$ 5.000,00', data: '05/08/2026',
+  empresa: 'ERPSERV', razao_social: 'ACME Comércio Ltda',
+  competencia: '07/2026', horas_contratadas: '160,00h', horas_consumidas: '180,00h', horas_excedentes: '20,00h',
+  valor_hora: 'R$ 150,00', valor_total: 'R$ 3.000,00',
+})
+// Substitui {var} pelos valores de exemplo; deixa {var} desconhecida como está.
+const tplFillVars = (text: string, categoria: string) => {
+  const s = tplSampleValues(categoria)
+  return (text || '').replace(/\{(\w+)\}/g, (m, v) => (v in s ? s[v] : m))
+}
+
 function EmailTemplatesTab() {
   const { isDenied } = useDeniedActions()
   const screenKey = '/cadastros?tab=email_templates'
@@ -1070,6 +1084,8 @@ function EmailTemplatesTab() {
   const [form, setForm] = useState({ categoria: 'consultor', contract_type: 'cooperado', empresa: 'erpserv', nome: '', subject: '', body: '', pay_day: '', active: true })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
+  const [preview, setPreview] = useState<{ open: boolean; categoria: string; subject: string; body: string }>({ open: false, categoria: 'consultor', subject: '', body: '' })
+  const openPreview = (categoria: string, subject: string, body: string) => setPreview({ open: true, categoria, subject, body })
 
   // Autocomplete de variáveis ao digitar "{".
   const subjectRef = useRef<HTMLInputElement>(null)
@@ -1167,6 +1183,7 @@ function EmailTemplatesTab() {
             ) : items.map(it => (
               <tr key={it.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10"><RowMenu items={[
+                  { label: 'Prévia', icon: <Eye size={12} />, onClick: () => openPreview(it.categoria, it.subject, it.body) },
                   ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(it) }]),
                   { label: 'Duplicar', icon: <Copy size={12} />, onClick: () => openDuplicate(it) },
                   ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: it.id }), danger: true }]),
@@ -1281,11 +1298,39 @@ function EmailTemplatesTab() {
                 <Label className="text-xs text-[var(--text-muted)]">Ativo (desativa os outros do mesmo tipo)</Label>
               </div>
             </div>
+            <div className="flex gap-2 mt-5 justify-between items-center">
+              <Button variant="outline" onClick={() => openPreview(form.categoria, form.subject, form.body)} disabled={!form.subject.trim() && !form.body.trim()}
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)] gap-1.5"><Eye size={13} /> Prévia</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
+                <Button onClick={save} disabled={saving || !form.subject.trim() || !form.body.trim()} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {preview.open && (
+        <ModalOverlay onClose={() => setPreview(p => ({ ...p, open: false }))}>
+          <div className="p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Eye size={15} className="text-[var(--primary)]" />
+              <h3 className="text-sm font-semibold text-[var(--text)]">Prévia do e-mail</h3>
+            </div>
+            <p className="text-[10px] text-[var(--text-light)] mb-4">As variáveis foram preenchidas com valores de exemplo. O envio real usa os dados do fechamento.</p>
+            <div className="rounded-lg border border-[var(--border)] overflow-clip">
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-hover)]">
+                <span className="text-[10px] uppercase tracking-wide text-[var(--text-light)]">Assunto</span>
+                <p className="text-xs font-medium text-[var(--text)] mt-0.5">{tplFillVars(preview.subject, preview.categoria) || <span className="text-[var(--text-light)] italic">(sem assunto)</span>}</p>
+              </div>
+              <div className="px-4 py-3 bg-[var(--surface)] max-h-[50vh] overflow-y-auto">
+                <p className="text-xs text-[var(--text)] whitespace-pre-wrap leading-relaxed">{tplFillVars(preview.body, preview.categoria) || <span className="text-[var(--text-light)] italic">(sem corpo)</span>}</p>
+              </div>
+            </div>
             <div className="flex gap-2 mt-5 justify-end">
-              <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.subject.trim() || !form.body.trim()} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
+              <Button variant="outline" onClick={() => setPreview(p => ({ ...p, open: false }))} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
             </div>
           </div>
         </ModalOverlay>
