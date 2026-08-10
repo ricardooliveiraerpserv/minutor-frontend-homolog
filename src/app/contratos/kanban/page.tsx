@@ -1897,6 +1897,12 @@ function KanbanContent() {
     }
     const cols: { id: string; label: string }[] = []
 
+    // Colunas de sustentação válidas NO BOARD ATUAL: Bizify usa BH Fixo/Mensal/On Demand/SaaS
+    // (sem Cloud, sem coluna Bizify genérica); board normal usa BH/On Demand/Cloud + Bizify.
+    const boardSustCols: { id: string; label: string }[] = isBizifyActive
+      ? SUSTENTACAO_COLS_BIZIFY.map(s => ({ id: s.id, label: s.label }))
+      : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
+
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
     const isSustType = card.categoria === 'sustentacao'
@@ -1910,6 +1916,11 @@ function KanbanContent() {
         return { id: 'sust_bh_mensal', label: 'BH Mensal' }
       if (ctLower.includes('on demand') || svLower.includes('on demand'))
         return { id: 'sust_on_demand', label: 'On Demand' }
+      // No board da Bizify não há Cloud nem coluna Bizify — SaaS/Cloud/Bizify caem na coluna SaaS.
+      if (isBizifyActive)
+        return { id: 'sust_saas', label: 'SaaS' }
+      if (ctLower.includes('saas') || svLower.includes('saas') || card.tipo_faturamento === 'saas')
+        return { id: 'sust_saas', label: 'SaaS' }
       if (ctLower.includes('cloud') || svLower.includes('cloud'))
         return { id: 'sust_cloud', label: 'Cloud' }
       if (ctLower.includes('bizify') || svLower.includes('bizify'))
@@ -1927,8 +1938,7 @@ function KanbanContent() {
 
     if (fromCol.startsWith('sust_')) {
       if (!isSustAdmin) return []
-      SUSTENTACAO_COLS.forEach(s => { if (s.id !== fromCol) cols.push({ id: s.id, label: s.label }) })
-      if (BIZIFY_COL.id !== fromCol) cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
+      boardSustCols.forEach(s => { if (s.id !== fromCol) cols.push(s) })
       return cols
     }
 
@@ -1949,8 +1959,7 @@ function KanbanContent() {
         if (matched) {
           cols.push(matched)
         } else {
-          SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
-          cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
+          boardSustCols.forEach(s => cols.push(s))
         }
       }
       cols.push(...CANCEL_PAUSE)
@@ -2010,6 +2019,11 @@ function KanbanContent() {
         return { id: 'sust_bh_mensal', label: 'BH Mensal' }
       if (ctLower.includes('on demand') || svLower.includes('on demand'))
         return { id: 'sust_on_demand', label: 'On Demand' }
+      // No board da Bizify não há Cloud nem coluna Bizify — SaaS/Cloud/Bizify caem na coluna SaaS.
+      if (isBizifyActive)
+        return { id: 'sust_saas', label: 'SaaS' }
+      if (ctLower.includes('saas') || svLower.includes('saas') || card.tipo_faturamento === 'saas')
+        return { id: 'sust_saas', label: 'SaaS' }
       if (ctLower.includes('cloud') || svLower.includes('cloud'))
         return { id: 'sust_cloud', label: 'Cloud' }
       if (ctLower.includes('bizify') || svLower.includes('bizify'))
@@ -2048,7 +2062,7 @@ function KanbanContent() {
         const sustCol = matchedSustColForProject()
         const sustOptions = sustCol
           ? [sustCol]
-          : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
+          : boardSustCols
         return [
           ...sustOptions,
           ...STATUS_PROJECT_COLUMNS.map(c => ({ id: c.id, label: c.label })),
