@@ -53,9 +53,20 @@ export function SolutionView({ solution }: { solution: Solution }) {
   )
 }
 
-export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClose, onSubmit }: {
+/** Chave do rascunho local por chamado (+ modo edição, p/ não colidir com "novo"). */
+function draftKeyOf(ticketId?: number | string | null, editing?: boolean): string | null {
+  if (ticketId == null) return null
+  return `hd:solucao-draft:${editing ? 'edit:' : ''}${ticketId}`
+}
+function loadDraft(key: string | null): Solution | null {
+  if (!key || typeof window === 'undefined') return null
+  try { const raw = window.localStorage.getItem(key); return raw ? (JSON.parse(raw) as Solution) : null } catch { return null }
+}
+
+export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', ticketId, onClose, onSubmit }: {
   initial?: Solution | null
   submitLabel?: string
+  ticketId?: number | string | null
   onClose: () => void
   onSubmit: (s: Solution, body: string) => Promise<void> | void
 }) {
@@ -63,16 +74,43 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
   const aRef = useRef<RichEditorHandle>(null)
   const vRef = useRef<RichEditorHandle>(null)
   const [saving, setSaving] = useState(false)
-  const [lens, setLens] = useState(() => ({
-    d: nonSpaceLen(initial?.diagnostico ?? ''),
-    a: nonSpaceLen(initial?.acao ?? ''),
-    v: nonSpaceLen(initial?.validacao ?? ''),
+
+  // Rascunho local: se o modal foi fechado sem enviar, recupera o que já estava digitado.
+  const draftKey = draftKeyOf(ticketId, !!initial)
+  const [draft] = useState<Solution | null>(() => loadDraft(draftKey))
+  const [restored, setRestored] = useState<boolean>(!!draft)
+  // Valores-semente dos editores (não-controlados). `editorKey` força remontar ao descartar.
+  const [seed, setSeed] = useState<Solution>(() => ({
+    diagnostico: draft?.diagnostico ?? initial?.diagnostico ?? '',
+    acao: draft?.acao ?? initial?.acao ?? '',
+    validacao: draft?.validacao ?? initial?.validacao ?? '',
   }))
-  const recount = () => setLens({
-    d: nonSpaceLen(dRef.current?.getHtml() ?? ''),
-    a: nonSpaceLen(aRef.current?.getHtml() ?? ''),
-    v: nonSpaceLen(vRef.current?.getHtml() ?? ''),
-  })
+  const [editorKey, setEditorKey] = useState(0)
+
+  const [lens, setLens] = useState(() => ({
+    d: nonSpaceLen(seed.diagnostico), a: nonSpaceLen(seed.acao), v: nonSpaceLen(seed.validacao),
+  }))
+
+  // Grava o rascunho a cada digitação e recalcula os contadores.
+  const recount = () => {
+    const s: Solution = {
+      diagnostico: dRef.current?.getHtml() ?? '',
+      acao: aRef.current?.getHtml() ?? '',
+      validacao: vRef.current?.getHtml() ?? '',
+    }
+    setLens({ d: nonSpaceLen(s.diagnostico), a: nonSpaceLen(s.acao), v: nonSpaceLen(s.validacao) })
+    if (draftKey && typeof window !== 'undefined') {
+      const empty = !nonSpaceLen(s.diagnostico) && !nonSpaceLen(s.acao) && !nonSpaceLen(s.validacao)
+      try { if (empty) window.localStorage.removeItem(draftKey); else window.localStorage.setItem(draftKey, JSON.stringify(s)) } catch { /* quota/priv */ }
+    }
+  }
+  const clearDraft = () => { if (draftKey) { try { window.localStorage.removeItem(draftKey) } catch { /* ignore */ } } }
+  const discardDraft = () => {
+    clearDraft()
+    const base: Solution = { diagnostico: initial?.diagnostico ?? '', acao: initial?.acao ?? '', validacao: initial?.validacao ?? '' }
+    setSeed(base); setEditorKey(k => k + 1); setRestored(false)
+    setLens({ d: nonSpaceLen(base.diagnostico), a: nonSpaceLen(base.acao), v: nonSpaceLen(base.validacao) })
+  }
 
   const submit = async () => {
     const s: Solution = {
@@ -89,20 +127,32 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
       toast.error(`Preencha com no mínimo ${MIN_CHARS} caracteres (sem contar espaços): ${short.join(', ')}.`); return
     }
     setSaving(true)
-    try { await onSubmit(s, composeSolutionBody(s)) } finally { setSaving(false) }
+    try { await onSubmit(s, composeSolutionBody(s)); clearDraft() } finally { setSaving(false) }
   }
 
+  // Só fecha ao clicar no fundo se o clique COMEÇOU no fundo. Assim, selecionar texto
+  // arrastando de dentro do editor e soltar o mouse fora NÃO fecha (e não perde o que foi digitado).
+  const downOnBackdrop = useRef(false)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
-      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
+      onMouseDown={e => { downOnBackdrop.current = e.target === e.currentTarget }}
+      onClick={e => { if (downOnBackdrop.current && e.target === e.currentTarget) onClose() }}>
+      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Todos os campos são obrigatórios (mín. {MIN_CHARS} caracteres cada, espaços não contam). Você pode colar prints de tela.</p>
+        {restored && (
+          <div className="flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+            <span>📝 Rascunho recuperado (não enviado da última vez).</span>
+            <button type="button" className="font-semibold underline shrink-0" onClick={discardDraft}>Descartar rascunho</button>
+          </div>
+        )}
         <Field label="🔍 Diagnóstico (Causa)" hint="O que estava causando o problema? Ex.: “A regra fiscal estava desatualizada e gerava imposto errado na NF-e.”" count={lens.d}>
-          <RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} onChange={recount} /></Field>
+          <RichEditor key={`d-${editorKey}`} ref={dRef} initialHtml={seed.diagnostico} minHeight={80} onChange={recount} /></Field>
         <Field label="🚀 Ação Realizada (O Ajuste)" hint="O que você fez para corrigir? Ex.: “Atualizei a alíquota de ICMS e reprocessei as notas do período.”" count={lens.a}>
-          <RichEditor ref={aRef} initialHtml={initial?.acao ?? ''} minHeight={80} onChange={recount} /></Field>
+          <RichEditor key={`a-${editorKey}`} ref={aRef} initialHtml={seed.acao} minHeight={80} onChange={recount} /></Field>
         <Field label="✅ Validação (Teste Efetuado)" hint="Como confirmou que resolveu? Ex.: “Emiti uma NF-e de teste, o imposto saiu correto e o cliente validou.”" count={lens.v}>
-          <RichEditor ref={vRef} initialHtml={initial?.validacao ?? ''} minHeight={80} onChange={recount} /></Field>
+          <RichEditor key={`v-${editorKey}`} ref={vRef} initialHtml={seed.validacao} minHeight={80} onChange={recount} /></Field>
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>

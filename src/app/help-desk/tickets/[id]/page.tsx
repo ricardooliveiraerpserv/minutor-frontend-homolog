@@ -1459,6 +1459,7 @@ function TicketDetailInner({ id }: { id: number }) {
       {solucaoOpen && (
         <SolucaoModal
           initial={editSolution?.solution ?? null}
+          ticketId={id}
           submitLabel={editSolution ? 'Salvar' : 'Salvar e resolver'}
           onClose={() => { setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null) }}
           onSubmit={submitSolucao}
