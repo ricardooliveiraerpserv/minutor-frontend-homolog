@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -110,18 +110,36 @@ function ExcedentesPage() {
   const [emails, setEmails] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  // Semeia o textarea só no 1º fetch; depois a prévia atualiza sozinha ao editar a mensagem.
+  const previewSeededRef = useRef(false)
+
+  // Prévia = o E-MAIL real (layout branded), não o PDF. Live: re-busca ao editar a mensagem.
+  const fetchEmailPreview = useCallback(async (customerId: number, mensagem?: string) => {
+    setReportLoading(true)
+    try {
+      const payload: Record<string, unknown> = {}
+      if (mensagem !== undefined) payload.mensagem = mensagem
+      const res = await api.post<{ html: string; default_message?: string }>(`/fechamento-excedente/${customerId}/${ym}/email-preview`, payload)
+      setReportHtml(res.html ?? '')
+      if (!previewSeededRef.current) { previewSeededRef.current = true; setMessage(res.default_message ?? '') }
+    } catch {
+      toast.error('Erro ao gerar a prévia do e-mail')
+    } finally { setReportLoading(false) }
+  }, [ym])
 
   const openReport = async (r: Row) => {
+    previewSeededRef.current = false
     setReportFor({ customerId: r.customer_id, name: r.customer_name, envio_em: r.envio_em })
-    setEmails(''); setMessage(''); setReportHtml(''); setReportLoading(true)
-    try {
-      const res = await api.get<{ html: string; default_message?: string }>(`/fechamento-excedente/${r.customer_id}/${ym}/report-html`)
-      setReportHtml(res.html ?? '')
-      setMessage(res.default_message ?? '')
-    } catch {
-      toast.error('Erro ao gerar o relatório')
-    } finally { setReportLoading(false) }
+    setEmails(''); setMessage(''); setReportHtml('')
+    void fetchEmailPreview(r.customer_id)
   }
+
+  // Live update da prévia ao editar a mensagem (debounce ~450ms), depois do 1º fetch.
+  useEffect(() => {
+    if (!reportFor || !previewSeededRef.current) return
+    const t = setTimeout(() => { void fetchEmailPreview(reportFor.customerId, message) }, 450)
+    return () => clearTimeout(t)
+  }, [message, reportFor, fetchEmailPreview])
 
   const sendEmail = async () => {
     if (!reportFor || !ym) return
@@ -295,9 +313,9 @@ function ExcedentesPage() {
         />
         <ModalBody>
           <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid var(--border)', height: 420, background: '#fff' }}>
-            {reportLoading
-              ? <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-muted)' }}>Gerando relatório…</div>
-              : <iframe title="Relatório de Horas Excedentes" srcDoc={reportHtml} className="w-full h-full border-0" />}
+            {reportLoading && !reportHtml
+              ? <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-muted)' }}>Gerando prévia do e-mail…</div>
+              : <iframe title="Prévia do e-mail" srcDoc={reportHtml} className="w-full h-full border-0" />}
           </div>
           <div className="space-y-2">
             <div>
