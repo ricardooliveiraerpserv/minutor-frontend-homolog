@@ -553,9 +553,26 @@ function Templates() {
   const [tipo, setTipo] = useState('aviso')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
+  const [preview, setPreview] = useState<{ html: string; nome: string } | null>(null)
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
+  const [viewingId, setViewingId] = useState<number | null>(null)
   const load = () => api.get<{ data: CommTemplate[] }>('/communication-templates').then(r => setRows(r.data ?? [])).catch(() => {})
   useEffect(() => { load() }, [])
   const del = async (t: CommTemplate) => { if (!confirm(`Excluir o modelo "${t.nome}"?`)) return; try { await api.delete(`/communication-templates/${t.id}`); load() } catch { toast.error('Erro') } }
+  // Prévia do modelo com o MESMO render do envio (/communications/preview).
+  const view = async (t: CommTemplate) => {
+    const structure = (t.structure && Object.keys(t.structure).length > 0) ? t.structure : { content: t.message ?? '' }
+    setViewingId(t.id)
+    try {
+      const r = await api.post<{ data: { html: string } }>('/communications/preview', {
+        tipo_comunicacao: t.tipo_comunicacao, title: (t.title || t.nome || '').trim(),
+        structure, customer_ids: [], user_ids: [], external_emails: [], all_customers: false, expires_at: null,
+      })
+      setPreview({ html: r.data?.html ?? '', nome: t.nome })
+    } catch (e) {
+      toast.error((e as { message?: string })?.message ?? 'Não foi possível gerar a prévia deste modelo.')
+    } finally { setViewingId(null) }
+  }
   const resetForm = () => { setNome(''); setTipo('aviso'); setTitle(''); setMessage(''); setEditingId(null); setHasStructure(false) }
   const closeForm = () => { resetForm(); setCreating(false) }
   const startNew = () => { resetForm(); setCreating(true) }
@@ -622,10 +639,35 @@ function Templates() {
           <Bookmark size={14} style={{ color: 'var(--primary)' }} />
           <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{t.nome}</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{TIPO_L[t.tipo_comunicacao] ?? t.tipo_comunicacao}</span>
+          <button onClick={() => view(t)} disabled={viewingId === t.id} title="Visualizar modelo"><Eye size={15} style={{ color: viewingId === t.id ? 'var(--text-light)' : 'var(--primary)' }} /></button>
           <button onClick={() => startEdit(t)} title="Editar modelo"><PenLine size={14} style={{ color: 'var(--text-muted)' }} /></button>
           <button onClick={() => del(t)} title="Excluir modelo"><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
         </div>
       ))}
+
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setPreview(null)}>
+          <div className="ds-card w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 p-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>Prévia · {preview.nome}</div>
+              <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--surface-sunken)' }}>
+                {([['desktop', Monitor, 'Desktop'], ['mobile', Smartphone, 'Mobile']] as const).map(([m, Icon, t]) => (
+                  <button key={m} onClick={() => setPreviewMode(m)} title={t} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md"
+                    style={{ background: previewMode === m ? 'var(--primary-soft)' : 'transparent', color: previewMode === m ? 'var(--primary)' : 'var(--text-muted)', fontWeight: previewMode === m ? 600 : 400 }}>
+                    <Icon size={13} /> {t}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setPreview(null)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-auto p-3 flex justify-center" style={{ background: 'var(--surface-sunken)' }}>
+              <div className="transition-all" style={{ width: previewMode === 'mobile' ? 380 : 640, maxWidth: '100%' }}>
+                <EmailFrame key={previewMode} html={preview.html} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
