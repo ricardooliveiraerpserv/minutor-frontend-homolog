@@ -1,4 +1,4 @@
-const CACHE = 'minutor-v3'
+const CACHE = 'minutor-v4'
 
 // Recursos estáticos para cache offline (PWA mobile)
 const STATIC = [
@@ -21,6 +21,11 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+      // Auto-heal: ao ativar uma nova versão do SW, recarrega TODAS as abas abertas
+      // uma vez, para que passem a rodar o bundle novo (resolve o caso do SW antigo
+      // cache-first servindo JS velho da versão anterior mesmo após deploy).
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => { try { c.navigate(c.url) } catch (_) { /* ignore */ } }))
   )
 })
 
