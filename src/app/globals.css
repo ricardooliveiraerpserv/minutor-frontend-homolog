@@ -352,6 +352,11 @@ tbody tr + tr > td {
   html, body {
     overflow-x: clip;
     max-width: 100%;
+    /* Bloqueia o gesto de "voltar página" por overscroll horizontal (macOS/trackpad).
+       Sem isso, arrastar uma seleção de texto até a borda lateral de um bloco rolável
+       dispara o swipe-to-go-back → a página volta no histórico e o usuário perde tudo
+       que estava digitando (ex.: modal de Solução do Help Desk). */
+    overscroll-behavior-x: none;
   }
 
   /* ─── Tipografia base do produto ────────────────────────────────────

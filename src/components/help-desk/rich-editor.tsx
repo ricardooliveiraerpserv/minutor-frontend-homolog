@@ -176,7 +176,7 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
           onKeyUp={() => { saveSel(); cleanEmptyImages() }} onMouseUp={() => { saveSel(); cleanEmptyImages() }}
           onDrop={() => setTimeout(cleanEmptyImages, 0)} onBlur={() => { saveSel(); cleanEmptyImages() }}
           className="text-sm hd-rich rounded-lg p-3 outline-none overflow-auto"
-          style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480 }} />
+          style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480, overscrollBehavior: 'contain' }} />
         {showAttach ? (
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
