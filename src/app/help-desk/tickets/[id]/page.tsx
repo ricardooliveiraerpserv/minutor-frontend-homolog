@@ -1492,6 +1492,8 @@ function TicketDetailInner({ id }: { id: number }) {
             'data': new Date().toLocaleDateString('pt-BR'),
           }}
           currentUserName={user?.name}
+          /* Rascunho local só no preenchimento NOVO (edição já está salva no servidor). */
+          ticketId={dynEdit ? null : id}
           /* Horas: em sustentação, quem não aponta manualmente é OBRIGADO a informar aqui (mesma regra do compositor). */
           timeMode={t.apontamento_time_mode ?? 'optional'}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}

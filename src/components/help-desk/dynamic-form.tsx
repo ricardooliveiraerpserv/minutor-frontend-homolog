@@ -106,7 +106,7 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
-export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, timeMode = 'optional', submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
+export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, timeMode = 'optional', submitLabel = 'Salvar e aplicar', ticketId, onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
   initialTime?: FormTime | null
@@ -116,16 +116,27 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   // sem escape) ou 'hidden' (não aponta por aqui). Espelha o modo do compositor (sustentação).
   timeMode?: 'optional' | 'required' | 'hidden'
   submitLabel?: string
+  ticketId?: number | string | null
   onClose: () => void
   onSubmit: (inst: FormInstance, body: string, time: FormTime, files: File[]) => Promise<void> | void
 }) {
+  // ── Rascunho local (por chamado + formulário): se fechar/atualizar sem enviar, recupera o digitado.
+  type Draft = { vals?: Record<string, string | boolean>; time?: { workedDate?: string; startTime?: string; endTime?: string; totalHours?: string; noCharge?: boolean } }
+  const draftKey = ticketId != null ? `hd:dynform-draft:${ticketId}:${form.id}` : null
+  const [draft, setDraft] = useState<Draft | null>(() => {
+    if (!draftKey || typeof window === 'undefined') return null
+    try { const r = window.localStorage.getItem(draftKey); return r ? (JSON.parse(r) as Draft) : null } catch { return null }
+  })
+  const [restored, setRestored] = useState<boolean>(!!draft)
+  const [editorKey, setEditorKey] = useState(0) // muda p/ remontar os RichEditor ao descartar
+  const clearDraft = () => { if (draftKey && typeof window !== 'undefined') { try { window.localStorage.removeItem(draftKey) } catch { /* ignore */ } } }
   // Tempo trabalhado da interação (obrigatório informar — é uma interação). Edição pré-preenche.
-  const [workedDate, setWorkedDate] = useState(initialTime?.worked_date || localToday())
-  const [startTime, setStartTime] = useState(initialTime?.start_time || '')
-  const [endTime, setEndTime] = useState(initialTime?.end_time || '')
-  const [totalHours, setTotalHours] = useState(initialTime?.total_hours || '')
+  const [workedDate, setWorkedDate] = useState(draft?.time?.workedDate || initialTime?.worked_date || localToday())
+  const [startTime, setStartTime] = useState(draft?.time?.startTime ?? initialTime?.start_time ?? '')
+  const [endTime, setEndTime] = useState(draft?.time?.endTime ?? initialTime?.end_time ?? '')
+  const [totalHours, setTotalHours] = useState(draft?.time?.totalHours ?? initialTime?.total_hours ?? '')
   // 'required' não permite "Sem apontamento"; 'hidden' não aponta (no_charge).
-  const [noCharge, setNoCharge] = useState(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : !!initialTime?.no_charge))
+  const [noCharge, setNoCharge] = useState(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : (draft?.time?.noCharge ?? !!initialTime?.no_charge)))
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
   // Campos do tipo "user" buscam do cadastro de usuários (internos).
@@ -141,6 +152,8 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     const saved = initial?.fields.find(x => x.key === f.key)
     initMap[f.key] = saved ? saved.value : (f.ftype === 'checkbox' ? false : '')
   }
+  // Rascunho recuperado sobrepõe o valor inicial (inclui o HTML dos richtext, que semeiam via initMap).
+  if (draft?.vals) for (const f of form.fields) if (Object.prototype.hasOwnProperty.call(draft.vals, f.key)) initMap[f.key] = draft.vals[f.key]!
   const [vals, setVals] = useState<Record<string, string | boolean>>(initMap)
   const [saving, setSaving] = useState(false)
   // Anexo ÚNICO do formulário inteiro (antes cada campo richtext tinha seu próprio "Anexar").
@@ -174,6 +187,35 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   })
   const recount = (key: string) => setLens(l => ({ ...l, [key]: nonSpaceLen(richRefs.current[key]?.getHtml() ?? '') }))
   const setV = (key: string, v: string | boolean) => setVals(s => ({ ...s, [key]: v }))
+
+  // Grava o rascunho a cada mudança (escalares/tempo + richtext via lens, que muda a cada input).
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return
+    const snapVals: Record<string, string | boolean> = { ...vals }
+    for (const f of form.fields) if (f.ftype === 'richtext') snapVals[f.key] = richRefs.current[f.key]?.getHtml() ?? ''
+    const hasContent = form.fields.some(f => {
+      if (f.ftype === 'title' || f.ftype === 'section') return false
+      const v = snapVals[f.key]
+      return typeof v === 'boolean' ? v : nonSpaceLen(String(v || '')) > 0
+    })
+    try {
+      if (hasContent) window.localStorage.setItem(draftKey, JSON.stringify({ vals: snapVals, time: { workedDate, startTime, endTime, totalHours, noCharge } }))
+      else window.localStorage.removeItem(draftKey)
+    } catch { /* quota/priv */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vals, workedDate, startTime, endTime, totalHours, noCharge, lens, editorKey])
+
+  // Descartar rascunho: volta os campos ao valor original (sem rascunho) e remonta os editores.
+  const discardDraft = () => {
+    clearDraft(); setDraft(null); setRestored(false)
+    const orig: Record<string, string | boolean> = {}
+    for (const f of form.fields) { const saved = initial?.fields.find(x => x.key === f.key); orig[f.key] = saved ? saved.value : (f.ftype === 'checkbox' ? false : '') }
+    setVals(orig)
+    setWorkedDate(initialTime?.worked_date || localToday())
+    setStartTime(initialTime?.start_time || ''); setEndTime(initialTime?.end_time || ''); setTotalHours(initialTime?.total_hours || '')
+    setNoCharge(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : !!initialTime?.no_charge))
+    setEditorKey(k => k + 1)
+  }
   // Automação: campo travado quando o checkbox `rule.when` está marcado → recebe `rule.value`.
   const ruleValue = (f: FormField) => f.rule?.value || 'não se aplica'
   const ruleLocked = (f: FormField) => !!(f.rule?.when && vals[f.rule.when])
@@ -243,7 +285,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     }
     const time: FormTime = { worked_date: workedDate, start_time: noCharge ? '' : startTime, end_time: noCharge ? '' : endTime, total_hours: noCharge ? '' : totalDisplay, no_charge: noCharge }
     setSaving(true)
-    try { await onSubmit(inst, composeFormBody(inst), time, files) } finally { setSaving(false) }
+    try { await onSubmit(inst, composeFormBody(inst), time, files); clearDraft() } finally { setSaving(false) }
   }
 
   const lbl = 'text-[15px] font-bold'
@@ -254,6 +296,12 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
           <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
           <button type="button" aria-label="Fechar" className="ds-btn-secondary text-sm px-2 py-1 rounded-lg shrink-0" onClick={onClose}>✕</button>
         </div>
+        {restored && (
+          <div className="flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+            <span>📝 Rascunho recuperado (não enviado da última vez).</span>
+            <button type="button" className="font-semibold underline shrink-0" onClick={discardDraft}>Descartar rascunho</button>
+          </div>
+        )}
         {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{applyTokens(form.subtitle, tokens)}</div>}
         {form.intro && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--text-muted)' }}>{applyTokens(form.intro, tokens)}</p>}
         {form.fields.map(f => {
@@ -293,7 +341,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
                   <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>travado por “{fieldLabel(f.rule?.when)}”</span>
                 </div>
               ) : (<>
-              {f.ftype === 'richtext' && <RichEditor ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} showAttach={false} onChange={() => recount(f.key)} />}
+              {f.ftype === 'richtext' && <RichEditor key={`rich-${f.key}-${editorKey}`} ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} showAttach={false} onChange={() => recount(f.key)} />}
               {f.ftype === 'text' && <input className={`${fieldCls} w-full`} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
