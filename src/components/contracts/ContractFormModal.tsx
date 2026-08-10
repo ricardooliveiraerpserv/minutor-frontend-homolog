@@ -16,7 +16,7 @@ interface ContractContact {
   email: string
   phone: string
 }
-import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload } from '@/lib/contract-items'
+import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload, itemCodePreview } from '@/lib/contract-items'
 
 interface CustomerContact {
   id: number
@@ -1327,7 +1327,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
                               Item {i + 1}
-                              {it.project?.code && <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>card {it.project.code}</span>}
+                              {(it.project?.code || itemCodePreview(codePreview, i)) && <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }} title={it.project?.code ? 'Card gerado' : 'Código previsto do card deste item'}>card {it.project?.code || itemCodePreview(codePreview, i)}</span>}
                             </span>
                             <button type="button" onClick={() => removeItem(i)} disabled={!!it.project} title={it.project ? 'Card já gerado' : 'Remover item'} style={{ color: it.project ? 'var(--text-light)' : 'var(--danger)', opacity: it.project ? 0.5 : 1 }}><Trash2 size={13} /></button>
                           </div>

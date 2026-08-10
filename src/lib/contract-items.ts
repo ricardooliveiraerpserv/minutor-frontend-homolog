@@ -60,6 +60,12 @@ export function validateContractItems(items: ContractItemForm[]): string | null 
   return null
 }
 
+/** Código previsto do card do item = código-base do contrato + sufixo de letra (A, B, C…) pela posição. */
+export function itemCodePreview(baseCode: string, index: number): string {
+  if (!baseCode) return ''
+  return `${baseCode}-${String.fromCharCode(65 + index)}`
+}
+
 /** Payload dos itens p/ a API. */
 export function contractItemsPayload(items: ContractItemForm[]) {
   return items.map(it => ({

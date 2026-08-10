@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { toast } from 'sonner'
 import { Plus, X, CheckCircle, ExternalLink, Trash2 } from 'lucide-react'
-import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload } from '@/lib/contract-items'
+import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload, itemCodePreview } from '@/lib/contract-items'
 import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1606,7 +1606,10 @@ export function ContractCreateModal({
                       {items.map((it, i) => (
                         <div key={i} className="rounded-lg p-3" style={{ border: '1px solid var(--border)' }}>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>Item {i + 1}</span>
+                            <span className="text-[11px] font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                              Item {i + 1}
+                              {itemCodePreview(codePreview, i) && <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }} title="Código previsto do card deste item">card {itemCodePreview(codePreview, i)}</span>}
+                            </span>
                             <button type="button" onClick={() => removeItem(i)} title="Remover item" style={{ color: 'var(--danger)' }}><Trash2 size={13} /></button>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
