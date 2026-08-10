@@ -248,9 +248,12 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
 
   const lbl = 'text-[15px] font-bold'
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
-      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }} onClick={e => e.stopPropagation()}>
-        <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
+          <button type="button" aria-label="Fechar" className="ds-btn-secondary text-sm px-2 py-1 rounded-lg shrink-0" onClick={onClose}>✕</button>
+        </div>
         {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{applyTokens(form.subtitle, tokens)}</div>}
         {form.intro && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--text-muted)' }}>{applyTokens(form.intro, tokens)}</p>}
         {form.fields.map(f => {
