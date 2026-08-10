@@ -130,21 +130,15 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', ticke
     try { await onSubmit(s, composeSolutionBody(s)); clearDraft() } finally { setSaving(false) }
   }
 
-  // Só fecha ao clicar no fundo se o clique COMEÇOU no fundo. Assim, selecionar texto
-  // arrastando de dentro do editor e soltar o mouse fora NÃO fecha (e não perde o que foi digitado).
-  const downOnBackdrop = useRef(false)
-
+  // O modal NÃO fecha ao clicar no fundo — só pelo botão Cancelar ou ao salvar.
+  // Isso elimina qualquer chance de fechar acidentalmente ao selecionar texto (mouse OU teclado).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
-      onMouseDown={e => { downOnBackdrop.current = e.target === e.currentTarget }}
-      onClick={e => {
-        if (!downOnBackdrop.current || e.target !== e.currentTarget) return
-        const sel = typeof window !== 'undefined' ? window.getSelection() : null
-        if (sel && !sel.isCollapsed) return // há texto selecionado → NÃO fechar
-        onClose()
-      }}>
-      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
-        <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }}>
+        <div className="flex items-center justify-between">
+          <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
+          <button type="button" aria-label="Fechar" className="ds-btn-secondary text-sm px-2 py-1 rounded-lg" onClick={onClose}>✕</button>
+        </div>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Todos os campos são obrigatórios (mín. {MIN_CHARS} caracteres cada, espaços não contam). Você pode colar prints de tela.</p>
         {restored && (
           <div className="flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>

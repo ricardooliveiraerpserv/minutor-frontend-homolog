@@ -94,19 +94,11 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
   }
 
   const lbl = 'text-[11px] font-semibold block mb-0.5'
-  // Só fecha ao clicar no fundo se o clique COMEÇOU no fundo: selecionar texto arrastando
-  // de dentro e soltar fora NÃO fecha (evita perder tudo que foi digitado).
-  const downOnBackdrop = useRef(false)
+  // O modal NÃO fecha ao clicar no fundo — só pelo botão Cancelar ou ao salvar.
+  // Elimina fechamento acidental ao selecionar texto (mouse OU teclado).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
-      onMouseDown={e => { downOnBackdrop.current = e.target === e.currentTarget }}
-      onClick={e => {
-        if (!downOnBackdrop.current || e.target !== e.currentTarget) return
-        const sel = typeof window !== 'undefined' ? window.getSelection() : null
-        if (sel && !sel.isCollapsed) return // há texto selecionado → NÃO fechar
-        onClose()
-      }}>
-      <div className="ds-card p-5 w-full max-w-2xl space-y-4 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      <div className="ds-card p-5 w-full max-w-2xl space-y-4 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🔧 GMUD em Produção + Detalhamento da Solução</div>
 
         {/* 1. Itens Alterados */}
