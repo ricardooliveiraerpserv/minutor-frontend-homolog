@@ -121,7 +121,8 @@ function ClientBlock({ customer, users, selectedUsers, onToggle, onSelectAll, on
   )
 }
 
-export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onSent?: () => void } = {}) {
+export function Compose({ allowedTypes, onSent, templateMode }: { allowedTypes?: string[]; onSent?: () => void; templateMode?: { template: CommTemplate | null; onSaved: () => void; onCancel: () => void } } = {}) {
+  const isTpl = !!templateMode
   const tipos = TIPOS.filter(t => !allowedTypes || allowedTypes.includes(t.k))
   const { user } = useAuth()
   // Editores ricos registrados por nome de campo (intro/problema/autoridade/content/acao_esperada).
@@ -148,6 +149,9 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   const [sigEnabled, setSigEnabled] = useState(true) // inclui a assinatura padrão do remetente
   const [formKey, setFormKey] = useState(0) // força remount dos editores ao carregar modelo
   const benefitSeq = useRef(1)
+  // Modo modelo: nome + salvar (POST/PUT em /communication-templates), sem destinatários/expiração.
+  const [tplNome, setTplNome] = useState('')
+  const [savingTpl, setSavingTpl] = useState(false)
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [pickedCustomers, setPickedCustomers] = useState<MSOpt[]>([])
@@ -180,7 +184,7 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
     loadTemplates()
   }, [loadTemplates])
 
-  const loadTemplate = (t: CommTemplate) => {
+  const loadTemplate = (t: CommTemplate, silent = false) => {
     const s = t.structure ?? {}
     setTipo(t.tipo_comunicacao || 'aviso'); setTitle(t.title ?? '')
     setBadge(s.badge ?? ''); setSubtitle(s.subtitle ?? '')
@@ -192,13 +196,33 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
     setCtaLabel(s.cta?.label ?? ''); setCtaUrl(s.cta?.url ?? '')
     setSigEnabled(s.signature?.enabled ?? true)
     setFormKey(k => k + 1)
-    toast.success(`Modelo "${t.nome}" carregado`)
+    if (!silent) toast.success(`Modelo "${t.nome}" carregado`)
   }
   const saveTemplate = async () => {
     const nome = window.prompt('Nome do modelo:', title.trim() || 'Novo modelo')
     if (!nome) return
     try { await api.post('/communication-templates', { nome, tipo_comunicacao: tipo, title: title.trim(), structure: buildStructure() }); toast.success('Modelo salvo'); loadTemplates() }
     catch { toast.error('Erro ao salvar modelo') }
+  }
+  // Modo modelo: carrega o modelo em edição uma vez ao abrir.
+  const tplId = templateMode?.template?.id
+  useEffect(() => {
+    if (!templateMode) return
+    const t = templateMode.template
+    if (t) { setTplNome(t.nome); loadTemplate(t, true) } else { setTplNome('') }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tplId])
+  const saveTemplateMode = async () => {
+    if (!tplNome.trim()) { toast.error('Informe o nome do modelo.'); return }
+    if (!title.trim()) { toast.error('Informe o título.'); return }
+    setSavingTpl(true)
+    try {
+      const payload = { nome: tplNome.trim(), tipo_comunicacao: tipo, title: title.trim(), structure: buildStructure() }
+      if (templateMode?.template) await api.put(`/communication-templates/${templateMode.template.id}`, payload)
+      else await api.post('/communication-templates', payload)
+      toast.success(templateMode?.template ? 'Modelo atualizado' : 'Modelo salvo')
+      templateMode?.onSaved()
+    } catch { toast.error('Erro ao salvar modelo') } finally { setSavingTpl(false) }
   }
 
   // Ao mudar os clientes, carrega automaticamente os contatos e marca todos.
@@ -280,7 +304,9 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   }
 
   const doPreview = async () => {
-    if (!valid(false)) return
+    // No modo modelo a prévia é tolerante (basta o título) — o backend renderiza o que houver.
+    if (isTpl) { if (!title.trim()) { toast.error('Informe o título.'); return } }
+    else if (!valid(false)) return
     try { const r = await api.post<{ data: { html: string; recipients: number } }>('/communications/preview', body()); setPreview({ html: r.data?.html ?? '', recipients: r.data?.recipients ?? 0 }) }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') }
   }
@@ -332,18 +358,23 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
       <div className="grid grid-cols-2 gap-3">
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Tipo <span style={{ color: 'var(--danger)' }}>*</span></label>
           <select className={fieldCls} style={inputStyle} value={tipo} onChange={e => setTipo(e.target.value)}>{tipos.map(t => <option key={t.k} value={t.k}>{t.l}</option>)}</select></div>
-        <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar modelo de {TIPO_L[tipo]}</label>
-          <select className={fieldCls} style={inputStyle} value="" onChange={e => { const t = templates.find(x => x.id === Number(e.target.value)); if (t) loadTemplate(t) }}>
-            <option value="">— selecionar —</option>
-            {templates.filter(t => t.tipo_comunicacao === tipo).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-          </select></div>
+        {isTpl ? (
+          <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome do modelo <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <input className={fieldCls} style={inputStyle} value={tplNome} onChange={e => setTplNome(e.target.value)} placeholder="Ex.: Aviso de manutenção" /></div>
+        ) : (
+          <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar modelo de {TIPO_L[tipo]}</label>
+            <select className={fieldCls} style={inputStyle} value="" onChange={e => { const t = templates.find(x => x.id === Number(e.target.value)); if (t) loadTemplate(t) }}>
+              <option value="">— selecionar —</option>
+              {templates.filter(t => t.tipo_comunicacao === tipo).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+            </select></div>
+        )}
       </div>
 
       {/* Estrutura do conteúdo — blocos controlados por tipo (usuário NÃO monta layout) */}
       <div className="rounded-xl p-3 space-y-3" style={{ border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between">
           <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><PenLine size={14} /> Conteúdo · {TIPO_L[tipo]}</div>
-          <button onClick={saveTemplate} className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Bookmark size={11} /> Salvar como modelo</button>
+          {!isTpl && <button onClick={saveTemplate} className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Bookmark size={11} /> Salvar como modelo</button>}
         </div>
 
         {isMkt ? (
@@ -382,7 +413,8 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
         <EmailFooter />
       </div>
 
-      {/* Destinatários */}
+      {/* Destinatários — só no envio (no modo modelo o conteúdo é o que importa) */}
+      {!isTpl && (
       <div className="rounded-xl p-3 space-y-3" style={{ border: '1px solid var(--border)' }}>
         <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Users size={14} /> Destinatários (clientes)</div>
 
@@ -438,7 +470,9 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
           </>
         )}
       </div>
+      )}
 
+      {!isTpl && (
       <div className="ds-card p-3 space-y-1.5">
         <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><CalendarClock size={14} /> Visualização no Minutor</div>
         <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>O cliente verá este comunicado na aba <b>Comunicados</b> ao acessar o Minutor até a data de expiração (o e-mail já enviado permanece).</p>
@@ -448,10 +482,16 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
           {!expiresAt && <span className="text-[11px]" style={{ color: 'var(--danger)' }}>obrigatório</span>}
         </div>
       </div>
+      )}
 
       <div className="flex justify-end gap-2">
+        {isTpl && <button onClick={templateMode!.onCancel} className="ds-btn-secondary text-sm px-4 py-1.5 rounded-lg">Cancelar</button>}
         <button onClick={doPreview} className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg"><Eye size={14} /> Prévia</button>
-        <button onClick={() => send(false)} disabled={sending} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg"><Send size={14} /> Enviar</button>
+        {isTpl ? (
+          <button onClick={saveTemplateMode} disabled={savingTpl} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg"><Bookmark size={14} /> {savingTpl ? 'Salvando…' : (templateMode?.template ? 'Salvar alterações' : 'Salvar modelo')}</button>
+        ) : (
+          <button onClick={() => send(false)} disabled={sending} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg"><Send size={14} /> Enviar</button>
+        )}
       </div>
 
       {preview && (
@@ -545,14 +585,7 @@ function History() {
 
 function Templates() {
   const [rows, setRows] = useState<CommTemplate[]>([])
-  const [creating, setCreating] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [hasStructure, setHasStructure] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [nome, setNome] = useState('')
-  const [tipo, setTipo] = useState('aviso')
-  const [title, setTitle] = useState('')
-  const [message, setMessage] = useState('')
+  const [editing, setEditing] = useState<{ template: CommTemplate | null } | null>(null) // null = fechado; {template:null} = novo; {template:t} = editar
   const [preview, setPreview] = useState<{ html: string; nome: string } | null>(null)
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [viewingId, setViewingId] = useState<number | null>(null)
@@ -573,74 +606,31 @@ function Templates() {
       toast.error((e as { message?: string })?.message ?? 'Não foi possível gerar a prévia deste modelo.')
     } finally { setViewingId(null) }
   }
-  const resetForm = () => { setNome(''); setTipo('aviso'); setTitle(''); setMessage(''); setEditingId(null); setHasStructure(false) }
-  const closeForm = () => { resetForm(); setCreating(false) }
-  const startNew = () => { resetForm(); setCreating(true) }
-  const startEdit = (t: CommTemplate) => {
-    setEditingId(t.id)
-    setNome(t.nome)
-    setTipo(t.tipo_comunicacao || 'aviso')
-    setTitle(t.title ?? '')
-    setMessage(t.message ?? t.structure?.content ?? '')
-    setHasStructure(!!t.structure && Object.keys(t.structure).length > 0)
-    setCreating(true)
-  }
-  const save = async () => {
-    if (!nome.trim()) { toast.error('Informe o nome do modelo'); return }
-    setSaving(true)
-    try {
-      const payload = { nome: nome.trim(), tipo_comunicacao: tipo, title: title.trim(), message: message.trim() }
-      if (editingId) {
-        await api.put(`/communication-templates/${editingId}`, payload)
-        toast.success('Modelo atualizado')
-      } else {
-        await api.post('/communication-templates', payload)
-        toast.success('Modelo salvo')
-      }
-      closeForm(); load()
-    } catch { toast.error(editingId ? 'Erro ao atualizar modelo' : 'Erro ao salvar modelo') } finally { setSaving(false) }
-  }
-  const fieldCls = 'w-full rounded-lg px-3 py-2 text-sm ds-input'
   return (
     <div className="ds-card p-4 space-y-2">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>Modelos de mensagem reutilizáveis (carregue-os na aba “Novo envio”). Crie um aqui em “Incluir modelo”, ou pela aba “Novo envio” no botão “Salvar como modelo” (que preserva toda a formatação rica).</p>
-        <button onClick={() => creating ? closeForm() : startNew()} className="ds-btn-primary text-xs inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1.5">
-          {creating ? <X size={13} /> : <Plus size={13} />}{creating ? 'Cancelar' : 'Incluir modelo'}
+        <p className="text-xs flex-1" style={{ color: 'var(--text-muted)' }}>Modelos de mensagem reutilizáveis (carregue-os na aba “Novo envio”). Crie ou edite aqui com <b>os mesmos campos do envio</b> — ou pela aba “Novo envio” no botão “Salvar como modelo”.</p>
+        <button onClick={() => setEditing(editing ? null : { template: null })} className="ds-btn-primary text-xs inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1.5">
+          {editing ? <X size={13} /> : <Plus size={13} />}{editing ? 'Cancelar' : 'Incluir modelo'}
         </button>
       </div>
-      {creating && (
-        <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>{editingId ? 'Editar modelo' : 'Novo modelo'}</p>
-          {editingId && hasStructure && (
-            <p className="text-[11px]" style={{ color: 'var(--warning)' }}>Este modelo tem formatação rica (blocos/CTA). Edite aqui nome, tipo e título; para alterar o conteúdo rico, carregue-o na aba “Novo envio” e use “Salvar como modelo”.</p>
-          )}
-          <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)' }}>
-            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nome do modelo *</label>
-              <input className={fieldCls} value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Aviso de manutenção" /></div>
-            <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Tipo</label>
-              <select className={fieldCls} value={tipo} onChange={e => setTipo(e.target.value)}>
-                {TIPOS.map(t => <option key={t.k} value={t.k}>{t.l}</option>)}
-              </select></div>
-          </div>
-          <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Título</label>
-            <input className={fieldCls} value={title} onChange={e => setTitle(e.target.value)} placeholder="Título da comunicação" /></div>
-          <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mensagem</label>
-            <textarea className={fieldCls} rows={5} value={message} onChange={e => setMessage(e.target.value)} placeholder="Conteúdo do modelo…" /></div>
-          <div className="flex justify-end gap-2">
-            <button onClick={closeForm} className="ds-btn-secondary text-xs px-3 py-1.5">Cancelar</button>
-            <button onClick={save} disabled={saving} className="ds-btn-primary text-xs px-3 py-1.5 disabled:opacity-60">{saving ? 'Salvando…' : (editingId ? 'Salvar alterações' : 'Salvar modelo')}</button>
-          </div>
+      {editing && (
+        <div className="rounded-lg p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--text)' }}>{editing.template ? 'Editar modelo' : 'Novo modelo'}</p>
+          <Compose
+            key={editing.template?.id ?? 'new'}
+            templateMode={{ template: editing.template, onSaved: () => { setEditing(null); load() }, onCancel: () => setEditing(null) }}
+          />
         </div>
       )}
-      {rows.length === 0 && !creating && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum modelo salvo.</p>}
+      {rows.length === 0 && !editing && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum modelo salvo.</p>}
       {rows.map(t => (
         <div key={t.id} className="flex items-center gap-2 py-2 border-t text-sm" style={{ borderColor: 'var(--border)' }}>
           <Bookmark size={14} style={{ color: 'var(--primary)' }} />
           <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{t.nome}</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{TIPO_L[t.tipo_comunicacao] ?? t.tipo_comunicacao}</span>
           <button onClick={() => view(t)} disabled={viewingId === t.id} title="Visualizar modelo"><Eye size={15} style={{ color: viewingId === t.id ? 'var(--text-light)' : 'var(--primary)' }} /></button>
-          <button onClick={() => startEdit(t)} title="Editar modelo"><PenLine size={14} style={{ color: 'var(--text-muted)' }} /></button>
+          <button onClick={() => setEditing({ template: t })} title="Editar modelo"><PenLine size={14} style={{ color: 'var(--text-muted)' }} /></button>
           <button onClick={() => del(t)} title="Excluir modelo"><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
         </div>
       ))}
