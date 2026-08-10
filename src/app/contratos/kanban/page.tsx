@@ -45,6 +45,13 @@ interface ContractCard {
   project_id?: number
   project_code?: string
   project_status?: string
+  // Código/número do contrato (previsto) mostrado na legenda do card.
+  contract_code?: string | null
+  // Vínculo item SaaS/Cloud: agregado aponta pro pai; principal lista os filhos.
+  parent_contract_id?: number | null
+  parent_contract_code?: string | null
+  linked_children?: { id: number; code: string | null }[]
+  is_linked?: boolean
   is_complete: boolean
   created_at: string
   sustentacao_column?: string | null
@@ -269,6 +276,8 @@ const COL_TO_PROJECT_STATUS: Record<string, string> = {
 
 const PRONTO_COLOR = '#eab308'
 const ADITIVO_COLOR = '#8b5cf6'
+// Vínculo item SaaS/Cloud (principal ↔ agregados) — cor dedicada na capa do card.
+const LINK_COLOR = '#14b8a6'
 
 const FIXED_COLUMNS: Column[] = [
   { id: 'novo',   label: 'Novo Contrato',       type: 'fixed', emoji: '🆕' },
@@ -736,6 +745,8 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
             // Borda lateral colorida pelo status do contrato (Incompleto/Pronto/Projeto Ativo);
             // aditivo usa roxo pra se distinguir dos contratos comuns.
             borderLeft: `3px solid ${card.is_aditivo ? ADITIVO_COLOR : badge.color}`,
+            // Capa: faixa no topo (teal) quando o card é vinculado (principal com itens OU agregado de um pai).
+            borderTop: card.is_linked ? `3px solid ${LINK_COLOR}` : undefined,
             boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
             opacity: snap.isDragging ? 0.85 : 1,
             ...prov.draggableProps.style,
@@ -747,6 +758,25 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
               <p className="text-title break-normal">{card.customer_name}</p>
               {card.project_name && (
                 <p className="kpi-sub break-normal">{card.project_name}</p>
+              )}
+              {card.contract_code && (
+                <p className="text-[10px] font-mono font-semibold mt-0.5" style={{ color: card.is_linked ? LINK_COLOR : 'var(--text-muted)' }}>
+                  {card.is_linked && '🔗 '}{card.contract_code}
+                </p>
+              )}
+              {card.parent_contract_id && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
+                  🔗 vínculo {card.parent_contract_code ?? ''}
+                </span>
+              )}
+              {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
+                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
+                </span>
               )}
               {card.gerou_aporte && (
                 <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
