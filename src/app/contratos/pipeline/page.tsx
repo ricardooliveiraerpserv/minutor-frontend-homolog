@@ -699,6 +699,10 @@ function ProjectKanbanCard({
   }
   const color = statusColor[card.status] ?? '#94a3b8'
 
+  // Ações disponíveis pra ESTE viewer. Se vazio (ex.: cliente — todos clientVisible:false),
+  // não renderiza o botão/menu (senão o dropdown vazio vira uma "linha" inútil).
+  const projMenuItems = PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
+
   return (
     <Draggable draggableId={uniqueCardId(card)} index={index} isDragDisabled={!canDrag}>
       {(prov, snap) => (
@@ -737,7 +741,8 @@ function ProjectKanbanCard({
                 style={{ background: `${color}20`, color }}>
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
-              {/* Context menu */}
+              {/* Context menu — só quando há ações pra este viewer */}
+              {projMenuItems.length > 0 && (
               <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
@@ -749,7 +754,7 @@ function ProjectKanbanCard({
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                    {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
+                    {projMenuItems.map(item => {
                       const Icon = item.icon
                       return (
                         <button
@@ -766,6 +771,7 @@ function ProjectKanbanCard({
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
