@@ -100,7 +100,12 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
       onMouseDown={e => { downOnBackdrop.current = e.target === e.currentTarget }}
-      onClick={e => { if (downOnBackdrop.current && e.target === e.currentTarget) onClose() }}>
+      onClick={e => {
+        if (!downOnBackdrop.current || e.target !== e.currentTarget) return
+        const sel = typeof window !== 'undefined' ? window.getSelection() : null
+        if (sel && !sel.isCollapsed) return // há texto selecionado → NÃO fechar
+        onClose()
+      }}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-4 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }} onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🔧 GMUD em Produção + Detalhamento da Solução</div>
 
