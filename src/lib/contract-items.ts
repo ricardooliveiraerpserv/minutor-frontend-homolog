@@ -69,6 +69,7 @@ export function itemCodePreview(baseCode: string, index: number): string {
 /** Payload dos itens p/ a API. */
 export function contractItemsPayload(items: ContractItemForm[]) {
   return items.map(it => ({
+    id: it.id ?? null,
     tipo: it.tipo,
     descricao: it.descricao || null,
     horas_contratadas: it.horas_contratadas ? Number(it.horas_contratadas) : null,
