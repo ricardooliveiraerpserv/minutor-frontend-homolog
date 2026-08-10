@@ -594,7 +594,13 @@ function Templates() {
   const del = async (t: CommTemplate) => { if (!confirm(`Excluir o modelo "${t.nome}"?`)) return; try { await api.delete(`/communication-templates/${t.id}`); load() } catch { toast.error('Erro') } }
   // Prévia do modelo com o MESMO render do envio (/communications/preview).
   const view = async (t: CommTemplate) => {
-    const structure = (t.structure && Object.keys(t.structure).length > 0) ? t.structure : { content: t.message ?? '' }
+    // Normaliza estruturas legadas: signature/cta/benefits podem ter sido salvos como
+    // string (formato antigo) → o backend valida como array e retornaria "validation.array".
+    const raw: Record<string, unknown> = { ...(t.structure ?? {}) }
+    if (typeof raw.signature !== 'object' || raw.signature === null || Array.isArray(raw.signature)) raw.signature = { enabled: true }
+    if (!Array.isArray(raw.benefits)) delete raw.benefits
+    if (typeof raw.cta !== 'object' || raw.cta === null || Array.isArray(raw.cta)) delete raw.cta
+    const structure = Object.keys(raw).length > 0 ? raw : { content: t.message ?? '' }
     setViewingId(t.id)
     try {
       const r = await api.post<{ data: { html: string } }>('/communications/preview', {
