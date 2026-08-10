@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail, Copy, Eye, RefreshCw } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -1592,6 +1593,24 @@ function CustomerContactsTab() {
     finally { setSaving(false) }
   }
 
+  // Exporta o que está FILTRADO (respeita busca + cliente).
+  const exportExcel = () => {
+    if (filtered.length === 0) { toast.error('Nada para exportar'); return }
+    const rows = filtered.map(c => ({
+      Cliente: c.customer?.name ?? '',
+      Nome: c.name ?? '',
+      Cargo: c.cargo ?? '',
+      'E-mail': c.email ?? '',
+      Telefone: c.phone ?? '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 30 }, { wch: 28 }, { wch: 22 }, { wch: 34 }, { wch: 18 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Contatos')
+    const stamp = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `contatos-clientes-${stamp}.xlsx`)
+  }
+
   const confirmDelete = async () => {
     if (!deleteConfirm.item) return
     try {
@@ -1618,6 +1637,11 @@ function CustomerContactsTab() {
           </div>
           {customerId && <button onClick={() => setCustomerId('')} className="px-2 py-2 text-xs text-[var(--text-muted)]" title="Limpar filtro">✕</button>}
         </div>
+        <button onClick={exportExcel} disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-50"
+          style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
+          <Download size={13} /> Exportar Excel
+        </button>
         {!isDenied(screenKey, 'create') && (
           <button onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
@@ -1625,6 +1649,12 @@ function CustomerContactsTab() {
             <Plus size={13} /> Novo Contato
           </button>
         )}
+        {/* Totalizador — muda conforme o filtro/busca */}
+        <span className="ml-auto text-xs px-2.5 py-1 rounded-full whitespace-nowrap"
+          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+          {filtered.length} {filtered.length === 1 ? 'contato' : 'contatos'}
+          {(busca.trim() || customerId) && contacts.length !== filtered.length ? <span style={{ color: 'var(--text-muted)' }}> de {contacts.length}</span> : null}
+        </span>
       </div>
 
       {loading ? (
