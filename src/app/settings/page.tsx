@@ -15,7 +15,6 @@ import {
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { CargosTab } from './CargosTab'
-import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
@@ -115,41 +114,8 @@ function GeneralTab() {
 
   return (
     <div className="space-y-8 max-w-lg">
-      <section>
-        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Apontamento de Horas</h3>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">Limite de dias para lançamento retroativo</Label>
-            <Input
-              type="number" min={0} max={365}
-              value={settings.timesheet_retroactive_limit_days ?? ''}
-              onChange={e => setSettings(s => ({ ...s, timesheet_retroactive_limit_days: Number(e.target.value) }))}
-              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-40"
-            />
-            <p className="text-[11px] text-[var(--text-light)] mt-1">0 = sem limite. Máximo 365 dias.</p>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Fechamento de Competência</h3>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">Encerrar competência no Nº dia útil do mês</Label>
-            <Input
-              type="number" min={1} max={20}
-              value={settings.fechamento_auto_dia_util ?? 2}
-              onChange={e => setSettings(s => ({ ...s, fechamento_auto_dia_util: Number(e.target.value) }))}
-              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-40"
-            />
-            <p className="text-[11px] text-[var(--text-light)] mt-1">A competência do mês anterior é encerrada automaticamente neste dia útil (pula fins de semana e feriados). Padrão: 2.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Som do chat foi movido para Configurações BOT → aba "Som". */}
-
-      <OpenPeriodsPanel />
+      {/* Bloqueio de apontamento (limite retroativo, dia útil de fechamento, períodos abertos)
+          foi centralizado na tela "Abertura de Competência" (/fechamento/semanal) — evita conflito. */}
 
       <section>
         <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Integração Movidesk</h3>

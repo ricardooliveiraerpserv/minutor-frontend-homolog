@@ -5,7 +5,10 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
-import { CalendarClock, RotateCcw, Lock, ClipboardList, RefreshCw, ChevronDown, ChevronRight, UserCog } from 'lucide-react'
+import { OpenPeriodsPanel } from '@/components/open-periods-panel'
+import { CalendarClock, RotateCcw, Lock, ClipboardList, RefreshCw, ChevronDown, ChevronRight, UserCog, Save } from 'lucide-react'
+
+interface BlockSettings { timesheet_retroactive_limit_days?: number | null; fechamento_auto_dia_util?: number | null; [k: string]: unknown }
 
 interface WeekRow { n: number; week_start: string; week_end: string; deadline: string; status: string; reopen_auto_close_at: string | null }
 interface MonthGroup { ym: string; label: string; status: string; deadline: string; reopen_auto_close_at: string | null; weeks: WeekRow[] }
@@ -48,6 +51,15 @@ const norm = (r: unknown): unknown[] => {
 export default function FechamentoSemanalPage() {
   const [months, setMonths] = useState<MonthGroup[]>([])
   const [activeReopens, setActiveReopens] = useState<ActiveReopen[]>([])
+  // Config de bloqueio (vinda de Configurações → agora centralizada aqui).
+  const [cfg, setCfg] = useState<BlockSettings>({})
+  const [savingCfg, setSavingCfg] = useState(false)
+  useEffect(() => { api.get<{ data: BlockSettings }>('/system-settings').then(r => setCfg(r.data ?? {})).catch(() => {}) }, [])
+  const saveCfg = async () => {
+    setSavingCfg(true)
+    try { await api.put('/system-settings', cfg); toast.success('Configurações salvas') }
+    catch { toast.error('Erro ao salvar') } finally { setSavingCfg(false) }
+  }
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
@@ -144,6 +156,33 @@ export default function FechamentoSemanalPage() {
           </div>
           <button onClick={load} className="ds-btn-secondary text-xs inline-flex items-center gap-1 px-2.5 py-1.5"><RefreshCw size={13} /> Atualizar</button>
         </div>
+
+        {/* Bloqueio de apontamento — centralizado aqui (saiu de Configurações) */}
+        <div className="ds-card p-4">
+          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Bloqueio de apontamento</p>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <div>
+              <label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Limite de dias para lançamento retroativo</label>
+              <input type="number" min={0} max={365} value={cfg.timesheet_retroactive_limit_days ?? ''}
+                onChange={e => setCfg(s => ({ ...s, timesheet_retroactive_limit_days: e.target.value === '' ? null : Number(e.target.value) }))}
+                className="mt-1 w-40 rounded-lg px-3 py-2 text-sm ds-input" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>0 = sem limite. Máximo 365 dias.</p>
+            </div>
+            <div>
+              <label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Encerrar competência no Nº dia útil do mês</label>
+              <input type="number" min={1} max={20} value={cfg.fechamento_auto_dia_util ?? 2}
+                onChange={e => setCfg(s => ({ ...s, fechamento_auto_dia_util: Number(e.target.value) }))}
+                className="mt-1 w-40 rounded-lg px-3 py-2 text-sm ds-input" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>A competência do mês anterior é encerrada automaticamente neste dia útil (pula fins de semana e feriados). Padrão: 2.</p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <button onClick={saveCfg} disabled={savingCfg} className="ds-btn-primary text-xs inline-flex items-center gap-1.5 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {savingCfg ? 'Salvando…' : 'Salvar configurações'}</button>
+          </div>
+        </div>
+
+        {/* Períodos de projeto abertos (reabertos para lançamento) */}
+        <OpenPeriodsPanel />
 
         {/* Formulário de reabertura/encerramento por escopo */}
         <div ref={formRef} className="ds-card p-4">
