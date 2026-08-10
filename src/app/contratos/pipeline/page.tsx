@@ -1125,7 +1125,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
         })
         .finally(() => setLogsLoading(false))
     }
-    if ((tab === 'req' || tab === 'comments') && !reqLoaded && card.contract_request_id) {
+    if (tab === 'req' && !reqLoaded && card.contract_request_id) {
       setReqLoading(true)
       api.get<ContractRequestDetail>(`/projects/${card.id}/contract-request`)
         .then(r => { setReqData(r); setReqLoaded(true) })
@@ -1140,32 +1140,6 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   }
   const color = statusColor[card.status] ?? '#94a3b8'
   const hasReq = !!card.contract_request_id
-
-  const fetchAttachmentBlob = async (msgId: number, attId: number) => {
-    const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${attId}/download`, {
-      credentials: 'same-origin',
-    })
-    if (!res.ok) throw new Error()
-    return res.blob()
-  }
-
-  const downloadReqAttachment = async (msgId: number, att: { id: number; original_name: string }) => {
-    try {
-      const blob = await fetchAttachmentBlob(msgId, att.id)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = att.original_name; a.click()
-      URL.revokeObjectURL(url)
-    } catch { toast.error('Erro ao baixar arquivo') }
-  }
-
-  const viewReqAttachment = async (msgId: number, att: { id: number; original_name: string }) => {
-    try {
-      const blob = await fetchAttachmentBlob(msgId, att.id)
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank')
-    } catch { toast.error('Erro ao abrir arquivo') }
-  }
 
   const isCliente = userRole === 'cliente'
   const tabs = [
@@ -1297,59 +1271,14 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
             )}
           </div>
         ) : tab === 'comments' ? (
-          <div className="flex-1 overflow-y-auto">
-            {reqLoading ? (
-              <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
-            ) : reqData && reqData.messages && reqData.messages.length > 0 ? (
-              <div className="px-6 py-5">
-                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
-                </div>
-                <div className="space-y-3">
-                  {reqData.messages.map(msg => (
-                    <div key={msg.id} className="rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)' }}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold" style={{ color: '#a78bfa' }}>{msg.author?.name ?? '—'}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {msg.attachments.map(att => (
-                            <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
-                              style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
-                              <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
-                                <Paperclip size={9} />
-                                <span className="max-w-[160px] truncate">{att.original_name}</span>
-                              </span>
-                              <button
-                                onClick={() => viewReqAttachment(msg.id, att)}
-                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                                title="Visualizar"
-                              >
-                                <ExternalLink size={10} />
-                              </button>
-                              <button
-                                onClick={() => downloadReqAttachment(msg.id, att)}
-                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                                title="Baixar"
-                              >
-                                <Download size={10} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {/* Canal do cliente CONTINUA vivo no projeto — equipe e cliente interagem. */}
+            {card.contract_request_id ? (
+              <ReqChatPanel requestId={card.contract_request_id} visibility="client" />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 gap-1">
                 <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem requisição vinculada — nenhum canal de comentários</p>
               </div>
             )}
           </div>
@@ -2168,10 +2097,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [aportesList, setAportesList] = useState<any[]>([])
   const [aportesLoading, setAportesLoading] = useState(false)
   const [aportesLoaded, setAportesLoaded]   = useState(false)
-  // Comentários = histórico read-only do canal do cliente (trazido da requisição vinculada).
-  const [reqComments, setReqComments]           = useState<ContractRequestDetail | null>(null)
-  const [reqCommentsLoaded, setReqCommentsLoaded]   = useState(false)
-  const [reqCommentsLoading, setReqCommentsLoading] = useState(false)
+  // Comentários = canal do cliente (via ReqChatPanel, que carrega/posta sozinho).
 
   const reload = () => {
     setLoading(true)
@@ -2214,16 +2140,6 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
         .finally(() => setAportesLoading(false))
     }
   }, [tab, projectId, tsLoaded, aportesLoaded])
-
-  useEffect(() => {
-    if (tab === 'comments' && !reqCommentsLoaded && p?.contract_request_id) {
-      setReqCommentsLoading(true)
-      api.get<ContractRequestDetail>(`/projects/${projectId}/contract-request`)
-        .then(r => { setReqComments(r); setReqCommentsLoaded(true) })
-        .catch(() => {})
-        .finally(() => setReqCommentsLoading(false))
-    }
-  }, [tab, projectId, reqCommentsLoaded, p?.contract_request_id])
 
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -2968,39 +2884,14 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             )}
 
             {tab === 'comments' && !isClienteViewer && (
-              <div>
-                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
-                </div>
-                {reqCommentsLoading ? (
-                  <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
-                ) : (reqComments?.messages?.length ?? 0) > 0 ? (
-                  <div className="space-y-3">
-                    {reqComments!.messages!.map(msg => (
-                      <div key={msg.id} className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>{msg.author?.name ?? '—'}</span>
-                          <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
-                        </div>
-                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
-                        {msg.attachments && msg.attachments.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {msg.attachments.map(att => (
-                              <button key={att.id}
-                                onClick={async () => { try { const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' }); if (!res.ok) throw new Error(); window.open(URL.createObjectURL(await res.blob()), '_blank') } catch { toast.error('Erro ao abrir arquivo') } }}
-                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] hover:bg-[var(--surface-hover)]" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                                <Paperclip size={9} /><span className="max-w-[160px] truncate">{att.original_name}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+              <div className="-m-6 h-[60vh] min-h-[360px]">
+                {/* Canal do cliente CONTINUA vivo no projeto — equipe responde o cliente aqui. */}
+                {p?.contract_request_id ? (
+                  <ReqChatPanel requestId={p.contract_request_id} visibility="client" />
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-1">
+                  <div className="flex flex-col items-center justify-center h-full gap-1">
                     <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
+                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem requisição vinculada — nenhum canal de comentários</p>
                   </div>
                 )}
               </div>
@@ -3644,6 +3535,34 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
 // Painel de chat da Requisição, reutilizado nas duas abas:
 //  - visibility='client'   → Comentários (canal do cliente)
 //  - visibility='internal' → Diário (equipe; cliente não vê)
+// Visão do CLIENTE num card de projeto: SÓ os Comentários (canal do cliente, que continua
+// vivo após virar projeto). Nenhum outro dado do projeto é exposto.
+function ClientProjectCommentsModal({ card, onClose }: { card: ProjectCard; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
+      <div className="w-full max-w-xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--surface)', border: '1px solid rgba(99,102,241,0.3)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b shrink-0 flex items-start justify-between gap-3" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
+          <div className="min-w-0">
+            <p className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{card.project_name || card.customer_name}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</p>
+          </div>
+          <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {card.contract_request_id ? (
+            <ReqChatPanel requestId={card.contract_request_id} visibility="client" />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 gap-1">
+              <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+              <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comentários para este projeto</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ReqChatPanel({ requestId, visibility, readOnly }: {
   requestId: number
   visibility: 'client' | 'internal'
@@ -4278,6 +4197,8 @@ function KanbanContent() {
   const [contractCreateForDecision, setContractCreateForDecision] = useState<ContractCard | null>(null)
   const [selectedProject,       setSelectedProject]       = useState<ProjectCard | null>(null)
   const [stagesPanelProject,   setStagesPanelProject]   = useState<ProjectCard | null>(null)
+  // Cliente NÃO abre o card do projeto — só um modal de Comentários (novo + histórico).
+  const [clientCommentsProject, setClientCommentsProject] = useState<ProjectCard | null>(null)
   const [generateTarget,       setGenerateTarget]       = useState<ContractCard | null>(null)
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
   const delReasonRef = useRef<HTMLTextAreaElement>(null) // motivo da exclusão (vai pro log)
@@ -5319,7 +5240,7 @@ function KanbanContent() {
                         const saude       = rowHealth(p)
                         const saudeColor  = saude === 'red' ? 'var(--danger-border)' : saude === 'yellow' ? 'var(--warning-border)' : 'var(--success-border)'
                         return (
-                          <tr key={`p-${p.id}`} onClick={() => { if (!isCliente) setSelectedProject(p) }} className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-[var(--surface-hover)] transition-colors group/row`}
+                          <tr key={`p-${p.id}`} onClick={() => { if (isCliente) setClientCommentsProject(p); else setSelectedProject(p) }} className="cursor-pointer hover:bg-[var(--surface-hover)] transition-colors group/row"
                             style={{ borderTop: '1px solid var(--border)' }}>
                             {!isCliente && (
                               <td className="px-2 py-3 w-10" onClick={e => e.stopPropagation()}>
@@ -5582,7 +5503,7 @@ function KanbanContent() {
                   unreadContractIds={unreadContractIds}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
-                  onProjectClick={(card) => { if (!isCliente) setSelectedProject(card) }}
+                  onProjectClick={(card) => { if (isCliente) setClientCommentsProject(card); else setSelectedProject(card) }}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
@@ -5632,7 +5553,7 @@ function KanbanContent() {
                       }
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
-                    onProjectClick={(card) => { if (!isCliente) setSelectedProject(card) }}
+                    onProjectClick={(card) => { if (isCliente) setClientCommentsProject(card); else setSelectedProject(card) }}
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
@@ -5658,7 +5579,7 @@ function KanbanContent() {
                   newProjectIds={col.id === 'em_andamento' ? newProjectIds : undefined}
                   onContractClick={setSelectedContract}
                   onProjectClick={card => {
-                    if (isCliente) return
+                    if (isCliente) { setClientCommentsProject(card); return }
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
                     setSelectedProject(card)
                   }}
@@ -5707,6 +5628,9 @@ function KanbanContent() {
       )}
       {selectedProject && (
         <ProjectViewModal projectId={selectedProject.id} onClose={() => setSelectedProject(null)} userRole={userRole} initialTab="overview" />
+      )}
+      {clientCommentsProject && (
+        <ClientProjectCommentsModal card={clientCommentsProject} onClose={() => setClientCommentsProject(null)} />
       )}
       {stagesPanelProject && (
         <ProjectStagesSidePanel
