@@ -73,7 +73,7 @@ export const useNavConfig = () => useContext(Ctx)
 // Cache por-usuário (sessionStorage). A AppLayout é usada POR PÁGINA e re-monta a cada navegação;
 // sem cache, o provider reinicia vazio e a sidebar pisca o NAV legado enquanto refaz o /nav-config.
 // Com cache, o re-mount já inicia com o último nav-config → sem flash; o fetch atualiza em background.
-const NAV_CACHE_KEY = (uid?: number | null) => `nav_config_v1_${uid ?? 'none'}`
+const NAV_CACHE_KEY = (uid?: number | null) => `nav_config_v2_${uid ?? 'none'}`
 type NavCache = { modules: NavModuleConfig[]; screens: NavScreen[]; screenActions: Record<string, ScreenActionDef[]>; permissions: string[]; deniedPermissions: Record<string, string[]> }
 function readNavCache(uid?: number | null): NavCache | null {
   if (typeof window === 'undefined' || !uid) return null
