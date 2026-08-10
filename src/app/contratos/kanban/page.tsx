@@ -1727,8 +1727,11 @@ function KanbanContent() {
       }
       const ctLower = card.contract_type?.toLowerCase() ?? ''
       const svLower = card.service_type?.toLowerCase() ?? ''
-      const isSustType = card.categoria === 'sustentacao'
-        || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
+      // Fechado (closed) segue o fluxo de PROJETO (coordenador), nunca sustentação —
+      // mesmo herdando serviço "Bizify" do contrato de mensalidade.
+      const isFechado = ctLower.includes('fechado')
+      const isSustType = !isFechado && (card.categoria === 'sustentacao'
+        || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent'))
       if (isSustType) {
         toast.error('Contratos de sustentação devem ser movidos para a fila de sustentação (BH Fixo, BH Mensal, On Demand ou Cloud).')
         return
@@ -1905,8 +1908,11 @@ function KanbanContent() {
 
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
-    const isSustType = card.categoria === 'sustentacao'
-      || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
+    // Fechado (closed) segue o fluxo de PROJETO (coordenador), nunca sustentação —
+    // mesmo herdando serviço "Bizify" do contrato de mensalidade.
+    const isFechado = ctLower.includes('fechado')
+    const isSustType = !isFechado && (card.categoria === 'sustentacao'
+      || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent'))
 
     // Deriva a coluna de sustentação correspondente ao tipo do contrato
     const matchingSustCol = (): { id: string; label: string } | null => {
@@ -2006,10 +2012,10 @@ function KanbanContent() {
     // Detecção de sustentação pelo tipo do projeto
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
-    const isCardSust = ctLower.includes('banco de horas') || ctLower.includes('on demand')
+    const isCardSust = !ctLower.includes('fechado') && (ctLower.includes('banco de horas') || ctLower.includes('on demand')
       || ctLower.includes('cloud') || ctLower.includes('bizify')
       || svLower.includes('on demand') || svLower.includes('cloud')
-      || svLower.includes('bizify') || svLower.includes('sustent')
+      || svLower.includes('bizify') || svLower.includes('sustent'))
 
     // Deriva a coluna sust correspondente ao tipo do projeto
     const matchedSustColForProject = (): { id: string; label: string } | null => {
