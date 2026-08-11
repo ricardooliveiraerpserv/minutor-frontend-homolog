@@ -1889,6 +1889,11 @@ function KanbanContent() {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover projeto'); load() }
   }
 
+  // Coordenadores que TÊM coluna no board atual: Bizify = admins + coordenadores Bizify;
+  // board normal = todos. Usado no "Mover para" de contratos E projetos — mover só pode ir
+  // pra coluna que existe (senão o card some). Escopo de componente (as duas funções usam).
+  const boardCoordinators = isBizifyActive ? bizifyCoordinators : coordinators
+
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
     // Coordenador de sustentação: só move cards da coluna "Meus Projetos" (que são
     // projetos, não contratos) — logo, nenhum contrato/fila é movível por ele.
@@ -1906,9 +1911,6 @@ function KanbanContent() {
     const boardSustCols: { id: string; label: string }[] = isBizifyActive
       ? SUSTENTACAO_COLS_BIZIFY.map(s => ({ id: s.id, label: s.label }))
       : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
-    // Coordenadores que TÊM coluna no board atual: Bizify = admins + coordenadores Bizify;
-    // board normal = todos os coordenadores. Mover só pode ir pra coluna que existe (senão o card some).
-    const boardCoordinators = isBizifyActive ? bizifyCoordinators : coordinators
 
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
