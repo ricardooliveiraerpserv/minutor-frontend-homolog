@@ -42,6 +42,7 @@ type FormState = {
   executivo_conta_id: string
   vendedor_id: string
   observacoes: string
+  observacoes_coordenador: string
   // Aporte v2 — toggle "É aporte?" no topo (cria hour_contribution, não contrato)
   is_aporte: boolean
   aporte_target_project_id: string
@@ -73,7 +74,7 @@ const EMPTY_FORM: FormState = {
   horas_contratadas: '', valor_projeto: '', valor_hora: '',
   hora_adicional: '', pct_horas_coordenador: '', horas_coordenacao: '', horas_consultor: '',
   expectativa_inicio: '', condicao_pagamento: '',
-  executivo_conta_id: '', vendedor_id: '', observacoes: '',
+  executivo_conta_id: '', vendedor_id: '', observacoes: '', observacoes_coordenador: '',
   is_aporte: false, aporte_target_project_id: '', aporte_horas: '',
   aporte_valor_hora: '', aporte_nao_valorizado: false, aporte_motivo: 'aporte', aporte_descricao: '', aporte_data: '',
   is_aditivo: false, aditivo_target_project_id: '', aditivo_field: '',
@@ -597,6 +598,7 @@ export function ContractCreateModal({
         aditivo_project_id: Number(form.aditivo_target_project_id),
         condicao_pagamento: form.condicao_pagamento || null,
         observacoes:        form.observacoes || null,
+        observacoes_coordenador: form.observacoes_coordenador || null,
       }
       if (isMensalAdit) {
         // Mensal: valor-hora E/OU horas no mesmo aditivo — envia só os que mudaram.
@@ -700,6 +702,7 @@ export function ContractCreateModal({
         executivo_conta_id:    form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
         vendedor_id:           form.vendedor_id ? Number(form.vendedor_id) : null,
         observacoes:           form.observacoes || null,
+        observacoes_coordenador: form.observacoes_coordenador || null,
         // Só subprojeto faturado dispara o aporte no pai.
         sera_faturado:         form.is_subproject && form.sera_faturado,
         contacts,
@@ -1724,17 +1727,24 @@ export function ContractCreateModal({
           {activeTab === 8 && (
             <div>
               <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
-                Observações <span style={{ color: 'var(--danger)' }}>*</span>
+                Observações Gerais <span style={{ color: 'var(--danger)' }}>*</span>
                 <span className="ml-1 text-[10px]" style={{ color: 'var(--warning)' }}>(será copiado ao projeto)</span>
               </label>
               <textarea value={form.observacoes}
                 onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                rows={10} placeholder="Descreva o escopo, premissas, restrições..."
+                rows={8} placeholder="Descreva o escopo, premissas, restrições..."
                 className={inputCls}
                 style={{ ...inputStyle, resize: 'vertical', borderColor: !form.observacoes.trim() ? 'var(--danger-border)' : undefined }} />
               {!form.observacoes.trim() && (
                 <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Obrigatório</p>
               )}
+              <label className={labelCls} style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>Observações para o Coordenador</label>
+              <textarea value={form.observacoes_coordenador}
+                onChange={e => setForm(f => ({ ...f, observacoes_coordenador: e.target.value }))}
+                rows={6} placeholder="Anotações visíveis ao coordenador do projeto"
+                className={inputCls}
+                style={{ ...inputStyle, resize: 'vertical' }} />
+              <p className="text-[10px] mt-1" style={{ color: 'var(--warning)' }}>⚠️ Este campo é visível ao coordenador. Não inclua informações sensíveis ou confidenciais.</p>
             </div>
           )}
         </div>

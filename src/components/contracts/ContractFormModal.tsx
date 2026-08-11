@@ -141,6 +141,7 @@ type FormState = {
   executivo_conta_id: string
   vendedor_id: string
   observacoes: string
+  observacoes_coordenador: string
   // Aporte v2 — fluxo alternativo (toggle "É aporte?" no topo da tab Cliente).
   // Aporte não vira projeto/contrato; abastece hour_contributions e renderiza
   // como card na coluna "Aporte" do Kanban (somente quando projeto destino é pai).
@@ -180,6 +181,7 @@ const EMPTY_FORM: FormState = {
   executivo_conta_id: '',
   vendedor_id: '',
   observacoes: '',
+  observacoes_coordenador: '',
   is_aporte: false,
   aporte_target_project_id: '',
   aporte_horas: '',
@@ -303,6 +305,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
           executivo_conta_id:    full.executivo_conta_id ? String(full.executivo_conta_id) : '',
           vendedor_id:           full.vendedor_id ? String(full.vendedor_id) : '',
           observacoes:           full.observacoes ?? '',
+          observacoes_coordenador: (full as any).observacoes_coordenador ?? '',
           // Aporte v2: edição de contrato existente nunca entra no fluxo aporte
           is_aporte:                false,
           aporte_target_project_id: '',
@@ -566,6 +569,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
         executivo_conta_id:    form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
         vendedor_id:           form.vendedor_id ? Number(form.vendedor_id) : null,
         observacoes:           form.observacoes || null,
+        observacoes_coordenador: form.observacoes_coordenador || null,
         contacts,
         items: isMensalidade ? contractItemsPayload(items) : [],
       }
@@ -1494,14 +1498,20 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
           {activeTab === 8 && (
             <div>
               <label className={labelCls}>
-                Observações
+                Observações Gerais
                 <span className="ml-1 text-[var(--warning)] text-[10px]">(recomendado — será copiado integralmente ao projeto)</span>
               </label>
               <textarea value={form.observacoes}
                 onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                rows={10} placeholder="Descreva o escopo, premissas, restrições, responsabilidades e qualquer informação relevante para o projeto..."
+                rows={8} placeholder="Descreva o escopo, premissas, restrições, responsabilidades e qualquer informação relevante para o projeto..."
                 className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
               <p className="text-[10px] text-[var(--text-muted)] mt-1">{form.observacoes.length} caracteres</p>
+              <label className={labelCls} style={{ marginTop: '1rem' }}>Observações para o Coordenador</label>
+              <textarea value={form.observacoes_coordenador}
+                onChange={e => setForm(f => ({ ...f, observacoes_coordenador: e.target.value }))}
+                rows={6} placeholder="Anotações visíveis ao coordenador do projeto"
+                className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
+              <p className="text-[10px] mt-1" style={{ color: 'var(--warning)' }}>⚠️ Este campo é visível ao coordenador. Não inclua informações sensíveis ou confidenciais.</p>
             </div>
           )}
 
