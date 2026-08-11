@@ -1017,6 +1017,88 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
       {showEdit && p && (
         <ProjectInlineEditModal project={p} onClose={() => setShowEdit(false)} onSaved={() => { setShowEdit(false); reload() }} />
       )}
+      {aporteModal && (() => {
+        const a = aporteModal.a
+        const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
+        const isNovo = a.kanban_status === 'novo_contrato'
+        const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none'
+        const inputSt = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setAporteModal(null)}>
+            <div className="rounded-2xl w-full max-w-md flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>{aporteModal.mode === 'edit' ? 'Editar aporte não valorizado' : 'Aporte não valorizado'}</h3>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Só adiciona horas ao projeto (sem valor). {isNovo ? 'Em revisão' : 'Confirmado'}.</p>
+                </div>
+                <button onClick={() => setAporteModal(null)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {aporteModal.mode === 'view' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</p><p className="text-sm" style={{ color: 'var(--text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas</p><p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{Number(a.contributed_hours).toFixed(1)}h</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Autor</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</p></div>
+                    </div>
+                    {a.description && <div><p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Descrição</p><p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{a.description}</p></div>}
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</label>
+                        <input type="date" className={inputCls} style={inputSt} value={aporteForm.contributed_at} onChange={e => setAporteForm(f => ({ ...f, contributed_at: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</label>
+                        <select className={inputCls} style={inputSt} value={aporteForm.motivo} onChange={e => setAporteForm(f => ({ ...f, motivo: e.target.value }))}>
+                          <option value="aporte">Aporte</option>
+                          <option value="excedentes">Excedentes</option>
+                          <option value="absorvidas">Absorvidas</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                      <input type="number" min="0" step="0.1" className={inputCls} style={inputSt} value={aporteForm.contributed_hours} onChange={e => setAporteForm(f => ({ ...f, contributed_hours: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</label>
+                      <textarea rows={2} className={inputCls} style={inputSt} value={aporteForm.description} onChange={e => setAporteForm(f => ({ ...f, description: e.target.value }))} />
+                    </div>
+                  </>
+                )}
+              </div>
+              {aporteModal.mode === 'edit' && (
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <button onClick={() => setAporteModal(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+                  <button onClick={saveAporteEdit} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Check size={14} /> Salvar</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
+      {aporteDeleting && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => !aporteSaving && setAporteDeleting(null)}>
+          <div className="rounded-2xl w-full max-w-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}><Trash2 size={18} style={{ color: 'var(--danger-border)' }} /></div>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Excluir aporte não valorizado?</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+              Você vai remover o aporte de <strong style={{ color: 'var(--text)' }}>{Number(aporteDeleting.contributed_hours).toFixed(1)}h</strong>. As horas deixam de contar no saldo do projeto. <strong style={{ color: 'var(--text)' }}>Esta ação não pode ser desfeita.</strong>
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setAporteDeleting(null)} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={confirmDeleteAporte} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--danger-border)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Trash2 size={14} /> {aporteSaving ? 'Excluindo…' : 'Excluir'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1543,88 +1625,6 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         </div>
       )}
 
-      {aporteModal && (() => {
-        const a = aporteModal.a
-        const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
-        const isNovo = a.kanban_status === 'novo_contrato'
-        const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none'
-        const inputSt = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }
-        return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setAporteModal(null)}>
-            <div className="rounded-2xl w-full max-w-md flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-                <div>
-                  <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>{aporteModal.mode === 'edit' ? 'Editar aporte não valorizado' : 'Aporte não valorizado'}</h3>
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Só adiciona horas ao projeto (sem valor). {isNovo ? 'Em revisão' : 'Confirmado'}.</p>
-                </div>
-                <button onClick={() => setAporteModal(null)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
-              </div>
-              <div className="px-5 py-4 space-y-3">
-                {aporteModal.mode === 'view' ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}</p></div>
-                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</p><p className="text-sm" style={{ color: 'var(--text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</p></div>
-                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas</p><p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{Number(a.contributed_hours).toFixed(1)}h</p></div>
-                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Autor</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</p></div>
-                    </div>
-                    {a.description && <div><p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Descrição</p><p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{a.description}</p></div>}
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</label>
-                        <input type="date" className={inputCls} style={inputSt} value={aporteForm.contributed_at} onChange={e => setAporteForm(f => ({ ...f, contributed_at: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</label>
-                        <select className={inputCls} style={inputSt} value={aporteForm.motivo} onChange={e => setAporteForm(f => ({ ...f, motivo: e.target.value }))}>
-                          <option value="aporte">Aporte</option>
-                          <option value="excedentes">Excedentes</option>
-                          <option value="absorvidas">Absorvidas</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas <span style={{ color: 'var(--danger-border)' }}>*</span></label>
-                      <input type="number" min="0" step="0.1" className={inputCls} style={inputSt} value={aporteForm.contributed_hours} onChange={e => setAporteForm(f => ({ ...f, contributed_hours: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</label>
-                      <textarea rows={2} className={inputCls} style={inputSt} value={aporteForm.description} onChange={e => setAporteForm(f => ({ ...f, description: e.target.value }))} />
-                    </div>
-                  </>
-                )}
-              </div>
-              {aporteModal.mode === 'edit' && (
-                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
-                  <button onClick={() => setAporteModal(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-                  <button onClick={saveAporteEdit} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Check size={14} /> Salvar</button>
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      })()}
-
-      {aporteDeleting && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => !aporteSaving && setAporteDeleting(null)}>
-          <div className="rounded-2xl w-full max-w-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}><Trash2 size={18} style={{ color: 'var(--danger-border)' }} /></div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Excluir aporte não valorizado?</h3>
-            </div>
-            <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
-              Você vai remover o aporte de <strong style={{ color: 'var(--text)' }}>{Number(aporteDeleting.contributed_hours).toFixed(1)}h</strong>. As horas deixam de contar no saldo do projeto. <strong style={{ color: 'var(--text)' }}>Esta ação não pode ser desfeita.</strong>
-            </p>
-            <div className="flex items-center justify-end gap-2">
-              <button onClick={() => setAporteDeleting(null)} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-              <button onClick={confirmDeleteAporte} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--danger-border)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Trash2 size={14} /> {aporteSaving ? 'Excluindo…' : 'Excluir'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
