@@ -1221,7 +1221,9 @@ html.dark .sidebar-erpserv-logo {
 /* NÃO sobrescrever as dimensões do e-mail (height/width inline do logo etc.) — só impedir que
    passem da largura do balão. O !important + height:auto anteriores inchavam o logo. */
 .hd-msg-body { word-break: break-word; }
-.hd-msg-body img { max-width: 100%; }
+/* Imagem colada (print) = preview RESPONSIVO dentro do balão + clique abre a original (lightbox).
+   max-height limita a um preview; height/width auto preservam a proporção. */
+.hd-msg-body img { max-width: 100%; height: auto; max-height: 360px; cursor: zoom-in; border-radius: 6px; }
 .hd-msg-body table { max-width: 100%; }
 
 /* ============================================================
