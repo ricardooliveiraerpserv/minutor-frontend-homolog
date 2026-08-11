@@ -87,6 +87,12 @@ interface ProjectCard {
   executivo_conta_name?: string
   contract_type?: string
   service_type?: string
+  // Vínculo item SaaS/Cloud (herdado do contrato gerador).
+  contract_code?: string | null
+  parent_contract_id?: number | null
+  parent_contract_code?: string | null
+  linked_children?: { id: number; code: string | null }[]
+  is_linked?: boolean
 }
 
 interface Coordinator { id: number; name: string; coordinator_type?: string | null }
@@ -1002,6 +1008,8 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
             border: `1px solid var(--border)`,
             // Borda lateral colorida pelo status do projeto
             borderLeft: `3px solid ${color}`,
+            // Capa: faixa teal no topo quando vinculado (mensalidade com itens OU item de um pai).
+            borderTop: card.is_linked ? `3px solid ${LINK_COLOR}` : undefined,
             boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
             opacity: snap.isDragging ? 0.85 : 1,
             ...prov.draggableProps.style,
@@ -1014,6 +1022,25 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 {card.customer_name}
               </p>
               <p className="text-xs break-normal" style={{ color: 'var(--text-light)' }}>{card.project_name}</p>
+              {(card.contract_code || card.code) && (
+                <p className="text-[10px] font-mono font-semibold mt-0.5" style={{ color: card.is_linked ? LINK_COLOR : 'var(--text-muted)' }}>
+                  {card.is_linked && '🔗 '}{card.contract_code || card.code}
+                </p>
+              )}
+              {card.parent_contract_id && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
+                  🔗 vínculo {card.parent_contract_code ?? ''}
+                </span>
+              )}
+              {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
+                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
+                </span>
+              )}
               {/* SaaS: valor do projeto na capa (SaaS é só valor, sem horas). */}
               {(card.contract_type?.toLowerCase().includes('saas')) && card.project_value != null && (
                 <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
