@@ -5904,11 +5904,11 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   const [columns, setColumns] = useState<ColDef[]>([])
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
-  const [fCliente, setFCliente] = useState('')
-  const [fProjeto, setFProjeto] = useState('')
-  const [fCoord, setFCoord] = useState('')
-  const [fStatus, setFStatus] = useState('')
-  const [fExec, setFExec] = useState('')
+  const [fCliente, setFCliente] = useState<string[]>([])
+  const [fProjeto, setFProjeto] = useState<string[]>([])
+  const [fCoord, setFCoord] = useState<string[]>([])
+  const [fStatus, setFStatus] = useState<string[]>([])
+  const [fExec, setFExec] = useState<string[]>([])
 
   useEffect(() => {
     api.get<{ columns: ColDef[]; rows: Row[] }>('/projects/kanban-column-history')
@@ -5925,15 +5925,15 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
   const coords = uniqSorted(rows.map(r => r.coordinator))
   const execs = uniqSorted(rows.map(r => r.executive))
   const statuses = uniqSorted(rows.map(r => r.current_label))
-  const projetos = rows.filter(r => !fCliente || r.customer === fCliente)
+  const projetos = rows.filter(r => fCliente.length === 0 || fCliente.includes(r.customer))
     .map(r => ({ id: String(r.project_id), label: `${r.code ?? ''} · ${r.name ?? ''}` }))
     .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
   const filtered = rows.filter(r =>
-    (!fCliente || r.customer === fCliente) &&
-    (!fProjeto || String(r.project_id) === fProjeto) &&
-    (!fCoord || r.coordinator === fCoord) &&
-    (!fExec || r.executive === fExec) &&
-    (!fStatus || r.current_label === fStatus))
+    (fCliente.length === 0 || fCliente.includes(r.customer)) &&
+    (fProjeto.length === 0 || fProjeto.includes(String(r.project_id))) &&
+    (fCoord.length === 0   || fCoord.includes(r.coordinator ?? '')) &&
+    (fExec.length === 0    || fExec.includes(r.executive ?? '')) &&
+    (fStatus.length === 0  || fStatus.includes(r.current_label ?? '')))
   // Ordenação por coluna (clique no cabeçalho). Default: total desc.
   const [sortKey, setSortKey] = useState<string>('total')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -5977,16 +5977,16 @@ function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <div className="w-40"><SearchSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto('') }}
-              options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" /></div>
-            <div className="w-48"><SearchSelect value={fProjeto} onChange={setFProjeto}
-              options={projetos.map(p => ({ id: p.id, name: p.label }))} placeholder="Todos os projetos" /></div>
-            <div className="w-40"><SearchSelect value={fCoord} onChange={setFCoord}
-              options={coords.map(c => ({ id: c, name: c }))} placeholder="Todos coordenadores" /></div>
-            <div className="w-40"><SearchSelect value={fExec} onChange={setFExec}
-              options={execs.map(e => ({ id: e, name: e }))} placeholder="Todos executivos" /></div>
-            <div className="w-40"><SearchSelect value={fStatus} onChange={setFStatus}
-              options={statuses.map(s => ({ id: s, name: s }))} placeholder="Todos os status" /></div>
+            <div className="w-40"><MultiSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto([]) }}
+              options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" wide /></div>
+            <div className="w-48"><MultiSelect value={fProjeto} onChange={setFProjeto}
+              options={projetos.map(p => ({ id: p.id, name: p.label }))} placeholder="Todos os projetos" wide /></div>
+            <div className="w-40"><MultiSelect value={fCoord} onChange={setFCoord}
+              options={coords.map(c => ({ id: c, name: c }))} placeholder="Todos coordenadores" wide /></div>
+            <div className="w-40"><MultiSelect value={fExec} onChange={setFExec}
+              options={execs.map(e => ({ id: e, name: e }))} placeholder="Todos executivos" wide /></div>
+            <div className="w-40"><MultiSelect value={fStatus} onChange={setFStatus}
+              options={statuses.map(s => ({ id: s, name: s }))} placeholder="Todos os status" wide /></div>
             <button onClick={exportCsv} title="Exportar Excel" className="inline-flex items-center gap-1.5 h-9 px-3 text-sm rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}><Download size={14} /> Excel</button>
             <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
           </div>
