@@ -928,7 +928,16 @@ function TicketDetailInner({ id }: { id: number }) {
               </div>
 
               {tab === 'conversa' ? (
-                <div className="p-4 space-y-3">
+                <div className="p-4 space-y-3 [&_img]:cursor-zoom-in" onClick={(e) => {
+                  // Handler DELEGADO: clicar em qualquer print da conversa (colado inline,
+                  // anexo, ou dentro de solução/formulário) abre no lightbox. Captura o clique
+                  // independentemente de qual componente renderizou a imagem.
+                  const el = e.target as HTMLElement
+                  if (el.tagName !== 'IMG') return
+                  if (el.closest('[contenteditable="true"]')) return // não intercepta durante edição
+                  const img = el as HTMLImageElement
+                  openImg(img.currentSrc || img.src, img.alt || undefined)
+                }}>
                   {/* Card de reunião (Central de Reuniões) — adiado (secondaryReady) p/ não pesar na 1ª carga. */}
                   {secondaryReady && <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => {
                     // Trava de triagem: não abre o "Agendar reunião" sem os campos preenchidos.
