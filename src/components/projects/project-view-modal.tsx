@@ -86,6 +86,7 @@ interface ProjectEditForm {
   condicao_pagamento: string; vendedor_id: string
   cobra_despesa_cliente: boolean
   observacoes_contrato: string
+  observacoes_coordenador: string
   max_expense_per_consultant: string
   timesheet_retroactive_limit_days: string
   allow_manual_timesheets: boolean; allow_negative_balance: boolean
@@ -516,7 +517,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <Row label="Executivo de Conta"   value={(p as any).executivo_conta?.name ?? '—'} />
                         <Row label="Vendedor"             value={(p as any).vendedor?.name ?? '—'} />
                         {(p as any).observacoes_contrato && (
-                          <Row label="Observações" value={<span className="text-left whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{(p as any).observacoes_contrato}</span>} />
+                          <Row label="Observações Gerais" value={<span className="text-left whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{(p as any).observacoes_contrato}</span>} />
+                        )}
+                        {(p as any).observacoes_coordenador && (
+                          <Row label="Observações para o Coordenador" value={<span className="text-left whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{(p as any).observacoes_coordenador}</span>} />
                         )}
                       </div>
                     </div>
@@ -1131,6 +1135,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
     vendedor_id:                     d.vendedor_id ? String(d.vendedor_id) : '',
     cobra_despesa_cliente:           d.cobra_despesa_cliente ?? false,
     observacoes_contrato:            d.observacoes_contrato ?? '',
+    observacoes_coordenador:         d.observacoes_coordenador ?? '',
     max_expense_per_consultant:      d.max_expense_per_consultant != null ? String(d.max_expense_per_consultant) : '',
     timesheet_retroactive_limit_days: d.timesheet_retroactive_limit_days != null ? String(d.timesheet_retroactive_limit_days) : '',
     allow_manual_timesheets:         d.allow_manual_timesheets ?? true,
@@ -1228,6 +1233,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         movidesk_integration_enabled: form.movidesk_integration_enabled,
         cobra_despesa_cliente: form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
+        observacoes_coordenador: form.observacoes_coordenador || null,
         condicao_pagamento: form.condicao_pagamento || null,
         // coordinator_ids NÃO é reenviado: coordenação é definida só no Kanban de Contratos.
         // O backend preserva o M2M quando o campo é omitido.
@@ -1472,7 +1478,14 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 <div><label style={lStyle}>Condição de Pagamento</label><input value={form.condicao_pagamento} onChange={setF('condicao_pagamento')} style={iStyle} placeholder="Ex: 30/60/90 dias" /></div>
                 <div><label style={lStyle}>Vendedor</label><select value={form.vendedor_id} onChange={setF('vendedor_id')} style={iStyle}><option value="">Não definido</option>{optConsultants.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
               </div>
-              <div><label style={lStyle}>Observações do Contrato</label><textarea value={form.observacoes_contrato} onChange={setF('observacoes_contrato')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} /></div>
+              <div><label style={lStyle}>Observações Gerais</label><textarea value={form.observacoes_contrato} onChange={setF('observacoes_contrato')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} /></div>
+              <div>
+                <label style={lStyle}>Observações para o Coordenador</label>
+                <textarea value={form.observacoes_coordenador} onChange={setF('observacoes_coordenador')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} placeholder="Anotações visíveis ao coordenador do projeto" />
+                <p className="text-[11px] mt-1 flex items-start gap-1" style={{ color: 'var(--warning-border)' }}>
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" /> Este campo é visível ao coordenador. Não inclua informações sensíveis ou confidenciais.
+                </p>
+              </div>
 
               <SecTitle>Política de Despesas e Apontamentos</SecTitle>
               <div className="grid grid-cols-2 gap-3">

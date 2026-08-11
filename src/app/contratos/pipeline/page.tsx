@@ -2521,6 +2521,14 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   </div>
                 </div>
 
+                {/* Observações para o Coordenador — campo dedicado, visível a todos os perfis (inclui coordenador). */}
+                {(p as any).observacoes_coordenador && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Observações para o Coordenador</p>
+                    <div className="rounded-xl p-4 text-xs leading-relaxed whitespace-pre-wrap" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{(p as any).observacoes_coordenador}</div>
+                  </div>
+                )}
+
                 {/* Contatos do cliente */}
                 <CustomerContactsSection customerId={p.customer?.id} customerName={p.customer?.name} />
 

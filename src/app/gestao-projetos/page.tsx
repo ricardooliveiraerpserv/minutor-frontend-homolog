@@ -913,6 +913,7 @@ interface ProjectEditForm {
   condicao_pagamento: string; vendedor_id: string
   cobra_despesa_cliente: boolean
   observacoes_contrato: string
+  observacoes_coordenador: string
   max_expense_per_consultant: string
   timesheet_retroactive_limit_days: string
   allow_manual_timesheets: boolean; allow_negative_balance: boolean; client_follows_timesheets: boolean
@@ -975,6 +976,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     vendedor_id:                     d.vendedor_id ? String(d.vendedor_id) : '',
     cobra_despesa_cliente:           d.cobra_despesa_cliente ?? false,
     observacoes_contrato:            d.observacoes_contrato ?? '',
+    observacoes_coordenador:         d.observacoes_coordenador ?? '',
     max_expense_per_consultant:      d.max_expense_per_consultant != null ? String(d.max_expense_per_consultant) : '',
     timesheet_retroactive_limit_days: d.timesheet_retroactive_limit_days != null ? String(d.timesheet_retroactive_limit_days) : '',
     allow_manual_timesheets:         d.allow_manual_timesheets ?? true,
@@ -1186,6 +1188,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         extrato_visivel_cliente: form.extrato_visivel_cliente,
         cobra_despesa_cliente:   form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
+        observacoes_coordenador: form.observacoes_coordenador || null,
         condicao_pagamento:   form.condicao_pagamento || null,
         // coordinator_ids NÃO é reenviado: coordenação é definida só no Kanban de Contratos.
         // O backend só sincroniza coordinators quando o campo é enviado (preserva o M2M ao omitir).
@@ -1690,7 +1693,14 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   </select>
                 </div>
               </div>
-              <div><label style={lStyle}>Observações do Contrato</label><textarea value={form.observacoes_contrato} onChange={setF('observacoes_contrato')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} placeholder="Observações, termos especiais..." /></div>
+              <div><label style={lStyle}>Observações Gerais</label><textarea value={form.observacoes_contrato} onChange={setF('observacoes_contrato')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} placeholder="Observações, termos especiais..." /></div>
+              <div>
+                <label style={lStyle}>Observações para o Coordenador</label>
+                <textarea value={form.observacoes_coordenador} onChange={setF('observacoes_coordenador')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} placeholder="Anotações visíveis ao coordenador do projeto" />
+                <p className="text-[11px] mt-1 flex items-start gap-1" style={{ color: 'var(--warning-border)' }}>
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" /> Este campo é visível ao coordenador. Não inclua informações sensíveis ou confidenciais.
+                </p>
+              </div>
 
               {/* Política de Despesas + Apontamentos */}
               <SecTitle>Política de Despesas e Apontamentos</SecTitle>
