@@ -198,6 +198,8 @@ function PagamentoDespesasInner() {
   })
   const [selectedUser, setSelectedUser] = useState('')
   const [selectedCoordinator, setSelectedCoordinator] = useState('')
+  const [paidFrom, setPaidFrom] = useState('')   // filtro por data de pagamento (paid_at)
+  const [paidTo,   setPaidTo]   = useState('')
   const [paidFilter,  setPaidFilter]   = useState<'pending' | 'no_fechamento' | 'paid' | 'all'>('pending')
   // Aba principal: 'pagamento' (aprovadas, fluxo de pagamento) | 'outros' (demais status).
   const [mainTab, setMainTab] = useState<'pagamento' | 'outros'>('pagamento')
@@ -250,10 +252,12 @@ function PagamentoDespesasInner() {
     }
     if (dateFrom) p.set('start_date', dateFrom)
     if (dateTo)   p.set('end_date', dateTo)
+    if (paidFrom) p.set('paid_start', paidFrom)
+    if (paidTo)   p.set('paid_end', paidTo)
     if (selectedUser) p.set('user_id[]', selectedUser)
     if (selectedCoordinator) p.set('coordinator_id', selectedCoordinator)
     return p
-  }, [page, dateFrom, dateTo, selectedUser, selectedCoordinator, paidFilter, mainTab, statusFilter])
+  }, [page, dateFrom, dateTo, paidFrom, paidTo, selectedUser, selectedCoordinator, paidFilter, mainTab, statusFilter])
 
   const fetchData = useCallback(() => {
     setLoading(true)
@@ -466,6 +470,19 @@ function PagamentoDespesasInner() {
               options={coordinators}
               placeholder="Todos os coordenadores"
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data de Pagamento</label>
+            <div className="flex items-center gap-1.5">
+              <input type="date" value={paidFrom} onChange={e => { setPaidFrom(e.target.value); setPage(1) }}
+                className="h-9 px-2 rounded-lg text-sm outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <span className="text-xs" style={{ color: 'var(--text-light)' }}>até</span>
+              <input type="date" value={paidTo} onChange={e => { setPaidTo(e.target.value); setPage(1) }}
+                className="h-9 px-2 rounded-lg text-sm outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              {(paidFrom || paidTo) && (
+                <button onClick={() => { setPaidFrom(''); setPaidTo(''); setPage(1) }} title="Limpar data de pagamento" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><X size={14} /></button>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Status</label>
