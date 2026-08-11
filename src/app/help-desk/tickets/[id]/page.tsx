@@ -120,13 +120,13 @@ const avatarColor = (name?: string | null) => {
 function EmailFrame({ html, onImageClick }: { html: string; onImageClick?: (src: string, alt?: string) => void }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
-  // Teto RESPONSIVO da largura de leitura e das imagens: acompanha a viewport (min(760, innerWidth-380)),
-  // então um print largo ESCALA pra caber no balão em vez de estourar/rolar horizontalmente. Em px (não %)
-  // porque % dentro de body{width:max-content} é circular e colapsa a medição do iframe (imagem sumia).
-  // Assinaturas (tabelas) NÃO são limitadas — seguem renderizando fiéis; só imagens ganham o teto.
-  const [cap, setCap] = useState(760)
+  // Teto RESPONSIVO SÓ DAS IMAGENS (nunca acima de 640): em telas largas fica 640 = comportamento
+  // ORIGINAL (assinatura idêntica, tabela/corpo intactos); em telas estreitas o print ESCALA pra caber
+  // no balão em vez de estourar/rolar. Em px (não %) porque % dentro de body{width:max-content} é circular
+  // e colapsa a medição do iframe. NÃO tocamos body/tabela → a assinatura não desposiciona.
+  const [cap, setCap] = useState(640)
   useEffect(() => {
-    const recompute = () => setCap(Math.max(280, Math.min(760, window.innerWidth - 380)))
+    const recompute = () => setCap(Math.max(280, Math.min(640, window.innerWidth - 380)))
     recompute()
     window.addEventListener('resize', recompute)
     return () => window.removeEventListener('resize', recompute)
@@ -171,7 +171,7 @@ function EmailFrame({ html, onImageClick }: { html: string; onImageClick?: (src:
   // Imagens NUNCA transbordam a coluna de leitura: teto DEFINIDO de 640px (= largura de leitura) + height:auto,
   // escalam proporcionalmente igual ao e-mail original. Valor em px (não %) porque max-width:100% dentro de um
   // body width:max-content é circular e colapsa a medição do iframe (a imagem sumia). Só imagens são limitadas.
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:max-content;max-width:${cap}px}img{max-width:${cap}px;height:auto;max-height:360px;cursor:zoom-in}</style></head><body>${html}</body></html>`
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:max-content;max-width:640px}img{max-width:${cap}px;height:auto;max-height:360px;cursor:zoom-in}</style></head><body>${html}</body></html>`
   return (
     <iframe
       ref={ref}
