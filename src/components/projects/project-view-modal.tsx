@@ -178,6 +178,34 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   const fmtDate = (d?: string | null) => d ? d.slice(0, 10).split('-').reverse().join('/') : '—'
   const fmtBRL  = (v?: number | null) => v != null ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
 
+  const healthColor = (pct: number) => pct >= 90 ? 'var(--danger-border)' : pct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
+  const riskEmoji   = (pct: number) => pct >= 90 ? '🔴' : pct >= 70 ? '🟡' : '🟢'
+  const riskLabel   = (pct: number) => pct >= 90 ? 'Crítico' : pct >= 70 ? 'Atenção' : 'Saudável'
+
+  const statusColors: Record<string, { background: string; color: string }> = {
+    awaiting_start: { background: 'var(--info-bg)',    color: 'var(--info)' },
+    started:        { background: 'var(--info-bg)',    color: 'var(--info)' },
+    paused:         { background: 'var(--warning-bg)', color: 'var(--warning)' },
+    cancelled:      { background: 'var(--danger-bg)',  color: 'var(--danger)' },
+    finished:       { background: 'var(--surface-hover)', color: 'var(--text-muted)' },
+  }
+  const statusLabel: Record<string, string> = {
+    awaiting_start: 'Aguardando Início', started: 'Em Andamento',
+    paused: 'Pausado', cancelled: 'Cancelado', finished: 'Encerrado',
+  }
+  const tsStatusColor: Record<string, string> = {
+    pending: '#f59e0b', approved: '#22c55e', rejected: '#ef4444', conflicted: '#a78bfa',
+  }
+
+  const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex items-start justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+      <span className="text-xs shrink-0 w-44" style={{ color: 'var(--text-light)' }}>{label}</span>
+      <span className="text-xs font-semibold text-right ml-2" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
+    </div>
+  )
+
+  const { user: viewerUser } = useAuth()
+
   // ── Aportes não valorizados: gestão inline (visualizar/editar/excluir) ──
   const canManageAporte = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
   const isAporteNaoValorizado = (a: any) => a?.nao_valorizado === true || a?.nao_valorizado === 1
@@ -223,33 +251,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir aporte') }
   }
 
-  const healthColor = (pct: number) => pct >= 90 ? 'var(--danger-border)' : pct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
-  const riskEmoji   = (pct: number) => pct >= 90 ? '🔴' : pct >= 70 ? '🟡' : '🟢'
-  const riskLabel   = (pct: number) => pct >= 90 ? 'Crítico' : pct >= 70 ? 'Atenção' : 'Saudável'
-
-  const statusColors: Record<string, { background: string; color: string }> = {
-    awaiting_start: { background: 'var(--info-bg)',    color: 'var(--info)' },
-    started:        { background: 'var(--info-bg)',    color: 'var(--info)' },
-    paused:         { background: 'var(--warning-bg)', color: 'var(--warning)' },
-    cancelled:      { background: 'var(--danger-bg)',  color: 'var(--danger)' },
-    finished:       { background: 'var(--surface-hover)', color: 'var(--text-muted)' },
-  }
-  const statusLabel: Record<string, string> = {
-    awaiting_start: 'Aguardando Início', started: 'Em Andamento',
-    paused: 'Pausado', cancelled: 'Cancelado', finished: 'Encerrado',
-  }
-  const tsStatusColor: Record<string, string> = {
-    pending: '#f59e0b', approved: '#22c55e', rejected: '#ef4444', conflicted: '#a78bfa',
-  }
-
-  const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex items-start justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
-      <span className="text-xs shrink-0 w-44" style={{ color: 'var(--text-light)' }}>{label}</span>
-      <span className="text-xs font-semibold text-right ml-2" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
-    </div>
-  )
-
-  const { user: viewerUser } = useAuth()
   const consumed = p?.consumed_hours ?? 0
   const totalAvail = p?.total_available_hours ?? ((p?.sold_hours ?? 0) + (p?.hour_contribution ?? 0))
   // Lente do coordenador: se o usuário logado é coordenador do projeto e há banco de
