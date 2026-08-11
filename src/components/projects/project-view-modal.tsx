@@ -6,7 +6,7 @@ import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
-import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
+import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText, Eye, SquarePen } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 import { Skeleton } from '@/components/ui/loading'
@@ -121,6 +121,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   const [aportesList, setAportesList]   = useState<any[]>([])
   const [aportesLoading, setAportesLoading] = useState(false)
   const [aportesLoaded, setAportesLoaded]   = useState(false)
+  // Aporte NÃO valorizado: visualizar/editar/excluir direto na aba (os valorizados seguem na Gestão de Projetos).
+  const [aporteModal, setAporteModal] = useState<{ mode: 'view' | 'edit'; a: any } | null>(null)
+  const [aporteForm, setAporteForm]   = useState<{ contributed_hours: string; motivo: string; contributed_at: string; description: string }>({ contributed_hours: '', motivo: 'aporte', contributed_at: '', description: '' })
+  const [aporteSaving, setAporteSaving] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [viewAttachments, setViewAttachments] = useState<any[]>([])
   const downloadViewAtt = async (att: any) => {
@@ -173,6 +177,51 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
   const fmtDate = (d?: string | null) => d ? d.slice(0, 10).split('-').reverse().join('/') : '—'
   const fmtBRL  = (v?: number | null) => v != null ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
+
+  // ── Aportes não valorizados: gestão inline (visualizar/editar/excluir) ──
+  const canManageAporte = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
+  const isAporteNaoValorizado = (a: any) => a?.nao_valorizado === true || a?.nao_valorizado === 1
+  const reloadAportes = () =>
+    api.get<any>(`/projects/${projectId}/hour-contributions`)
+      .then(r => setAportesList(Array.isArray(r) ? r : Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []))
+      .catch(() => {})
+  const openAporteView = (a: any) => setAporteModal({ mode: 'view', a })
+  const openAporteEdit = (a: any) => {
+    setAporteForm({
+      contributed_hours: a.contributed_hours != null ? String(a.contributed_hours) : '',
+      motivo: a.motivo ?? 'aporte',
+      contributed_at: a.contributed_at ? String(a.contributed_at).slice(0, 10) : '',
+      description: a.description ?? '',
+    })
+    setAporteModal({ mode: 'edit', a })
+  }
+  const saveAporteEdit = async () => {
+    if (!aporteModal) return
+    const hrs = Number(aporteForm.contributed_hours)
+    if (!hrs || hrs <= 0) { toast.error('Informe as horas (maior que zero).'); return }
+    setAporteSaving(true)
+    try {
+      // NÃO envia hourly_rate → mantém o aporte não valorizado (rate null).
+      await api.put(`/projects/${projectId}/hour-contributions/${aporteModal.a.id}`, {
+        contributed_hours: hrs,
+        motivo: aporteForm.motivo,
+        contributed_at: aporteForm.contributed_at || undefined,
+        description: aporteForm.description || null,
+      })
+      toast.success('Aporte atualizado')
+      setAporteModal(null)
+      await reloadAportes()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar aporte') }
+    finally { setAporteSaving(false) }
+  }
+  const deleteAporte = async (a: any) => {
+    if (!confirm(`Excluir este aporte não valorizado de ${Number(a.contributed_hours).toFixed(1)}h? Esta ação não pode ser desfeita.`)) return
+    try {
+      await api.delete(`/projects/${projectId}/hour-contributions/${a.id}`)
+      toast.success('Aporte excluído')
+      await reloadAportes()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir aporte') }
+  }
 
   const healthColor = (pct: number) => pct >= 90 ? 'var(--danger-border)' : pct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
   const riskEmoji   = (pct: number) => pct >= 90 ? '🔴' : pct >= 70 ? '🟡' : '🟢'
@@ -656,7 +705,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     Aportes do projeto
                   </p>
                   <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-                    Para criar/editar/excluir, acesse Gestão de Projetos
+                    Não valorizados: gerencie aqui. Valorizados: acesse Gestão de Projetos.
                   </span>
                 </div>
                 {aportesLoading && (
@@ -677,6 +726,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Total</th>
                           <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Status</th>
                           <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Autor</th>
+                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -705,6 +755,15 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                                 </span>
                               </td>
                               <td className="px-3 py-2" style={{ color: 'var(--text-light)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap">
+                                {isAporteNaoValorizado(a) ? (
+                                  <div className="inline-flex items-center gap-1">
+                                    <button onClick={() => openAporteView(a)} title="Visualizar" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
+                                    {canManageAporte && <button onClick={() => openAporteEdit(a)} title="Editar" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--primary)' }}><SquarePen size={13} /></button>}
+                                    {canManageAporte && <button onClick={() => deleteAporte(a)} title="Excluir" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger-border)' }}><Trash2 size={13} /></button>}
+                                  </div>
+                                ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                              </td>
                             </tr>
                           )
                         })}
@@ -1478,6 +1537,71 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
           </div>
         </div>
       )}
+
+      {aporteModal && (() => {
+        const a = aporteModal.a
+        const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
+        const isNovo = a.kanban_status === 'novo_contrato'
+        const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none'
+        const inputSt = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => setAporteModal(null)}>
+            <div className="rounded-2xl w-full max-w-md flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>{aporteModal.mode === 'edit' ? 'Editar aporte não valorizado' : 'Aporte não valorizado'}</h3>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Só adiciona horas ao projeto (sem valor). {isNovo ? 'Em revisão' : 'Confirmado'}.</p>
+                </div>
+                <button onClick={() => setAporteModal(null)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {aporteModal.mode === 'view' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</p><p className="text-sm" style={{ color: 'var(--text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas</p><p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{Number(a.contributed_hours).toFixed(1)}h</p></div>
+                      <div><p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Autor</p><p className="text-sm" style={{ color: 'var(--text)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</p></div>
+                    </div>
+                    {a.description && <div><p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Descrição</p><p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{a.description}</p></div>}
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</label>
+                        <input type="date" className={inputCls} style={inputSt} value={aporteForm.contributed_at} onChange={e => setAporteForm(f => ({ ...f, contributed_at: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Motivo</label>
+                        <select className={inputCls} style={inputSt} value={aporteForm.motivo} onChange={e => setAporteForm(f => ({ ...f, motivo: e.target.value }))}>
+                          <option value="aporte">Aporte</option>
+                          <option value="excedentes">Excedentes</option>
+                          <option value="absorvidas">Absorvidas</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                      <input type="number" min="0" step="0.1" className={inputCls} style={inputSt} value={aporteForm.contributed_hours} onChange={e => setAporteForm(f => ({ ...f, contributed_hours: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</label>
+                      <textarea rows={2} className={inputCls} style={inputSt} value={aporteForm.description} onChange={e => setAporteForm(f => ({ ...f, description: e.target.value }))} />
+                    </div>
+                  </>
+                )}
+              </div>
+              {aporteModal.mode === 'edit' && (
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <button onClick={() => setAporteModal(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+                  <button onClick={saveAporteEdit} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Check size={14} /> Salvar</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
