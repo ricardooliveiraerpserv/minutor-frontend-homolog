@@ -117,7 +117,7 @@ const avatarColor = (name?: string | null) => {
  * exatamente como num cliente de e-mail; o balão (overflow-x-auto) rola se a
  * viewport for menor que o conteúdo — sem nunca alterar o HTML.
  */
-function EmailFrame({ html }: { html: string }) {
+function EmailFrame({ html, onImageClick }: { html: string; onImageClick?: (src: string, alt?: string) => void }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
   useEffect(() => {
@@ -133,15 +133,25 @@ function EmailFrame({ html }: { html: string }) {
       const h = Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight))
       setSize(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
+    // O iframe é same-origin → torna cada imagem do e-mail clicável (abre o lightbox no pai).
+    const wireImages = () => {
+      const d = f.contentDocument
+      if (!d || !onImageClick) return
+      Array.from(d.images).forEach(img => {
+        img.style.cursor = 'zoom-in'
+        img.onclick = (e) => { e.preventDefault(); onImageClick(img.currentSrc || img.src, img.alt || undefined) }
+      })
+    }
     const onload = () => {
       measure()
+      wireImages()
       const d = f.contentDocument
-      if (d) Array.from(d.images).forEach(img => { if (!img.complete) img.addEventListener('load', measure) })
+      if (d) Array.from(d.images).forEach(img => { if (!img.complete) img.addEventListener('load', () => { measure(); wireImages() }) })
     }
     f.addEventListener('load', onload)
     onload() // srcDoc pode já ter carregado
     return () => f.removeEventListener('load', onload)
-  }, [html])
+  }, [html, onImageClick])
   // ÍNTEGRO + texto que quebra: body tem uma LARGURA DE LEITURA (max-content com teto de 640px), então
   // o texto quebra normalmente nessa largura. Elementos MAIS LARGOS que isso (assinatura/tabela/imagem)
   // TRANSBORDAM — não são reduzidos nem cortados. Medimos scrollWidth (que inclui o transbordo) e o
@@ -1037,7 +1047,7 @@ function TicketDetailInner({ id }: { id: number }) {
                                 <div className="text-sm rounded-lg px-3 py-2 break-words" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
                                   {isHtmlMotivo
                                     ? (pc?.complexHtml
-                                        ? <EmailFrame html={pc?.email ?? ''} />
+                                        ? <EmailFrame html={pc?.email ?? ''} onImageClick={openImg} />
                                         : <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} onImageClick={openImg} />)
                                     : <div className="whitespace-pre-wrap">{motivo}</div>}
                                 </div>
@@ -1136,7 +1146,7 @@ function TicketDetailInner({ id }: { id: number }) {
                         ) : c.body ? (
                           <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {complexHtml
-                              ? <EmailFrame html={pc?.email ?? ''} />
+                              ? <EmailFrame html={pc?.email ?? ''} onImageClick={openImg} />
                               : html
                                 ? <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} onImageClick={openImg} />
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
@@ -1204,7 +1214,7 @@ function TicketDetailInner({ id }: { id: number }) {
                         ) : (
                           <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexDescHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : 'hd-msg-body w-fit max-w-full px-3.5 py-2 hd-bubble-client'}`} style={{ borderTopLeftRadius: 4 }}>
                             {complexDescHtml
-                              ? <EmailFrame html={descRendered.email} />
+                              ? <EmailFrame html={descRendered.email} onImageClick={openImg} />
                               : descHtml
                                 ? <HdRichHtml className="hd-rich break-words" html={descRendered.rich} onImageClick={openImg} />
                                 : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
