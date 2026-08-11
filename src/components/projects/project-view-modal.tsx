@@ -125,6 +125,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   const [aporteModal, setAporteModal] = useState<{ mode: 'view' | 'edit'; a: any } | null>(null)
   const [aporteForm, setAporteForm]   = useState<{ contributed_hours: string; motivo: string; contributed_at: string; description: string }>({ contributed_hours: '', motivo: 'aporte', contributed_at: '', description: '' })
   const [aporteSaving, setAporteSaving] = useState(false)
+  const [aporteDeleting, setAporteDeleting] = useState<any>(null)
   const [showEdit, setShowEdit] = useState(false)
   const [viewAttachments, setViewAttachments] = useState<any[]>([])
   const downloadViewAtt = async (att: any) => {
@@ -242,13 +243,16 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar aporte') }
     finally { setAporteSaving(false) }
   }
-  const deleteAporte = async (a: any) => {
-    if (!confirm(`Excluir este aporte não valorizado de ${Number(a.contributed_hours).toFixed(1)}h? Esta ação não pode ser desfeita.`)) return
+  const confirmDeleteAporte = async () => {
+    if (!aporteDeleting) return
+    setAporteSaving(true)
     try {
-      await api.delete(`/projects/${projectId}/hour-contributions/${a.id}`)
+      await api.delete(`/projects/${projectId}/hour-contributions/${aporteDeleting.id}`)
       toast.success('Aporte excluído')
+      setAporteDeleting(null)
       await reloadAportes()
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir aporte') }
+    finally { setAporteSaving(false) }
   }
 
   const consumed = p?.consumed_hours ?? 0
@@ -761,7 +765,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                                   <div className="inline-flex items-center gap-1">
                                     <button onClick={() => openAporteView(a)} title="Visualizar" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                                     {canManageAporte && <button onClick={() => openAporteEdit(a)} title="Editar" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--primary)' }}><SquarePen size={13} /></button>}
-                                    {canManageAporte && <button onClick={() => deleteAporte(a)} title="Excluir" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger-border)' }}><Trash2 size={13} /></button>}
+                                    {canManageAporte && <button onClick={() => setAporteDeleting(a)} title="Excluir" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger-border)' }}><Trash2 size={13} /></button>}
                                   </div>
                                 ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
                               </td>
@@ -1603,6 +1607,24 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
           </div>
         )
       })()}
+
+      {aporteDeleting && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.55)' }} onClick={() => !aporteSaving && setAporteDeleting(null)}>
+          <div className="rounded-2xl w-full max-w-sm p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}><Trash2 size={18} style={{ color: 'var(--danger-border)' }} /></div>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Excluir aporte não valorizado?</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+              Você vai remover o aporte de <strong style={{ color: 'var(--text)' }}>{Number(aporteDeleting.contributed_hours).toFixed(1)}h</strong>. As horas deixam de contar no saldo do projeto. <strong style={{ color: 'var(--text)' }}>Esta ação não pode ser desfeita.</strong>
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setAporteDeleting(null)} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={confirmDeleteAporte} disabled={aporteSaving} className="px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--danger-border)', color: '#fff', opacity: aporteSaving ? 0.6 : 1 }}><Trash2 size={14} /> {aporteSaving ? 'Excluindo…' : 'Excluir'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
