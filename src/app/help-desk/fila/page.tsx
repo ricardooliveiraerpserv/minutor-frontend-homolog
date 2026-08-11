@@ -520,8 +520,13 @@ export default function HelpDeskFilaPage() {
           )}
         </div>
 
-        {/* RESUMO + INDICADORES — acordeões recolhidos por padrão (Modo Gestão abre os dois). */}
-        {orderedStatuses.length > 0 && (
+        {/* RESUMO + INDICADORES — acordeões recolhidos por padrão (Modo Gestão abre os dois).
+            Gate por statuses/tickets (NÃO por orderedStatuses): orderedStatuses depende de colOrder e
+            zera por um instante nas revalidações em background / se o /meta demora ou falha (Render free),
+            fazendo a faixa INTEIRA (inclusive os cards de contagem, que nem usam status) sumir. Com
+            statuses (estável, carregado 1x) OU local (tickets, cacheado) a faixa não pisca mais; os chips
+            de Resumo já se auto-limpam quando statColumns está vazio. */}
+        {(statuses.length > 0 || local.length > 0) && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-4 flex-wrap">
               <button onClick={() => setResumoOpen(!resumoOpen)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>
