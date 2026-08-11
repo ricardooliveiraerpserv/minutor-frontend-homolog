@@ -2185,7 +2185,9 @@ function KanbanContent() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--warning)' }} />Pronto</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--success)' }} />Projeto Ativo</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: SUST_COLOR }} />Sustentação</span>
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: BIZIFY_COLOR }} />Bizify</span>
+          {isBizifyActive && (
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: BIZIFY_COLOR }} />Bizify</span>
+          )}
           <span className="ml-auto flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Users size={11} />Colunas de coordenador geram projeto automaticamente</span>
         </div>
 
