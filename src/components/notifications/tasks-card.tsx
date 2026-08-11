@@ -7,7 +7,7 @@ import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw } from 
 import { useAuth } from '@/hooks/use-auth'
 import { RoutinesPanel } from '@/components/notifications/routines-panel'
 
-const CAN_DELEGATE = ['admin', 'coordenador', 'administrativo']
+export const CAN_DELEGATE = ['admin', 'coordenador', 'administrativo']
 
 interface Task {
   id: number; title: string; description: string | null
@@ -276,7 +276,7 @@ function DoneRow({ t, onEstornar, onDelete }: { t: Task; onEstornar: () => void;
   )
 }
 
-function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; canDelegate: boolean; ask: (m: string) => Promise<boolean>; onClose: () => void; onSaved: () => void }) {
+export function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; canDelegate: boolean; ask: (m: string) => Promise<boolean>; onClose: () => void; onSaved: () => void }) {
   const [title, setTitle] = useState(task.title)
   const [date, setDate] = useState(task.due_date ?? '')
   const [time, setTime] = useState(task.due_time ?? '')

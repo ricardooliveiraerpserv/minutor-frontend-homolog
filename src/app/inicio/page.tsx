@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Clock, MapPin, Link2, DollarSign, ChevronDown } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Clock, MapPin, Link2, DollarSign, ChevronDown, Pencil } from 'lucide-react'
 import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
 import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
-import { TasksCard } from '@/components/notifications/tasks-card'
+import { TasksCard, EditModal, CAN_DELEGATE } from '@/components/notifications/tasks-card'
 import { MinimizableHint } from '@/components/ui/minimizable-hint'
 import { AgendaSidebar } from '@/components/notifications/agenda-sidebar'
 import { TeamDay } from '@/components/notifications/team-day'
@@ -71,6 +71,10 @@ export default function MeuDiaPage() {
   const router = useRouter()
   const { user } = useAuth()
   const isAdmin = user?.type === 'admin'
+  // Alterar a tarefa direto no card "Próxima Ação" (reusa a EditModal da aba Tarefas).
+  const [editTask, setEditTask] = useState<Task | null>(null)
+  const canDelegate = CAN_DELEGATE.includes(user?.type ?? '')
+  const askConfirm = (m: string) => Promise.resolve(window.confirm(m))
   const canTeam = ['admin', 'coordenador', 'administrativo'].includes(user?.type ?? '')
   const canActions = ['consultor', 'coordenador', 'admin', 'administrativo', 'parceiro_admin'].includes(user?.type ?? '')
   const tasksRef = useRef<HTMLDivElement>(null)
@@ -253,6 +257,7 @@ export default function MeuDiaPage() {
                       {topTask.entity_label && <div className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{topTask.entity_label}</div>}
                       <div className="flex items-center gap-2 mt-3">
                         <button onClick={e => { e.stopPropagation(); concluir(topTask) }} className="inline-flex items-center gap-1.5 text-sm px-4 h-9 rounded-lg font-medium" style={{ background: 'var(--success-border)', color: '#fff' }}><Check size={15} /> Concluir agora</button>
+                        <button onClick={e => { e.stopPropagation(); setEditTask(topTask) }} className="inline-flex items-center gap-1.5 text-sm px-4 h-9 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Pencil size={14} /> Alterar</button>
                         <button onClick={e => { e.stopPropagation(); scrollToTasks() }} className="inline-flex items-center gap-1.5 text-sm px-4 h-9 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Eye size={14} /> Ver detalhes</button>
                       </div>
                     </div>
@@ -430,6 +435,7 @@ export default function MeuDiaPage() {
 
       <TimesheetFormModal open={tsOpen} onClose={() => setTsOpen(false)} onSaved={() => { setTsOpen(false); load() }} currentUser={user} />
       <ExpenseQuickModal open={expOpen} onClose={() => setExpOpen(false)} onSaved={() => { setExpOpen(false); load() }} currentUser={user} />
+      {editTask && <EditModal task={editTask as any} canDelegate={canDelegate} ask={askConfirm} onClose={() => setEditTask(null)} onSaved={() => { setEditTask(null); loadTasks(); setTasksKey(k => k + 1) }} />}
     </AppLayout>
   )
 }
