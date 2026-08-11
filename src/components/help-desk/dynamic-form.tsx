@@ -82,7 +82,7 @@ export function composeFormBody(inst: FormInstance): string {
   if (inst.show_logo) html += '<div style="text-align:center;margin:0 0 10px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
   if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 4px 0;">${inst.title}</div>`
   if (inst.subtitle) html += `<div style="text-align:center;font-size:14px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.subtitle}</div>`
-  if (inst.intro) html += `<p style="text-align:center;color:#374151;margin:0 0 14px 0;">${inst.intro.replace(/\n/g, '<br>')}</p>`
+  if (inst.intro) html += `<p style="text-align:left;color:#374151;margin:0 0 14px 0;">${inst.intro.replace(/\n/g, '<br>')}</p>`
   inst.fields.forEach((f, i) => {
     if (f.ftype === 'title') {
       // `value` (boolean) = flag "carregar logo" do bloco de título.
@@ -465,7 +465,7 @@ export function DynamicFormView({ instance }: { instance: FormInstance }) {
       )}
       {instance.title && <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>{instance.title}</div>}
       {instance.subtitle && <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#5b21b6', marginBottom: 8 }}>{instance.subtitle}</div>}
-      {instance.intro && <p style={{ textAlign: 'center', color: '#374151', marginBottom: 14, whiteSpace: 'pre-line' }}>{instance.intro}</p>}
+      {instance.intro && <p style={{ textAlign: 'left', color: '#374151', marginBottom: 14, whiteSpace: 'pre-line' }}>{instance.intro}</p>}
       {instance.fields.map((f, i) => {
         if (f.ftype === 'title') return (
           <div key={i} style={{ textAlign: 'center', marginBottom: 12 }}>
