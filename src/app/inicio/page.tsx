@@ -342,6 +342,7 @@ export default function MeuDiaPage() {
                             {over ? `Atrasada${t.due_date ? ` desde ${ddmm(t.due_date)}` : ''}` : 'Hoje'}{t.due_time ? ` • ${hm(t.due_time)}` : ''}{t.entity_label ? ` · ${t.entity_label}` : ''}
                           </div>
                         </div>
+                        <button onClick={() => setEditTask(t)} title="Alterar tarefa" className="shrink-0 p-1.5 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Pencil size={13} /></button>
                       </div>
                     )
                   })}
