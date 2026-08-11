@@ -1589,7 +1589,7 @@ function KanbanContent() {
           color:         c.coordinator_type === 'sustentacao' ? SUST_COLOR : undefined,
         })),
         ...SUSTENTACAO_COLS,
-        BIZIFY_COL,
+        // Bizify virou EMPRESA (multiempresa) — não é mais coluna no board ERPSERV.
         ...STATUS_PROJECT_COLUMNS,
         APORTE_COL,
         ADITIVO_COL,
@@ -1937,7 +1937,7 @@ function KanbanContent() {
     // (sem Cloud, sem coluna Bizify genérica); board normal usa BH/On Demand/Cloud + Bizify.
     const boardSustCols: { id: string; label: string }[] = isBizifyActive
       ? SUSTENTACAO_COLS_BIZIFY.map(s => ({ id: s.id, label: s.label }))
-      : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
+      : SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label }))
 
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
@@ -1962,8 +1962,7 @@ function KanbanContent() {
         return { id: 'sust_saas', label: 'SaaS' }
       if (ctLower.includes('cloud') || svLower.includes('cloud'))
         return { id: 'sust_cloud', label: 'Cloud' }
-      if (ctLower.includes('bizify') || svLower.includes('bizify'))
-        return { id: 'sust_bizify', label: 'Bizify' }
+      // Bizify não é mais coluna (virou empresa) — não oferecer sust_bizify.
       return null
     }
 
@@ -2065,8 +2064,7 @@ function KanbanContent() {
         return { id: 'sust_saas', label: 'SaaS' }
       if (ctLower.includes('cloud') || svLower.includes('cloud'))
         return { id: 'sust_cloud', label: 'Cloud' }
-      if (ctLower.includes('bizify') || svLower.includes('bizify'))
-        return { id: 'sust_bizify', label: 'Bizify' }
+      // Bizify não é mais coluna (virou empresa) — não oferecer sust_bizify.
       return null
     }
 
