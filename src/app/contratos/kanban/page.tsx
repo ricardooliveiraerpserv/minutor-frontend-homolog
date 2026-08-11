@@ -1905,6 +1905,9 @@ function KanbanContent() {
     const boardSustCols: { id: string; label: string }[] = isBizifyActive
       ? SUSTENTACAO_COLS_BIZIFY.map(s => ({ id: s.id, label: s.label }))
       : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
+    // Coordenadores que TÊM coluna no board atual: Bizify = admins + coordenadores Bizify;
+    // board normal = todos os coordenadores. Mover só pode ir pra coluna que existe (senão o card some).
+    const boardCoordinators = isBizifyActive ? bizifyCoordinators : coordinators
 
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
@@ -1950,7 +1953,7 @@ function KanbanContent() {
 
     // ── Card alocado num coordenador (tem project_id = "Projeto Ativo")
     if (fromCol.startsWith('coordinator:')) {
-      coordinators.forEach(coord => {
+      boardCoordinators.forEach(coord => {
         if (`coordinator:${coord.id}` !== fromCol)
           cols.push({ id: `coordinator:${coord.id}`, label: coord.name })
       })
@@ -1981,7 +1984,7 @@ function KanbanContent() {
 
       if (card.kanban_status !== 'novo_projeto') {
         if (!isSustType && card.is_complete) {
-          coordinators.forEach(coord => cols.push({ id: `coordinator:${coord.id}`, label: coord.name }))
+          boardCoordinators.forEach(coord => cols.push({ id: `coordinator:${coord.id}`, label: coord.name }))
         }
       }
     }
@@ -2058,7 +2061,7 @@ function KanbanContent() {
       }
       // Não-sust: reativar via coordenador
       return [
-        ...coordinators.map(c => ({ id: `coordinator:${c.id}`, label: `↩ ${c.name}` })),
+        ...boardCoordinators.map(c => ({ id: `coordinator:${c.id}`, label: `↩ ${c.name}` })),
         ...STATUS_PROJECT_COLUMNS.filter(c => c.id !== fromCol).map(c => ({ id: c.id, label: c.label })),
       ]
     }
