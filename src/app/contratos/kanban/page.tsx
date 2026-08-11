@@ -1569,13 +1569,14 @@ function KanbanContent() {
       ]
 
   // ── Filtros ──────────────────────────────────────────────────────────────
-  const matchFilter = (customerName?: string | null, name?: string | null): boolean => {
+  const matchFilter = (customerName?: string | null, name?: string | null, code?: string | null): boolean => {
     const cn = customerName ?? ''
     const nm = name ?? ''
+    const cd = code ?? ''
     if (filterCustomers.length > 0 && !filterCustomers.includes(cn)) return false
     if (filterSearch) {
       const q = filterSearch.toLowerCase()
-      return cn.toLowerCase().includes(q) || nm.toLowerCase().includes(q)
+      return cn.toLowerCase().includes(q) || nm.toLowerCase().includes(q) || cd.toLowerCase().includes(q)
     }
     return true
   }
@@ -1592,9 +1593,9 @@ function KanbanContent() {
   ])].sort()
 
   const allProjectKanbanOptions = [...new Map(
-    projectCards
-      .filter(p => filterCustomers.length === 0 || filterCustomers.includes(p.customer_name))
-      .map(p => [p.project_name, { id: p.project_name, name: p.project_name + (p.code ? ` (${p.code})` : '') }])
+    [...projectCards, ...Object.values(sustGroups).flat().filter((c: any) => c.card_type === 'project')]
+      .filter((p: any) => filterCustomers.length === 0 || filterCustomers.includes(p.customer_name))
+      .map((p: any) => [p.project_name, { id: p.project_name, name: p.project_name + ((p.code ?? p.project_code) ? ` (${p.code ?? p.project_code})` : '') }])
   ).values()].sort((a, b) => a.name.localeCompare(b.name))
 
   // Limpa projetos selecionados quando o cliente muda
@@ -1638,7 +1639,7 @@ function KanbanContent() {
       ? new Set(projectCards.filter(isActiveProject).map(p => p.id))
       : null
     return base
-      .filter(c => matchFilter(c.customer_name, c.project_name))
+      .filter(c => matchFilter(c.customer_name, c.project_name, (c as any).contract_code ?? (c as any).project_code))
       .filter(c => matchExecutivoKanban((c as ContractCard).executivo_conta_name))
       .filter(c => matchProjectKanban(c.project_name))
       .filter(c => !activeProjectIds || !(c as ContractCard).project_id)
@@ -1663,7 +1664,7 @@ function KanbanContent() {
       // Kanban Bizify: SaaS nunca cai em coluna de coordenador (vai pra coluna SaaS).
       if (isBizifyActive && isSaasCard(p)) return false
       if (!projectHasCoord(p, coordId)) return false
-      return matchFilter(p.customer_name, p.project_name)
+      return matchFilter(p.customer_name, p.project_name, (p as any).project_code ?? (p as any).contract_code)
         && matchExecutivoKanban(p.executivo_conta_name)
         && matchProjectKanban(p.project_name)
     })
@@ -1676,7 +1677,7 @@ function KanbanContent() {
     return projectCards
       .filter(p => p.status === targetStatus)
       .filter(p => !isSustCoordenador || sustBoardCoordIds.some(id => projectHasCoord(p, id)))
-      .filter(p => matchFilter(p.customer_name, p.project_name))
+      .filter(p => matchFilter(p.customer_name, p.project_name, (p as any).project_code ?? (p as any).contract_code))
       .filter(p => matchExecutivoKanban(p.executivo_conta_name))
       .filter(p => matchProjectKanban(p.project_name))
   }
@@ -2234,9 +2235,9 @@ function KanbanContent() {
                   //   - kanban_status='novo_contrato' → coluna "Novo Contrato" (governança/aprovação)
                   //   - kanban_status='aporte'        → coluna "Aporte" (estado final)
                   const aporteList     = isAporteCol
-                    ? aporteCards.filter(a => a.kanban_status === 'aporte' && matchFilter(a.customer_name, a.project_name))
+                    ? aporteCards.filter(a => a.kanban_status === 'aporte' && matchFilter(a.customer_name, a.project_name, (a as any).project_code))
                     : isNovoContratoCol
-                      ? aporteCards.filter(a => a.kanban_status === 'novo_contrato' && matchFilter(a.customer_name, a.project_name))
+                      ? aporteCards.filter(a => a.kanban_status === 'novo_contrato' && matchFilter(a.customer_name, a.project_name, (a as any).project_code))
                       : []
                   const totalCards     = contractCards.length + activeProjects.length + statusProjects.length + aporteList.length
 
