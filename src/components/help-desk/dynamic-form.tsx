@@ -106,6 +106,15 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
+/** Saudação pelo horário local do consultor (manhã/tarde/noite). */
+const timeGreeting = (): string => {
+  const h = new Date().getHours()
+  return h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!'
+}
+/** Mensagem padrão que abre a solução enviada ao cliente. Editável no formulário. */
+const defaultGreetingMessage = (): string =>
+  `${timeGreeting()}\n\nSegue abaixo a solução para o seu chamado. Ficamos à disposição para qualquer dúvida.`
+
 export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, timeMode = 'optional', submitLabel = 'Salvar e aplicar', ticketId, onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
@@ -121,12 +130,22 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   onSubmit: (inst: FormInstance, body: string, time: FormTime, files: File[]) => Promise<void> | void
 }) {
   // ── Rascunho local (por chamado + formulário): se fechar/atualizar sem enviar, recupera o digitado.
-  type Draft = { vals?: Record<string, string | boolean>; time?: { workedDate?: string; startTime?: string; endTime?: string; totalHours?: string; noCharge?: boolean } }
+  type Draft = { vals?: Record<string, string | boolean>; greeting?: string; time?: { workedDate?: string; startTime?: string; endTime?: string; totalHours?: string; noCharge?: boolean } }
   const draftKey = ticketId != null ? `hd:dynform-draft:${ticketId}:${form.id}` : null
   const [draft, setDraft] = useState<Draft | null>(() => {
     if (!draftKey || typeof window === 'undefined') return null
     try { const r = window.localStorage.getItem(draftKey); return r ? (JSON.parse(r) as Draft) : null } catch { return null }
   })
+  // Mensagem de saudação (Bom dia/Boa tarde/Boa noite + intro) — pré-preenchida e editável;
+  // É a INTRODUÇÃO completa da solução enviada ao cliente. Na criação, começa com a saudação
+  // por horário + o intro configurado do formulário; na edição, recupera o intro já salvo
+  // (sem re-saudar) para não perder nem duplicar texto no round-trip.
+  const defaultGreetingRef = useRef<string>(
+    initial
+      ? (initial.intro ?? '')
+      : [defaultGreetingMessage(), applyTokens(form.intro, tokens)].filter(Boolean).join('\n\n')
+  )
+  const [greeting, setGreeting] = useState<string>(() => draft?.greeting ?? defaultGreetingRef.current)
   const [restored, setRestored] = useState<boolean>(!!draft)
   const [editorKey, setEditorKey] = useState(0) // muda p/ remontar os RichEditor ao descartar
   const clearDraft = () => { if (draftKey && typeof window !== 'undefined') { try { window.localStorage.removeItem(draftKey) } catch { /* ignore */ } } }
@@ -193,17 +212,20 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     if (!draftKey || typeof window === 'undefined') return
     const snapVals: Record<string, string | boolean> = { ...vals }
     for (const f of form.fields) if (f.ftype === 'richtext') snapVals[f.key] = richRefs.current[f.key]?.getHtml() ?? ''
-    const hasContent = form.fields.some(f => {
+    const fieldsContent = form.fields.some(f => {
       if (f.ftype === 'title' || f.ftype === 'section') return false
       const v = snapVals[f.key]
       return typeof v === 'boolean' ? v : nonSpaceLen(String(v || '')) > 0
     })
+    // Saudação editada (diferente do padrão) também conta como rascunho a preservar.
+    const greetingCustomized = greeting !== defaultGreetingRef.current
+    const hasContent = fieldsContent || greetingCustomized
     try {
-      if (hasContent) window.localStorage.setItem(draftKey, JSON.stringify({ vals: snapVals, time: { workedDate, startTime, endTime, totalHours, noCharge } }))
+      if (hasContent) window.localStorage.setItem(draftKey, JSON.stringify({ vals: snapVals, greeting, time: { workedDate, startTime, endTime, totalHours, noCharge } }))
       else window.localStorage.removeItem(draftKey)
     } catch { /* quota/priv */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vals, workedDate, startTime, endTime, totalHours, noCharge, lens, editorKey])
+  }, [vals, greeting, workedDate, startTime, endTime, totalHours, noCharge, lens, editorKey])
 
   // Descartar rascunho: volta os campos ao valor original (sem rascunho) e remonta os editores.
   const discardDraft = () => {
@@ -211,6 +233,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
     const orig: Record<string, string | boolean> = {}
     for (const f of form.fields) { const saved = initial?.fields.find(x => x.key === f.key); orig[f.key] = saved ? saved.value : (f.ftype === 'checkbox' ? false : '') }
     setVals(orig)
+    setGreeting(defaultGreetingRef.current)
     setWorkedDate(initialTime?.worked_date || localToday())
     setStartTime(initialTime?.start_time || ''); setEndTime(initialTime?.end_time || ''); setTotalHours(initialTime?.total_hours || '')
     setNoCharge(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : !!initialTime?.no_charge))
@@ -277,8 +300,10 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
 
     // Tags resolvidas AGORA (grava o valor real na instância — o timeline/e-mail já saem prontos).
     const tk = (s: string | null | undefined) => applyTokens(s, tokens)
+    // Introdução da solução = mensagem de saudação editável (já inclui o intro do formulário).
+    const introText = greeting.trim() || null
     const inst: FormInstance = {
-      form_id: form.id, title: tk(form.title), subtitle: tk(form.subtitle), intro: tk(form.intro), show_logo: form.show_logo,
+      form_id: form.id, title: tk(form.title), subtitle: tk(form.subtitle), intro: introText, show_logo: form.show_logo,
       // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
       // Campos escalares nunca gravam null (senão renderiza "null" no resultado). Tags resolvidas no texto.
       fields: form.fields.map(f => ({ key: f.key, label: tk(f.label), hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : tk(String(values[f.key] ?? ''))) })),
@@ -303,7 +328,17 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
           </div>
         )}
         {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{applyTokens(form.subtitle, tokens)}</div>}
-        {form.intro && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--text-muted)' }}>{applyTokens(form.intro, tokens)}</p>}
+        {/* Mensagem de saudação editável — vira a introdução da solução enviada ao cliente. */}
+        <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <label className={lbl} style={{ color: 'var(--text)' }}>Mensagem de saudação</label>
+            <button type="button" className="text-[11px] font-semibold underline shrink-0" style={{ color: 'var(--text-light)' }}
+              onClick={() => setGreeting([defaultGreetingMessage(), applyTokens(form.intro, tokens)].filter(Boolean).join('\n\n'))}>Restaurar padrão</button>
+          </div>
+          <textarea rows={3} value={greeting} onChange={e => setGreeting(e.target.value)} className={`${fieldCls} w-full`} style={{ ...inputStyle, resize: 'vertical' }}
+            placeholder="Ex.: Bom dia! Segue abaixo a solução do seu chamado." />
+          <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Aparece no topo da solução enviada ao cliente. Edite à vontade ou deixe em branco para omitir.</p>
+        </div>
         {form.fields.map(f => {
           if (f.ftype === 'title') return (
             <div key={f.key} className="text-center py-1">
