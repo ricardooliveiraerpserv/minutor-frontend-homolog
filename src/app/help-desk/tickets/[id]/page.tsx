@@ -19,6 +19,7 @@ import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-moda
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
+import { ImageLightbox } from '@/components/help-desk/image-lightbox'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, sanitizeEmail, isHtmlBody } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
@@ -288,6 +289,9 @@ function TicketDetailInner({ id }: { id: number }) {
   const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
   const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
+  // Print aberto no lightbox (imagem grande sobre a tela, sem sair do chamado).
+  const [lightbox, setLightbox] = useState<{ src: string; alt?: string } | null>(null)
+  const openImg = useCallback((src: string, alt?: string) => setLightbox({ src, alt }), [])
   // Sanitização (DOMPurify) é CARA e roda por interação. Memoiza p/ rodar 1× quando as interações
   // mudam — não a cada re-render. Sem isso, os ~15 setState do mount re-sanitizavam as 40 interações
   // (HTML pesado do Movidesk) a cada render, travando a main thread por segundos.
@@ -1025,7 +1029,7 @@ function TicketDetailInner({ id }: { id: number }) {
                                   {isHtmlMotivo
                                     ? (pc?.complexHtml
                                         ? <EmailFrame html={pc?.email ?? ''} />
-                                        : <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} />)
+                                        : <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} onImageClick={openImg} />)
                                     : <div className="whitespace-pre-wrap">{motivo}</div>}
                                 </div>
                               )}
@@ -1036,9 +1040,9 @@ function TicketDetailInner({ id }: { id: number }) {
                                     const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                                     const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
                                     return isImg
-                                      ? <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                                      ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                           <img src={url} alt={nome} className="max-h-48 object-contain" />
-                                        </a>
+                                        </button>
                                       : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1.5" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
                                           <Paperclip size={12} /> {nome} {a.human_size ? `· ${a.human_size}` : ''}
                                         </a>
@@ -1125,7 +1129,7 @@ function TicketDetailInner({ id }: { id: number }) {
                             {complexHtml
                               ? <EmailFrame html={pc?.email ?? ''} />
                               : html
-                                ? <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} />
+                                ? <HdRichHtml className="hd-rich break-words" html={pc?.rich ?? ''} onImageClick={openImg} />
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
@@ -1137,9 +1141,9 @@ function TicketDetailInner({ id }: { id: number }) {
                               const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                               const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
                               return isImg
-                                ? <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                                ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                     <img src={url} alt={nome} className="max-h-48 object-contain" />
-                                  </a>
+                                  </button>
                                 : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1.5" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
                                     <Paperclip size={12} /> {nome} {a.human_size ? `· ${a.human_size}` : ''}
                                   </a>
@@ -1193,7 +1197,7 @@ function TicketDetailInner({ id }: { id: number }) {
                             {complexDescHtml
                               ? <EmailFrame html={descRendered.email} />
                               : descHtml
-                                ? <HdRichHtml className="hd-rich break-words" html={descRendered.rich} />
+                                ? <HdRichHtml className="hd-rich break-words" html={descRendered.rich} onImageClick={openImg} />
                                 : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}
@@ -1553,6 +1557,9 @@ function TicketDetailInner({ id }: { id: number }) {
           </div>
         </div>
       )}
+
+      {/* Print aberto em tela cheia (lightbox) — imagem maior, sem sair do chamado */}
+      {lightbox && <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
 
       {/* Customer 360 completo — Drawer lateral (não recarrega, mantém o chamado visível) */}
     </AppLayout>

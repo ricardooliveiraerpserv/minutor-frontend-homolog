@@ -9,13 +9,20 @@ import { fetchAuthedObjectUrl } from '@/lib/authed-image'
 //   <span data-att-id="123">📎 x</span> → chip clicável que abre o download autenticado do arquivo
 // Reusa fetchAuthedObjectUrl (mesmo mecanismo do AuthedImg: fetch com Bearer → object URL cacheado).
 // Sem data-att-id no HTML, é um dangerouslySetInnerHTML normal — zero custo extra.
-export function HdRichHtml({ html, className }: { html: string; className?: string }) {
+export function HdRichHtml({ html, className, onImageClick }: { html: string; className?: string; onImageClick?: (src: string, alt?: string) => void }) {
   const ref = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     const root = ref.current
     if (!root) return
     let alive = true
+    // Toda imagem inline (print colado ou anexo do Movidesk) abre o lightbox ao clicar.
+    if (onImageClick) {
+      root.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+        img.style.cursor = 'zoom-in'
+        img.onclick = (e) => { e.preventDefault(); onImageClick(img.currentSrc || img.src, img.alt || undefined) }
+      })
+    }
     const els = root.querySelectorAll<HTMLElement>('[data-att-id]')
     els.forEach((el) => {
       const id = el.getAttribute('data-att-id')
@@ -47,7 +54,7 @@ export function HdRichHtml({ html, className }: { html: string; className?: stri
       }
     })
     return () => { alive = false }
-  }, [html])
+  }, [html, onImageClick])
 
   return <div ref={ref} className={className} dangerouslySetInnerHTML={{ __html: html }} />
 }
