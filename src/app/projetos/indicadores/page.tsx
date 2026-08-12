@@ -15,7 +15,7 @@ type Health = 'ok' | 'risk' | 'late'
 type Row = {
   id: number; name: string; code: string | null; status: string
   customer: string | null; coordinators: string[]
-  has_baseline: boolean
+  has_baseline: boolean; using_live_plan?: boolean
   pct_planned: number | null; pct_real: number | null; spi: number | null; cpi: number | null
   hours_planned: number; hours_ev: number; hours_actual: number
   deliveries: number; done: number; overdue: number; overdue_pct: number
@@ -161,7 +161,7 @@ export default function PortfolioIndicadoresPage() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-          <Kpi label="Projetos" value={String(kpi.total)} tone="var(--text)" sub={kpi.semBase ? `${kpi.semBase} sem linha de base` : 'no filtro'} />
+          <Kpi label="Projetos" value={String(kpi.total)} tone="var(--text)" sub={kpi.semBase ? `${kpi.semBase} estimados (plano atual)` : 'no filtro'} />
           <Kpi label="No prazo" value={String(kpi.ok)} tone="var(--success)" sub="SPI ok, sem atraso" />
           <Kpi label="Em risco" value={String(kpi.risk)} tone="var(--warning)" sub="atenção" />
           <Kpi label="Atrasados" value={String(kpi.late)} tone="var(--danger)" sub="SPI<0,9 ou ≥20% atraso" />
@@ -235,12 +235,13 @@ export default function PortfolioIndicadoresPage() {
                   </td>
                   <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{r.customer ?? '—'}</td>
                   <td className="px-3 py-2.5 text-right">
-                    {r.has_baseline ? (
-                      <span style={{ color: 'var(--text)' }}>
+                    {(r.pct_real != null || r.pct_planned != null) ? (
+                      <span style={{ color: 'var(--text)' }} title={r.using_live_plan ? 'Estimado pelo plano atual (sem linha de base congelada)' : undefined}>
+                        {r.using_live_plan && <span style={{ color: 'var(--text-light)' }} title="estimado">≈ </span>}
                         <b style={{ color: (r.pct_real ?? 0) < (r.pct_planned ?? 0) ? 'var(--warning)' : 'var(--success)' }}>{fmtPct(r.pct_real)}</b>
                         <span style={{ color: 'var(--text-light)' }}> / {fmtPct(r.pct_planned)}</span>
                       </span>
-                    ) : <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-light)' }}><Snowflake size={11} /> sem base</span>}
+                    ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
                   </td>
                   <td className="px-3 py-2.5 text-right font-semibold" style={{ color: idxTone(r.spi) }}>
                     <span className="inline-flex items-center gap-1 justify-end">
@@ -268,9 +269,9 @@ export default function PortfolioIndicadoresPage() {
 }
 
 function ConsolidatedView({ filtered, curve, curveLoading, onOpen }: { filtered: Row[]; curve: CurvePt[]; curveLoading: boolean; onOpen: (id: number) => void }) {
-  const withBase = filtered.filter(r => r.has_baseline)
+  const withData = filtered.filter(r => r.hours_planned > 0)
   const sum = (f: (r: Row) => number) => filtered.reduce((a, r) => a + f(r), 0)
-  const sumB = (f: (r: Row) => number) => withBase.reduce((a, r) => a + f(r), 0)
+  const sumB = (f: (r: Row) => number) => withData.reduce((a, r) => a + f(r), 0)
   const bac = sumB(r => r.hours_planned)
   const ev = sumB(r => r.hours_ev)
   const ac = sumB(r => r.hours_actual)
@@ -286,7 +287,7 @@ function ConsolidatedView({ filtered, curve, curveLoading, onOpen }: { filtered:
   const late = filtered.filter(r => r.health === 'late').length
 
   const chartData = curve.map(p => ({ ...p, label: ddmm(p.date) }))
-  const worstSpi = withBase.filter(r => r.spi != null).sort((a, b) => (a.spi as number) - (b.spi as number)).slice(0, 6)
+  const worstSpi = withData.filter(r => r.spi != null).sort((a, b) => (a.spi as number) - (b.spi as number)).slice(0, 6)
   const mostOverdue = filtered.filter(r => r.overdue > 0).sort((a, b) => b.overdue_pct - a.overdue_pct || b.overdue - a.overdue).slice(0, 6)
   const donut = [
     { name: 'No prazo', value: ok, color: 'var(--success)' },
@@ -306,12 +307,12 @@ function ConsolidatedView({ filtered, curve, curveLoading, onOpen }: { filtered:
       <div className="ds-card p-4">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Curva-S consolidada · horas (PV/EV/AC)</span>
-          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{withBase.length} projeto(s) com linha de base</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{withData.length} projeto(s) com dados</span>
         </div>
         {curveLoading ? (
           <div style={{ height: 260 }} className="flex items-center justify-center text-sm" ><span style={{ color: 'var(--text-light)' }}>Carregando curva…</span></div>
         ) : chartData.length === 0 ? (
-          <div style={{ height: 260 }} className="flex items-center justify-center text-sm text-center px-4"><span style={{ color: 'var(--text-light)' }}>Nenhum projeto com linha de base congelada no filtro atual — congele a baseline nos projetos para ver a curva consolidada.</span></div>
+          <div style={{ height: 260 }} className="flex items-center justify-center text-sm text-center px-4"><span style={{ color: 'var(--text-light)' }}>Nenhum projeto com cronograma no filtro atual.</span></div>
         ) : (
           <div style={{ width: '100%', height: 260 }}>
             <ResponsiveContainer>

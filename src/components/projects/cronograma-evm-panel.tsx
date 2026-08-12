@@ -24,7 +24,7 @@ type Metrics = {
 type CostMetrics = { bac: number; pv: number; ev: number; ac: number; sv: number; cv: number; spi: number | null; cpi: number | null; eac: number | null; etc: number | null; vac: number | null }
 type CurvePoint = { date: string; pv: number | null; ev: number | null; ac: number | null; pv_cost?: number | null; ev_cost?: number | null; ac_cost?: number | null }
 type Baseline = { id: number; label: string; frozen_at: string | null; frozen_by?: string | null; planned_hours_total: number; planned_cost_total?: number; notes?: string | null }
-type Evm = { has_baseline: boolean; has_cost?: boolean; message?: string; baseline?: Baseline; as_of?: string; metrics?: Metrics; cost?: CostMetrics | null; curve?: CurvePoint[] }
+type Evm = { has_baseline: boolean; using_live_plan?: boolean; has_cost?: boolean; message?: string; baseline?: Baseline; as_of?: string; metrics?: Metrics; cost?: CostMetrics | null; curve?: CurvePoint[] }
 
 type FlowItem = { title: string; completed_at: string; lead_days: number; cycle_days: number | null }
 type Op = {
@@ -98,7 +98,7 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
 
   return (
     <div className="flex flex-col gap-3">
-      {data?.has_baseline ? evmBlock(data, canEdit, busy, freeze, unfreeze) : baselineCta(canEdit, busy, freeze)}
+      {(data?.has_baseline || data?.using_live_plan) ? evmBlock(data, canEdit, busy, freeze, unfreeze) : baselineCta(canEdit, busy, freeze)}
       {op && operationalBlock(op)}
       {confirmDialog}
     </div>
@@ -146,27 +146,43 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 flex-wrap text-[12px] px-3 py-2 rounded-lg"
-        style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-        <Snowflake size={13} style={{ color: 'var(--primary)' }} />
-        <span><b style={{ color: 'var(--text)' }}>{b?.label ?? 'Linha de base'}</b> · congelada em {fmtDate(b?.frozen_at)}{b?.frozen_by ? ` por ${b.frozen_by}` : ''}</span>
-        <span>· {fmtH(b?.planned_hours_total)} planejadas (BAC)</span>
-        <span className="ml-auto" />
-        {canEdit && (
-          <div className="inline-flex items-center gap-1.5">
+      {data.using_live_plan ? (
+        <div className="flex items-center gap-2 flex-wrap text-[12px] px-3 py-2 rounded-lg"
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+          <Info size={13} />
+          <span><b>Estimativa pelo plano atual</b> — sem linha de base congelada. Os índices mudam se você replanejar.</span>
+          <span className="ml-auto" />
+          {canEdit && (
             <button onClick={freeze} disabled={busy}
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
-              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Recongelar a linha de base com o plano atual">
-              <RefreshCw size={12} /> {busy ? '…' : 'Recongelar'}
+              style={{ border: '1px solid var(--warning-border)', color: 'var(--warning)' }} title="Congelar a linha de base para fixar a referência">
+              <Snowflake size={12} /> {busy ? '…' : 'Congelar linha de base'}
             </button>
-            <button onClick={unfreeze} disabled={busy}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
-              style={{ border: '1px solid var(--danger-border, var(--border))', color: 'var(--danger)' }} title="Remover a linha de base (desfazer o congelamento)">
-              <Trash2 size={12} /> Descongelar
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap text-[12px] px-3 py-2 rounded-lg"
+          style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+          <Snowflake size={13} style={{ color: 'var(--primary)' }} />
+          <span><b style={{ color: 'var(--text)' }}>{b?.label ?? 'Linha de base'}</b> · congelada em {fmtDate(b?.frozen_at)}{b?.frozen_by ? ` por ${b.frozen_by}` : ''}</span>
+          <span>· {fmtH(b?.planned_hours_total)} planejadas (BAC)</span>
+          <span className="ml-auto" />
+          {canEdit && (
+            <div className="inline-flex items-center gap-1.5">
+              <button onClick={freeze} disabled={busy}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Recongelar a linha de base com o plano atual">
+                <RefreshCw size={12} /> {busy ? '…' : 'Recongelar'}
+              </button>
+              <button onClick={unfreeze} disabled={busy}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
+                style={{ border: '1px solid var(--danger-border, var(--border))', color: 'var(--danger)' }} title="Remover a linha de base (desfazer o congelamento)">
+                <Trash2 size={12} /> Descongelar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="ds-card p-4">
         <div className="flex items-center justify-between mb-2">
