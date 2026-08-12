@@ -116,8 +116,8 @@ export default function IndicadoresProjetosPage() {
   const KPI = ({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: React.ReactNode; color: string }) => (
     <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}1a`, color }}>{icon}</div>
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider leading-tight" style={{ color: 'var(--text-light)' }}>{label}</p>
         <p className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>{value}</p>
       </div>
     </div>
