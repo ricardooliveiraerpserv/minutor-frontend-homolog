@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Snowflake, RefreshCw, Info, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Snowflake, RefreshCw, Info, TrendingUp, TrendingDown, Minus, Users, Timer } from 'lucide-react'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 
 /**
- * Painel de EVM (Earned Value Management) em HORAS do Cronograma.
- * Consome GET /projects/{id}/evm; congela a linha de base via POST /projects/{id}/baseline.
+ * Painel de indicadores do Cronograma — EVM em HORAS + operacionais.
+ * EVM (precisa de baseline): GET /projects/{id}/evm; congela via POST /projects/{id}/baseline.
+ * Operacionais (independem de baseline): GET /projects/{id}/operational-metrics.
  * Só horas + operacional (custo R$ = Fase 3). Semáforo do spec: ≥1 verde, 0,9–1 amarelo, <0,9 vermelho.
  */
 
@@ -23,6 +24,13 @@ type CurvePoint = { date: string; pv: number | null; ev: number | null; ac: numb
 type Baseline = { id: number; label: string; frozen_at: string | null; frozen_by?: string | null; planned_hours_total: number; notes?: string | null }
 type Evm = { has_baseline: boolean; message?: string; baseline?: Baseline; as_of?: string; metrics?: Metrics; curve?: CurvePoint[] }
 
+type FlowItem = { title: string; completed_at: string; lead_days: number; cycle_days: number | null }
+type Op = {
+  totals: { deliveries: number; done: number; overdue: number; overdue_pct: number }
+  productivity: { user_id: number; name: string; done_count: number; hours_done: number; hours_actual: number; efficiency: number | null }[]
+  flow: { count: number; lead_avg_days: number | null; cycle_avg_days: number | null; items: FlowItem[] }
+}
+
 type Tone = 'success' | 'warning' | 'danger' | 'neutral'
 const toneVar = (t: Tone) => t === 'success' ? 'var(--success)' : t === 'warning' ? 'var(--warning)' : t === 'danger' ? 'var(--danger)' : 'var(--text-light)'
 const idxTone = (v: number | null | undefined): Tone => v == null ? 'neutral' : v >= 1 ? 'success' : v >= 0.9 ? 'warning' : 'danger'
@@ -31,22 +39,29 @@ const varTone = (v: number | null | undefined): Tone => v == null ? 'neutral' : 
 const fmtH = (n: number | null | undefined) => { const v = Number(n); if (!Number.isFinite(v)) return '—'; return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}h` }
 const fmtIdx = (n: number | null | undefined) => n == null ? '—' : n.toFixed(2)
 const fmtSigned = (n: number | null | undefined) => { const v = Number(n); if (!Number.isFinite(v)) return '—'; const s = v > 0 ? '+' : ''; return `${s}${v >= 10 || v <= -10 ? Math.round(v) : Math.round(v * 10) / 10}h` }
+const fmtDays = (n: number | null | undefined) => n == null ? '—' : `${n >= 10 ? Math.round(n) : Math.round(n * 10) / 10}d`
 const ddmm = (iso: string) => { const d = new Date(iso); return isNaN(+d) ? iso : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` }
 const fmtDate = (iso?: string | null) => { if (!iso) return '—'; const d = new Date(iso); return isNaN(+d) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }
 
-const COL_PV = '#8b5cf6'  // planejado
-const COL_EV = '#22c55e'  // agregado (feito)
-const COL_AC = '#f59e0b'  // real (apontado)
+const COL_PV = '#8b5cf6'
+const COL_EV = '#22c55e'
+const COL_AC = '#f59e0b'
 
 export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; canEdit: boolean }) {
   const [data, setData] = useState<Evm | null>(null)
+  const [op, setOp] = useState<Op | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try { setData(await api.get<Evm>(`/projects/${projectId}/evm`)) }
-    catch (e) { toast.error(apiMessage(e, 'Erro ao carregar indicadores')) }
+    try {
+      const [evm, opr] = await Promise.all([
+        api.get<Evm>(`/projects/${projectId}/evm`),
+        api.get<Op>(`/projects/${projectId}/operational-metrics`).catch(() => null),
+      ])
+      setData(evm); setOp(opr)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao carregar indicadores')) }
     finally { setLoading(false) }
   }, [projectId])
 
@@ -60,55 +75,58 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
   }
 
   if (loading) {
-    return <div className="ds-card p-4 text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando indicadores de EVM…</div>
+    return <div className="ds-card p-4 text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando indicadores…</div>
   }
 
-  // Sem linha de base → chamada para ação (a fundação do EVM).
-  if (!data?.has_baseline) {
-    return (
-      <div className="ds-card p-5" style={{ borderLeft: '3px solid var(--primary)' }}>
-        <div className="flex items-start gap-3">
-          <Snowflake size={20} style={{ color: 'var(--primary)', marginTop: 2 }} />
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Congele a linha de base para habilitar o EVM</h3>
-            <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
-              O EVM compara o realizado com um plano de referência <b>congelado</b>. Ao congelar, guardamos as datas e horas
-              planejadas de cada etapa/atividade — depois disso o SPI/CPI passam a ter sentido, mesmo que o cronograma seja replanejado.
-            </p>
-            {canEdit ? (
-              <button onClick={freeze} disabled={busy}
-                className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg mt-3 disabled:opacity-60">
-                <Snowflake size={15} /> {busy ? 'Congelando…' : 'Congelar linha de base'}
-              </button>
-            ) : (
-              <p className="text-[12px] mt-3" style={{ color: 'var(--text-light)' }}>Peça a um coordenador para congelar a linha de base.</p>
-            )}
-          </div>
+  return (
+    <div className="flex flex-col gap-3">
+      {data?.has_baseline ? evmBlock(data, canEdit, busy, freeze) : baselineCta(canEdit, busy, freeze)}
+      {op && operationalBlock(op)}
+    </div>
+  )
+}
+
+// ——— EVM (precisa de baseline) ———
+
+function baselineCta(canEdit: boolean, busy: boolean, freeze: () => void) {
+  return (
+    <div className="ds-card p-5" style={{ borderLeft: '3px solid var(--primary)' }}>
+      <div className="flex items-start gap-3">
+        <Snowflake size={20} style={{ color: 'var(--primary)', marginTop: 2 }} />
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Congele a linha de base para habilitar o EVM</h3>
+          <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            O EVM compara o realizado com um plano de referência <b>congelado</b>. Ao congelar, guardamos as datas e horas
+            planejadas de cada etapa/atividade — depois disso o SPI/CPI passam a ter sentido, mesmo que o cronograma seja replanejado.
+          </p>
+          {canEdit ? (
+            <button onClick={freeze} disabled={busy}
+              className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg mt-3 disabled:opacity-60">
+              <Snowflake size={15} /> {busy ? 'Congelando…' : 'Congelar linha de base'}
+            </button>
+          ) : (
+            <p className="text-[12px] mt-3" style={{ color: 'var(--text-light)' }}>Peça a um coordenador para congelar a linha de base.</p>
+          )}
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
+function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void) {
   const m = data.metrics!
   const b = data.baseline
   const curve = (data.curve ?? []).map(p => ({ ...p, label: ddmm(p.date) }))
 
-  const cards: { label: string; value: string; tone: Tone; sub: string; trend?: 'up' | 'down' | 'flat' }[] = [
-    { label: 'SPI · Prazo', value: fmtIdx(m.spi), tone: idxTone(m.spi),
-      sub: m.spi == null ? 'sem dado' : m.spi >= 1 ? 'no ritmo ou adiantado' : 'atrás do planejado',
-      trend: m.spi == null ? 'flat' : m.spi >= 1 ? 'up' : 'down' },
-    { label: 'CPI · Esforço', value: fmtIdx(m.cpi), tone: idxTone(m.cpi),
-      sub: m.cpi == null ? 'sem apontamento' : m.cpi >= 1 ? 'dentro do esforço' : 'esforço acima do previsto',
-      trend: m.cpi == null ? 'flat' : m.cpi >= 1 ? 'up' : 'down' },
-    { label: 'SV · Prazo (horas)', value: fmtSigned(m.sv), tone: varTone(m.sv),
-      sub: m.sv >= 0 ? 'adiantado' : 'atrasado', trend: m.sv >= 0 ? 'up' : 'down' },
-    { label: 'CV · Esforço (horas)', value: fmtSigned(m.cv), tone: varTone(m.cv),
-      sub: m.cv >= 0 ? 'abaixo do previsto' : 'acima do previsto', trend: m.cv >= 0 ? 'up' : 'down' },
+  const cards: { label: string; value: string; tone: Tone; sub: string; trend: 'up' | 'down' | 'flat' }[] = [
+    { label: 'SPI · Prazo', value: fmtIdx(m.spi), tone: idxTone(m.spi), sub: m.spi == null ? 'sem dado' : m.spi >= 1 ? 'no ritmo ou adiantado' : 'atrás do planejado', trend: m.spi == null ? 'flat' : m.spi >= 1 ? 'up' : 'down' },
+    { label: 'CPI · Esforço', value: fmtIdx(m.cpi), tone: idxTone(m.cpi), sub: m.cpi == null ? 'sem apontamento' : m.cpi >= 1 ? 'dentro do esforço' : 'esforço acima do previsto', trend: m.cpi == null ? 'flat' : m.cpi >= 1 ? 'up' : 'down' },
+    { label: 'SV · Prazo (horas)', value: fmtSigned(m.sv), tone: varTone(m.sv), sub: m.sv >= 0 ? 'adiantado' : 'atrasado', trend: m.sv >= 0 ? 'up' : 'down' },
+    { label: 'CV · Esforço (horas)', value: fmtSigned(m.cv), tone: varTone(m.cv), sub: m.cv >= 0 ? 'abaixo do previsto' : 'acima do previsto', trend: m.cv >= 0 ? 'up' : 'down' },
   ]
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Faixa da linha de base */}
       <div className="flex items-center gap-2 flex-wrap text-[12px] px-3 py-2 rounded-lg"
         style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
         <Snowflake size={13} style={{ color: 'var(--primary)' }} />
@@ -124,7 +142,6 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
         )}
       </div>
 
-      {/* % Planejado vs Real */}
       <div className="ds-card p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>% Planejado vs Real</span>
@@ -137,7 +154,6 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
         <Bar label="Real (EV)" pct={m.pct_real ?? 0} hours={m.ev} color={COL_EV} />
       </div>
 
-      {/* Cards EVM */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         {cards.map(c => (
           <div key={c.label} className="ds-card px-3.5 py-3" style={{ borderLeft: `3px solid ${toneVar(c.tone)}` }}>
@@ -153,11 +169,10 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
         ))}
       </div>
 
-      {/* Curva-S PV / EV / AC */}
       <div className="ds-card p-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Curva-S · Valor Agregado (horas)</span>
-          <span className="text-[11px]" style={{ color: 'var(--text-light)' }} title="PV = planejado acumulado · EV = feito acumulado · AC = apontado acumulado">
+          <span title="PV = planejado acumulado · EV = feito acumulado · AC = apontado acumulado" style={{ color: 'var(--text-light)' }}>
             <Info size={12} style={{ display: 'inline', verticalAlign: '-1px' }} />
           </span>
         </div>
@@ -179,7 +194,6 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
             </LineChart>
           </ResponsiveContainer>
         </div>
-        {/* Resumo BAC / EAC / ETC */}
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
           <span>BAC <b style={{ color: 'var(--text)' }}>{fmtH(m.bac)}</b></span>
           <span title="Estimativa no término = BAC / CPI">EAC <b style={{ color: 'var(--text)' }}>{fmtH(m.eac)}</b></span>
@@ -187,6 +201,87 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
           <span title="Variação no término = BAC − EAC">VAC <b style={{ color: varTone(m.vac) }}>{fmtSigned(m.vac)}</b></span>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ——— Operacionais (independem de baseline) ———
+
+function operationalBlock(op: Op) {
+  const t = op.totals
+  const overdueTone: Tone = t.overdue_pct >= 20 ? 'danger' : t.overdue_pct > 0 ? 'warning' : 'success'
+  const maxActual = Math.max(1, ...op.productivity.map(p => p.hours_actual))
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Faixa operacional */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <MiniStat label="Atividades" value={`${t.done}/${t.deliveries}`} sub="concluídas" tone="neutral" />
+        <MiniStat label="% Atrasadas" value={`${t.overdue_pct}%`} sub={`${t.overdue} fora do prazo`} tone={overdueTone} />
+        <MiniStat label="Entregues" value={String(op.flow.count)} sub="no total" tone="neutral" />
+      </div>
+
+      {/* Produtividade da equipe */}
+      {op.productivity.length > 0 && (
+        <div className="ds-card p-4">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Users size={14} style={{ color: 'var(--text-light)' }} />
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Produtividade da equipe</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }} title="Eficiência = horas planejadas das atividades concluídas ÷ horas apontadas (≥1 = eficiente)">
+              <Info size={12} style={{ display: 'inline', verticalAlign: '-1px' }} />
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {op.productivity.map(p => (
+              <div key={p.user_id} className="flex items-center gap-3">
+                <div className="w-32 shrink-0 text-[13px] truncate" style={{ color: 'var(--text)' }} title={p.name}>{p.name}</div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-hover)', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.round((p.hours_actual / maxActual) * 100)}%`, height: '100%', background: 'var(--primary)', borderRadius: 999 }} />
+                  </div>
+                </div>
+                <div className="w-40 shrink-0 text-right text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                  {p.done_count} ativ. · {fmtH(p.hours_actual)}
+                </div>
+                <div className="w-16 shrink-0 text-right text-[12px] font-semibold"
+                  style={{ color: toneVar(idxTone(p.efficiency)) }} title="Eficiência (horas planejadas concluídas ÷ apontadas)">
+                  {p.efficiency == null ? '—' : `${p.efficiency.toFixed(2)}×`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lead / Cycle time */}
+      <div className="ds-card p-4">
+        <div className="flex items-center gap-1.5 mb-2.5">
+          <Timer size={14} style={{ color: 'var(--text-light)' }} />
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Tempo de entrega</span>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1 rounded-lg px-3 py-2.5" style={{ background: 'var(--surface-hover)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{fmtDays(op.flow.lead_avg_days)}</div>
+            <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Lead time médio</div>
+            <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>criação → conclusão</div>
+          </div>
+          <div className="flex-1 rounded-lg px-3 py-2.5" style={{ background: 'var(--surface-hover)' }}>
+            <div className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{fmtDays(op.flow.cycle_avg_days)}</div>
+            <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Cycle time médio</div>
+            <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>início → conclusão</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MiniStat({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: Tone }) {
+  return (
+    <div className="ds-card px-3.5 py-2.5" style={{ borderLeft: `3px solid ${toneVar(tone)}` }}>
+      <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{label}</div>
+      <div className="text-xl font-bold" style={{ color: tone === 'neutral' ? 'var(--text)' : toneVar(tone) }}>{value}</div>
+      <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{sub}</div>
     </div>
   )
 }
