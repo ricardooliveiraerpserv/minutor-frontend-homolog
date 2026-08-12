@@ -5,7 +5,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
-import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown } from 'lucide-react'
+import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown, LayoutList, Activity } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
 
 /** Portfólio de indicadores — todos os projetos com EVM (horas) + operacional, filtrável. */
 
@@ -30,10 +31,13 @@ const STATUS_OPTS = [
   { v: 'finished', label: 'Finalizados' }, { v: 'paused', label: 'Pausados' }, { v: 'cancelled', label: 'Cancelados' },
 ]
 
+type CurvePt = { date: string; pv: number | null; ev: number | null; ac: number | null }
+
 const idxTone = (v: number | null) => v == null ? 'var(--text-light)' : v >= 1 ? 'var(--success)' : v >= 0.9 ? 'var(--warning)' : 'var(--danger)'
 const fmtIdx = (v: number | null) => v == null ? '—' : v.toFixed(2)
 const fmtPct = (v: number | null) => v == null ? '—' : `${Math.round(v)}%`
 const fmtH = (v: number) => `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}h`
+const ddmm = (iso: string) => { const d = new Date(iso); return isNaN(+d) ? iso : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` }
 
 type SortKey = 'name' | 'customer' | 'pct_real' | 'spi' | 'cpi' | 'overdue_pct' | 'health'
 
@@ -48,6 +52,9 @@ export default function PortfolioIndicadoresPage() {
   const [saude, setSaude] = useState<'' | Health>('')
   const [onlyBaseline, setOnlyBaseline] = useState(false)
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'health', dir: 'asc' })
+  const [mode, setMode] = useState<'lista' | 'consolidado'>('lista')
+  const [curve, setCurve] = useState<CurvePt[]>([])
+  const [curveLoading, setCurveLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,6 +65,18 @@ export default function PortfolioIndicadoresPage() {
     finally { setLoading(false) }
   }, [status])
   useEffect(() => { load() }, [load])
+
+  // Curva-S consolidada (server): reflete os filtros de status + busca.
+  useEffect(() => {
+    if (mode !== 'consolidado') return
+    let alive = true
+    setCurveLoading(true)
+    api.get<{ curve: CurvePt[] }>(`/projects-portfolio/curve?status=${status}&search=${encodeURIComponent(search)}`)
+      .then(r => { if (alive) setCurve(r?.curve ?? []) })
+      .catch(() => { if (alive) setCurve([]) })
+      .finally(() => { if (alive) setCurveLoading(false) })
+    return () => { alive = false }
+  }, [mode, status, search])
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort() as string[], [rows])
   const coords = useMemo(() => Array.from(new Set(rows.flatMap(r => r.coordinators))).sort(), [rows])
@@ -110,10 +129,18 @@ export default function PortfolioIndicadoresPage() {
   return (
     <AppLayout title="Indicadores de Projetos">
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <BarChart3 size={20} style={{ color: 'var(--primary)' }} />
           <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Indicadores de Projetos</h1>
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({filtered.length})</span>
+          <div className="ml-auto inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            {([['lista', 'Lista', LayoutList], ['consolidado', 'Consolidado', Activity]] as const).map(([v, lbl, Icon]) => (
+              <button key={v} onClick={() => setMode(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
+                style={{ background: mode === v ? 'var(--primary)' : 'transparent', color: mode === v ? 'var(--primary-fg, #fff)' : 'var(--text-muted)' }}>
+                <Icon size={14} /> {lbl}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* KPIs */}
@@ -155,6 +182,7 @@ export default function PortfolioIndicadoresPage() {
         </div>
 
         {/* Tabela */}
+        {mode === 'lista' && (
         <div className="ds-card overflow-x-auto">
           <table className="w-full text-sm" style={{ minWidth: 900 }}>
             <thead>
@@ -209,8 +237,123 @@ export default function PortfolioIndicadoresPage() {
             </tbody>
           </table>
         </div>
+        )}
+
+        {mode === 'consolidado' && <ConsolidatedView filtered={filtered} curve={curve} curveLoading={curveLoading} onOpen={id => router.push(`/projetos/indicadores/${id}`)} />}
       </div>
     </AppLayout>
+  )
+}
+
+function ConsolidatedView({ filtered, curve, curveLoading, onOpen }: { filtered: Row[]; curve: CurvePt[]; curveLoading: boolean; onOpen: (id: number) => void }) {
+  const withBase = filtered.filter(r => r.has_baseline)
+  const sum = (f: (r: Row) => number) => filtered.reduce((a, r) => a + f(r), 0)
+  const sumB = (f: (r: Row) => number) => withBase.reduce((a, r) => a + f(r), 0)
+  const bac = sumB(r => r.hours_planned)
+  const ev = sumB(r => r.hours_ev)
+  const ac = sumB(r => r.hours_actual)
+  const pv = sumB(r => (r.pct_planned ?? 0) / 100 * r.hours_planned)
+  const spi = pv > 0 ? ev / pv : null
+  const cpi = ac > 0 ? ev / ac : null
+  const pctPlan = bac > 0 ? pv / bac * 100 : null
+  const pctReal = bac > 0 ? ev / bac * 100 : null
+  const deliveries = sum(r => r.deliveries), done = sum(r => r.done), overdue = sum(r => r.overdue)
+  const overduePct = deliveries > 0 ? overdue / deliveries * 100 : 0
+  const ok = filtered.filter(r => r.health === 'ok').length
+  const risk = filtered.filter(r => r.health === 'risk').length
+  const late = filtered.filter(r => r.health === 'late').length
+
+  const chartData = curve.map(p => ({ ...p, label: ddmm(p.date) }))
+  const worstSpi = withBase.filter(r => r.spi != null).sort((a, b) => (a.spi as number) - (b.spi as number)).slice(0, 6)
+  const mostOverdue = filtered.filter(r => r.overdue > 0).sort((a, b) => b.overdue_pct - a.overdue_pct || b.overdue - a.overdue).slice(0, 6)
+  const donut = [
+    { name: 'No prazo', value: ok, color: 'var(--success)' },
+    { name: 'Em risco', value: risk, color: 'var(--warning)' },
+    { name: 'Atrasado', value: late, color: 'var(--danger)' },
+  ].filter(d => d.value > 0)
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <Kpi label="% Real vs Planejado" value={`${fmtPct(pctReal)} / ${fmtPct(pctPlan)}`} tone={(pctReal ?? 0) < (pctPlan ?? 0) ? 'var(--warning)' : 'var(--success)'} sub="carteira (horas)" />
+        <Kpi label="SPI carteira" value={fmtIdx(spi)} tone={idxTone(spi)} sub="prazo · EV/PV" />
+        <Kpi label="CPI carteira" value={fmtIdx(cpi)} tone={idxTone(cpi)} sub="esforço · EV/AC" />
+        <Kpi label="% Atrasadas" value={`${Math.round(overduePct)}%`} tone={overduePct >= 20 ? 'var(--danger)' : overduePct > 0 ? 'var(--warning)' : 'var(--success)'} sub={`${overdue} de ${deliveries} atividades`} />
+      </div>
+
+      <div className="ds-card p-4">
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Curva-S consolidada · horas (PV/EV/AC)</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{withBase.length} projeto(s) com linha de base</span>
+        </div>
+        {curveLoading ? (
+          <div style={{ height: 260 }} className="flex items-center justify-center text-sm" ><span style={{ color: 'var(--text-light)' }}>Carregando curva…</span></div>
+        ) : chartData.length === 0 ? (
+          <div style={{ height: 260 }} className="flex items-center justify-center text-sm text-center px-4"><span style={{ color: 'var(--text-light)' }}>Nenhum projeto com linha de base congelada no filtro atual — congele a baseline nos projetos para ver a curva consolidada.</span></div>
+        ) : (
+          <div style={{ width: '100%', height: 260 }}>
+            <ResponsiveContainer>
+              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-light)' }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} minTickGap={24} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-light)' }} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `${Math.round(v)}h`} />
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} labelStyle={{ color: 'var(--text-muted)' }}
+                  formatter={(value, name) => [value == null ? '—' : fmtH(Number(value)), name === 'pv' ? 'Planejado (PV)' : name === 'ev' ? 'Feito (EV)' : 'Apontado (AC)']} />
+                <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v) => v === 'pv' ? 'Planejado (PV)' : v === 'ev' ? 'Feito (EV)' : 'Apontado (AC)'} />
+                <Line type="monotone" dataKey="pv" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                <Line type="monotone" dataKey="ev" stroke="#22c55e" strokeWidth={2} dot={false} connectNulls={false} />
+                <Line type="monotone" dataKey="ac" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          <span>BAC <b style={{ color: 'var(--text)' }}>{fmtH(bac)}</b></span>
+          <span>EV <b style={{ color: 'var(--text)' }}>{fmtH(ev)}</b></span>
+          <span>AC <b style={{ color: 'var(--text)' }}>{fmtH(ac)}</b></span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        <div className="ds-card p-4">
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Saúde da carteira</span>
+          <div style={{ width: '100%', height: 170 }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={42} outerRadius={66} paddingAngle={2}>
+                  {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center gap-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            <span><span style={{ color: 'var(--success)' }}>●</span> {ok} no prazo</span>
+            <span><span style={{ color: 'var(--warning)' }}>●</span> {risk} risco</span>
+            <span><span style={{ color: 'var(--danger)' }}>●</span> {late} atraso</span>
+          </div>
+        </div>
+
+        <RankCard title="Piores SPI (prazo)" rows={worstSpi} onOpen={onOpen} value={r => fmtIdx(r.spi)} tone={r => idxTone(r.spi)} />
+        <RankCard title="Mais atrasadas" rows={mostOverdue} onOpen={onOpen} value={r => `${r.overdue_pct}%`} tone={r => r.overdue_pct >= 20 ? 'var(--danger)' : 'var(--warning)'} />
+      </div>
+    </div>
+  )
+}
+
+function RankCard({ title, rows, onOpen, value, tone }: { title: string; rows: Row[]; onOpen: (id: number) => void; value: (r: Row) => string; tone: (r: Row) => string }) {
+  return (
+    <div className="ds-card p-4">
+      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{title}</span>
+      <div className="flex flex-col mt-2">
+        {rows.length === 0 ? <span className="text-[12px]" style={{ color: 'var(--text-light)' }}>—</span> : rows.map(r => (
+          <button key={r.id} onClick={() => onOpen(r.id)} className="flex items-center justify-between gap-2 py-1.5 text-sm ds-row-hover rounded px-1 text-left">
+            <span className="truncate" style={{ color: 'var(--text)' }}>{r.name}</span>
+            <span className="font-semibold shrink-0" style={{ color: tone(r) }}>{value(r)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
