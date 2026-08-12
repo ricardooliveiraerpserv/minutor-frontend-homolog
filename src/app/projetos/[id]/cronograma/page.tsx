@@ -18,6 +18,7 @@ import { OperacaoView } from './views/operacao'
 import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
 import { IndicadoresView } from './views/indicadores'
+import { CronogramaEvmPanel } from '@/components/projects/cronograma-evm-panel'
 import { CronogramaSettingsModal } from '@/components/projects/cronograma-settings-modal'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
@@ -601,7 +602,10 @@ function InternalCronogramaPage() {
           />
         )}
         {view === 'indicadores' && (
-          <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
+          <div className="flex flex-col gap-3">
+            <CronogramaEvmPanel projectId={projectId} canEdit={canEdit} />
+            <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
+          </div>
         )}
       </div>
       <style jsx>{`
