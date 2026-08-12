@@ -25,7 +25,6 @@ type Evm = { has_baseline: boolean; message?: string; baseline?: Baseline; as_of
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral'
 const toneVar = (t: Tone) => t === 'success' ? 'var(--success)' : t === 'warning' ? 'var(--warning)' : t === 'danger' ? 'var(--danger)' : 'var(--text-light)'
-const toneBg = (t: Tone) => t === 'success' ? 'var(--success-bg)' : t === 'warning' ? 'var(--warning-bg)' : t === 'danger' ? 'var(--danger-bg)' : 'var(--surface-2, var(--surface-hover))'
 const idxTone = (v: number | null | undefined): Tone => v == null ? 'neutral' : v >= 1 ? 'success' : v >= 0.9 ? 'warning' : 'danger'
 const varTone = (v: number | null | undefined): Tone => v == null ? 'neutral' : v >= 0 ? 'success' : 'danger'
 
