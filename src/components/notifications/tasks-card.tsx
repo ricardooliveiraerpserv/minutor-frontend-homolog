@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw } from 'lucide-react'
+import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw, CalendarDays } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { RoutinesPanel } from '@/components/notifications/routines-panel'
 
@@ -12,7 +12,7 @@ export const CAN_DELEGATE = ['admin', 'coordenador', 'administrativo']
 interface Task {
   id: number; title: string; description: string | null
   due_date: string | null; due_time: string | null; completed: boolean
-  type: string; priority: string; entity_type: string | null; entity_id: number | null; entity_label: string | null
+  type: string; priority: string; entity_type: string | null; entity_id: number | null; entity_label: string | null; entity_date: string | null
   recurrence_type: string; recurrence_interval: number; recurrence_weekdays: number[]; recurrence_end_date: string | null
   created_by: number | null; created_name: string | null; assigned_to: number | null; assigned_name: string | null
   completed_name: string | null; completed_at: string | null
@@ -26,13 +26,19 @@ const TYPE_L: Record<string, string> = { pessoal: 'Pessoal', cliente: 'Cliente',
 const PRIO_L: Record<string, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
 const PRIO_COLOR: Record<string, string> = { baixa: 'var(--text-light)', media: 'var(--warning-border)', alta: 'var(--danger-border)' }
 const RECUR_L: Record<string, string> = { none: 'Não repetir', daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }
-const ENT_L: Record<string, string> = { customer: 'Cliente', project: 'Projeto', contract: 'Contrato' }
+const ENT_L: Record<string, string> = { customer: 'Cliente', project: 'Projeto', contract: 'Contrato', meeting: 'Reunião' }
 const inputStyle = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none w-full'
 const lbl = 'text-[11px] font-semibold block mb-0.5'
 
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+/** Data/hora da reunião ("YYYY-MM-DD HH:mm" wall-clock UTC → "dd/mm/aaaa HH:mm", sem hora se 00:00). */
+const meetingWhen = (s: string) => {
+  const d = `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`
+  const hm = s.slice(11, 16)
+  return hm && hm !== '00:00' ? `${d} ${hm}` : d
+}
 function recurLabel(t: Task): string {
   const wd = t.recurrence_weekdays ?? []
   if (t.recurrence_type === 'daily') return wd.length >= 5 ? 'Diária (dias úteis)' : 'Diária'
@@ -103,7 +109,7 @@ export function TasksCard({ onChanged }: { onChanged?: () => void } = {}) {
   // Tarefa "vazia" p/ o modal de criação (todas as configs).
   const newTask = (): Task => ({
     id: 0, title: draft.trim(), description: null, due_date: null, due_time: null, completed: false,
-    type: 'pessoal', priority: 'media', entity_type: null, entity_id: null, entity_label: null,
+    type: 'pessoal', priority: 'media', entity_type: null, entity_id: null, entity_label: null, entity_date: null,
     recurrence_type: 'none', recurrence_interval: 1, recurrence_weekdays: [], recurrence_end_date: null,
     created_by: user?.id ?? null, created_name: user?.name ?? null, assigned_to: user?.id ?? null, assigned_name: user?.name ?? '',
     completed_name: null, completed_at: null, is_creator: true, is_assignee: true, delegated: false,
@@ -201,6 +207,7 @@ function Row({ t, onToggle, onEdit, onDelete, onRename }: { t: Task; onToggle: (
   const isToday = !t.completed && t.due_date === today && !overdue
   const isFuture = !t.completed && !!t.due_date && t.due_date > today
   const entKind = t.entity_type ? ENT_L[t.entity_type] : null
+  const isMeeting = t.entity_type === 'meeting'
 
   return (
     <div className="group flex items-start gap-2 px-2 py-1.5 rounded-lg transition-colors"
@@ -233,13 +240,23 @@ function Row({ t, onToggle, onEdit, onDelete, onRename }: { t: Task; onToggle: (
         {t.delegated && t.is_creator && t.assigned_name && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>Responsável: {t.assigned_name}</div>}
         {t.delegated && t.is_assignee && t.created_name && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>Criado por: {t.created_name}</div>}
 
-        {/* Vínculo: Cliente: Nome / Projeto: Nome */}
-        {entKind && t.entity_label && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{entKind}: {t.entity_label}</div>}
+        {/* Origem: reunião (destacada, com a data da reunião) ou vínculo Cliente/Projeto/Contrato */}
+        {isMeeting ? (
+          <div className="text-[11px] mt-0.5 rounded-md px-1.5 py-1" style={{ background: 'var(--primary-soft)' }}>
+            <div className="flex items-center gap-1 font-semibold min-w-0" style={{ color: 'var(--primary)' }}>
+              <CalendarDays size={11} className="shrink-0" />
+              <span className="truncate">Reunião{t.entity_label ? `: ${t.entity_label}` : ''}</span>
+            </div>
+            {t.entity_date && <div style={{ color: 'var(--text-muted)' }}>Realizada em {meetingWhen(t.entity_date)}</div>}
+          </div>
+        ) : (
+          entKind && t.entity_label && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{entKind}: {t.entity_label}</div>
+        )}
 
-        {/* Tipo • Data • Hora (data muted se futuro) */}
+        {/* Tipo/Prazo • Data • Hora (data muted se futuro) */}
         <div className="text-[11px] truncate" style={{ color: 'var(--text-light)' }}>
-          {TYPE_L[t.type] ?? t.type}
-          {t.due_date && <span style={{ color: isFuture ? 'var(--text-muted)' : 'var(--text-light)' }}> • {ddmm(t.due_date)}</span>}
+          {isMeeting ? 'Prazo' : (TYPE_L[t.type] ?? t.type)}
+          {t.due_date && <span style={{ color: isFuture ? 'var(--text-muted)' : 'var(--text-light)' }}>{isMeeting ? ': ' : ' • '}{ddmm(t.due_date)}</span>}
           {t.due_time && <span> • {t.due_time}</span>}
         </div>
 
