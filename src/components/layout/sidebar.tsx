@@ -120,6 +120,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   // 🛠 Serviços
   ['/contratos/pipeline', 'servicos'],
   ['/investimento-comercial', 'servicos'],
+  ['/projetos/indicadores', 'servicos'],
   ['/sustentacao', 'servicos'],
   ['/timesheets', 'servicos'],
   ['/expenses', 'servicos'],
@@ -262,6 +263,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Demandas e Projetos',  href: '/contratos/pipeline',     icon: Layers },
       { label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp },
+      { label: 'Indicadores de Projetos', href: '/projetos/indicadores', icon: BarChart2 },
     ],
   },
   {
