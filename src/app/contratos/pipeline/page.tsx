@@ -646,7 +646,7 @@ const CONTRACT_MENU_ITEMS = [
 ]
 
 const PROJECT_MENU_ITEMS = [
-  { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: false },
+  { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: true },
   { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
   // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
   { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
@@ -4424,6 +4424,7 @@ function KanbanContent() {
     if (card) {
       const wantsChat = searchParams.get('tab') === 'chat'
         || (typeof window !== 'undefined' && window.location.hash === '#chat')
+      if (isCliente && !wantsChat) { router.push(`/portal-cliente/projetos/${card.id}`); return }
       setProjectAction({ card, action: wantsChat ? 'chat' : 'view' })
       const url = new URL(window.location.href)
       url.searchParams.delete('project')
@@ -5624,8 +5625,8 @@ function KanbanContent() {
                   unreadContractIds={unreadContractIds}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
-                  onProjectClick={(card) => { if (!isCliente) setStagesPanelProject(card) }}
-                  onProjectAction={(card, action) => setProjectAction({ card, action })}
+                  onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
+                  onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
                       ? setPlanDecisionCard(card)
@@ -5673,8 +5674,8 @@ function KanbanContent() {
                       }
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
-                    onProjectClick={(card) => { if (!isCliente) setStagesPanelProject(card) }}
-                    onProjectAction={(card, action) => setProjectAction({ card, action })}
+                    onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
+                    onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
@@ -5698,11 +5699,11 @@ function KanbanContent() {
                   newProjectIds={col.id === 'em_andamento' ? newProjectIds : undefined}
                   onContractClick={setSelectedContract}
                   onProjectClick={card => {
-                    if (isCliente) return
+                    if (isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return }
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
                     setStagesPanelProject(card)
                   }}
-                  onProjectAction={(card, action) => setProjectAction({ card, action })}
+                  onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
                   onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
                   getProjectCols={getAvailableProjectCols}
                 />
