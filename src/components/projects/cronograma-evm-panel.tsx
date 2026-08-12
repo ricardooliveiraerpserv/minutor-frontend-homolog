@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Snowflake, RefreshCw, Info, TrendingUp, TrendingDown, Minus, Users, Timer } from 'lucide-react'
+import { Snowflake, RefreshCw, Info, TrendingUp, TrendingDown, Minus, Users, Timer, Trash2 } from 'lucide-react'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -77,13 +77,21 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
     finally { setBusy(false) }
   }
 
+  const unfreeze = async () => {
+    if (!window.confirm('Remover a linha de base? Os indicadores de EVM (SPI/CPI/curva-S) ficam indisponíveis até você congelar de novo. Os dados de progresso não são afetados.')) return
+    setBusy(true)
+    try { await api.delete(`/projects/${projectId}/baseline`); toast.success('Linha de base removida.'); await load() }
+    catch (e) { toast.error(apiMessage(e, 'Erro ao remover a linha de base')) }
+    finally { setBusy(false) }
+  }
+
   if (loading) {
     return <div className="ds-card p-4 text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando indicadores…</div>
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {data?.has_baseline ? evmBlock(data, canEdit, busy, freeze) : baselineCta(canEdit, busy, freeze)}
+      {data?.has_baseline ? evmBlock(data, canEdit, busy, freeze, unfreeze) : baselineCta(canEdit, busy, freeze)}
       {op && operationalBlock(op)}
     </div>
   )
@@ -116,7 +124,7 @@ function baselineCta(canEdit: boolean, busy: boolean, freeze: () => void) {
   )
 }
 
-function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void) {
+function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void, unfreeze: () => void) {
   const m = data.metrics!
   const b = data.baseline
   const curve = (data.curve ?? []).map(p => ({ ...p, label: ddmm(p.date) }))
@@ -137,11 +145,18 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
         <span>· {fmtH(b?.planned_hours_total)} planejadas (BAC)</span>
         <span className="ml-auto" />
         {canEdit && (
-          <button onClick={freeze} disabled={busy}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
-            style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Recongelar a linha de base com o plano atual">
-            <RefreshCw size={12} /> {busy ? 'Recongelando…' : 'Recongelar'}
-          </button>
+          <div className="inline-flex items-center gap-1.5">
+            <button onClick={freeze} disabled={busy}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }} title="Recongelar a linha de base com o plano atual">
+              <RefreshCw size={12} /> {busy ? '…' : 'Recongelar'}
+            </button>
+            <button onClick={unfreeze} disabled={busy}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md ds-row-hover disabled:opacity-60"
+              style={{ border: '1px solid var(--danger-border, var(--border))', color: 'var(--danger)' }} title="Remover a linha de base (desfazer o congelamento)">
+              <Trash2 size={12} /> Descongelar
+            </button>
+          </div>
         )}
       </div>
 
