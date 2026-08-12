@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { Snowflake, RefreshCw, Info, TrendingUp, TrendingDown, Minus, Users, Timer, Trash2 } from 'lucide-react'
 import { api, apiMessage } from '@/lib/api'
+import { useConfirm } from '@/components/ui/use-confirm'
 import { toast } from 'sonner'
 
 /**
@@ -55,6 +56,7 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
   const [op, setOp] = useState<Op | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const { confirm, confirmDialog } = useConfirm()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -78,7 +80,12 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
   }
 
   const unfreeze = async () => {
-    if (!window.confirm('Remover a linha de base? Os indicadores de EVM (SPI/CPI/curva-S) ficam indisponíveis até você congelar de novo. Os dados de progresso não são afetados.')) return
+    const ok = await confirm({
+      title: 'Descongelar linha de base',
+      message: 'Remover a linha de base? Os indicadores de EVM (SPI/CPI/curva-S) ficam indisponíveis até você congelar de novo. Os dados de progresso e apontamentos não são afetados.',
+      danger: true, confirmLabel: 'Descongelar', cancelLabel: 'Cancelar',
+    })
+    if (!ok) return
     setBusy(true)
     try { await api.delete(`/projects/${projectId}/baseline`); toast.success('Linha de base removida.'); await load() }
     catch (e) { toast.error(apiMessage(e, 'Erro ao remover a linha de base')) }
@@ -93,6 +100,7 @@ export function CronogramaEvmPanel({ projectId, canEdit }: { projectId: number; 
     <div className="flex flex-col gap-3">
       {data?.has_baseline ? evmBlock(data, canEdit, busy, freeze, unfreeze) : baselineCta(canEdit, busy, freeze)}
       {op && operationalBlock(op)}
+      {confirmDialog}
     </div>
   )
 }
