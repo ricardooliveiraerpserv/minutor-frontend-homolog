@@ -176,7 +176,7 @@ export default function PortfolioIndicadoresPage() {
                 <tr><td colSpan={8} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="ds-row-hover cursor-pointer" style={{ borderBottom: '1px solid var(--border)' }}
-                  onClick={() => router.push(`/projetos/${r.id}/cronograma?view=indicadores`)}>
+                  onClick={() => router.push(`/projetos/${r.id}/indicadores`)}>
                   <td className="px-3 py-2.5">
                     <div className="font-medium" style={{ color: 'var(--text)' }}>{r.name}</div>
                     <div className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
