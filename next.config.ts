@@ -8,6 +8,7 @@ const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
 // caía em 'production' e ficava sem banner/favicon de dev — parecia prod.)
 const APP_ENV =
   BACKEND_URL.includes('localhost') || BACKEND_URL.includes('127.0.0.1') ? 'dev' :
+  BACKEND_URL.includes('-dev2.onrender.com') ? 'teste' :
   BACKEND_URL.includes('-dev.onrender.com') ? 'dev' :
   BACKEND_URL.includes('onrender.com')      ? 'homolog' :
                                               'production'

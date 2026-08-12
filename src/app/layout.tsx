@@ -42,6 +42,7 @@ export const viewport: Viewport = {
 // Banner de ambiente — NUNCA renderiza em produção. Texto definido por env.
 const ENV_BANNER_TEXT =
   APP_ENV === 'dev'     ? 'DEV — DADOS COPIADOS DE PROD' :
+  APP_ENV === 'teste'   ? 'BASE TESTE — DADOS COPIADOS DE PROD' :
   APP_ENV === 'homolog' ? 'HOMOLOG — ambiente de validação' :
   APP_ENV === 'local'   ? 'REPLICA — DADOS COPIADOS DE PROD • localhost:3001' :
                           null
@@ -58,8 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               left: 0,
               right: 0,
               zIndex: 9999,
-              background: 'linear-gradient(90deg, #f59e0b 0%, #ef4444 50%, #f59e0b 100%)',
-              color: '#0a0a0a',
+              background: APP_ENV === 'teste' ? '#2563EB' : 'linear-gradient(90deg, #f59e0b 0%, #ef4444 50%, #f59e0b 100%)',
+              color: APP_ENV === 'teste' ? '#fff' : '#0a0a0a',
               fontWeight: 700,
               fontSize: 12,
               letterSpacing: '0.15em',

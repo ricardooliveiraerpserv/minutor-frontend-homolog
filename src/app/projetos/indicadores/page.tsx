@@ -49,6 +49,7 @@ export default function IndicadoresProjetosPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
   const [clientFilter, setClientFilter] = useState<string>('')
+  const [view, setView] = useState<'consolidado' | 'projeto'>('consolidado')
 
   useEffect(() => {
     setLoading(true)
@@ -148,13 +149,25 @@ export default function IndicadoresProjetosPage() {
             <p className="text-xs" style={{ color: 'var(--text-light)' }}>Visão em dashboards de Demandas e Projetos</p>
           </div>
         </div>
-        {/* Filtro cliente */}
-        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-          className="text-sm rounded-xl px-3 py-2 outline-none"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-          <option value="">Todos os clientes</option>
-          {clients.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Toggle Consolidado / Por Projeto */}
+          <div className="flex rounded-xl p-0.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+            {(['consolidado', 'projeto'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
+                style={view === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}>
+                {v === 'consolidado' ? 'Consolidado' : 'Por Projeto'}
+              </button>
+            ))}
+          </div>
+          {/* Filtro cliente */}
+          <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
+            className="text-sm rounded-xl px-3 py-2 outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <option value="">Todos os clientes</option>
+            {clients.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Filtro de status (chips) */}
@@ -197,6 +210,7 @@ export default function IndicadoresProjetosPage() {
             <KPI icon={<CalendarClock size={18} />}label="Prazo vencido"     value={fmtNum(vencidos)} color="#f97316" />
           </div>
 
+          {view === 'consolidado' && <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Status dos Projetos */}
             <Card2 title="Status dos Projetos" sub={`${total} projeto(s)`}>
@@ -322,6 +336,62 @@ export default function IndicadoresProjetosPage() {
               </table>
             </div>
           </Card2>
+          </>}
+
+          {view === 'projeto' && (
+            <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Indicadores por Projeto <span className="text-[11px] font-normal" style={{ color: 'var(--text-light)' }}>· {filtered.length} projeto(s)</span></p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead>
+                    <tr className="text-left" style={{ color: 'var(--text-light)' }}>
+                      <th className="py-2 pr-3 font-medium text-xs uppercase tracking-wider">Projeto</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Cliente</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Status</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Criticidade</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider text-center">Entrega</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider text-right">Horas</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Início</th>
+                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Previsão</th>
+                      <th className="py-2 pl-3 font-medium text-xs uppercase tracking-wider text-right">Prazo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((p, i) => {
+                      const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
+                      const hk = healthOf(Number(p.sold_hours ?? 0), Number(p.consumed_hours ?? 0))
+                      const h = HEALTH.find(x => x.key === hk)!
+                      const del = Math.round(Number(p.delivery_percentage ?? 0))
+                      const dt = daysTo(p.expected_end_date)
+                      const sold = Number(p.sold_hours ?? 0), cons = Number(p.consumed_hours ?? 0)
+                      return (
+                        <tr key={p.id ?? i} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td className="py-2 pr-3">
+                            <p className="font-medium truncate max-w-[240px]" style={{ color: 'var(--text)' }}>{p.project_name || '—'}</p>
+                            <p className="text-[11px] font-mono" style={{ color: 'var(--text-light)' }}>{p.code}</p>
+                          </td>
+                          <td className="py-2 px-3 truncate max-w-[150px]" style={{ color: 'var(--text-muted)' }}>{p.customer_name}</td>
+                          <td className="py-2 px-3"><span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ background: `${col?.color}22`, color: col?.color }}>{col?.label}</span></td>
+                          <td className="py-2 px-3"><span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={{ background: `${h.color}1a`, color: h.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: h.color }} />{h.label}</span></td>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}><div className="h-full rounded-full" style={{ width: `${del}%`, background: del >= 100 ? '#22c55e' : 'var(--primary)' }} /></div>
+                              <span className="text-[11px] tabular-nums w-8" style={{ color: 'var(--text-muted)' }}>{del}%</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{cons.toFixed(1)}/{sold.toFixed(1)}h</td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.start_date)}</td>
+                          <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.expected_end_date)}</td>
+                          <td className="py-2 pl-3 text-right whitespace-nowrap">{dt === null ? '—' : <span className="text-xs font-medium" style={{ color: dt < 0 ? '#ef4444' : dt <= 7 ? '#f97316' : 'var(--text-light)' }}>{dt < 0 ? `venceu há ${Math.abs(dt)}d` : dt === 0 ? 'hoje' : `em ${dt}d`}</span>}</td>
+                        </tr>
+                      )
+                    })}
+                    {filtered.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
