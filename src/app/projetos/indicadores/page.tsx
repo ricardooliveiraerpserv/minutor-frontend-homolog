@@ -50,6 +50,7 @@ export default function IndicadoresProjetosPage() {
   const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
   const [clientFilter, setClientFilter] = useState<string>('')
   const [view, setView] = useState<'consolidado' | 'projeto'>('consolidado')
+  const [selected, setSelected] = useState<Card | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -300,7 +301,9 @@ export default function IndicadoresProjetosPage() {
                     const dt = daysTo(p.expected_end_date)
                     const del = Math.round(Number(p.delivery_percentage ?? 0))
                     return (
-                      <tr key={p.id ?? i} style={{ borderTop: '1px solid var(--border)' }}>
+                      <tr key={p.id ?? i} onClick={() => setSelected(p)} className="cursor-pointer transition-colors hover:brightness-95" style={{ borderTop: '1px solid var(--border)', background: 'transparent' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                         <td className="py-2 pr-3">
                           <p className="font-medium truncate max-w-[220px]" style={{ color: 'var(--text)' }}>{p.project_name || '—'}</p>
                           <p className="text-[11px] font-mono" style={{ color: 'var(--text-light)' }}>{p.code}</p>
@@ -365,7 +368,9 @@ export default function IndicadoresProjetosPage() {
                       const dt = daysTo(p.expected_end_date)
                       const sold = Number(p.sold_hours ?? 0), cons = Number(p.consumed_hours ?? 0)
                       return (
-                        <tr key={p.id ?? i} style={{ borderTop: '1px solid var(--border)' }}>
+                        <tr key={p.id ?? i} onClick={() => setSelected(p)} className="cursor-pointer transition-colors hover:brightness-95" style={{ borderTop: '1px solid var(--border)', background: 'transparent' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                           <td className="py-2 pr-3">
                             <p className="font-medium truncate max-w-[240px]" style={{ color: 'var(--text)' }}>{p.project_name || '—'}</p>
                             <p className="text-[11px] font-mono" style={{ color: 'var(--text-light)' }}>{p.code}</p>
@@ -394,6 +399,75 @@ export default function IndicadoresProjetosPage() {
           )}
         </>
       )}
+
+      {/* Modal: indicadores do projeto selecionado */}
+      {selected && (() => {
+        const p = selected
+        const sold = Number(p.sold_hours ?? 0), cons = Number(p.consumed_hours ?? 0)
+        const saldo = Math.round((sold - cons) * 100) / 100
+        const pctCons = sold > 0 ? Math.min(100, Math.round((cons / sold) * 100)) : 0
+        const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
+        const hk = healthOf(sold, cons); const h = HEALTH.find(x => x.key === hk)!
+        const del = Math.round(Number(p.delivery_percentage ?? 0))
+        const dt = daysTo(p.expected_end_date)
+        const Box = ({ label, value, color, bar }: { label: string; value: React.ReactNode; color?: string; bar?: number }) => (
+          <div className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{label}</p>
+            <p className="text-xl font-bold tabular-nums" style={{ color: color ?? 'var(--text)' }}>{value}</p>
+            {bar !== undefined && (
+              <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken, var(--border))' }}>
+                <div className="h-full rounded-full" style={{ width: `${bar}%`, background: color ?? 'var(--primary)' }} />
+              </div>
+            )}
+          </div>
+        )
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setSelected(null)}>
+            <div className="w-full max-w-2xl rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-4 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-[11px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{p.code}</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${col?.color}22`, color: col?.color }}>{col?.label}</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={{ background: `${h.color}1a`, color: h.color }}><span className="w-1.5 h-1.5 rounded-full" style={{ background: h.color }} />{h.label}</span>
+                  </div>
+                  <p className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{p.project_name}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-light)' }}>{p.customer_name}{p.executivo_conta_name ? ` · Exec: ${p.executivo_conta_name}` : ''}</p>
+                </div>
+                <button onClick={() => setSelected(null)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+              </div>
+              <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 90px)' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Box label="Horas Apontáveis" value={`${sold.toFixed(1)}h`} />
+                  <Box label="Horas Consumidas" value={`${cons.toFixed(1)}h`} color="var(--text-muted)" />
+                  <Box label="Saldo" value={`${saldo.toFixed(1)}h`} color={saldo < 0 ? '#ef4444' : '#22c55e'} />
+                  <Box label="Consumido" value={`${pctCons}%`} color={h.color} bar={pctCons} />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Box label="Percentual de Entrega" value={`${del}%`} color={del >= 100 ? '#22c55e' : 'var(--primary)'} bar={del} />
+                  <div className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Data de Início</p>
+                    <p className="text-base font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtDate(p.start_date)}</p>
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Previsão de Finalização</p>
+                    <p className="text-base font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtDate(p.expected_end_date)}</p>
+                    {dt !== null && (
+                      <p className="text-[11px] font-medium mt-0.5" style={{ color: dt < 0 ? '#ef4444' : dt <= 7 ? '#f97316' : 'var(--text-light)' }}>
+                        {dt < 0 ? `venceu há ${Math.abs(dt)}d` : dt === 0 ? 'vence hoje' : `faltam ${dt}d`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs pt-1">
+                  <a href={`/contratos/pipeline?project=${p.id}`} className="px-3 py-1.5 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>Abrir no pipeline →</a>
+                  <span style={{ color: 'var(--text-light)' }}>Tipo: {p.contract_type || p.service_type || '—'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
