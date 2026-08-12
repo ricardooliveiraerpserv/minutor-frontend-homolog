@@ -6,6 +6,7 @@ import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
+import { AppLayout } from '@/components/layout/app-layout'
 
 /* ── Mapeamento de status → coluna/label/cor (mesmo do pipeline Demandas e Projetos) ── */
 const STATUS_COLS = [
@@ -42,14 +43,13 @@ type Card = {
 
 const fmtNum = (n: number) => n.toLocaleString('pt-BR')
 const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'
-const daysTo = (d?: string | null) => d ? Math.ceil((new Date(d + 'T00:00:00Z').getTime() - Date.now()) / 86400000) : null
+const daysTo = (d?: string | null) => { if (!d) return null; const t = new Date(d.includes('T') ? d : d + 'T00:00:00Z').getTime(); return isNaN(t) ? null : Math.ceil((t - Date.now()) / 86400000) }
 
 export default function IndicadoresProjetosPage() {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
   const [clientFilter, setClientFilter] = useState<string>('')
-  const [view, setView] = useState<'consolidado' | 'projeto'>('consolidado')
   const [selected, setSelected] = useState<Card | null>(null)
 
   useEffect(() => {
@@ -138,6 +138,7 @@ export default function IndicadoresProjetosPage() {
   ) : null
 
   return (
+    <AppLayout>
     <div className="p-4 sm:p-6 max-w-[1400px] mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -151,16 +152,6 @@ export default function IndicadoresProjetosPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Toggle Consolidado / Por Projeto */}
-          <div className="flex rounded-xl p-0.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-            {(['consolidado', 'projeto'] as const).map(v => (
-              <button key={v} onClick={() => setView(v)}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
-                style={view === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}>
-                {v === 'consolidado' ? 'Consolidado' : 'Por Projeto'}
-              </button>
-            ))}
-          </div>
           {/* Filtro cliente */}
           <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
             className="text-sm rounded-xl px-3 py-2 outline-none"
@@ -211,7 +202,6 @@ export default function IndicadoresProjetosPage() {
             <KPI icon={<CalendarClock size={18} />}label="Prazo vencido"     value={fmtNum(vencidos)} color="#f97316" />
           </div>
 
-          {view === 'consolidado' && <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Status dos Projetos */}
             <Card2 title="Status dos Projetos" sub={`${total} projeto(s)`}>
@@ -280,68 +270,6 @@ export default function IndicadoresProjetosPage() {
             </Card2>
           </div>
 
-          {/* Datas: Início e Previsão de finalização */}
-          <Card2 title="Prazos — Data de Início e Previsão de Finalização" sub={`${prazos.length} projeto(s) ativo(s) com previsão · ${vencidos} vencido(s)`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[720px]">
-                <thead>
-                  <tr className="text-left" style={{ color: 'var(--text-light)' }}>
-                    <th className="py-2 pr-3 font-medium text-xs uppercase tracking-wider">Projeto</th>
-                    <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Cliente</th>
-                    <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Status</th>
-                    <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider text-center">Entrega</th>
-                    <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Início</th>
-                    <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Previsão</th>
-                    <th className="py-2 pl-3 font-medium text-xs uppercase tracking-wider text-right">Prazo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prazos.map((p, i) => {
-                    const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
-                    const dt = daysTo(p.expected_end_date)
-                    const del = Math.round(Number(p.delivery_percentage ?? 0))
-                    return (
-                      <tr key={p.id ?? i} onClick={() => setSelected(p)} className="cursor-pointer transition-colors hover:brightness-95" style={{ borderTop: '1px solid var(--border)', background: 'transparent' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                        <td className="py-2 pr-3">
-                          <p className="font-medium truncate max-w-[220px]" style={{ color: 'var(--text)' }}>{p.project_name || '—'}</p>
-                          <p className="text-[11px] font-mono" style={{ color: 'var(--text-light)' }}>{p.code}</p>
-                        </td>
-                        <td className="py-2 px-3 truncate max-w-[140px]" style={{ color: 'var(--text-muted)' }}>{p.customer_name}</td>
-                        <td className="py-2 px-3">
-                          <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ background: `${col?.color}22`, color: col?.color }}>{col?.label}</span>
-                        </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
-                              <div className="h-full rounded-full" style={{ width: `${del}%`, background: del >= 100 ? '#22c55e' : 'var(--primary)' }} />
-                            </div>
-                            <span className="text-[11px] tabular-nums w-8" style={{ color: 'var(--text-muted)' }}>{del}%</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.start_date)}</td>
-                        <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.expected_end_date)}</td>
-                        <td className="py-2 pl-3 text-right whitespace-nowrap">
-                          {dt === null ? '—' : (
-                            <span className="text-xs font-medium" style={{ color: dt < 0 ? '#ef4444' : dt <= 7 ? '#f97316' : 'var(--text-light)' }}>
-                              {dt < 0 ? `venceu há ${Math.abs(dt)}d` : dt === 0 ? 'vence hoje' : `em ${dt}d`}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {prazos.length === 0 && (
-                    <tr><td colSpan={7} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto ativo com previsão de finalização.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card2>
-          </>}
-
-          {view === 'projeto' && (
             <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Indicadores por Projeto <span className="text-[11px] font-normal" style={{ color: 'var(--text-light)' }}>· {filtered.length} projeto(s)</span></p>
               <div className="overflow-x-auto">
@@ -396,7 +324,6 @@ export default function IndicadoresProjetosPage() {
                 </table>
               </div>
             </div>
-          )}
         </>
       )}
 
@@ -469,5 +396,6 @@ export default function IndicadoresProjetosPage() {
         )
       })()}
     </div>
+    </AppLayout>
   )
 }
