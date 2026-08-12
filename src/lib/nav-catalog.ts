@@ -16,6 +16,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   // Serviços — Projetos / Sustentação / Operação
   { key: '/contratos/pipeline',      label: 'Demandas e Projetos',     group: 'Projetos' },
   { key: '/investimento-comercial',  label: 'Investimento Interno',    group: 'Projetos' },
+  { key: '/projetos/indicadores',    label: 'Indicadores de Projetos', group: 'Projetos' },
   { key: '/sustentacao',             label: 'Sustentação (Portal)',    group: 'Sustentação' },
   { key: '/timesheets',              label: 'Apontamentos',            group: 'Apontamentos & Despesas' },
   { key: '/expenses',                label: 'Despesas',                group: 'Apontamentos & Despesas' },
