@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
+import { useConfirm } from '@/components/ui/use-confirm'
 import { toast } from 'sonner'
 import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown, LayoutList, Activity } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
@@ -67,16 +68,31 @@ export default function PortfolioIndicadoresPage() {
   useEffect(() => { load() }, [load])
 
   // Curva-S consolidada (server): reflete os filtros de status + busca.
-  useEffect(() => {
-    if (mode !== 'consolidado') return
-    let alive = true
+  const loadCurve = useCallback(async () => {
     setCurveLoading(true)
-    api.get<{ curve: CurvePt[] }>(`/projects-portfolio/curve?status=${status}&search=${encodeURIComponent(search)}`)
-      .then(r => { if (alive) setCurve(r?.curve ?? []) })
-      .catch(() => { if (alive) setCurve([]) })
-      .finally(() => { if (alive) setCurveLoading(false) })
-    return () => { alive = false }
-  }, [mode, status, search])
+    try { const r = await api.get<{ curve: CurvePt[] }>(`/projects-portfolio/curve?status=${status}&search=${encodeURIComponent(search)}`); setCurve(r?.curve ?? []) }
+    catch { setCurve([]) }
+    finally { setCurveLoading(false) }
+  }, [status, search])
+  useEffect(() => { if (mode === 'consolidado') loadCurve() }, [mode, loadCurve])
+
+  const { confirm, confirmDialog } = useConfirm()
+  const [freezing, setFreezing] = useState(false)
+  const freezeMissing = async () => {
+    const okc = await confirm({
+      title: 'Congelar linha de base em lote',
+      message: 'Congelar a linha de base de todos os projetos do filtro atual que têm cronograma e ainda não têm base? Isso habilita o EVM (SPI/CPI/curva) para eles. Projetos já congelados não são alterados.',
+      confirmLabel: 'Congelar', cancelLabel: 'Cancelar',
+    })
+    if (!okc) return
+    setFreezing(true)
+    try {
+      const r = await api.post<{ frozen: number }>(`/projects-portfolio/freeze-missing?status=${status}&search=${encodeURIComponent(search)}`, {})
+      toast.success(`${r?.frozen ?? 0} linha(s) de base congelada(s).`)
+      await load(); if (mode === 'consolidado') await loadCurve()
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao congelar em lote')) }
+    finally { setFreezing(false) }
+  }
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort() as string[], [rows])
   const coords = useMemo(() => Array.from(new Set(rows.flatMap(r => r.coordinators))).sort(), [rows])
@@ -179,6 +195,11 @@ export default function PortfolioIndicadoresPage() {
             <input type="checkbox" checked={onlyBaseline} onChange={e => setOnlyBaseline(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
             Só com linha de base
           </label>
+          <button onClick={freezeMissing} disabled={freezing}
+            className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg disabled:opacity-60 ml-auto"
+            title="Congela a linha de base dos projetos do filtro que têm cronograma e ainda não têm base">
+            <Snowflake size={14} /> {freezing ? 'Congelando…' : 'Congelar base (lote)'}
+          </button>
         </div>
 
         {/* Tabela */}
@@ -240,6 +261,7 @@ export default function PortfolioIndicadoresPage() {
         )}
 
         {mode === 'consolidado' && <ConsolidatedView filtered={filtered} curve={curve} curveLoading={curveLoading} onOpen={id => router.push(`/projetos/indicadores/${id}`)} />}
+        {confirmDialog}
       </div>
     </AppLayout>
   )
