@@ -4,15 +4,16 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
-import { IndicadoresView } from '../cronograma/views/indicadores'
+import { IndicadoresView } from '../../[id]/cronograma/views/indicadores'
 import { CronogramaEvmPanel } from '@/components/projects/cronograma-evm-panel'
 import { ArrowLeft, CalendarRange } from 'lucide-react'
 
 /**
- * Tela DEDICADA de indicadores de um projeto (EVM + operacional), fora do ambiente do Cronograma
- * (sem kanban/gantt). Reusa o painel de EVM + a IndicadoresView. Aberta pelo portfólio /projetos/indicadores.
+ * Tela DEDICADA de indicadores de um projeto (EVM + operacional), FORA do layout do Cronograma
+ * (sem o cabeçalho do projeto / abas / kanban / gantt). Fica sob a pasta do portfólio (/projetos/indicadores/[id])
+ * de propósito, para NÃO herdar o layout de projeto ([id]/layout.tsx) que duplicava o menu e fixava o header.
  */
-export default function ProjetoIndicadoresPage() {
+export default function ProjetoIndicadoresDedicadoPage() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
   const router = useRouter()
@@ -30,9 +31,7 @@ export default function ProjetoIndicadoresPage() {
             style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
             <ArrowLeft size={15} /> Todos os projetos
           </button>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{project?.name ?? 'Projeto'}</h1>
-          </div>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{project?.name ?? 'Projeto'}</h1>
           <button onClick={() => router.push(`/projetos/${projectId}/cronograma`)}
             className="inline-flex items-center gap-1.5 text-sm ds-btn-secondary rounded-lg px-3 py-1.5">
             <CalendarRange size={15} /> Abrir Cronograma
