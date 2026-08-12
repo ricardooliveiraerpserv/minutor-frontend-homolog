@@ -104,6 +104,16 @@ export default function CrmPipelinesPage() {
   }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao excluir') })
   const delStage = (st: Stage) => { if (!sel) return; if (!window.confirm(`Excluir a etapa "${st.name}"?`)) return; delStageAction.run(st) }
 
+  // Excluir o funil inteiro — só sem oportunidades (senão Arquivar). BE também valida.
+  const delPipeAction = useAsyncAction(async (p: Pipeline) => {
+    await api.delete(`/crm/pipelines/${p.id}`); toast.success('Funil excluído'); setSelId(null); load()
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao excluir funil') })
+  const delPipe = (p: Pipeline, totalOpp: number) => {
+    if (totalOpp > 0) { toast.error('Funil com oportunidades vinculadas — use Arquivar.'); return }
+    if (!window.confirm(`Excluir o funil "${p.name}"? Esta ação não pode ser desfeita.`)) return
+    delPipeAction.run(p)
+  }
+
   // Categoria A — reorder de colunas (drag): otimista + rollback (snapshot) + sync silencioso + concorrência.
   const reorderAction = useAsyncAction(async (arr: Stage[]) => {
     if (!sel) return
@@ -165,6 +175,18 @@ export default function CrmPipelinesPage() {
                     <Archive size={12} /> {sel.arquivado ? 'Arquivado' : 'Arquivar'}
                   </button>
                   <button onClick={duplicate} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}><Copy size={12} /> Duplicar</button>
+                  {sel.tipo !== 'qualificacao' && (() => {
+                    const totalOpp = sel.stages.reduce((s, st) => s + (st.oportunidades_count ?? 0), 0)
+                    const bloq = totalOpp > 0 || sel.bloqueado
+                    return (
+                      <button onClick={() => delPipe(sel, totalOpp)} disabled={bloq}
+                        className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
+                        style={{ color: bloq ? 'var(--text-light)' : 'var(--danger-border)', border: `1px solid ${bloq ? 'var(--border)' : 'var(--danger-border)'}`, opacity: bloq ? 0.6 : 1, cursor: bloq ? 'not-allowed' : 'pointer' }}
+                        title={totalOpp > 0 ? `Este funil tem ${totalOpp} oportunidade(s) — use Arquivar` : sel.bloqueado ? 'Desbloqueie antes de excluir' : 'Excluir funil'}>
+                        <Trash2 size={12} /> Excluir
+                      </button>
+                    )
+                  })()}
                   <button onClick={() => setAuditOpen(true)} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}><History size={12} /> Auditoria</button>
                 </div>
                 {/* Tipos de empresa trabalhados neste pipeline (multi-seleção). Vazio = todos. */}

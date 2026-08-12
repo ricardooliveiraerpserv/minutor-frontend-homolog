@@ -28,6 +28,7 @@ interface Opp {
   saude?: { status: string; diagnostico?: string } | null
   valor_ponderado?: number; probabilidade?: number
   contract_id?: number | null
+  dias_na_etapa?: number; sem_interacao_7?: boolean; dias_sem_interacao?: number | null
 }
 interface Column { stage: Stage; opportunities: Opp[]; total_valor: number; count: number
   forecast?: number; tempo_medio_dias?: number; vencidos?: number; sem_proxima_acao?: number; parados?: number }
@@ -463,9 +464,12 @@ export default function CrmPipelinePage() {
   }, { onError: () => toast.error('Erro ao criar contato') })
   const createContatoInline = () => createContatoAction.run()
 
-  // Filtros do funil: por empresa (cliente) e por responsável.
+  // Filtros do funil: empresa (cliente), responsável, status e período de abertura.
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroResp, setFiltroResp] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroDe, setFiltroDe] = useState('')
+  const [filtroAte, setFiltroAte] = useState('')
   // silent=true → sync em background (sem spinner): usado após o update otimista de card,
   // pra reconciliar campos calculados pelo servidor SEM piscar a tela. Servidor = fonte da verdade.
   const loadBoard = useCallback((silent = false) => {
@@ -476,11 +480,14 @@ export default function CrmPipelinePage() {
     const qs = new URLSearchParams({ pipeline_id: String(pipeId) })
     if (filtroCliente) qs.set('customer_id', filtroCliente)
     if (filtroResp) qs.set('responsavel_id', filtroResp)
+    if (filtroStatus) qs.set('status', filtroStatus)
+    if (filtroDe) qs.set('de', filtroDe)
+    if (filtroAte) qs.set('ate', filtroAte)
     api.get<{ data: { stages: Column[] } }>(`/crm/opportunities/kanban?${qs.toString()}`)
       .then(r => setCols(r?.data?.stages ?? []))
       .catch(() => { if (!silent) toast.error('Erro ao carregar o funil') })
       .finally(() => { if (!silent) setLoading(false) })
-  }, [pipeId, filtroCliente, filtroResp, pipelines])
+  }, [pipeId, filtroCliente, filtroResp, filtroStatus, filtroDe, filtroAte, pipelines])
   useEffect(() => { loadBoard() }, [loadBoard])
 
   // Categoria B — criar oportunidade. useAsyncAction trava o duplo-clique (evita opp duplicada).
@@ -605,6 +612,9 @@ export default function CrmPipelinePage() {
             <button key={p.id} onClick={() => setPipeId(p.id)} className="px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
               style={pipeId === p.id ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.name}</button>
           ))}
+          {['admin', 'administrativo'].includes(user?.type ?? '') && (
+            <a href="/crm/pipelines" className="ml-1 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold" style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }} title="Criar, inativar/arquivar ou excluir funis">⚙ Gerenciar funis</a>
+          )}
         </div>
         {!isLeads && pipelines.length > 0 && (
           <div className="flex items-center gap-3">
@@ -625,8 +635,18 @@ export default function CrmPipelinePage() {
           <option value="">Todos os responsáveis</option>
           {crmUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
-        {(filtroCliente || filtroResp) && (
-          <button onClick={() => { setFiltroCliente(''); setFiltroResp('') }} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Limpar filtros</button>
+        <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className="text-sm rounded-lg px-2.5 py-2 outline-none" style={{ background: 'var(--surface)', border: `1px solid ${filtroStatus ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }}>
+          <option value="">Todos os status</option>
+          <option value="aberto">Aberto</option>
+          <option value="ganho">Ganho</option>
+          <option value="perdido">Perdido</option>
+        </select>
+        <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>De
+          <input type="date" value={filtroDe} onChange={e => setFiltroDe(e.target.value)} className="text-sm rounded-lg px-2 py-1.5 outline-none" style={{ background: 'var(--surface)', border: `1px solid ${filtroDe ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }} /></label>
+        <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }}>Até
+          <input type="date" value={filtroAte} onChange={e => setFiltroAte(e.target.value)} className="text-sm rounded-lg px-2 py-1.5 outline-none" style={{ background: 'var(--surface)', border: `1px solid ${filtroAte ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }} /></label>
+        {(filtroCliente || filtroResp || filtroStatus || filtroDe || filtroAte) && (
+          <button onClick={() => { setFiltroCliente(''); setFiltroResp(''); setFiltroStatus(''); setFiltroDe(''); setFiltroAte('') }} className="text-xs px-2.5 py-2 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>Limpar filtros</button>
         )}
       </div>
       )}
@@ -676,6 +696,14 @@ export default function CrmPipelinePage() {
                       <span className="text-xs font-bold tabular-nums flex items-center gap-1.5" style={{ color: 'var(--primary)' }}>{fmtBRL(o.valor)}{o.probabilidade != null && <span className="text-[10px] font-semibold" style={{ color: 'var(--text-light)' }}>· {o.probabilidade}%</span>}</span>
                       {o.responsavel && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>👤 {o.responsavel.name.split(' ')[0]}</span>}
                     </div>
+                    {/* Dias parada: tempo nesta etapa + alerta quando sem interação 7d+ */}
+                    {typeof o.dias_na_etapa === 'number' && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px]" style={{ color: o.sem_interacao_7 ? 'var(--danger-border)' : 'var(--text-light)' }} title="Tempo nesta etapa (parada = sem interação há 7 dias ou mais)">
+                        <Clock size={10} className="shrink-0" />
+                        <span>{o.dias_na_etapa === 0 ? 'nova nesta etapa' : `${o.dias_na_etapa} ${o.dias_na_etapa === 1 ? 'dia' : 'dias'} na etapa`}</span>
+                        {o.sem_interacao_7 && <span className="px-1 rounded font-bold" style={{ background: 'var(--danger-bg)' }}>{typeof o.dias_sem_interacao === 'number' ? `parada há ${o.dias_sem_interacao}d` : 'parada'}</span>}
+                      </div>
+                    )}
                     {/* Nº da proposta + situação. Badge "Convertida" quando a proposta virou contrato. */}
                     {(o.proposta?.codigo || o.contract_id || o.proposta?.status === 'convertida') && (
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
