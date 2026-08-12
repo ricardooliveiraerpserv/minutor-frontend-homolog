@@ -1273,8 +1273,8 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
         ) : tab === 'comments' ? (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {/* Canal do cliente CONTINUA vivo no projeto — equipe e cliente interagem. */}
-            {card.contract_request_id ? (
-              <ReqChatPanel requestId={card.contract_request_id} visibility="client" />
+            {(card.contract_request_id || card.id) ? (
+              <ReqChatPanel requestId={card.contract_request_id || undefined} projectId={card.contract_request_id ? undefined : card.id} visibility="client" />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 gap-1">
                 <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
@@ -2894,8 +2894,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             {tab === 'comments' && !isClienteViewer && (
               <div className="-m-6 h-[60vh] min-h-[360px]">
                 {/* Canal do cliente CONTINUA vivo no projeto — equipe responde o cliente aqui. */}
-                {p?.contract_request_id ? (
-                  <ReqChatPanel requestId={p.contract_request_id} visibility="client" />
+                {(p?.contract_request_id || p?.id) ? (
+                  <ReqChatPanel requestId={p.contract_request_id || undefined} projectId={p.contract_request_id ? undefined : p.id} visibility="client" />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full gap-1">
                     <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
@@ -3557,8 +3557,8 @@ function ClientProjectCommentsModal({ card, onClose }: { card: ProjectCard; onCl
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          {card.contract_request_id ? (
-            <ReqChatPanel requestId={card.contract_request_id} visibility="client" />
+          {(card.contract_request_id || card.id) ? (
+            <ReqChatPanel requestId={card.contract_request_id || undefined} projectId={card.contract_request_id ? undefined : card.id} visibility="client" />
           ) : (
             <div className="flex flex-col items-center justify-center py-16 gap-1">
               <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
@@ -3571,8 +3571,9 @@ function ClientProjectCommentsModal({ card, onClose }: { card: ProjectCard; onCl
   )
 }
 
-function ReqChatPanel({ requestId, visibility, readOnly }: {
-  requestId: number
+function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
+  requestId?: number
+  projectId?: number
   visibility: 'client' | 'internal'
   readOnly?: boolean
 }) {
@@ -3590,16 +3591,22 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Canal: requisição (Demanda) OU nativo do projeto (projetos sem Demanda).
+  const listUrl    = requestId != null ? `/contract-requests/${requestId}/messages?visibility=${visibility}` : `/projects/${projectId}/comments?visibility=${visibility}`
+  const mentionUrl = requestId != null ? `/contract-requests/${requestId}/mentionable-users?visibility=${visibility}` : `/projects/${projectId}/comments/mentionable-users?visibility=${visibility}`
+  const postUrl    = (base: string) => requestId != null ? `${base}/contract-requests/${requestId}/messages` : `${base}/projects/${projectId}/comments`
+  const dlUrl      = (mid: number, aid: number) => requestId != null ? `/api/v1/req-messages/${mid}/attachments/${aid}/download` : `/api/v1/project-comments/${mid}/attachments/${aid}/download`
+
   useEffect(() => {
-    api.get<ReqMsg[]>(`/contract-requests/${requestId}/messages?visibility=${visibility}`)
+    api.get<ReqMsg[]>(listUrl)
       .then(r => { setMsgs(Array.isArray(r) ? r : []); setLoaded(true) })
       .catch(() => { setLoaded(true); toast.error('Erro ao carregar mensagens') })
     if (!readOnly) {
-      api.get<MentionUser[]>(`/contract-requests/${requestId}/mentionable-users?visibility=${visibility}`)
+      api.get<MentionUser[]>(mentionUrl)
         .then(r => setMentionUsers(Array.isArray(r) ? r : []))
         .catch(() => {})
     }
-  }, [requestId, visibility, readOnly])
+  }, [requestId, projectId, visibility, readOnly])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
 
@@ -3649,7 +3656,7 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
       const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
         ? 'https://api.minutor.com.br/api/v1'
         : '/api/v1'
-      const res = await fetch(`${uploadBase}/contract-requests/${requestId}/messages`, {
+      const res = await fetch(postUrl(uploadBase), {
         method: 'POST',
         credentials: 'include',
         headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
@@ -3670,7 +3677,7 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
   const downloadAttachment = async (msgId: number, att: ReqAttachment) => {
     try {
       const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
-      const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${att.id}/download`, {
+      const res = await fetch(dlUrl(msgId, att.id), {
         credentials: 'same-origin',
         headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
       })
@@ -3730,7 +3737,7 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
+                            const res = await fetch(dlUrl(msg.id, att.id), { credentials: 'same-origin' })
                             if (!res.ok) throw new Error()
                             const blob = await res.blob()
                             window.open(URL.createObjectURL(blob), '_blank')
