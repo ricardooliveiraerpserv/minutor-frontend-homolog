@@ -45,7 +45,7 @@ interface ClientStage {
 }
 interface ScheduleResp { is_operational: boolean; stages: ClientStage[] }
 type FlatDelivery = ClientDelivery & { stageName: string }
-type View = 'planejamento' | 'timeline' | 'operacao'
+type View = 'planejamento' | 'timeline' | 'operacao' | 'indicadores'
 
 /** Marca de legenda: o período (dias corridos) inclui dias não úteis (fim de semana/feriado). */
 function NbMark({ n }: { n: number | null }) {
@@ -92,6 +92,57 @@ function IndBadge({ icon: Icon, label, value, color }: { icon: any; label: strin
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.03em' }}>{label}</div>
         <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{value}</div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Indicadores (status-only, SEM horas/valores) ----------
+   Avanço por ATIVIDADE e PRAZO (não por horas): Planejado = atividades com prazo
+   até hoje; Real = atividades concluídas; SPI de prazo = Real% / Planejado%. */
+function Indicadores({ flat, stagesCount }: { flat: FlatDelivery[]; stagesCount: number }) {
+  const total = flat.length
+  const done = flat.filter(d => d.status === 'done').length
+  const late = flat.filter(isDelLate).length
+  const doing = flat.filter(d => d.status !== 'done' && d.status !== 'backlog' && !isDelLate(d)).length
+  const realPct = total ? Math.round((done / total) * 100) : 0
+  const shouldBeDone = flat.filter(d => d.due_date && new Date(d.due_date + 'T23:59:59').getTime() <= Date.now()).length
+  const plannedPct = total ? Math.round((shouldBeDone / total) * 100) : 0
+  const spi = plannedPct > 0 ? (realPct / plannedPct) : (realPct > 0 ? 1 : null)
+  const spiColor = spi == null ? 'var(--text-muted)' : spi >= 0.98 ? 'var(--success)' : spi >= 0.85 ? 'var(--warning)' : 'var(--danger)'
+  const ritmo = spi == null ? '—' : spi >= 0.98 ? 'no ritmo esperado' : spi >= 0.85 ? 'levemente atrás' : 'atrasado'
+
+  const Bar = ({ label, pct, color }: { label: string; pct: number; color: string }) => (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
+        <span>{label}</span><span style={{ fontWeight: 600, color: 'var(--text)' }}>{pct}%</span>
+      </div>
+      <div style={{ height: 8, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: color, transition: 'width .3s ease' }} />
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* % Planejado vs Real (por atividade/prazo, sem horas) */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>% Concluído — Planejado vs Real</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: spiColor }}>{ritmo}</span>
+        </div>
+        <Bar label="Planejado (até hoje)" pct={plannedPct} color="var(--text-muted)" />
+        <Bar label="Real (concluído)" pct={realPct} color="var(--primary)" />
+      </div>
+
+      {/* Cartões de status */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <IndBadge icon={CheckCircle2}  label="Concluídas"   value={`${done}/${total}`} color="var(--success)" />
+        <IndBadge icon={ListChecks}    label="Conclusão"    value={`${realPct}%`}      color="var(--primary)" />
+        <IndBadge icon={CalendarDays}  label="SPI · Prazo"  value={spi == null ? '—' : spi.toFixed(2)} color={spiColor} />
+        <IndBadge icon={Clock3}        label="Em andamento" value={String(doing)}      color="var(--primary)" />
+        <IndBadge icon={AlertTriangle} label="Atrasadas"    value={String(late)}       color={late > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
+        <IndBadge icon={LayoutGrid}    label="Etapas"       value={String(stagesCount)} color="var(--text-muted)" />
       </div>
     </div>
   )
@@ -146,38 +197,27 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
   const openCard = (d: ClientDelivery) => { if (d.can_open) router.push(`/portal-cliente/atividades/${d.id}`) }
   const flat: FlatDelivery[] = stages.flatMap(s => s.deliveries.map(d => ({ ...d, stageName: s.name })))
 
-  const doneCount = flat.filter(d => d.status === 'done').length
-  const lateCount = flat.filter(isDelLate).length
-  const doingCount = flat.filter(d => d.status !== 'done' && d.status !== 'backlog' && !isDelLate(d)).length
-  const pct = flat.length ? Math.round((doneCount / flat.length) * 100) : 0
-
   return (
     <div>
-      {/* Indicadores do projeto (status, sem horas) */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-        <IndBadge icon={CheckCircle2} label="Concluídas"   value={`${doneCount}/${flat.length}`} color="var(--success)" />
-        <IndBadge icon={ListChecks}   label="Conclusão"    value={`${pct}%`}                     color="var(--primary)" />
-        <IndBadge icon={Clock3}       label="Em andamento" value={String(doingCount)}            color="var(--primary)" />
-        <IndBadge icon={AlertTriangle} label="Atrasadas"   value={String(lateCount)}             color={lateCount > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
-        <IndBadge icon={LayoutGrid}   label="Etapas"       value={String(stages.length)}         color="var(--text-muted)" />
-      </div>
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <Segmented view={view} onChange={setView} />
       </div>
 
-      <div style={{
-        marginBottom: 14, padding: '8px 12px', background: 'var(--primary-soft)', borderRadius: 6,
-        fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6,
-      }}>
-        <CalendarDays size={12} />
-        <span>Cronograma do projeto em dias. Você abre as atividades em que está envolvido ou que aguardam a sua aprovação; as demais aparecem bloqueadas.</span>
-      </div>
+      {view !== 'indicadores' && (
+        <div style={{
+          marginBottom: 14, padding: '8px 12px', background: 'var(--primary-soft)', borderRadius: 6,
+          fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <CalendarDays size={12} />
+          <span>Cronograma do projeto em dias. Você abre as atividades em que está envolvido ou que aguardam a sua aprovação; as demais aparecem bloqueadas.</span>
+        </div>
+      )}
 
       <div key={view} className="cronograma-view-fade">
         {view === 'planejamento' && <Planejamento stages={stages} openCard={openCard} />}
         {view === 'timeline' && <Timeline stages={stages} openCard={openCard} />}
         {view === 'operacao' && <Operacao items={flat} openCard={openCard} />}
+        {view === 'indicadores' && <Indicadores flat={flat} stagesCount={stages.length} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade { animation: cli-fade .14s ease-out; }
@@ -192,6 +232,7 @@ function Segmented({ view, onChange }: { view: View; onChange: (v: View) => void
     { value: 'planejamento', label: 'Planejamento' },
     { value: 'timeline', label: 'Linha do Tempo' },
     { value: 'operacao', label: 'Operação' },
+    { value: 'indicadores', label: 'Indicadores' },
   ]
   return (
     <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface)' }}>
