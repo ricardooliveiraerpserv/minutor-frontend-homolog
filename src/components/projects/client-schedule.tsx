@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { useApiQuery } from '@/hooks/use-query'
 import { ClientActivityDrawer } from '@/components/portal-cliente/client-activity-drawer'
-import { Lock, ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
+import { ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
 import { ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip } from 'recharts'
 
 /**
@@ -298,7 +298,7 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
 
   const stages = data.stages ?? []
   // Abre a conversa da atividade DENTRO do cronograma (drawer), sem navegar pra outra tela.
-  const openCard = (d: ClientDelivery) => { if (d.can_open) setOpenActId(d.id) }
+  const openCard = (d: ClientDelivery) => setOpenActId(d.id)
   const flat: FlatDelivery[] = stages.flatMap(s => s.deliveries.map(d => ({ ...d, stageName: s.name })))
 
   return (
@@ -313,7 +313,7 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
           fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <CalendarDays size={12} />
-          <span>Cronograma do projeto em dias. Você abre as atividades em que está envolvido ou que aguardam a sua aprovação; as demais aparecem bloqueadas.</span>
+          <span>Cronograma do projeto em dias. Clique em qualquer atividade para ver o andamento e conversar com a equipe.</span>
         </div>
       )}
 
@@ -368,9 +368,8 @@ function ApproveBadge() {
   )
 }
 function LockOrChevron({ canOpen }: { canOpen: boolean }) {
-  return canOpen
-    ? <ChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-    : <span title="Você não tem acesso a esta atividade" style={{ display: 'inline-flex', flexShrink: 0 }}><Lock size={13} style={{ color: 'var(--text-light)' }} /></span>
+  void canOpen // toda atividade abre a conversa dentro do cronograma
+  return <ChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
 }
 
 /* ---------- Planejamento (tabela read-only, mesmas colunas do interno, sem horas) ---------- */
@@ -439,9 +438,9 @@ function Planejamento({ stages, openCard }: { stages: ClientStage[]; openCard: (
             const d = r.d
             const tone = STATUS_TONE[d.status] ?? 'var(--text-muted)'
             return (
-              <tr key={`a${d.id}`} onClick={() => openCard(d)} className={d.can_open ? 'ds-row-hover' : undefined}
-                style={{ cursor: d.can_open ? 'pointer' : 'default', background: d.awaiting_my_approval ? 'var(--warning-bg)' : undefined }}>
-                <td style={{ ...td, opacity: d.can_open ? 1 : 0.6 }}>
+              <tr key={`a${d.id}`} onClick={() => openCard(d)} className="ds-row-hover"
+                style={{ cursor: 'pointer', background: d.awaiting_my_approval ? 'var(--warning-bg)' : undefined }}>
+                <td style={{ ...td, opacity: 1 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, paddingLeft: r.depth * 18 }}>
                     <LockOrChevron canOpen={d.can_open} />
                     <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{r.code}</span>
@@ -485,13 +484,13 @@ function Operacao({ items, openCard }: { items: FlatDelivery[]; openCard: (d: Cl
               {cards.map(d => {
                 const sc = stageColor(d.stageName)
                 return (
-                <div key={d.id} onClick={() => openCard(d)} role={d.can_open ? 'button' : undefined}
-                  className={d.can_open ? 'ds-row-hover' : undefined}
+                <div key={d.id} onClick={() => openCard(d)} role="button"
+                  className="ds-row-hover"
                   style={{
                     padding: '8px 10px 8px 10px', borderRadius: 6,
                     border: '1px solid var(--border)', borderLeft: `4px solid ${sc}`,
                     background: d.awaiting_my_approval ? 'var(--warning-bg)' : 'var(--bg)',
-                    cursor: d.can_open ? 'pointer' : 'default', opacity: d.can_open ? 1 : 0.62,
+                    cursor: 'pointer', opacity: 12,
                   }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <LockOrChevron canOpen={d.can_open} />
@@ -581,8 +580,8 @@ function Timeline({ stages, openCard }: { stages: ClientStage[]; openCard: (d: C
             }
             const d = r.d
             return (
-              <div key={`a${d.id}`} onClick={() => openCard(d)} className={d.can_open ? 'ds-row-hover' : undefined}
-                style={{ height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', fontSize: 12, color: 'var(--text)', borderBottom: '1px solid var(--border)', cursor: d.can_open ? 'pointer' : 'default', opacity: d.can_open ? 1 : 0.6, paddingLeft: r.depth * 12 + 10 }}>
+              <div key={`a${d.id}`} onClick={() => openCard(d)} className="ds-row-hover"
+                style={{ height: ROW_H, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', fontSize: 12, color: 'var(--text)', borderBottom: '1px solid var(--border)', cursor: 'pointer', opacity: 1, paddingLeft: r.depth * 12 + 10 }}>
                 <LockOrChevron canOpen={d.can_open} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</span>
               </div>
@@ -642,7 +641,7 @@ function Timeline({ stages, openCard }: { stages: ClientStage[]; openCard: (d: C
                       style={{
                         position: 'absolute', left, width, top: ROW_H / 2 - 8, height: 16, borderRadius: 4,
                         background: color, opacity: d.status === 'done' ? 0.5 : 0.9,
-                        cursor: d.can_open ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         display: 'flex', alignItems: 'center', paddingLeft: 6, overflow: 'hidden',
                         border: d.awaiting_my_approval ? '1px solid var(--warning)' : 'none',
                       }}>

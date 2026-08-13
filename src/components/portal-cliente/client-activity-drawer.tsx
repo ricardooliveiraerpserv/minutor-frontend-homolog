@@ -29,6 +29,8 @@ interface ClientActivity {
   approval_decided_at?: string | null
   approval_decided_by_name?: string | null
   is_responsible?: boolean
+  can_comment?: boolean
+  can_approve?: boolean
 }
 interface TimelineEvent {
   id: number
@@ -127,7 +129,7 @@ export function ClientActivityDrawer({ activityId, onClose, onChanged }: { activ
                 {activity.completed_at && <Cell label="Concluída em" value={fmtDateTime(activity.completed_at)} />}
               </div>
 
-              {activity.approval_status === 'pending' && (
+              {activity.approval_status === 'pending' && activity.can_approve && (
                 <div style={{ padding: 14, borderRadius: 8, background: 'var(--warning-bg)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <ShieldQuestion size={16} style={{ color: 'var(--warning)' }} />
@@ -161,10 +163,10 @@ export function ClientActivityDrawer({ activityId, onClose, onChanged }: { activ
               )}
 
               <h3 style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em', margin: 0 }}>
-                {activity.is_responsible ? 'Conversa' : 'Andamento'}
+                {(activity.can_comment ?? activity.is_responsible) ? 'Conversa' : 'Andamento'}
               </h3>
 
-              {activity.is_responsible && (
+              {(activity.can_comment ?? activity.is_responsible) && (
                 <div className="ds-card" style={{ padding: 12 }}>
                   <textarea value={text} onChange={e => setText(e.target.value)} rows={3} className="ds-input"
                     placeholder="Escreva um comentário…" style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: 8, fontSize: 13 }} />
@@ -202,7 +204,7 @@ export function ClientActivityDrawer({ activityId, onClose, onChanged }: { activ
                 ))}
                 {events.length === 0 && !loading && (
                   <li style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px dashed var(--border)', borderRadius: 8 }}>
-                    Nenhuma interação ainda.{activity.is_responsible ? ' Seja o primeiro a comentar.' : ''}
+                    Nenhuma interação ainda.{(activity.can_comment ?? activity.is_responsible) ? ' Seja o primeiro a comentar.' : ''}
                   </li>
                 )}
               </ul>
