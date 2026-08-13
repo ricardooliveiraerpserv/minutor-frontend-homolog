@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
 import { useConfirm } from '@/components/ui/use-confirm'
+import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown, FolderKanban, Clock, CheckCircle2, AlertTriangle, CalendarX } from 'lucide-react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
@@ -210,10 +211,9 @@ export default function PortfolioIndicadoresPage() {
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Indicadores de Projetos</h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Visão em dashboards de Demandas e Projetos</p>
           </div>
-          <select className={`${fieldCls} ml-auto`} style={{ ...fieldStyle, minWidth: 200 }} value={cliente} onChange={e => setCliente(e.target.value)}>
-            <option value="">Todos os clientes</option>
-            {clientes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <div className="ml-auto" style={{ minWidth: 220 }}>
+            <SearchSelect value={cliente} onChange={setCliente} options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" fullWidth />
+          </div>
         </div>
 
         {/* Chips de status */}
