@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { useApiQuery } from '@/hooks/use-query'
 import { ClientActivityDrawer } from '@/components/portal-cliente/client-activity-drawer'
+import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
 import { ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip } from 'recharts'
 
@@ -46,7 +47,7 @@ interface ClientStage {
 }
 interface ScheduleResp { is_operational: boolean; stages: ClientStage[] }
 type FlatDelivery = ClientDelivery & { stageName: string }
-type View = 'planejamento' | 'timeline' | 'operacao' | 'indicadores'
+type View = 'planejamento' | 'timeline' | 'operacao' | 'indicadores' | 'conversa'
 
 /** Marca de legenda: o período (dias corridos) inclui dias não úteis (fim de semana/feriado). */
 function NbMark({ n }: { n: number | null }) {
@@ -307,7 +308,7 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
         <Segmented view={view} onChange={setView} />
       </div>
 
-      {view !== 'indicadores' && (
+      {view !== 'indicadores' && view !== 'conversa' && (
         <div style={{
           marginBottom: 14, padding: '8px 12px', background: 'var(--primary-soft)', borderRadius: 6,
           fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6,
@@ -322,6 +323,7 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
         {view === 'timeline' && <Timeline stages={stages} openCard={openCard} />}
         {view === 'operacao' && <Operacao items={flat} openCard={openCard} />}
         {view === 'indicadores' && <Indicadores stages={stages} />}
+        {view === 'conversa' && <ProjectConversation projectId={projectId} mode="client" />}
       </div>
       <style jsx>{`
         .cronograma-view-fade { animation: cli-fade .14s ease-out; }
@@ -339,6 +341,7 @@ function Segmented({ view, onChange }: { view: View; onChange: (v: View) => void
     { value: 'timeline', label: 'Linha do Tempo' },
     { value: 'operacao', label: 'Operação' },
     { value: 'indicadores', label: 'Indicadores' },
+    { value: 'conversa', label: 'Conversa' },
   ]
   return (
     <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface)' }}>
