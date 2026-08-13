@@ -5621,7 +5621,7 @@ function KanbanContent() {
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
                   onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
-                  onProjectAction={(card, action) => { if (isCliente && action === 'view') { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                  onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
                       ? setPlanDecisionCard(card)
@@ -5670,7 +5670,7 @@ function KanbanContent() {
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
                     onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
-                    onProjectAction={(card, action) => { if (isCliente && action === 'view') { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                    onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
@@ -5698,7 +5698,7 @@ function KanbanContent() {
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
                     setStagesPanelProject(card)
                   }}
-                  onProjectAction={(card, action) => { if (isCliente && action === 'view') { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                  onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                   onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
                   getProjectCols={getAvailableProjectCols}
                 />
