@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
+import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
@@ -646,7 +647,8 @@ const CONTRACT_MENU_ITEMS = [
 ]
 
 const PROJECT_MENU_ITEMS = [
-  { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: true },
+  { action: 'view',       label: 'Gestão de Projetos', icon: Eye,         clientVisible: true },
+  { action: 'comments',   label: 'Comentários',       icon: MessageSquare, clientVisible: true },
   { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
   // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
   { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
@@ -5626,7 +5628,7 @@ function KanbanContent() {
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
                   onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
-                  onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                  onProjectAction={(card, action) => { if (isCliente && (action === 'view' || action === 'comments')) { router.push(`/portal-cliente/projetos/${card.id}` + (action === 'comments' ? '?tab=comentarios' : '')); return } setProjectAction({ card, action }) }}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
                       ? setPlanDecisionCard(card)
@@ -5675,7 +5677,7 @@ function KanbanContent() {
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
                     onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
-                    onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                    onProjectAction={(card, action) => { if (isCliente && (action === 'view' || action === 'comments')) { router.push(`/portal-cliente/projetos/${card.id}` + (action === 'comments' ? '?tab=comentarios' : '')); return } setProjectAction({ card, action }) }}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
@@ -5703,7 +5705,7 @@ function KanbanContent() {
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
                     setStagesPanelProject(card)
                   }}
-                  onProjectAction={(card, action) => { if (action === 'view' && isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return } setProjectAction({ card, action }) }}
+                  onProjectAction={(card, action) => { if (isCliente && (action === 'view' || action === 'comments')) { router.push(`/portal-cliente/projetos/${card.id}` + (action === 'comments' ? '?tab=comentarios' : '')); return } setProjectAction({ card, action }) }}
                   onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
                   getProjectCols={getAvailableProjectCols}
                 />
@@ -5921,6 +5923,17 @@ function KanbanContent() {
         if (action === 'aportes')    return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="aportes" />
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
+        if (action === 'comments')   return (
+          <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--text)' }}>Comentários · {card.project_name}</h2>
+                <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
+              </div>
+              <div style={{ overflowY: 'auto' }}><ProjectConversation projectId={card.id} /></div>
+            </div>
+          </div>
+        )
         return null
       })()}
 

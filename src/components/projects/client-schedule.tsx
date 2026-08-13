@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
 import { ClientActivityDrawer } from '@/components/portal-cliente/client-activity-drawer'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
@@ -287,7 +288,8 @@ function toDays(iso: string | null): number | null {
 }
 
 export function ClientSchedule({ projectId }: { projectId: number }) {
-  const [view, setView] = useState<View>('planejamento')
+  const searchParams = useSearchParams()
+  const [view, setView] = useState<View>(searchParams?.get('tab') === 'comentarios' ? 'conversa' : 'planejamento')
   const [openActId, setOpenActId] = useState<number | null>(null)
   const { data, loading, error, refetch } = useApiQuery<ScheduleResp>(`/client/projects/${projectId}/schedule`)
 
