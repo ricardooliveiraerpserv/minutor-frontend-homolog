@@ -893,15 +893,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
       ]
-      if (canModule('projetos')) {
-        nav.push({ type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid })
-      }
       if (canModule('help_desk')) {
         nav.push({ type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones })
       }
-      // Dashboards de contrato e Indicadores pertencem ao módulo Projetos.
-      if (canModule('projetos') && dashItems.length > 0) {
-        nav.push({ type: 'group', label: 'Contratos', icon: FileText, items: dashItems })
+      // "Contratos e Projetos": Demandas e Projetos + dashboards de contrato (módulo Projetos).
+      if (canModule('projetos')) {
+        nav.push({ type: 'group', label: 'Contratos e Projetos', icon: FileText, items: [
+          { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
+          ...dashItems,
+        ] })
       }
       // Indicadores da própria empresa (atualmente só Auster)
       if (canModule('projetos') && user?.customer_id === 220) {
