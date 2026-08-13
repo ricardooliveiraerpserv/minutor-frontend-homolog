@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Search, Plus, X, Check, ChevronLeft, ChevronRight, FileCode, Loader2, Building2 } from 'lucide-react'
+import { Search, Plus, X, Check, ChevronLeft, ChevronRight, FileCode, Loader2, Building2, AlertTriangle, ExternalLink } from 'lucide-react'
 
 /**
  * Fase 1B — Wizard de Solicitação de Código-Fonte (Help Desk).
@@ -16,6 +17,7 @@ interface TicketRow { id: number; ticket_number: string | null; subject: string;
 interface Commit { sha: string | null; date: string | null; author: string | null; message: string | null }
 interface SearchItem { owner: string; repository: string; tipo: string; branch: string; path: string; name: string; commit: Commit | null }
 
+interface ProcItem { id: number; filename: string; status: 'pending' | 'processing' | 'attached' | 'failed'; error?: string | null; original_commit_at?: string | null; original_commit_sha?: string | null }
 const MAX_SOURCES = 30
 const fmtDateTime = (iso?: string | null) => {
   if (!iso) return '—'
@@ -41,6 +43,13 @@ export default function CodigoFontePage() {
 
   // Passo 3 — Fontes (cada slot = 1 fonte; null = ainda buscando)
   const [sources, setSources] = useState<(SearchItem | null)[]>([null])
+
+  // Passo 4 — processamento (1C)
+  const router = useRouter()
+  const [phase, setPhase] = useState<'form' | 'processing' | 'done'>('form')
+  const [submitting, setSubmitting] = useState(false)
+  const [reqInfo, setReqInfo] = useState<{ id: number; ticket_id: number; ticket_number: string | null } | null>(null)
+  const [procItems, setProcItems] = useState<ProcItem[]>([])
 
   useEffect(() => {
     // Só clientes com repositório de código-fonte AMARRADO (ativo) — sem vínculo, não aparece.
@@ -72,6 +81,46 @@ export default function CodigoFontePage() {
   const addSlot = () => { if (sources.length < MAX_SOURCES) setSources(s => [...s, null]) }
   const removeSlot = (i: number) => setSources(s => s.length === 1 ? [null] : s.filter((_, idx) => idx !== i))
   const setSlot = (i: number, item: SearchItem | null) => setSources(s => s.map((v, idx) => idx === i ? item : v))
+
+  // Anexa UM item; atualiza o estado visual (⟳ → ✓/⚠). Nunca desfaz os que deram certo.
+  const attachOne = async (itemId: number) => {
+    setProcItems(ps => ps.map(p => p.id === itemId ? { ...p, status: 'processing' } : p))
+    try {
+      const r = await api.post<{ data: ProcItem }>(`/source-code/request-items/${itemId}/attach`, {})
+      setProcItems(ps => ps.map(p => p.id === itemId ? { ...p, ...r.data } : p))
+    } catch (e) {
+      setProcItems(ps => ps.map(p => p.id === itemId ? { ...p, status: 'failed', error: (e as { message?: string })?.message ?? 'Erro' } : p))
+    }
+  }
+
+  const confirmAndAttach = async () => {
+    if (!customer || chosenSources.length === 0) return
+    setSubmitting(true)
+    try {
+      const body = {
+        customer_id: customer.id,
+        ticket_id: ticketMode === 'existing' ? (ticket?.id ?? null) : null,
+        items: chosenSources.map(s => ({ owner: s.owner, repository: s.repository, branch: s.branch, path: s.path })),
+      }
+      const r = await api.post<{ data: { id: number; items: ProcItem[] }; ticket: { id: number; ticket_number: string | null } }>('/source-code/requests', body)
+      setReqInfo({ id: r.data.id, ticket_id: r.ticket.id, ticket_number: r.ticket.ticket_number })
+      setProcItems(r.data.items.map(i => ({ ...i, status: 'pending' as const })))
+      setPhase('processing')
+      for (const it of r.data.items) { await attachOne(it.id) }   // sequencial
+      await api.post(`/source-code/requests/${r.data.id}/finalize`, {}).catch(() => {})
+      setPhase('done')
+    } catch (e) {
+      toast.error((e as { message?: string })?.message ?? 'Erro ao criar a solicitação')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const retryFailed = async () => {
+    const failed = procItems.filter(p => p.status === 'failed')
+    for (const it of failed) { await attachOne(it.id) }
+    if (reqInfo) await api.post(`/source-code/requests/${reqInfo.id}/finalize`, {}).catch(() => {})
+  }
 
   return (
     <AppLayout title="Solicitação de Código-Fonte">
@@ -182,7 +231,7 @@ export default function CodigoFontePage() {
           )}
 
           {/* PASSO 4 — CONFIRMAÇÃO */}
-          {step === 3 && (
+          {step === 3 && phase === 'form' && (
             <div>
               <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>Solicitação de código-fonte</h2>
               <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
@@ -205,24 +254,62 @@ export default function CodigoFontePage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-[11px] rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
-                O botão <b>Confirmar e anexar</b> (processamento por fonte + anexação no chamado) entra na próxima etapa (1C). Por ora, este passo já valida a busca e a seleção.
-              </p>
+            </div>
+          )}
+          {step === 3 && phase !== 'form' && (
+            <div>
+              <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>{phase === 'done' ? 'Solicitação concluída' : 'Anexando os fontes…'}</h2>
+              <div className="space-y-1.5">
+                {procItems.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                    {p.status === 'attached' ? <Check size={14} className="shrink-0" style={{ color: 'var(--success-border)' }} />
+                      : p.status === 'failed' ? <AlertTriangle size={14} className="shrink-0" style={{ color: 'var(--danger-border)' }} />
+                      : <Loader2 size={14} className="shrink-0 animate-spin" style={{ color: 'var(--text-light)' }} />}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>{p.filename}</div>
+                      {p.status === 'failed' && p.error && <div className="truncate" style={{ color: 'var(--danger-border)' }}>{p.error}</div>}
+                      {p.status === 'attached' && <div className="truncate" style={{ color: 'var(--text-light)' }}>{fmtDateTime(p.original_commit_at)} · {shortSha(p.original_commit_sha)}</div>}
+                    </div>
+                    <span className="shrink-0 text-[10px] font-semibold" style={{ color: p.status === 'attached' ? 'var(--success-border)' : p.status === 'failed' ? 'var(--danger-border)' : 'var(--text-muted)' }}>
+                      {p.status === 'attached' ? '✓ Anexado' : p.status === 'failed' ? '⚠ Falha' : '⟳ Processando'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {phase === 'done' && (
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  {procItems.some(p => p.status === 'failed') && (
+                    <button onClick={retryFailed} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Tentar novamente</button>
+                  )}
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Anexados na interação <b>"Códigos-fonte anexados"</b> do chamado {reqInfo?.ticket_number ?? ''}.</p>
+                </div>
+              )}
             </div>
           )}
 
           {/* Navegação */}
           <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-            <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)', opacity: step === 0 ? 0.4 : 1 }}>
+            <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || phase !== 'form'} className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)', opacity: (step === 0 || phase !== 'form') ? 0.4 : 1 }}>
               <ChevronLeft size={14} /> Voltar
             </button>
-            {step < 3 ? (
+            {phase === 'form' && step < 3 && (
               <button onClick={() => setStep(s => s + 1)} disabled={!canNext} className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: canNext ? 1 : 0.5 }}>
                 Avançar <ChevronRight size={14} />
               </button>
-            ) : (
-              <button disabled title="Disponível na etapa 1C" className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: 0.5, cursor: 'not-allowed' }}>
-                Confirmar e anexar
+            )}
+            {phase === 'form' && step === 3 && (
+              <button onClick={confirmAndAttach} disabled={submitting || chosenSources.length === 0} className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: (submitting || chosenSources.length === 0) ? 0.5 : 1 }}>
+                {submitting ? <><Loader2 size={13} className="animate-spin" /> Enviando…</> : <>Confirmar e anexar</>}
+              </button>
+            )}
+            {phase === 'processing' && (
+              <button disabled className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: 0.6, cursor: 'not-allowed' }}>
+                <Loader2 size={13} className="animate-spin" /> Processando…
+              </button>
+            )}
+            {phase === 'done' && (
+              <button onClick={() => reqInfo && router.push(`/help-desk/tickets/${reqInfo.ticket_id}`)} className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                Ir para o chamado <ExternalLink size={13} />
               </button>
             )}
           </div>
