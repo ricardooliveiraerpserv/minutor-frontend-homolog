@@ -45,6 +45,8 @@ function KPI({
 }) {
   return (
     <div style={{
+      flex: '1 1 150px',
+      minWidth: 140,
       padding: 16,
       borderRadius: 8,
       background: 'var(--surface)',
@@ -151,54 +153,57 @@ export default function VisaoClienteProjetoPage() {
         )}
         {data && (
           <>
-            <header style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-                {data.project.customer?.name ?? 'Cliente'}
-              </div>
-              <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', margin: '4px 0 8px' }}>
-                {data.project.name}
-              </h1>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 12,
-                padding: '4px 10px',
-                borderRadius: 999,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                color: 'var(--text)',
-              }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: HEALTH[data.health].color,
-                }} />
-                {data.status_macro}
-              </div>
-            </header>
-
             <section style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 20,
+              flexWrap: 'wrap',
               marginBottom: 24,
             }}>
-              <KPI
-                label="Progresso"
-                value={`${Math.round(data.progress_pct)}%`}
-                icon={TrendingUp}
-              />
-              <KPI
-                label="Prazo"
-                value={formatDate(data.expected_end_date)}
-                icon={Calendar}
-              />
-              <KPI
-                label="Saúde"
-                value={HEALTH[data.health].label}
-                icon={Activity}
-                sub={data.health !== 'ok' ? 'Equipe acompanhando' : undefined}
-              />
+              <div style={{ flex: '1 1 220px', minWidth: 200 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                  {data.project.customer?.name ?? 'Cliente'}
+                </div>
+                <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', margin: '4px 0 8px' }}>
+                  {data.project.name}
+                </h1>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 12,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
+                }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: HEALTH[data.health].color,
+                  }} />
+                  {data.status_macro}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: '2 1 440px', justifyContent: 'flex-end' }}>
+                <KPI
+                  label="Progresso"
+                  value={`${Math.round(data.progress_pct)}%`}
+                  icon={TrendingUp}
+                />
+                <KPI
+                  label="Prazo"
+                  value={formatDate(data.expected_end_date)}
+                  icon={Calendar}
+                />
+                <KPI
+                  label="Saúde"
+                  value={HEALTH[data.health].label}
+                  icon={Activity}
+                  sub={data.health !== 'ok' ? 'Equipe acompanhando' : undefined}
+                />
+              </div>
             </section>
 
             <section style={{ marginBottom: 24 }}>
