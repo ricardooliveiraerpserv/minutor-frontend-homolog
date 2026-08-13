@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
 import { Lock, ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
+import { ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip } from 'recharts'
 
 /**
  * Cronograma na visão do CLIENTE — em dias, sem horas/valores.
@@ -97,14 +98,31 @@ function IndBadge({ icon: Icon, label, value, color }: { icon: any; label: strin
   )
 }
 
-/* ---------- Indicadores (status-only, SEM horas/valores) ----------
+/* ---------- Indicadores (status-only, SEM horas/valores) — visual, com gráficos ----------
    Avanço por ATIVIDADE e PRAZO (não por horas): Planejado = atividades com prazo
-   até hoje; Real = atividades concluídas; SPI de prazo = Real% / Planejado%. */
-function Indicadores({ flat, stagesCount }: { flat: FlatDelivery[]; stagesCount: number }) {
+   até a data; Real = atividades concluídas; SPI de prazo = Real% / Planejado%. */
+const TOOLTIP_STYLE = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }
+
+function ChartCard({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>{title}</span>
+        {right}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Indicadores({ stages }: { stages: ClientStage[] }) {
+  const withDel = stages.filter(s => (s.deliveries?.length ?? 0) > 0)
+  const flat = withDel.flatMap(s => s.deliveries)
   const total = flat.length
   const done = flat.filter(d => d.status === 'done').length
   const late = flat.filter(isDelLate).length
-  const doing = flat.filter(d => d.status !== 'done' && d.status !== 'backlog' && !isDelLate(d)).length
+  const doing = flat.filter(d => d.status !== 'done' && !isDelLate(d) && d.status !== 'backlog').length
+  const notStarted = flat.filter(d => d.status === 'backlog' && !isDelLate(d)).length
   const realPct = total ? Math.round((done / total) * 100) : 0
   const shouldBeDone = flat.filter(d => d.due_date && new Date(d.due_date + 'T23:59:59').getTime() <= Date.now()).length
   const plannedPct = total ? Math.round((shouldBeDone / total) * 100) : 0
@@ -112,38 +130,123 @@ function Indicadores({ flat, stagesCount }: { flat: FlatDelivery[]; stagesCount:
   const spiColor = spi == null ? 'var(--text-muted)' : spi >= 0.98 ? 'var(--success)' : spi >= 0.85 ? 'var(--warning)' : 'var(--danger)'
   const ritmo = spi == null ? '—' : spi >= 0.98 ? 'no ritmo esperado' : spi >= 0.85 ? 'levemente atrás' : 'atrasado'
 
-  const Bar = ({ label, pct, color }: { label: string; pct: number; color: string }) => (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-        <span>{label}</span><span style={{ fontWeight: 600, color: 'var(--text)' }}>{pct}%</span>
-      </div>
-      <div style={{ height: 8, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: color, transition: 'width .3s ease' }} />
-      </div>
-    </div>
-  )
+  if (total === 0) {
+    return <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: 8, fontSize: 13 }}>Sem atividades para calcular indicadores.</div>
+  }
+
+  const statusData = [
+    { name: 'Concluídas', value: done, color: 'var(--success)' },
+    { name: 'Em andamento', value: doing, color: 'var(--primary)' },
+    { name: 'Atrasadas', value: late, color: 'var(--danger)' },
+    { name: 'A iniciar', value: notStarted, color: 'var(--text-light)' },
+  ].filter(d => d.value > 0)
+
+  // Curva de avanço (planejado vs real acumulado), por mês, em % de atividades — sem horas.
+  const times: number[] = []
+  flat.forEach(d => { [d.planned_start_at, d.due_date, d.completed_at].forEach(x => { if (x) times.push(new Date(x + 'T00:00:00').getTime()) }) })
+  const dues = flat.filter(d => d.due_date).map(d => new Date(d.due_date + 'T23:59:59').getTime())
+  const dones = flat.filter(d => d.status === 'done').map(d => d.completed_at ? new Date(d.completed_at + 'T23:59:59').getTime() : Date.now())
+  const curve: { label: string; planejado: number; real: number | null }[] = []
+  if (times.length) {
+    const cur = new Date(Math.min(...times)); cur.setDate(1); cur.setHours(0, 0, 0, 0)
+    const end = new Date(Math.max(...times)); end.setDate(1); end.setHours(0, 0, 0, 0)
+    let guard = 0
+    while (cur.getTime() <= end.getTime() && guard++ < 240) {
+      const meT = new Date(cur.getFullYear(), cur.getMonth() + 1, 0, 23, 59, 59).getTime()
+      curve.push({
+        label: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') + '/' + String(cur.getFullYear()).slice(2),
+        planejado: Math.round(dues.filter(t => t <= meT).length / total * 100),
+        real: meT > Date.now() ? null : Math.round(dones.filter(t => t <= meT).length / total * 100),
+      })
+      cur.setMonth(cur.getMonth() + 1)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* % Planejado vs Real (por atividade/prazo, sem horas) */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)', padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>% Concluído — Planejado vs Real</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: spiColor }}>{ritmo}</span>
-        </div>
-        <Bar label="Planejado (até hoje)" pct={plannedPct} color="var(--text-muted)" />
-        <Bar label="Real (concluído)" pct={realPct} color="var(--primary)" />
-      </div>
-
-      {/* Cartões de status */}
+      {/* KPIs compactos */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         <IndBadge icon={CheckCircle2}  label="Concluídas"   value={`${done}/${total}`} color="var(--success)" />
         <IndBadge icon={ListChecks}    label="Conclusão"    value={`${realPct}%`}      color="var(--primary)" />
         <IndBadge icon={CalendarDays}  label="SPI · Prazo"  value={spi == null ? '—' : spi.toFixed(2)} color={spiColor} />
         <IndBadge icon={Clock3}        label="Em andamento" value={String(doing)}      color="var(--primary)" />
         <IndBadge icon={AlertTriangle} label="Atrasadas"    value={String(late)}       color={late > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
-        <IndBadge icon={LayoutGrid}    label="Etapas"       value={String(stagesCount)} color="var(--text-muted)" />
+        <IndBadge icon={LayoutGrid}    label="Etapas"       value={String(withDel.length)} color="var(--text-muted)" />
       </div>
+
+      {/* Donut de status + Curva de avanço */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
+        <ChartCard title="Status das atividades">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', width: 180, height: 180, flexShrink: 0 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={54} outerRadius={80} paddingAngle={2} stroke="none">
+                    {statusData.map((s, i) => <Cell key={i} fill={s.color} />)}
+                  </Pie>
+                  <RTooltip contentStyle={TOOLTIP_STYLE} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{realPct}%</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>concluído</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1, minWidth: 120 }}>
+              {statusData.map(s => (
+                <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--text)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{s.name}</span>
+                  <span style={{ fontWeight: 600 }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Avanço — Planejado vs Real" right={<span style={{ fontSize: 12, fontWeight: 600, color: spiColor }}>{ritmo}</span>}>
+          <div style={{ height: 200, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={curve} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="cli-real" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(125,125,125,0.16)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: 'var(--text-light)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-light)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} width={40} />
+                <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any, n: any) => [v == null ? '—' : `${v}%`, n === 'planejado' ? 'Planejado' : 'Real']} />
+                <Area type="monotone" dataKey="planejado" stroke="var(--text-muted)" strokeWidth={2} strokeDasharray="4 3" fill="none" />
+                <Area type="monotone" dataKey="real" stroke="var(--primary)" strokeWidth={2.5} fill="url(#cli-real)" connectNulls />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: 'var(--text-muted)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 14, height: 0, borderTop: '2px dashed var(--text-muted)' }} />Planejado</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 14, height: 3, borderRadius: 2, background: 'var(--primary)' }} />Real</span>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Conclusão por etapa */}
+      <ChartCard title="Conclusão por etapa">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {withDel.map(s => {
+            const c = stageColor(s.name)
+            return (
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ flex: '0 0 40%', maxWidth: 260, fontSize: 12.5, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, s.progress_pct)}%`, background: c, transition: 'width .3s ease' }} />
+                </div>
+                <span style={{ flex: '0 0 42px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{s.progress_pct}%</span>
+              </div>
+            )
+          })}
+        </div>
+      </ChartCard>
     </div>
   )
 }
@@ -217,7 +320,7 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
         {view === 'planejamento' && <Planejamento stages={stages} openCard={openCard} />}
         {view === 'timeline' && <Timeline stages={stages} openCard={openCard} />}
         {view === 'operacao' && <Operacao items={flat} openCard={openCard} />}
-        {view === 'indicadores' && <Indicadores flat={flat} stagesCount={stages.length} />}
+        {view === 'indicadores' && <Indicadores stages={stages} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade { animation: cli-fade .14s ease-out; }
