@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
-import { Lock, ChevronRight, ShieldQuestion, CalendarDays } from 'lucide-react'
+import { Lock, ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
 
 /**
  * Cronograma na visão do CLIENTE — em dias, sem horas/valores.
@@ -77,6 +77,26 @@ const STATUS_TONE: Record<string, string> = {
 }
 const KANBAN_COLS = ['backlog', 'in_progress', 'waiting_client', 'review', 'done']
 
+const isDelLate = (d: { status: string; due_date: string | null }) => {
+  if (d.status === 'done' || !d.due_date) return false
+  const due = new Date(d.due_date + 'T23:59:59')
+  return !isNaN(+due) && due.getTime() < Date.now()
+}
+
+function IndBadge({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
+  return (
+    <div style={{ flex: '1 1 130px', minWidth: 130, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-hover)', color, flexShrink: 0 }}>
+        <Icon size={17} />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.03em' }}>{label}</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{value}</div>
+      </div>
+    </div>
+  )
+}
+
 // Cor estável por etapa — evidencia a qual etapa cada card pertence no kanban único.
 const STAGE_COLORS = ['#3b82f6', '#a855f7', '#14b8a6', '#f59e0b', '#ec4899', '#22c55e', '#6366f1', '#ef4444', '#06b6d4', '#84cc16']
 function stageColor(name: string | null | undefined): string {
@@ -126,8 +146,22 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
   const openCard = (d: ClientDelivery) => { if (d.can_open) router.push(`/portal-cliente/atividades/${d.id}`) }
   const flat: FlatDelivery[] = stages.flatMap(s => s.deliveries.map(d => ({ ...d, stageName: s.name })))
 
+  const doneCount = flat.filter(d => d.status === 'done').length
+  const lateCount = flat.filter(isDelLate).length
+  const doingCount = flat.filter(d => d.status !== 'done' && d.status !== 'backlog' && !isDelLate(d)).length
+  const pct = flat.length ? Math.round((doneCount / flat.length) * 100) : 0
+
   return (
     <div>
+      {/* Indicadores do projeto (status, sem horas) */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+        <IndBadge icon={CheckCircle2} label="Concluídas"   value={`${doneCount}/${flat.length}`} color="var(--success)" />
+        <IndBadge icon={ListChecks}   label="Conclusão"    value={`${pct}%`}                     color="var(--primary)" />
+        <IndBadge icon={Clock3}       label="Em andamento" value={String(doingCount)}            color="var(--primary)" />
+        <IndBadge icon={AlertTriangle} label="Atrasadas"   value={String(lateCount)}             color={lateCount > 0 ? 'var(--danger)' : 'var(--text-muted)'} />
+        <IndBadge icon={LayoutGrid}   label="Etapas"       value={String(stages.length)}         color="var(--text-muted)" />
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <Segmented view={view} onChange={setView} />
       </div>
