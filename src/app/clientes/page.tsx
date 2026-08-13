@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
+import { SourceReposSection } from '@/components/customers/source-repos-section'
 import { useActiveCompany } from '@/hooks/use-active-company'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import type { CustomerFull, Executive } from '@/types'
@@ -449,6 +450,9 @@ export default function ClientesPage() {
                   <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
                 </div>
               </div>
+              {modal.item?.id && hasPermission('source_code.manage') && (
+                <SourceReposSection customerId={modal.item.id} />
+              )}
               <div className="flex gap-2 mt-5 justify-end">
                 <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                   Cancelar
