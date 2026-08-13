@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ApiError, api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -147,19 +147,6 @@ function InternalCronogramaPage() {
 
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
     useProjectSchedule(projectId)
-
-  // Altura do cabeçalho de página fixo (#proj-page-header) → a barra de abas gruda LOGO ABAIXO
-  // dele ao rolar (sem sobrepor). Medida direta do elemento (recalcula ao redimensionar).
-  const [headerH, setHeaderH] = useState(0)
-  useLayoutEffect(() => {
-    const el = document.getElementById('proj-page-header')
-    if (!el) return
-    const upd = () => setHeaderH(el.offsetHeight)
-    upd()
-    const ro = new ResizeObserver(upd); ro.observe(el)
-    window.addEventListener('resize', upd)
-    return () => { ro.disconnect(); window.removeEventListener('resize', upd) }
-  }, [])
 
   // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
   const saude = executiveSummary?.overall_risk === 'high'
@@ -421,11 +408,11 @@ function InternalCronogramaPage() {
         </div>
       )}
 
-      {/* BLOCO 2 fixo — barra de abas + ações (gruda logo abaixo do Bloco 1) */}
+      {/* BLOCO 2 fixo — barra de abas + ações (gruda no TOPO ao rolar; o Bloco 1 rola embora) */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 10,
-        position: 'sticky', top: headerH, zIndex: 20,
+        position: 'sticky', top: 0, zIndex: 20,
         background: 'var(--bg)',
         boxShadow: '0 6px 8px -6px rgba(0,0,0,.18)',
         paddingTop: 6, paddingBottom: 6,
