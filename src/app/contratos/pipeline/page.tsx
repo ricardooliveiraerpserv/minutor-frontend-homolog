@@ -668,8 +668,8 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 }
 
 function ProjectKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
-}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
+  card, index, canDrag, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
+}: { card: ProjectCard; index: number; canDrag: boolean; onClick?: () => void; onAction: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -698,7 +698,7 @@ function ProjectKanbanCard({
           ref={prov.innerRef}
           {...prov.draggableProps}
           {...prov.dragHandleProps}
-          onClick={onClick}
+          onClick={() => setMenuOpen(true)}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
             background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'var(--primary-soft)' : 'var(--surface)',
@@ -729,17 +729,10 @@ function ProjectKanbanCard({
                 style={{ background: `${color}20`, color }}>
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
-              {/* Context menu */}
+              {/* Menu de opções — abre ao clicar no card (sem botão ⋮) */}
               <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
-                  style={{ color: 'var(--text-light)' }}
-                >
-                  <MoreVertical size={12} />
-                </button>
                 {menuOpen && (
-                  <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
+                  <div className="absolute right-0 top-1 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
                       const Icon = item.icon
