@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -646,18 +646,22 @@ const CONTRACT_MENU_ITEMS = [
   { action: 'delete',  label: 'Excluir',    icon: Trash2,    adminOnly: true },
 ]
 
-const PROJECT_MENU_ITEMS = [
-  { action: 'view',       label: 'Gestão de Projetos', icon: Eye,         clientVisible: true },
-  { action: 'comments',   label: 'Comentários',       icon: MessageSquare, clientVisible: true },
-  { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
-  // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
-  { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
-  // 'Custo' removido: esta tela não exibe valor financeiro (só horas).
-  { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,         clientVisible: false },
-  // 'Aportes' removido do menu de linha (2026-05-28): aporte se cria via "É aporte?" no Novo Contrato.
-  { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
-  { action: 'delete',     label: 'Excluir',           icon: Trash2,        clientVisible: false, danger: true, adminOnly: true },
+// Menu PRIMÁRIO (abre ao clicar no card): abrir o projeto, diário interno e comentários (com o cliente).
+const PROJECT_PRIMARY_ITEMS = [
+  { action: 'view',     label: 'Gestão de Projetos', icon: Eye,           clientVisible: true },
+  { action: 'diary',    label: 'Diário do Projeto',  icon: BookOpen,      clientVisible: false }, // interno — cliente não vê
+  { action: 'comments', label: 'Comentários',        icon: MessageSquare, clientVisible: true, accent: true, legend: 'O cliente participa' },
 ]
+// Menu SECUNDÁRIO (⋮): demais ações de gestão.
+const PROJECT_SECONDARY_ITEMS = [
+  { action: 'edit',       label: 'Editar',            icon: Pencil,  clientVisible: false, adminOnly: true },
+  { action: 'status',     label: 'Alterar Status',    icon: Layers,  clientVisible: false },
+  { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,   clientVisible: false },
+  { action: 'team',       label: 'Selecionar Equipe', icon: Users,   clientVisible: false },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,  clientVisible: false, danger: true, adminOnly: true },
+]
+// Combinado (usado pela lista).
+const PROJECT_MENU_ITEMS = [...PROJECT_PRIMARY_ITEMS, ...PROJECT_SECONDARY_ITEMS]
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
   const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
@@ -671,19 +675,26 @@ function ProjectKanbanCard({
   card, index, canDrag, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick?: () => void; onAction: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [openMenu, setOpenMenu] = useState<null | 'primary' | 'secondary'>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
 
   useEffect(() => {
-    if (!menuOpen) return
+    if (!openMenu) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [menuOpen])
+  }, [openMenu])
+
+  const filterMenu = (items: any[]) => items.filter(item =>
+    (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)
+    && (!item.coordHidden || viewerUser?.type !== 'coordenador')
+    && !isDenied('/contratos/pipeline', item.action))
+  const primaryItems = filterMenu(PROJECT_PRIMARY_ITEMS)
+  const secondaryItems = filterMenu(PROJECT_SECONDARY_ITEMS)
 
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
@@ -698,7 +709,7 @@ function ProjectKanbanCard({
           ref={prov.innerRef}
           {...prov.draggableProps}
           {...prov.dragHandleProps}
-          onClick={() => setMenuOpen(true)}
+          onClick={() => setOpenMenu('primary')}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
             background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'var(--primary-soft)' : 'var(--surface)',
@@ -729,22 +740,38 @@ function ProjectKanbanCard({
                 style={{ background: `${color}20`, color }}>
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
-              {/* Menu de opções — abre ao clicar no card (sem botão ⋮) */}
+              {/* Menu: clique no card = primário; ⋮ = demais opções */}
               <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
-                {menuOpen && (
-                  <div className="absolute right-0 top-1 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
+                {secondaryItems.length > 0 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setOpenMenu(v => v === 'secondary' ? null : 'secondary') }}
+                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
+                    style={{ color: 'var(--text-light)' }}
+                    title="Mais opções"
+                  ><MoreVertical size={12} /></button>
+                )}
+                {openMenu && (
+                  <div className="absolute right-0 top-6 z-[100] w-60 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                    {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
+                    {(openMenu === 'primary' ? primaryItems : secondaryItems).map(item => {
                       const Icon = item.icon
+                      const accent = (item as any).accent
+                      const legend = (item as any).legend
+                      const danger = (item as any).danger
+                      const c = accent ? 'var(--success)' : danger ? 'var(--danger)' : 'var(--text)'
+                      const ic = accent ? 'var(--success)' : danger ? 'var(--danger)' : 'var(--text-light)'
                       return (
                         <button
                           key={item.action}
-                          onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
-                          style={{ color: 'var(--text)' }}
+                          onClick={e => { e.stopPropagation(); setOpenMenu(null); onAction(item.action) }}
+                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ color: c }}
                         >
-                          <Icon size={13} style={{ color: 'var(--text-light)' }} />
-                          {item.label}
+                          <Icon size={14} style={{ color: ic, marginTop: 1, flexShrink: 0 }} />
+                          <span className="flex flex-col">
+                            <span style={{ fontWeight: accent ? 600 : 500 }}>{item.label}</span>
+                            {legend && <span className="text-[10px]" style={{ color: 'var(--success)', opacity: 0.9 }}>{legend}</span>}
+                          </span>
                         </button>
                       )
                     })}
@@ -5927,6 +5954,22 @@ function KanbanContent() {
                 <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
               </div>
               <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid var(--border)', paddingTop: 8 }}><ProjectConversation projectId={card.id} /></div>
+            </div>
+          </div>
+        )
+        if (action === 'diary')      return (
+          <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(720px, 100%)', height: 'min(660px, 90vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.project_name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Diário do Projeto{card.code ? ` · ${card.code}` : ''} · interno</div>
+                </div>
+                <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                <ProjectMessages projectId={card.id} userRole={userRole} />
+              </div>
             </div>
           </div>
         )
