@@ -177,7 +177,7 @@ export default function FechadoPage() {
                 {displayedRows.map((row, idx) => (
                   <tr
                     key={row.id}
-                    onClick={() => openMenu(row.id, row.name)}
+                    onClick={() => openMenu(row.id, row.name, row.code)}
                     className="cursor-pointer ds-row-hover"
                     title="Abrir opções do projeto"
                     style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--border)' : undefined }}

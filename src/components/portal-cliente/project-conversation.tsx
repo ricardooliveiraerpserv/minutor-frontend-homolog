@@ -3,104 +3,185 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, apiMessage } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import { useAsyncAction } from '@/hooks/use-async-action'
 import { toast } from 'sonner'
-import { Send, Paperclip } from 'lucide-react'
+import { MessageSquare, Paperclip, Send, X, Download } from 'lucide-react'
 
 /**
- * Comentários GLOBAIS do projeto — MESMO canal/tabela de PROD:
- * contract_request_messages keyada por project_id, visibility='client',
- * via ProjectCommentController (GET/POST /projects/{id}/comments).
- * Cliente e equipe leem/escrevem o mesmo fio. Sem horas/valores.
+ * Comentários GLOBAIS do projeto — UI igual PROD (ReqChatPanel), ligada ao MESMO
+ * canal/tabela de prod: contract_request_messages por project_id (visibility='client')
+ * via /projects/{id}/comments (+ /mentionable-users). Cliente e equipe no mesmo fio.
  */
-interface Attachment { id: number; storage_path: string | null; original_name: string | null }
-interface Msg {
-  id: number
-  message: string | null
-  user_id: number
-  created_at: string | null
-  author: { id: number; name: string } | null
-  attachments?: Attachment[]
-}
+interface Attach { id: number; original_name: string | null; storage_path: string | null }
+interface Msg { id: number; message: string | null; user_id?: number; author?: { id: number; name: string } | null; created_at: string | null; attachments?: Attach[] }
+interface MentionUser { id: number; name: string; role?: string }
 
-const fmtDateTime = (iso: string | null) => { if (!iso) return ''; const d = new Date(iso); return isNaN(+d) ? '' : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+const initials = (name?: string | null) => (name ?? '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+const renderText = (t: string | null) => (t ?? '').replace(/@\[\d+:([^\]]+)\]/g, '@$1')
 
 export function ProjectConversation({ projectId }: { projectId: number; mode?: 'client' | 'team' }) {
-  const { user } = useAuth()
-  const myId = (user as { id?: number } | null)?.id
+  const { user: currentUser } = useAuth()
+  const myId = (currentUser as { id?: number } | null)?.id
   const base = `/projects/${projectId}/comments`
-  const [items, setItems] = useState<Msg[]>([])
-  const [loading, setLoading] = useState(true)
-  const [text, setText] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const endRef = useRef<HTMLDivElement | null>(null)
 
-  async function load(scroll = false) {
-    try {
-      const r = await api.get<Msg[]>(base)
-      setItems(Array.isArray(r) ? r : [])
-      if (scroll) setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
-    } catch { /* silencioso */ } finally { setLoading(false) }
+  const [msgs, setMsgs] = useState<Msg[]>([])
+  const [loaded, setLoaded] = useState(false)
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
+  const [mentionUsers, setMentionUsers] = useState<MentionUser[]>([])
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionStart, setMentionStart] = useState(-1)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    api.get<Msg[]>(base)
+      .then(r => { setMsgs(Array.isArray(r) ? r : []); setLoaded(true) })
+      .catch(() => setLoaded(true))
+    api.get<MentionUser[]>(`${base}/mentionable-users`)
+      .then(r => setMentionUsers(Array.isArray(r) ? r : []))
+      .catch(() => {})
+  }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
+
+  const handleInputChange = (val: string) => {
+    setInput(val)
+    const cursor = textareaRef.current?.selectionStart ?? val.length
+    const match = val.slice(0, cursor).match(/@(\w*)$/)
+    if (match) { setMentionStart(cursor - match[0].length); setMentionQuery(match[1].toLowerCase()); setShowMentions(true) }
+    else setShowMentions(false)
   }
 
-  useEffect(() => { setLoading(true); load(true) }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const insertMention = (u: MentionUser) => {
+    const before = input.slice(0, mentionStart)
+    const after = input.slice(textareaRef.current?.selectionStart ?? input.length)
+    setInput(`${before}@[${u.id}:${u.name}] ${after}`)
+    setShowMentions(false)
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
 
-  const send = useAsyncAction(async () => {
-    if (!text.trim() && !file) { toast.error('Escreva uma mensagem ou anexe um arquivo.'); return }
-    const form = new FormData()
-    form.append('message', text.trim())
-    if (file) form.append('files[]', file)
-    await api.post(base, form)
-    setText(''); setFile(null)
-    load(true)
-  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar')) })
+  const filteredMentions = mentionUsers.filter(u => u.id !== myId && u.name.toLowerCase().includes(mentionQuery))
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if ((!text && files.length === 0) || sending) return
+    setSending(true)
+    try {
+      const fd = new FormData()
+      fd.append('message', text)
+      files.forEach(f => fd.append('files[]', f))
+      const msg = await api.post<Msg>(base, fd)
+      setMsgs(prev => [...prev, msg])
+      setInput(''); setFiles([])
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao enviar mensagem')) }
+    finally { setSending(false) }
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', display: 'flex', flexDirection: 'column', maxHeight: 460, overflowY: 'auto', padding: 14, gap: 10 }}>
-        {loading && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando comentários…</div>}
-        {!loading && items.length === 0 && (
-          <div style={{ padding: '20px 8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-            Nenhum comentário ainda. Inicie a conversa do projeto.
+    <div className="flex flex-col min-h-0" style={{ height: '100%' }}>
+      {/* Feed */}
+      <div className="overflow-y-auto px-1 py-2 space-y-3" style={{ flex: 1, minHeight: 240, maxHeight: 460 }}>
+        {!loaded && <p className="text-center text-xs py-8" style={{ color: 'var(--text-light)' }}>Carregando…</p>}
+        {loaded && msgs.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 gap-1">
+            <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+            <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário ainda</p>
           </div>
         )}
-        {items.map(m => {
-          const mine = myId != null && m.user_id === myId
-          return (
-            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
-              <div style={{ maxWidth: '82%', background: mine ? 'var(--primary-soft)' : 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 11px' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600 }}>{m.author?.name ?? 'Usuário'}</span>
-                  <span>{fmtDateTime(m.created_at)}</span>
-                </div>
-                {m.message && <div style={{ fontSize: 13.5, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.message}</div>}
-                {(m.attachments ?? []).map(a => (
-                  <a key={a.id} href={a.storage_path ? `/storage/${a.storage_path}` : '#'} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, fontSize: 12, color: 'var(--primary)' }}>
-                    <Paperclip size={11} /> {a.original_name ?? 'anexo'}
-                  </a>
-                ))}
-              </div>
+        {msgs.map(msg => (
+          <div key={msg.id} className="flex gap-2.5 items-start">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+              style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
+              {initials(msg.author?.name)}
             </div>
-          )
-        })}
-        <div ref={endRef} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{msg.author?.name ?? 'Usuário'}</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  {msg.created_at ? new Date(msg.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                </span>
+              </div>
+              {msg.message && <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>{renderText(msg.message)}</p>}
+              {msg.attachments && msg.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {msg.attachments.map(att => (
+                    <a key={att.id} href={att.storage_path ? `/storage/${att.storage_path}` : '#'} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
+                      style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)', color: '#a78bfa' }}>
+                      <Paperclip size={10} /><span className="max-w-[150px] truncate">{att.original_name ?? 'anexo'}</span><Download size={10} />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
       </div>
 
-      <div className="ds-card" style={{ padding: 12 }}>
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={3} className="ds-input"
-          placeholder="Escreva um comentário para o projeto…" style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: 8, fontSize: 13 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)' }}>
-            <Paperclip size={12} /> {file ? file.name : 'Anexar arquivo'}
-            <input type="file" hidden onChange={e => setFile(e.target.files?.[0] ?? null)} />
-          </label>
-          {file && <button onClick={() => setFile(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>remover</button>}
-          <button type="button" className="ds-btn-primary" onClick={() => send.run()} disabled={send.pending}
-            style={{ marginLeft: 'auto', fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Send size={12} /> {send.pending ? 'Enviando…' : 'Enviar'}
-          </button>
+      {/* Composer */}
+      <div className="pt-2 border-t shrink-0" style={{ borderColor: 'rgba(139,92,246,0.2)' }}>
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {files.map((f, i) => (
+              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px]"
+                style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa' }}>
+                {f.name}
+                <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}><X size={10} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="relative">
+          {showMentions && filteredMentions.length > 0 && (
+            <div className="absolute bottom-full left-0 mb-1 w-64 max-h-60 overflow-y-auto rounded-lg shadow-lg z-10"
+              style={{ background: 'var(--bg)', border: '1px solid rgba(139,92,246,0.3)' }}>
+              {filteredMentions.map(u => {
+                const isCli = u.role === 'cliente'
+                const accent = isCli ? 'var(--success)' : '#a78bfa'
+                return (
+                  <button key={u.id} onClick={() => insertMention(u)}
+                    className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-sm hover:opacity-80 transition-opacity"
+                    style={{ color: isCli ? 'var(--success)' : 'var(--text)' }}>
+                    <span className="truncate"><span style={{ color: accent }} className="font-semibold">@</span>{u.name}</span>
+                    {u.role && <span className="text-[10px] uppercase tracking-wider opacity-70 shrink-0" style={{ color: accent }}>{u.role}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={e => handleInputChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setShowMentions(false); return }
+                if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend() }
+              }}
+              placeholder="Escreva um comentário... Use @ para mencionar"
+              rows={2}
+              className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--text)' }}
+            />
+            <div className="flex flex-col gap-1 shrink-0">
+              <button onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+                style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.2)', color: 'var(--text-light)' }}
+                title="Anexar arquivo"><Paperclip size={14} /></button>
+              <button onClick={handleSend} disabled={(!input.trim() && files.length === 0) || sending}
+                className="flex items-center justify-center w-9 h-9 rounded-lg transition-all disabled:opacity-40"
+                style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.35)' }}>
+                <Send size={15} />
+              </button>
+            </div>
+          </div>
         </div>
+        <input ref={fileInputRef} type="file" multiple className="hidden"
+          onChange={e => { const picked = Array.from(e.target.files ?? []); setFiles(prev => [...prev, ...picked].slice(0, 10)); e.target.value = '' }} />
       </div>
     </div>
   )

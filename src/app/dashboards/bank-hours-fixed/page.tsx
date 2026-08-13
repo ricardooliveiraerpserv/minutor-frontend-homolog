@@ -603,7 +603,7 @@ export default function BankHoursFixedPage() {
                 return (
                   <tr
                     key={p.id}
-                    onClick={() => openMenu(p.id, p.name)}
+                    onClick={() => openMenu(p.id, p.name, p.code)}
                     className="transition-colors cursor-pointer"
                     style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}

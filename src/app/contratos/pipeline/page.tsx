@@ -5918,12 +5918,15 @@ function KanbanContent() {
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
         if (action === 'comments')   return (
           <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', maxHeight: '88vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--text)' }}>Comentários · {card.project_name}</h2>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.project_name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</div>
+                </div>
                 <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
               </div>
-              <div style={{ overflowY: 'auto' }}><ProjectConversation projectId={card.id} /></div>
+              <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid var(--border)', paddingTop: 8 }}><ProjectConversation projectId={card.id} /></div>
             </div>
           </div>
         )
