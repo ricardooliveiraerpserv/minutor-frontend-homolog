@@ -208,9 +208,9 @@ export default function VisaoClienteProjetoPage() {
                 color: 'var(--text)',
                 textTransform: 'uppercase',
                 letterSpacing: '.04em',
-                margin: '0 0 8px',
+                margin: '0 0 12px',
               }}>
-                Cronograma
+                Acompanhamento do projeto
               </h2>
               <ClientProjectSchedule projectId={projectId} />
             </section>
