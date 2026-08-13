@@ -121,7 +121,7 @@ export default function VisaoClienteProjetoPage() {
 
   return (
     <AppLayout title={data?.project?.name ?? 'Projeto'}>
-      <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
+      <div style={{ padding: 24, maxWidth: 1440, margin: '0 auto' }}>
         <button onClick={() => router.back()}
           className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 py-1.5 mb-4 ds-row-hover"
           style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
