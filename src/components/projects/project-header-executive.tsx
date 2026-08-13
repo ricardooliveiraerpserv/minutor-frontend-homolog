@@ -215,9 +215,9 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
 
   return (
     <>
-    {/* BLOCO 1 fixo — identidade + cards (gruda no topo; opaco, com sombra) */}
+    {/* BLOCO 1 — identidade + cards (rola normalmente com a página; não gruda no topo) */}
     <div id="proj-page-header" style={{
-      position: 'sticky', top: 0, zIndex: 30,
+      position: 'relative', zIndex: 30,
       padding: '8px 24px 8px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
