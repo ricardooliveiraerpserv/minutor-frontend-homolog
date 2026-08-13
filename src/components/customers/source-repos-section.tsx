@@ -32,7 +32,7 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
   const [status, setStatus] = useState<Record<number, 'ok' | 'fail'>>({})   // ⚡ amarelo=ok · vermelho=fail
   const testedRef = useRef<Set<number>>(new Set())
   const [availRepos, setAvailRepos] = useState<{ name: string; default_branch: string | null }[]>([])
-  const reposListId = `scf-repos-${customerId}`
+  const [repoOpen, setRepoOpen] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -140,11 +140,27 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
         <div className="mt-2 rounded-lg p-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="grid grid-cols-2 gap-2">
             <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="ex.: erpserv-clientes" className="h-7 text-xs" /></div>
-            <div><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
-              <Input value={form.repository} list={reposListId}
-                onChange={e => { const v = e.target.value; const m = availRepos.find(r => r.name.toLowerCase() === v.toLowerCase()); setForm(f => f && ({ ...f, repository: v, ...(m?.default_branch ? { branch: m.default_branch } : {}) })) }}
+            <div className="relative"><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
+              <Input value={form.repository}
+                onFocus={() => setRepoOpen(true)}
+                onBlur={() => setTimeout(() => setRepoOpen(false), 150)}
+                onChange={e => { const v = e.target.value; const m = availRepos.find(r => r.name.toLowerCase() === v.toLowerCase()); setForm(f => f && ({ ...f, repository: v, ...(m?.default_branch ? { branch: m.default_branch } : {}) })); setRepoOpen(true) }}
                 placeholder={availRepos.length ? 'selecione ou digite…' : 'ex.: promax'} className="h-7 text-xs" />
-              <datalist id={reposListId}>{availRepos.map(r => <option key={r.name} value={r.name} />)}</datalist>
+              {repoOpen && (() => {
+                const q = (form.repository ?? '').trim().toLowerCase()
+                const opts = availRepos.filter(r => !q || r.name.toLowerCase().includes(q)).slice(0, 8)
+                return opts.length ? (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden shadow-lg max-h-44 overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    {opts.map(r => (
+                      <button key={r.name} type="button" onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setForm(f => f && ({ ...f, repository: r.name, ...(r.default_branch ? { branch: r.default_branch } : {}) })); setRepoOpen(false) }}
+                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                        {r.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>· {r.default_branch}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null
+              })()}
             </div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Branch *</Label><Input value={form.branch} onChange={e => setForm(f => f && ({ ...f, branch: e.target.value }))} placeholder="ex.: main" className="h-7 text-xs" /></div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Base path (opcional)</Label><Input value={form.base_path} onChange={e => setForm(f => f && ({ ...f, base_path: e.target.value }))} placeholder="(raiz do repo)" className="h-7 text-xs" /></div>
