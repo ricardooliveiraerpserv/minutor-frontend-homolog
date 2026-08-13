@@ -122,7 +122,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 // ─── Projects Table ───────────────────────────────────────────────────────────
 
-function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectItem[]; loading: boolean; onViewTimesheets: (p: ProjectItem) => void }) {
+function ProjectsTable({ items, loading, onViewTimesheets, onRowClick }: { items: ProjectItem[]; loading: boolean; onViewTimesheets: (p: ProjectItem) => void; onRowClick?: (id: number) => void }) {
   return (
     <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {loading ? (
@@ -146,7 +146,7 @@ function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectIte
                 : items.map(p => {
                   const contributions = p.total_contributions_hours || p.hour_contribution || 0
                   return (
-                    <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)' }}
+                    <tr key={p.id} onClick={() => onRowClick?.(p.id)} className={`transition-colors ${onRowClick ? 'cursor-pointer' : ''}`} style={{ borderBottom: '1px solid var(--border)' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
@@ -170,7 +170,7 @@ function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectIte
                             (chave do projeto desligada) — não expõe o detalhe. */}
                         {p.consumo_visivel_cliente !== false && (
                           <button
-                            onClick={() => onViewTimesheets(p)}
+                            onClick={(e) => { e.stopPropagation(); onViewTimesheets(p) }}
                             className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
                             style={{ color: 'var(--text-muted)' }}
                             title="Ver apontamentos"
@@ -706,7 +706,7 @@ export default function BankHoursMonthlyPage() {
                     <KpiCard label="Consumo Acumulado" value={fmtH(summary.projects_consumed_hours ?? 0)} accent="primary" />
                   </div>
                 )}
-                <ProjectsTable items={projectsList} loading={loadingProjects} onViewTimesheets={setTsModalProject} />
+                <ProjectsTable items={projectsList} loading={loadingProjects} onViewTimesheets={setTsModalProject} onRowClick={id => router.push(isCliente ? `/portal-cliente/projetos/${id}` : `/projetos/${id}/cronograma`)} />
               </div>
             )}
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { useParams } from 'next/navigation'
-import { Calendar, Clock, TrendingUp, Activity } from 'lucide-react'
+import { useParams, useRouter } from 'next/navigation'
+import { Calendar, Clock, TrendingUp, Activity, ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Skeleton } from '@/components/ui/loading'
 import {
@@ -111,6 +111,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 export default function VisaoClienteProjetoPage() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
+  const router = useRouter()
   const { data, loading, error } = useClientProjectSummary(
     Number.isFinite(projectId) ? projectId : null
   )
@@ -118,6 +119,11 @@ export default function VisaoClienteProjetoPage() {
   return (
     <AppLayout title={data?.project?.name ?? 'Projeto'}>
       <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
+        <button onClick={() => router.back()}
+          className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 py-1.5 mb-4 ds-row-hover"
+          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+          <ArrowLeft size={15} /> Voltar
+        </button>
         {loading && !data && (
           <>
             <div style={{ marginBottom: 24 }}>

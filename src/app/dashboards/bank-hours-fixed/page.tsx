@@ -601,7 +601,8 @@ export default function BankHoursFixedPage() {
                 return (
                   <tr
                     key={p.id}
-                    className="transition-colors"
+                    onClick={() => router.push(isCliente ? `/portal-cliente/projetos/${p.id}` : `/projetos/${p.id}/cronograma`)}
+                    className="transition-colors cursor-pointer"
                     style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -636,7 +637,7 @@ export default function BankHoursFixedPage() {
                       {/* Sem "Ver apontamentos" (olho + menu) quando o consumo está oculto
                           ao cliente (chave do projeto desligada) — não expõe o detalhe. */}
                       {p.consumo_visivel_cliente !== false && (
-                      <div className="inline-flex items-center gap-1 justify-end">
+                      <div className="inline-flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setTsModalProject(p)}
                           className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
