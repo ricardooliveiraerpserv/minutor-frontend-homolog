@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
+import { X, FileCode } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 
@@ -65,6 +65,9 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
           <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{heading}</h2>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
+        <a href="/help-desk/codigo-fonte" onClick={onClose} className="flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+          <FileCode size={13} /> Precisa de código-fonte? Abrir o assistente de solicitação →
+        </a>
         <div className="space-y-2">
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label>

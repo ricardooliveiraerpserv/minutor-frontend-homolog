@@ -96,6 +96,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/help-desk/fila',      label: 'Fila (Kanban)',          group: 'Help Desk' },
   { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
   { key: '/help-desk/portal',    label: 'Central de Atendimento', group: 'Help Desk' },
+  { key: '/help-desk/codigo-fonte', label: 'Solicitar Código-Fonte', group: 'Help Desk' },
 
   // Cofre de Senhas (zero-knowledge)
   { key: '/cofre',              label: 'Cofre de Senhas',       group: 'Cofre' },
