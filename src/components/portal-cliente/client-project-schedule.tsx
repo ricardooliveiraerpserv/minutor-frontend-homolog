@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { LayoutGrid, List, CheckCircle2, Clock3, AlertTriangle, ListChecks } from 'lucide-react'
+import { LayoutGrid, List, CheckCircle2, Clock3, AlertTriangle, ListChecks, User } from 'lucide-react'
 import { api } from '@/lib/api'
 
 /**
@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
  * Sem horas / durações / alocações / valores. Fonte: GET /client/projects/{id}/schedule.
  */
 
-type Delivery = { id: number; title: string; status: string; planned_start_at: string | null; due_date: string | null; completed_at: string | null }
+type Delivery = { id: number; title: string; status: string; planned_start_at: string | null; due_date: string | null; completed_at: string | null; responsible_name?: string | null }
 type Stage = { id: number; name: string; deliveries: Delivery[] }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -30,6 +30,15 @@ function Badge({ status }: { status: string }) {
   return (
     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap', color: STATUS_COLOR[status] ?? 'var(--text-muted)', background: STATUS_BG[status] ?? 'var(--surface-hover)' }}>
       {STATUS_LABEL[status] ?? status}
+    </span>
+  )
+}
+
+function Responsible({ name }: { name?: string | null }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <User size={12} style={{ flexShrink: 0 }} />
+      {name || 'Sem responsável'}
     </span>
   )
 }
@@ -145,6 +154,7 @@ function ScheduleList({ stages }: { stages: Stage[] }) {
               {stage.deliveries.map(d => (
                 <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
                   <span style={{ flex: 1, minWidth: 160, fontSize: 13.5, color: 'var(--text)' }}>{d.title}</span>
+                  <Responsible name={d.responsible_name} />
                   <span style={{ fontSize: 12, color: isLate(d) ? 'var(--danger)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt(d.planned_start_at)} – {fmt(d.due_date)}</span>
                   <Badge status={d.status} />
                 </div>
@@ -174,6 +184,7 @@ function ScheduleKanban({ stages }: { stages: Stage[] }) {
               {stage.deliveries.map(d => (
                 <div key={d.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.3 }}>{d.title}</span>
+                  <Responsible name={d.responsible_name} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 11.5, color: isLate(d) ? 'var(--danger)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt(d.planned_start_at)} – {fmt(d.due_date)}</span>
                     <Badge status={d.status} />
