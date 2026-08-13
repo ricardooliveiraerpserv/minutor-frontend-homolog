@@ -341,7 +341,7 @@ function Segmented({ view, onChange }: { view: View; onChange: (v: View) => void
     { value: 'timeline', label: 'Linha do Tempo' },
     { value: 'operacao', label: 'Operação' },
     { value: 'indicadores', label: 'Indicadores' },
-    { value: 'conversa', label: 'Conversa' },
+    { value: 'conversa', label: 'Comentários' },
   ]
   return (
     <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface)' }}>

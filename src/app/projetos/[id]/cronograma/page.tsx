@@ -655,7 +655,7 @@ function SegmentedControl({
     { value: 'timeline',     label: 'Linha do Tempo', hintBase: 'Atalho: 2', countSuffix: n => `${n} atrasada${n === 1 ? '' : 's'}`, countTone: 'danger' },
     { value: 'operacao',     label: 'Operação',       hintBase: 'Atalho: 3', countSuffix: n => `${n} em execução`,                  countTone: 'primary' },
     { value: 'indicadores',  label: 'Indicadores',    hintBase: 'Atalho: 4', countSuffix: n => `${n}`,                              countTone: 'primary' },
-    { value: 'conversa',     label: 'Conversa',       hintBase: 'Conversa com o cliente', countSuffix: n => `${n}`,                 countTone: 'primary' },
+    { value: 'conversa',     label: 'Comentários',    hintBase: 'Comentários com o cliente', countSuffix: n => `${n}`,               countTone: 'primary' },
   ]
   // Consultor: só a Operação (as outras views são de gestão).
   const opts = onlyOperacao ? allOpts.filter(o => o.value === 'operacao') : allOpts
