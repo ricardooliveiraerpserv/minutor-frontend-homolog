@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { Calendar, Clock, TrendingUp, Activity, ArrowLeft } from 'lucide-react'
+import { Calendar, TrendingUp, Activity, ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Skeleton } from '@/components/ui/loading'
 import { ClientProjectSchedule } from '@/components/portal-cliente/client-project-schedule'
@@ -189,12 +189,6 @@ export default function VisaoClienteProjetoPage() {
                 icon={TrendingUp}
               />
               <KPI
-                label="Horas"
-                value={`${Math.round(data.consumed_hours)}h`}
-                sub={data.sold_hours > 0 ? `de ${Math.round(data.sold_hours)}h contratadas` : undefined}
-                icon={Clock}
-              />
-              <KPI
                 label="Prazo"
                 value={formatDate(data.expected_end_date)}
                 icon={Calendar}
@@ -206,35 +200,6 @@ export default function VisaoClienteProjetoPage() {
                 sub={data.health !== 'ok' ? 'Equipe acompanhando' : undefined}
               />
             </section>
-
-            {data.sold_hours > 0 && (
-              <section style={{ marginBottom: 24 }}>
-                <div style={{
-                  height: 6,
-                  width: '100%',
-                  background: 'var(--surface-hover)',
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${Math.min(100, (data.consumed_hours / data.sold_hours) * 100)}%`,
-                    background: HEALTH[data.health].color,
-                    transition: 'width .3s ease',
-                  }} />
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginTop: 6,
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                }}>
-                  <span>Consumo de horas</span>
-                  <span>{Math.round((data.consumed_hours / data.sold_hours) * 100)}%</span>
-                </div>
-              </section>
-            )}
 
             <section style={{ marginBottom: 24 }}>
               <h2 style={{
@@ -270,7 +235,7 @@ export default function VisaoClienteProjetoPage() {
                   borderRadius: 8,
                   fontSize: 13,
                 }}>
-                  Nenhuma atualização recente. Quando a equipe registrar horas ou concluir entregas, elas aparecem aqui.
+                  Nenhuma atualização recente. Quando a equipe avançar as entregas, elas aparecem aqui.
                 </div>
               ) : (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
