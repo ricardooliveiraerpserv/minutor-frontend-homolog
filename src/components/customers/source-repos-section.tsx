@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Pencil, Zap } from 'lucide-react'
+import { Plus, Trash2, Pencil, Zap, RefreshCw } from 'lucide-react'
 
 /** Fonte Git autorizada de um cliente (Fase 0 — Solicitação de código-fonte). */
 interface Repo {
@@ -41,17 +41,21 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
   }, [customerId])
   useEffect(() => { load() }, [load])
 
-  // Seletor de repositório: lista os repos que a GitHub App enxerga no owner (datalist).
+  // Seletor de repositório: lista os repos que a GitHub App enxerga no owner.
   const owner = form?.owner ?? ''
   const formOpen = !!form
+  const [availLoading, setAvailLoading] = useState(false)
+  const loadAvail = useCallback((ownerVal: string) => {
+    if (!ownerVal.trim()) { setAvailRepos([]); return }
+    setAvailLoading(true)
+    api.get<{ repos: { name: string; default_branch: string | null }[] }>(`/source-repos/available?owner=${encodeURIComponent(ownerVal.trim())}`)
+      .then(r => setAvailRepos(r?.repos ?? [])).catch(() => setAvailRepos([])).finally(() => setAvailLoading(false))
+  }, [])
   useEffect(() => {
     if (!formOpen || !owner.trim()) { setAvailRepos([]); return }
-    const t = setTimeout(() => {
-      api.get<{ repos: { name: string; default_branch: string | null }[] }>(`/source-repos/available?owner=${encodeURIComponent(owner.trim())}`)
-        .then(r => setAvailRepos(r?.repos ?? [])).catch(() => setAvailRepos([]))
-    }, 350)
+    const t = setTimeout(() => loadAvail(owner), 350)
     return () => clearTimeout(t)
-  }, [owner, formOpen])
+  }, [owner, formOpen, loadAvail])
 
   // Owner e branch já vêm preenchidos (caso comum erpserv-clientes/main); só o repositório fica pra escolher.
   const openNew = () => { setEditId(null); setForm({ ...BLANK, owner: 'erpserv-clientes', branch: 'main' }) }
@@ -140,7 +144,14 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
         <div className="mt-2 rounded-lg p-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="grid grid-cols-2 gap-2">
             <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="ex.: erpserv-clientes" className="h-7 text-xs" /></div>
-            <div className="relative"><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
+                <button type="button" onClick={() => loadAvail(owner)} disabled={availLoading || !owner.trim()} title="Atualizar a lista de repositórios que a GitHub App enxerga neste owner"
+                  className="text-[9px] inline-flex items-center gap-0.5" style={{ color: 'var(--primary)', opacity: availLoading || !owner.trim() ? 0.5 : 1 }}>
+                  <RefreshCw size={9} className={availLoading ? 'animate-spin' : ''} /> Atualizar
+                </button>
+              </div>
               <Input value={form.repository}
                 onFocus={() => setRepoOpen(true)}
                 onBlur={() => setTimeout(() => setRepoOpen(false), 150)}
