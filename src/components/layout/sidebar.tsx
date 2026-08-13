@@ -40,6 +40,7 @@ import {
   DollarSign,
   Webhook,
   Ticket,
+  FileCode,
   Briefcase,
   UserPlus,
   Search,
@@ -453,6 +454,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Central de Operações', href: '/help-desk/operacoes', icon: Radar },
       { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
+      { label: 'Solicitar Código-Fonte', href: '/help-desk/codigo-fonte', icon: FileCode },
       { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
       { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
     ],
@@ -821,6 +823,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           items: [
             { label: 'Central de Operações', href: '/help-desk/operacoes', icon: Radar },
             { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
+            { label: 'Solicitar Código-Fonte', href: '/help-desk/codigo-fonte', icon: FileCode },
             { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
             { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
           ],
@@ -938,6 +941,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           type: 'group', label: 'Help Desk', icon: Headphones,
           items: [
             { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
+            { label: 'Solicitar Código-Fonte', href: '/help-desk/codigo-fonte', icon: FileCode },
             { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
             { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
           ],
