@@ -19,6 +19,7 @@ import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
 import { IndicadoresView } from './views/indicadores'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { CronogramaEvmPanel } from '@/components/projects/cronograma-evm-panel'
 import { CronogramaSettingsModal } from '@/components/projects/cronograma-settings-modal'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
@@ -27,8 +28,8 @@ import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos
 import { ClientSchedule } from '@/components/projects/client-schedule'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
-type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'conversa'
-const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'conversa']
+type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'conversa' | 'diary'
+const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'conversa', 'diary']
 /** Compat permanente: bookmarks/links antigos continuam funcionando. */
 const LEGACY_MAP: Record<string, ViewMode> = {
   board: 'operacao',
@@ -424,6 +425,7 @@ function InternalCronogramaPage() {
           timeline: counts.overdueCount,
           indicadores: 0,
           conversa: 0,
+          diary: 0,
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* "Liberado à gestão" e "Modo executivo" são visão de gestão — o consultor
@@ -597,6 +599,7 @@ function InternalCronogramaPage() {
           </div>
         )}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
+        {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade {
@@ -655,7 +658,8 @@ function SegmentedControl({
     { value: 'timeline',     label: 'Linha do Tempo', hintBase: 'Atalho: 2', countSuffix: n => `${n} atrasada${n === 1 ? '' : 's'}`, countTone: 'danger' },
     { value: 'operacao',     label: 'Operação',       hintBase: 'Atalho: 3', countSuffix: n => `${n} em execução`,                  countTone: 'primary' },
     { value: 'indicadores',  label: 'Indicadores',    hintBase: 'Atalho: 4', countSuffix: n => `${n}`,                              countTone: 'primary' },
-    { value: 'conversa',     label: 'Comentários',    hintBase: 'Comentários com o cliente', countSuffix: n => `${n}`,               countTone: 'primary' },
+    { value: 'conversa',     label: 'Comentários',    hintBase: 'Comentários com o cliente', countSuffix: n => `${n}`,               countTone: 'danger' },
+    { value: 'diary',        label: 'Diário do Projeto', hintBase: 'Diário interno — o cliente NÃO participa', countSuffix: n => `${n}`, countTone: 'primary' },
   ]
   // Consultor: só a Operação (as outras views são de gestão).
   const opts = onlyOperacao ? allOpts.filter(o => o.value === 'operacao') : allOpts

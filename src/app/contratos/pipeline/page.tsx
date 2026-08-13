@@ -758,8 +758,9 @@ function ProjectKanbanCard({
                       const accent = (item as any).accent
                       const legend = (item as any).legend
                       const danger = (item as any).danger
-                      const c = accent ? 'var(--success)' : danger ? 'var(--danger)' : 'var(--text)'
-                      const ic = accent ? 'var(--success)' : danger ? 'var(--danger)' : 'var(--text-light)'
+                      // accent = Comentários (cliente participa) → destaque em VERMELHO.
+                      const c = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text)'
+                      const ic = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text-light)'
                       return (
                         <button
                           key={item.action}
@@ -770,7 +771,7 @@ function ProjectKanbanCard({
                           <Icon size={14} style={{ color: ic, marginTop: 1, flexShrink: 0 }} />
                           <span className="flex flex-col">
                             <span style={{ fontWeight: accent ? 600 : 500 }}>{item.label}</span>
-                            {legend && <span className="text-[10px]" style={{ color: 'var(--success)', opacity: 0.9 }}>{legend}</span>}
+                            {legend && <span className="text-[10px]" style={{ color: 'var(--danger)', opacity: 0.95, fontWeight: 600 }}>{legend}</span>}
                           </span>
                         </button>
                       )
@@ -5945,11 +5946,11 @@ function KanbanContent() {
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
         if (action === 'comments')   return (
           <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--danger)', borderTop: '4px solid var(--danger)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.project_name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</div>
                 </div>
                 <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
               </div>

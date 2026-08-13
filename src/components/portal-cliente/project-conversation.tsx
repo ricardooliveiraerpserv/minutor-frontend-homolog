@@ -21,6 +21,7 @@ const renderText = (t: string | null) => (t ?? '').replace(/@\[\d+:([^\]]+)\]/g,
 export function ProjectConversation({ projectId }: { projectId: number; mode?: 'client' | 'team' }) {
   const { user: currentUser } = useAuth()
   const myId = (currentUser as { id?: number } | null)?.id
+  const isClient = (currentUser as { type?: string } | null)?.type === 'cliente'
   const base = `/projects/${projectId}/comments`
 
   const [msgs, setMsgs] = useState<Msg[]>([])
@@ -82,6 +83,13 @@ export function ProjectConversation({ projectId }: { projectId: number; mode?: '
 
   return (
     <div className="flex flex-col min-h-0" style={{ height: '100%' }}>
+      {/* Legenda em destaque — o CLIENTE participa (aviso só p/ equipe interna) */}
+      {!isClient && (
+        <div className="shrink-0" style={{ marginBottom: 8, padding: '8px 12px', borderRadius: 8, background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
+          O CLIENTE participa desta conversa — tudo que você escrever aqui é visível ao cliente.
+        </div>
+      )}
       {/* Feed */}
       <div className="overflow-y-auto px-1 py-2 space-y-3" style={{ flex: 1, minHeight: 240, maxHeight: 460 }}>
         {!loaded && <p className="text-center text-xs py-8" style={{ color: 'var(--text-light)' }}>Carregando…</p>}

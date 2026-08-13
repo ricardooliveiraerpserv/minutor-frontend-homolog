@@ -59,11 +59,11 @@ export function useProjectActionsMenu() {
 
       {comments && (
         <div onClick={() => setComments(null)} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--danger)', borderTop: '4px solid var(--danger)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{comments.name ?? 'Projeto'}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Comentários{comments.code ? ` · ${comments.code}` : ''}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>Comentários{comments.code ? ` · ${comments.code}` : ''}</div>
               </div>
               <button onClick={() => setComments(null)} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
             </div>
