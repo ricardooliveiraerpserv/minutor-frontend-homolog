@@ -106,9 +106,9 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
       {form && (
         <div className="mt-2 rounded-lg p-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="erpserv-clientes" className="h-7 text-xs" /></div>
-            <div><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label><Input value={form.repository} onChange={e => setForm(f => f && ({ ...f, repository: e.target.value }))} placeholder="promax" className="h-7 text-xs" /></div>
-            <div><Label className="text-[10px] text-[var(--text-light)]">Branch *</Label><Input value={form.branch} onChange={e => setForm(f => f && ({ ...f, branch: e.target.value }))} placeholder="main / master" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="ex.: erpserv-clientes" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label><Input value={form.repository} onChange={e => setForm(f => f && ({ ...f, repository: e.target.value }))} placeholder="ex.: promax" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Branch *</Label><Input value={form.branch} onChange={e => setForm(f => f && ({ ...f, branch: e.target.value }))} placeholder="ex.: main" className="h-7 text-xs" /></div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Base path (opcional)</Label><Input value={form.base_path} onChange={e => setForm(f => f && ({ ...f, base_path: e.target.value }))} placeholder="(raiz do repo)" className="h-7 text-xs" /></div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Tipo</Label>
               <select value={form.tipo} onChange={e => setForm(f => f && ({ ...f, tipo: e.target.value }))} className="w-full h-7 text-xs rounded-md px-2 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}>
@@ -126,7 +126,7 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
         </div>
       )}
 
-      <p className="mt-2 text-[10px] text-[var(--text-light)]">Read-only. O GitHub só responde quando <code>GITHUB_SOURCE_TOKEN</code> estiver configurado no servidor; "Remover" desativa (não exclui).</p>
+      <p className="mt-2 text-[10px] text-[var(--text-light)]">Read-only via GitHub App (Contents: Read-only). Preencha os campos (o texto cinza é só exemplo); "Remover" desativa (não exclui).</p>
     </div>
   )
 }
