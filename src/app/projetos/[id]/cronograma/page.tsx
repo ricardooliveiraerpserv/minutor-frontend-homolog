@@ -676,6 +676,8 @@ function SegmentedControl({
       {opts.map((opt) => {
         const active = current === opt.value
         const n = counts[opt.value] ?? 0
+        // Comentários = participação do cliente → destaque em VERMELHO.
+        const isComments = opt.value === 'conversa'
         return (
           <button
             key={opt.value}
@@ -687,8 +689,8 @@ function SegmentedControl({
               padding: '6px 14px',
               fontSize: 13,
               fontWeight: active ? 700 : 600,
-              background: active ? 'var(--primary)' : 'transparent',
-              color: active ? 'var(--primary-fg)' : 'var(--text)',
+              background: active ? (isComments ? 'var(--danger)' : 'var(--primary)') : 'transparent',
+              color: active ? '#fff' : (isComments ? 'var(--danger)' : 'var(--text)'),
               border: 'none',
               borderRadius: 7,
               cursor: 'pointer',
