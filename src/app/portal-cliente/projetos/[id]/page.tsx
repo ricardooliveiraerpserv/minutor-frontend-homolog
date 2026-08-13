@@ -121,12 +121,7 @@ export default function VisaoClienteProjetoPage() {
 
   return (
     <AppLayout title={data?.project?.name ?? 'Projeto'}>
-      <div style={{ padding: 24, maxWidth: 1440, margin: '0 auto' }}>
-        <button onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 py-1.5 mb-4 ds-row-hover"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
-          <ArrowLeft size={15} /> Voltar
-        </button>
+      <div style={{ padding: '12px 24px 24px', maxWidth: 1440, margin: '0 auto' }}>
         {loading && !data && (
           <>
             <div style={{ marginBottom: 24 }}>
@@ -156,10 +151,15 @@ export default function VisaoClienteProjetoPage() {
             <section style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 20,
+              gap: 16,
               flexWrap: 'wrap',
               marginBottom: 24,
             }}>
+              <button onClick={() => router.back()}
+                className="inline-flex items-center gap-1.5 text-sm rounded-lg px-3 py-1.5 ds-row-hover"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', alignSelf: 'flex-start' }}>
+                <ArrowLeft size={15} /> Voltar
+              </button>
               <div style={{ flex: '1 1 220px', minWidth: 200 }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                   {data.project.customer?.name ?? 'Cliente'}
