@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,8 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
   const [editId, setEditId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState<number | null>(null)
+  const [status, setStatus] = useState<Record<number, 'ok' | 'fail'>>({})   // ⚡ amarelo=ok · vermelho=fail
+  const testedRef = useRef<Set<number>>(new Set())
   const [availRepos, setAvailRepos] = useState<{ name: string; default_branch: string | null }[]>([])
   const reposListId = `scf-repos-${customerId}`
 
@@ -79,14 +81,28 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
     try { await api.delete(`/source-repos/${r.id}`); toast.success('Repositório desativado'); load() } catch { toast.error('Erro ao desativar') }
   }
 
-  const test = async (r: Repo) => {
-    setTesting(r.id)
+  const test = async (r: Repo, silent = false) => {
+    if (!silent) setTesting(r.id)
     try {
       const res = await api.post<{ ok: boolean; message: string; code?: string }>(`/source-repos/${r.id}/test`, {})
-      if (res.ok) toast.success(res.message)
-      else toast.error(res.message, { duration: 6000 })
-    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Falha ao testar acesso') } finally { setTesting(null) }
+      setStatus(s => ({ ...s, [r.id]: res.ok ? 'ok' : 'fail' }))
+      if (!silent) { res.ok ? toast.success(res.message) : toast.error(res.message, { duration: 6000 }) }
+    } catch (e) {
+      setStatus(s => ({ ...s, [r.id]: 'fail' }))
+      if (!silent) toast.error((e as { message?: string })?.message ?? 'Falha ao testar acesso')
+    } finally { if (!silent) setTesting(null) }
   }
+
+  // Auto-teste (silencioso) de cada repo ativo ao abrir/atualizar a lista → colore o ⚡.
+  useEffect(() => {
+    rows.forEach(r => {
+      if (r.active && !testedRef.current.has(r.id)) {
+        testedRef.current.add(r.id)
+        test(r, true)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
 
   const tipoLabel = (t: string) => TIPOS.find(x => x[0] === t)?.[1] ?? t
 
@@ -110,7 +126,9 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
                 <div className="truncate font-semibold text-[var(--text)]">{r.full_name} <span className="text-[var(--text-light)]">· {r.branch}</span></div>
                 <div className="truncate text-[var(--text-light)]">{r.base_path || '/'}{r.descricao ? ` · ${r.descricao}` : ''}{!r.active ? ' · inativo' : ''}</div>
               </div>
-              <button type="button" onClick={() => test(r)} disabled={testing === r.id} title="Testar acesso (read-only)" className="text-[var(--text-muted)] hover:text-[var(--primary)] shrink-0"><Zap size={13} /></button>
+              <button type="button" onClick={() => test(r)} disabled={testing === r.id} className="shrink-0 hover:opacity-80"
+                title={status[r.id] === 'ok' ? 'Conectado — clique para testar de novo' : status[r.id] === 'fail' ? 'Desconectado — clique para ver o erro' : 'Testar acesso (read-only)'}
+                style={{ color: status[r.id] === 'ok' ? 'var(--warning-border)' : status[r.id] === 'fail' ? 'var(--danger-border)' : 'var(--text-muted)' }}><Zap size={13} /></button>
               <button type="button" onClick={() => openEdit(r)} title="Editar" className="text-[var(--primary)] shrink-0"><Pencil size={12} /></button>
               {r.active && <button type="button" onClick={() => deactivate(r)} title="Desativar" className="text-[var(--danger-border)] shrink-0"><Trash2 size={12} /></button>}
             </div>
