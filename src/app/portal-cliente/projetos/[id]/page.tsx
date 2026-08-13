@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Calendar, Clock, TrendingUp, Activity, ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Skeleton } from '@/components/ui/loading'
+import { ClientProjectSchedule } from '@/components/portal-cliente/client-project-schedule'
 import {
   useClientProjectSummary,
   type HealthLevel,
@@ -234,6 +235,20 @@ export default function VisaoClienteProjetoPage() {
                 </div>
               </section>
             )}
+
+            <section style={{ marginBottom: 24 }}>
+              <h2 style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--text)',
+                textTransform: 'uppercase',
+                letterSpacing: '.04em',
+                margin: '0 0 8px',
+              }}>
+                Cronograma
+              </h2>
+              <ClientProjectSchedule projectId={projectId} />
+            </section>
 
             <section>
               <h2 style={{
