@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
+import { ClientActivityDrawer } from '@/components/portal-cliente/client-activity-drawer'
 import { Lock, ChevronRight, ShieldQuestion, CalendarDays, CheckCircle2, ListChecks, Clock3, AlertTriangle, LayoutGrid } from 'lucide-react'
 import { ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip } from 'recharts'
 
@@ -286,9 +286,9 @@ function toDays(iso: string | null): number | null {
 }
 
 export function ClientSchedule({ projectId }: { projectId: number }) {
-  const router = useRouter()
   const [view, setView] = useState<View>('planejamento')
-  const { data, loading, error } = useApiQuery<ScheduleResp>(`/client/projects/${projectId}/schedule`)
+  const [openActId, setOpenActId] = useState<number | null>(null)
+  const { data, loading, error, refetch } = useApiQuery<ScheduleResp>(`/client/projects/${projectId}/schedule`)
 
   if (loading && !data) return <div style={{ color: 'var(--text-muted)' }}>Carregando cronograma…</div>
   if (error) return <div style={{ color: 'var(--danger)' }}>{error}</div>
@@ -297,7 +297,8 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
   }
 
   const stages = data.stages ?? []
-  const openCard = (d: ClientDelivery) => { if (d.can_open) router.push(`/portal-cliente/atividades/${d.id}`) }
+  // Abre a conversa da atividade DENTRO do cronograma (drawer), sem navegar pra outra tela.
+  const openCard = (d: ClientDelivery) => { if (d.can_open) setOpenActId(d.id) }
   const flat: FlatDelivery[] = stages.flatMap(s => s.deliveries.map(d => ({ ...d, stageName: s.name })))
 
   return (
@@ -326,6 +327,8 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
         .cronograma-view-fade { animation: cli-fade .14s ease-out; }
         @keyframes cli-fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
       `}</style>
+
+      <ClientActivityDrawer activityId={openActId} onClose={() => setOpenActId(null)} onChanged={refetch} />
     </div>
   )
 }
