@@ -43,8 +43,9 @@ export default function CodigoFontePage() {
   const [sources, setSources] = useState<(SearchItem | null)[]>([null])
 
   useEffect(() => {
-    api.get<Customer[] | { data?: Customer[]; items?: Customer[] }>('/customers?pageSize=500')
-      .then(r => { const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? []); setCustomers(list.map((c: any) => ({ id: c.id, name: c.name }))) })
+    // Só clientes com repositório de código-fonte AMARRADO (ativo) — sem vínculo, não aparece.
+    api.get<{ data: Customer[] }>('/source-code/clients')
+      .then(r => setCustomers((r?.data ?? []).map(c => ({ id: c.id, name: c.name }))))
       .catch(() => {})
   }, [])
   const custFiltered = customers.filter(c => c.name.toLowerCase().includes(custQuery.toLowerCase())).slice(0, 40)
@@ -96,7 +97,7 @@ export default function CodigoFontePage() {
           {step === 0 && (
             <div>
               <h2 className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>Selecione o cliente</h2>
-              <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>A busca de fontes fica restrita aos repositórios autorizados deste cliente.</p>
+              <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Só aparecem clientes com repositório de código-fonte configurado no cadastro. A busca fica restrita aos repositórios autorizados do cliente.</p>
               <div className="flex items-center gap-2 rounded-lg px-2.5 mb-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
                 <Search size={14} style={{ color: 'var(--text-light)' }} />
                 <input value={custQuery} onChange={e => setCustQuery(e.target.value)} placeholder="Buscar cliente…" className="flex-1 bg-transparent outline-none text-sm py-2" style={{ color: 'var(--text)' }} />
@@ -109,7 +110,7 @@ export default function CodigoFontePage() {
                     {customer?.id === c.id && <Check size={14} className="ml-auto" />}
                   </button>
                 ))}
-                {custFiltered.length === 0 && <p className="text-xs px-2 py-3" style={{ color: 'var(--text-light)' }}>Nenhum cliente.</p>}
+                {custFiltered.length === 0 && <p className="text-xs px-2 py-3" style={{ color: 'var(--text-light)' }}>Nenhum cliente com repositório configurado. Cadastre em Clientes → "Repositórios de Código-Fonte".</p>}
               </div>
             </div>
           )}
