@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { CheckSquare, FolderOpen, Info } from 'lucide-react'
@@ -46,8 +47,11 @@ function NoTrackingNotice() {
 
 export default function FechadoPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
+  // Abre a tela do projeto ao clicar na linha — igual a "Demandas e Projetos".
+  const openProject = (id: number) => router.push(isCliente ? `/portal-cliente/projetos/${id}` : `/projetos/${id}/cronograma`)
 
   const now = new Date()
   const [customers,   setCustomers]   = useState<Customer[]>([])
@@ -174,6 +178,9 @@ export default function FechadoPage() {
                 {displayedRows.map((row, idx) => (
                   <tr
                     key={row.id}
+                    onClick={() => openProject(row.id)}
+                    className="cursor-pointer ds-row-hover"
+                    title="Abrir o projeto"
                     style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--border)' : undefined }}
                   >
                     <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{row.code}</td>

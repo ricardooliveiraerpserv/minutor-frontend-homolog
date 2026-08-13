@@ -900,13 +900,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         nav.push({ type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones })
       }
       // Dashboards de contrato e Indicadores pertencem ao módulo Projetos.
-      // A visão do projeto (Demandas e Projetos) também fica acessível DENTRO do grupo Contratos —
-      // sempre que o cliente tiver o módulo Projetos (mesmo sem dashboards de contrato).
-      if (canModule('projetos')) {
-        nav.push({ type: 'group', label: 'Contratos', icon: FileText, items: [
-          { label: 'Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
-          ...dashItems,
-        ] })
+      if (canModule('projetos') && dashItems.length > 0) {
+        nav.push({ type: 'group', label: 'Contratos', icon: FileText, items: dashItems })
       }
       // Indicadores da própria empresa (atualmente só Auster)
       if (canModule('projetos') && user?.customer_id === 220) {
