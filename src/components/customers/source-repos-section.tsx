@@ -29,6 +29,8 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
   const [editId, setEditId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState<number | null>(null)
+  const [availRepos, setAvailRepos] = useState<{ name: string; default_branch: string | null }[]>([])
+  const reposListId = `scf-repos-${customerId}`
 
   const load = useCallback(() => {
     setLoading(true)
@@ -37,7 +39,20 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
   }, [customerId])
   useEffect(() => { load() }, [load])
 
-  const openNew = () => { setEditId(null); setForm({ ...BLANK }) }
+  // Seletor de repositório: lista os repos que a GitHub App enxerga no owner (datalist).
+  const owner = form?.owner ?? ''
+  const formOpen = !!form
+  useEffect(() => {
+    if (!formOpen || !owner.trim()) { setAvailRepos([]); return }
+    const t = setTimeout(() => {
+      api.get<{ repos: { name: string; default_branch: string | null }[] }>(`/source-repos/available?owner=${encodeURIComponent(owner.trim())}`)
+        .then(r => setAvailRepos(r?.repos ?? [])).catch(() => setAvailRepos([]))
+    }, 350)
+    return () => clearTimeout(t)
+  }, [owner, formOpen])
+
+  // Owner e branch já vêm preenchidos (caso comum erpserv-clientes/main); só o repositório fica pra escolher.
+  const openNew = () => { setEditId(null); setForm({ ...BLANK, owner: 'erpserv-clientes', branch: 'main' }) }
   const openEdit = (r: Repo) => {
     setEditId(r.id)
     setForm({ owner: r.owner, repository: r.repository, branch: r.branch, base_path: r.base_path ?? '', tipo: r.tipo, descricao: r.descricao ?? '', active: r.active })
@@ -107,7 +122,12 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
         <div className="mt-2 rounded-lg p-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="grid grid-cols-2 gap-2">
             <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="ex.: erpserv-clientes" className="h-7 text-xs" /></div>
-            <div><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label><Input value={form.repository} onChange={e => setForm(f => f && ({ ...f, repository: e.target.value }))} placeholder="ex.: promax" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
+              <Input value={form.repository} list={reposListId}
+                onChange={e => { const v = e.target.value; const m = availRepos.find(r => r.name.toLowerCase() === v.toLowerCase()); setForm(f => f && ({ ...f, repository: v, ...(m?.default_branch ? { branch: m.default_branch } : {}) })) }}
+                placeholder={availRepos.length ? 'selecione ou digite…' : 'ex.: promax'} className="h-7 text-xs" />
+              <datalist id={reposListId}>{availRepos.map(r => <option key={r.name} value={r.name} />)}</datalist>
+            </div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Branch *</Label><Input value={form.branch} onChange={e => setForm(f => f && ({ ...f, branch: e.target.value }))} placeholder="ex.: main" className="h-7 text-xs" /></div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Base path (opcional)</Label><Input value={form.base_path} onChange={e => setForm(f => f && ({ ...f, base_path: e.target.value }))} placeholder="(raiz do repo)" className="h-7 text-xs" /></div>
             <div><Label className="text-[10px] text-[var(--text-light)]">Tipo</Label>
