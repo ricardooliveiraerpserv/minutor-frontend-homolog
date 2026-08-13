@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
 import { useConfirm } from '@/components/ui/use-confirm'
 import { toast } from 'sonner'
-import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown, LayoutList, Activity } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts'
+import { BarChart3, Search, ChevronUp, ChevronDown, Snowflake, TrendingUp, TrendingDown, FolderKanban, Clock, CheckCircle2, AlertTriangle, CalendarX } from 'lucide-react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts'
 
-/** Portfólio de indicadores — todos os projetos com EVM (horas) + operacional, filtrável. */
+/** Indicadores de Projetos — dashboard (estilo prod) + tabela EVM (merge). Somente tipo Projeto. */
 
 type Health = 'ok' | 'risk' | 'late'
 type Row = {
@@ -27,18 +27,40 @@ const HEALTH: Record<Health, { label: string; cls: string; ord: number }> = {
   risk: { label: 'Em risco', cls: 'ds-status-warning', ord: 1 },
   ok: { label: 'No prazo', cls: 'ds-status-success', ord: 2 },
 }
-const STATUS_OPTS = [
-  { v: 'open', label: 'Em aberto' }, { v: 'active', label: 'Ativos' },
-  { v: 'finished', label: 'Finalizados' }, { v: 'paused', label: 'Pausados' }, { v: 'cancelled', label: 'Cancelados' },
-]
 
-type CurvePt = { date: string; pv: number | null; ev: number | null; ac: number | null }
+// Status granular do projeto → rótulo + cor (igual ao pipeline / prod).
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  backlog:              { label: 'Backlog',          color: '#94a3b8' },
+  awaiting_start:       { label: 'Backlog',          color: '#94a3b8' },
+  planning:             { label: 'Em Planejamento',  color: '#a78bfa' },
+  started:              { label: 'Em Andamento',     color: '#60a5fa' },
+  liberado_para_testes: { label: 'Em Homologação',   color: '#22d3ee' },
+  em_producao:          { label: 'Em Produção',      color: '#14b8a6' },
+  paused:               { label: 'Pausado',          color: '#eab308' },
+  finished:             { label: 'Encerrado',        color: '#22c55e' },
+  cancelled:            { label: 'Cancelado',        color: '#ef4444' },
+}
+const statusLabel = (s: string) => STATUS_META[s]?.label ?? s
+const statusColor = (s: string) => STATUS_META[s]?.color ?? '#94a3b8'
+
+// Chips (ordem prod). Cada chip agrupa 1+ status granulares.
+const CHIPS: { key: string; label: string; match: (s: string) => boolean; color: string }[] = [
+  { key: 'all',                  label: 'Todos',           match: () => true,                                   color: 'var(--primary)' },
+  { key: 'backlog',              label: 'Backlog',         match: s => s === 'backlog' || s === 'awaiting_start', color: '#94a3b8' },
+  { key: 'planning',             label: 'Em Planejamento', match: s => s === 'planning',                        color: '#a78bfa' },
+  { key: 'started',              label: 'Em Andamento',    match: s => s === 'started',                         color: '#60a5fa' },
+  { key: 'liberado_para_testes', label: 'Em Homologação',  match: s => s === 'liberado_para_testes',            color: '#22d3ee' },
+  { key: 'em_producao',          label: 'Em Produção',     match: s => s === 'em_producao',                     color: '#14b8a6' },
+  { key: 'paused',               label: 'Pausado',         match: s => s === 'paused',                          color: '#eab308' },
+  { key: 'finished',             label: 'Encerrado',       match: s => s === 'finished',                        color: '#22c55e' },
+  { key: 'cancelled',            label: 'Cancelado',       match: s => s === 'cancelled',                       color: '#ef4444' },
+]
 
 const idxTone = (v: number | null) => v == null ? 'var(--text-light)' : v >= 1 ? 'var(--success)' : v >= 0.9 ? 'var(--warning)' : 'var(--danger)'
 const fmtIdx = (v: number | null) => v == null ? '—' : v.toFixed(2)
 const fmtPct = (v: number | null) => v == null ? '—' : `${Math.round(v)}%`
 const fmtH = (v: number) => `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}h`
-const ddmm = (iso: string) => { const d = new Date(iso); return isNaN(+d) ? iso : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` }
+const deliveryPct = (r: Row) => r.deliveries > 0 ? Math.round(r.done / r.deliveries * 100) : 0
 
 type SortKey = 'name' | 'customer' | 'pct_real' | 'spi' | 'cpi' | 'overdue_pct' | 'health'
 
@@ -46,50 +68,38 @@ export default function PortfolioIndicadoresPage() {
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState('open')
+  const [chip, setChip] = useState('all')
   const [search, setSearch] = useState('')
   const [cliente, setCliente] = useState('')
   const [coord, setCoord] = useState('')
   const [saude, setSaude] = useState<'' | Health>('')
   const [onlyBaseline, setOnlyBaseline] = useState(false)
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'health', dir: 'asc' })
-  const [mode, setMode] = useState<'lista' | 'consolidado'>('lista')
-  const [curve, setCurve] = useState<CurvePt[]>([])
-  const [curveLoading, setCurveLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get<{ projects: Row[] }>(`/projects-portfolio?status=${status}`)
+      const r = await api.get<{ projects: Row[] }>(`/projects-portfolio?status=`) // todos (tipo Projeto)
       setRows(r?.projects ?? [])
     } catch (e) { toast.error(apiMessage(e, 'Erro ao carregar indicadores')) }
     finally { setLoading(false) }
-  }, [status])
+  }, [])
   useEffect(() => { load() }, [load])
-
-  // Curva-S consolidada (server): reflete os filtros de status + busca.
-  const loadCurve = useCallback(async () => {
-    setCurveLoading(true)
-    try { const r = await api.get<{ curve: CurvePt[] }>(`/projects-portfolio/curve?status=${status}&search=${encodeURIComponent(search)}`); setCurve(r?.curve ?? []) }
-    catch { setCurve([]) }
-    finally { setCurveLoading(false) }
-  }, [status, search])
-  useEffect(() => { if (mode === 'consolidado') loadCurve() }, [mode, loadCurve])
 
   const { confirm, confirmDialog } = useConfirm()
   const [freezing, setFreezing] = useState(false)
   const freezeMissing = async () => {
     const okc = await confirm({
       title: 'Congelar linha de base em lote',
-      message: 'Congelar a linha de base de todos os projetos do filtro atual que têm cronograma e ainda não têm base? Isso habilita o EVM (SPI/CPI/curva) para eles. Projetos já congelados não são alterados.',
+      message: 'Congelar a linha de base de todos os projetos do filtro atual que têm cronograma e ainda não têm base? Isso habilita o EVM (SPI/CPI) para eles. Projetos já congelados não são alterados.',
       confirmLabel: 'Congelar', cancelLabel: 'Cancelar',
     })
     if (!okc) return
     setFreezing(true)
     try {
-      const r = await api.post<{ frozen: number }>(`/projects-portfolio/freeze-missing?status=${status}&search=${encodeURIComponent(search)}`, {})
+      const r = await api.post<{ frozen: number }>(`/projects-portfolio/freeze-missing?status=&search=${encodeURIComponent(search)}`, {})
       toast.success(`${r?.frozen ?? 0} linha(s) de base congelada(s).`)
-      await load(); if (mode === 'consolidado') await loadCurve()
+      await load()
     } catch (e) { toast.error(apiMessage(e, 'Erro ao congelar em lote')) }
     finally { setFreezing(false) }
   }
@@ -97,15 +107,26 @@ export default function PortfolioIndicadoresPage() {
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort() as string[], [rows])
   const coords = useMemo(() => Array.from(new Set(rows.flatMap(r => r.coordinators))).sort(), [rows])
 
-  const filtered = useMemo(() => {
+  // base = tudo, exceto o chip (p/ contar os chips dentro dos demais filtros)
+  const base = useMemo(() => {
     const q = search.trim().toLowerCase()
-    let out = rows.filter(r =>
+    return rows.filter(r =>
       (!q || r.name.toLowerCase().includes(q) || (r.code ?? '').toLowerCase().includes(q) || (r.customer ?? '').toLowerCase().includes(q)) &&
       (!cliente || r.customer === cliente) &&
       (!coord || r.coordinators.includes(coord)) &&
       (!saude || r.health === saude) &&
       (!onlyBaseline || r.has_baseline)
     )
+  }, [rows, search, cliente, coord, saude, onlyBaseline])
+
+  const chipCount = useCallback((key: string) => {
+    const c = CHIPS.find(x => x.key === key)!
+    return base.filter(r => c.match(r.status)).length
+  }, [base])
+
+  const filtered = useMemo(() => {
+    const c = CHIPS.find(x => x.key === chip) ?? CHIPS[0]
+    let out = base.filter(r => c.match(r.status))
     const dir = sort.dir === 'asc' ? 1 : -1
     out = out.slice().sort((a, b) => {
       let va: number | string, vb: number | string
@@ -118,15 +139,48 @@ export default function PortfolioIndicadoresPage() {
       return va < vb ? -dir : va > vb ? dir : a.name.localeCompare(b.name)
     })
     return out
-  }, [rows, search, cliente, coord, saude, onlyBaseline, sort])
+  }, [base, chip, sort])
 
-  const kpi = useMemo(() => {
-    const late = filtered.filter(r => r.health === 'late').length
-    const risk = filtered.filter(r => r.health === 'risk').length
+  // ── Dashboard (a partir do que está filtrado) ──
+  const dash = useMemo(() => {
+    const total = filtered.length
+    const cnt = (s: string) => filtered.filter(r => r.status === s).length
+    const criticos = filtered.filter(r => r.health === 'late').length
+    const prazoVencido = filtered.filter(r => r.overdue > 0).length
+
+    // Status donut (agrupado por rótulo)
+    const byLabel = new Map<string, { value: number; color: string }>()
+    filtered.forEach(r => {
+      const lbl = statusLabel(r.status); const col = statusColor(r.status)
+      const cur = byLabel.get(lbl) ?? { value: 0, color: col }
+      cur.value += 1; byLabel.set(lbl, cur)
+    })
+    const statusDonut = Array.from(byLabel.entries()).map(([name, v]) => ({ name, value: v.value, color: v.color })).sort((a, b) => b.value - a.value)
+
+    // Criticidade donut (saúde)
     const ok = filtered.filter(r => r.health === 'ok').length
-    const spis = filtered.map(r => r.spi).filter((v): v is number => v != null)
-    const avgSpi = spis.length ? spis.reduce((a, b) => a + b, 0) / spis.length : null
-    return { total: filtered.length, late, risk, ok, avgSpi, semBase: filtered.filter(r => !r.has_baseline).length }
+    const risk = filtered.filter(r => r.health === 'risk').length
+    const late = filtered.filter(r => r.health === 'late').length
+    const critDonut = [
+      { name: 'Saudável', value: ok, color: 'var(--success)' },
+      { name: 'Atenção', value: risk, color: 'var(--warning)' },
+      { name: 'Crítico', value: late, color: 'var(--danger)' },
+    ].filter(d => d.value > 0)
+
+    // Percentual de entrega (buckets)
+    const buckets = [
+      { label: '0%', color: '#94a3b8', test: (p: number) => p === 0 },
+      { label: '1–25%', color: '#f59e0b', test: (p: number) => p >= 1 && p <= 25 },
+      { label: '26–50%', color: '#eab308', test: (p: number) => p >= 26 && p <= 50 },
+      { label: '51–75%', color: '#60a5fa', test: (p: number) => p >= 51 && p <= 75 },
+      { label: '76–99%', color: '#22d3ee', test: (p: number) => p >= 76 && p <= 99 },
+      { label: '100%', color: '#22c55e', test: (p: number) => p >= 100 },
+    ]
+    const pcts = filtered.map(deliveryPct)
+    const deliveryBars = buckets.map(b => ({ label: b.label, color: b.color, value: pcts.filter(b.test).length }))
+    const avgDelivery = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0
+
+    return { total, emAndamento: cnt('started'), emHomologacao: cnt('liberado_para_testes'), emProducao: cnt('em_producao'), criticos, prazoVencido, statusDonut, critDonut, ok, risk, late, deliveryBars, avgDelivery }
   }, [filtered])
 
   const toggleSort = (key: SortKey) => setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'name' || key === 'customer' ? 'asc' : 'desc' })
@@ -142,45 +196,122 @@ export default function PortfolioIndicadoresPage() {
   const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5'
   const fieldStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' } as const
 
+  const tt = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }
+
   return (
     <AppLayout title="Indicadores de Projetos">
       <div className="flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex items-start gap-3 flex-wrap">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+            <BarChart3 size={20} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Indicadores de Projetos</h1>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Visão em dashboards de Demandas e Projetos</p>
+          </div>
+          <select className={`${fieldCls} ml-auto`} style={{ ...fieldStyle, minWidth: 200 }} value={cliente} onChange={e => setCliente(e.target.value)}>
+            <option value="">Todos os clientes</option>
+            {clientes.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* Chips de status */}
         <div className="flex items-center gap-2 flex-wrap">
-          <BarChart3 size={20} style={{ color: 'var(--primary)' }} />
-          <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Indicadores de Projetos</h1>
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({filtered.length})</span>
-          <div className="ml-auto inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-            {([['lista', 'Lista', LayoutList], ['consolidado', 'Consolidado', Activity]] as const).map(([v, lbl, Icon]) => (
-              <button key={v} onClick={() => setMode(v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
-                style={{ background: mode === v ? 'var(--primary)' : 'transparent', color: mode === v ? 'var(--primary-fg, #fff)' : 'var(--text-muted)' }}>
-                <Icon size={14} /> {lbl}
+          {CHIPS.map(c => {
+            const active = chip === c.key
+            const n = chipCount(c.key)
+            return (
+              <button key={c.key} onClick={() => setChip(c.key)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+                style={{ background: active ? c.color : 'var(--surface)', color: active ? '#fff' : 'var(--text)', border: `1px solid ${active ? c.color : 'var(--border)'}` }}>
+                {c.key !== 'all' && <span className="w-2 h-2 rounded-full" style={{ background: active ? '#fff' : c.color }} />}
+                {c.label} <span style={{ opacity: 0.85 }}>({n})</span>
               </button>
-            ))}
+            )
+          })}
+        </div>
+
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <StatCard icon={<FolderKanban size={18} />} label="Total de Projetos" value={dash.total} tone="var(--text)" bg="var(--surface-hover)" />
+          <StatCard icon={<Clock size={18} />} label="Em Andamento" value={dash.emAndamento} tone="#2563eb" bg="rgba(96,165,250,0.15)" />
+          <StatCard icon={<TrendingUp size={18} />} label="Em Homologação" value={dash.emHomologacao} tone="#0891b2" bg="rgba(34,211,238,0.15)" />
+          <StatCard icon={<CheckCircle2 size={18} />} label="Em Produção" value={dash.emProducao} tone="#0d9488" bg="rgba(20,184,166,0.15)" />
+          <StatCard icon={<AlertTriangle size={18} />} label="Críticos" value={dash.criticos} tone="var(--danger)" bg="var(--danger-bg)" />
+          <StatCard icon={<CalendarX size={18} />} label="Prazo Vencido" value={dash.prazoVencido} tone="var(--warning)" bg="var(--warning-bg)" />
+        </div>
+
+        {/* 3 gráficos */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {/* Status dos Projetos */}
+          <div className="ds-card p-4">
+            <div className="font-semibold" style={{ color: 'var(--text)' }}>Status dos Projetos</div>
+            <div className="text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>{dash.total} projeto(s)</div>
+            <div style={{ width: '100%', height: 200 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={dash.statusDonut} dataKey="value" nameKey="name" innerRadius={54} outerRadius={82} paddingAngle={2} stroke="none">
+                    {dash.statusDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tt} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              {dash.statusDonut.map(d => (
+                <span key={d.name} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} /><span className="flex-1 truncate">{d.name}</span><b style={{ color: 'var(--text)' }}>{d.value}</b></span>
+              ))}
+            </div>
+          </div>
+
+          {/* Criticidade dos Projetos */}
+          <div className="ds-card p-4">
+            <div className="font-semibold" style={{ color: 'var(--text)' }}>Criticidade dos Projetos</div>
+            <div className="text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Por saúde do projeto</div>
+            <div style={{ width: '100%', height: 200 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={dash.critDonut} dataKey="value" nameKey="name" innerRadius={54} outerRadius={82} paddingAngle={2} stroke="none">
+                    {dash.critDonut.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tt} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-around text-center">
+              <div><div className="text-xl font-bold" style={{ color: 'var(--success)' }}>{dash.ok}</div><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Saudável</div></div>
+              <div><div className="text-xl font-bold" style={{ color: 'var(--warning)' }}>{dash.risk}</div><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Atenção</div></div>
+              <div><div className="text-xl font-bold" style={{ color: 'var(--danger)' }}>{dash.late}</div><div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Crítico</div></div>
+            </div>
+          </div>
+
+          {/* Percentual de Entrega */}
+          <div className="ds-card p-4">
+            <div className="font-semibold" style={{ color: 'var(--text)' }}>Percentual de Entrega</div>
+            <div className="text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Média: {dash.avgDelivery}%</div>
+            <div style={{ width: '100%', height: 200 }}>
+              <ResponsiveContainer>
+                <BarChart data={dash.deliveryBars} margin={{ top: 18, right: 8, bottom: 0, left: -18 }}>
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-light)' }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={tt} cursor={{ fill: 'rgba(125,125,125,0.08)' }} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {dash.deliveryBars.map((b, i) => <Cell key={i} fill={b.color} />)}
+                    <LabelList dataKey="value" position="top" style={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
-          <Kpi label="Projetos" value={String(kpi.total)} tone="var(--text)" sub={kpi.semBase ? `${kpi.semBase} estimados (plano atual)` : 'no filtro'} />
-          <Kpi label="No prazo" value={String(kpi.ok)} tone="var(--success)" sub="SPI ok, sem atraso" />
-          <Kpi label="Em risco" value={String(kpi.risk)} tone="var(--warning)" sub="atenção" />
-          <Kpi label="Atrasados" value={String(kpi.late)} tone="var(--danger)" sub="SPI<0,9 ou ≥20% atraso" />
-          <Kpi label="SPI médio" value={fmtIdx(kpi.avgSpi)} tone={idxTone(kpi.avgSpi)} sub="prazo (horas)" />
-        </div>
-
-        {/* Filtros */}
+        {/* Filtros da tabela */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
             <input className={`${fieldCls} pl-8 w-56`} style={fieldStyle} placeholder="Buscar projeto/cliente…" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <select className={fieldCls} style={fieldStyle} value={status} onChange={e => setStatus(e.target.value)}>
-            {STATUS_OPTS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
-          </select>
-          <select className={fieldCls} style={fieldStyle} value={cliente} onChange={e => setCliente(e.target.value)}>
-            <option value="">Cliente (todos)</option>
-            {clientes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
           <select className={fieldCls} style={fieldStyle} value={coord} onChange={e => setCoord(e.target.value)}>
             <option value="">Coordenador (todos)</option>
             {coords.map(c => <option key={c} value={c}>{c}</option>)}
@@ -202,14 +333,14 @@ export default function PortfolioIndicadoresPage() {
           </button>
         </div>
 
-        {/* Tabela */}
-        {mode === 'lista' && (
+        {/* Tabela EVM (indicadores do homolog) */}
         <div className="ds-card overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 900 }}>
+          <table className="w-full text-sm" style={{ minWidth: 980 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <SortH k="name">Projeto</SortH>
                 <SortH k="customer">Cliente</SortH>
+                <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-left" style={{ color: 'var(--text-light)' }}>Status</th>
                 <SortH k="pct_real" right>% Real / Plan.</SortH>
                 <SortH k="spi" right>SPI</SortH>
                 <SortH k="cpi" right>CPI</SortH>
@@ -220,9 +351,9 @@ export default function PortfolioIndicadoresPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+                <tr><td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
+                <tr><td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="ds-row-hover cursor-pointer" style={{ borderBottom: '1px solid var(--border)' }}
                   onClick={() => router.push(`/projetos/indicadores/${r.id}`)}>
@@ -234,6 +365,11 @@ export default function PortfolioIndicadoresPage() {
                     </div>
                   </td>
                   <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{r.customer ?? '—'}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium" style={{ color: statusColor(r.status) }}>
+                      <span className="w-2 h-2 rounded-full" style={{ background: statusColor(r.status) }} />{statusLabel(r.status)}
+                    </span>
+                  </td>
                   <td className="px-3 py-2.5 text-right">
                     {(r.pct_real != null || r.pct_planned != null) ? (
                       <span style={{ color: 'var(--text)' }} title={r.using_live_plan ? 'Estimado pelo plano atual (sem linha de base congelada)' : undefined}>
@@ -259,133 +395,20 @@ export default function PortfolioIndicadoresPage() {
             </tbody>
           </table>
         </div>
-        )}
-
-        {mode === 'consolidado' && <ConsolidatedView filtered={filtered} curve={curve} curveLoading={curveLoading} onOpen={id => router.push(`/projetos/indicadores/${id}`)} />}
         {confirmDialog}
       </div>
     </AppLayout>
   )
 }
 
-function ConsolidatedView({ filtered, curve, curveLoading, onOpen }: { filtered: Row[]; curve: CurvePt[]; curveLoading: boolean; onOpen: (id: number) => void }) {
-  const withData = filtered.filter(r => r.hours_planned > 0)
-  const sum = (f: (r: Row) => number) => filtered.reduce((a, r) => a + f(r), 0)
-  const sumB = (f: (r: Row) => number) => withData.reduce((a, r) => a + f(r), 0)
-  const bac = sumB(r => r.hours_planned)
-  const ev = sumB(r => r.hours_ev)
-  const ac = sumB(r => r.hours_actual)
-  const pv = sumB(r => (r.pct_planned ?? 0) / 100 * r.hours_planned)
-  const spi = pv > 0 ? ev / pv : null
-  const cpi = ac > 0 ? ev / ac : null
-  const pctPlan = bac > 0 ? pv / bac * 100 : null
-  const pctReal = bac > 0 ? ev / bac * 100 : null
-  const deliveries = sum(r => r.deliveries), done = sum(r => r.done), overdue = sum(r => r.overdue)
-  const overduePct = deliveries > 0 ? overdue / deliveries * 100 : 0
-  const ok = filtered.filter(r => r.health === 'ok').length
-  const risk = filtered.filter(r => r.health === 'risk').length
-  const late = filtered.filter(r => r.health === 'late').length
-
-  const chartData = curve.map(p => ({ ...p, label: ddmm(p.date) }))
-  const worstSpi = withData.filter(r => r.spi != null).sort((a, b) => (a.spi as number) - (b.spi as number)).slice(0, 6)
-  const mostOverdue = filtered.filter(r => r.overdue > 0).sort((a, b) => b.overdue_pct - a.overdue_pct || b.overdue - a.overdue).slice(0, 6)
-  const donut = [
-    { name: 'No prazo', value: ok, color: 'var(--success)' },
-    { name: 'Em risco', value: risk, color: 'var(--warning)' },
-    { name: 'Atrasado', value: late, color: 'var(--danger)' },
-  ].filter(d => d.value > 0)
-
+function StatCard({ icon, label, value, tone, bg }: { icon: React.ReactNode; label: string; value: number; tone: string; bg: string }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <Kpi label="% Real vs Planejado" value={`${fmtPct(pctReal)} / ${fmtPct(pctPlan)}`} tone={(pctReal ?? 0) < (pctPlan ?? 0) ? 'var(--warning)' : 'var(--success)'} sub="carteira (horas)" />
-        <Kpi label="SPI carteira" value={fmtIdx(spi)} tone={idxTone(spi)} sub="prazo · EV/PV" />
-        <Kpi label="CPI carteira" value={fmtIdx(cpi)} tone={idxTone(cpi)} sub="esforço · EV/AC" />
-        <Kpi label="% Atrasadas" value={`${Math.round(overduePct)}%`} tone={overduePct >= 20 ? 'var(--danger)' : overduePct > 0 ? 'var(--warning)' : 'var(--success)'} sub={`${overdue} de ${deliveries} atividades`} />
+    <div className="ds-card px-3.5 py-3 flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg, color: tone }}>{icon}</div>
+      <div className="min-w-0">
+        <div className="text-[11px] uppercase tracking-wide truncate" style={{ color: 'var(--text-light)' }}>{label}</div>
+        <div className="text-2xl font-bold leading-none mt-0.5" style={{ color: 'var(--text)' }}>{value}</div>
       </div>
-
-      <div className="ds-card p-4">
-        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Curva-S consolidada · horas (PV/EV/AC)</span>
-          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{withData.length} projeto(s) com dados</span>
-        </div>
-        {curveLoading ? (
-          <div style={{ height: 260 }} className="flex items-center justify-center text-sm" ><span style={{ color: 'var(--text-light)' }}>Carregando curva…</span></div>
-        ) : chartData.length === 0 ? (
-          <div style={{ height: 260 }} className="flex items-center justify-center text-sm text-center px-4"><span style={{ color: 'var(--text-light)' }}>Nenhum projeto com cronograma no filtro atual.</span></div>
-        ) : (
-          <div style={{ width: '100%', height: 260 }}>
-            <ResponsiveContainer>
-              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-light)' }} tickLine={false} axisLine={{ stroke: 'var(--border)' }} minTickGap={24} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-light)' }} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => `${Math.round(v)}h`} />
-                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} labelStyle={{ color: 'var(--text-muted)' }}
-                  formatter={(value, name) => [value == null ? '—' : fmtH(Number(value)), name === 'pv' ? 'Planejado (PV)' : name === 'ev' ? 'Feito (EV)' : 'Apontado (AC)']} />
-                <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v) => v === 'pv' ? 'Planejado (PV)' : v === 'ev' ? 'Feito (EV)' : 'Apontado (AC)'} />
-                <Line type="monotone" dataKey="pv" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
-                <Line type="monotone" dataKey="ev" stroke="#22c55e" strokeWidth={2} dot={false} connectNulls={false} />
-                <Line type="monotone" dataKey="ac" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          <span>BAC <b style={{ color: 'var(--text)' }}>{fmtH(bac)}</b></span>
-          <span>EV <b style={{ color: 'var(--text)' }}>{fmtH(ev)}</b></span>
-          <span>AC <b style={{ color: 'var(--text)' }}>{fmtH(ac)}</b></span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="ds-card p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Saúde da carteira</span>
-          <div style={{ width: '100%', height: 170 }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={42} outerRadius={66} paddingAngle={2}>
-                  {donut.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center gap-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-            <span><span style={{ color: 'var(--success)' }}>●</span> {ok} no prazo</span>
-            <span><span style={{ color: 'var(--warning)' }}>●</span> {risk} risco</span>
-            <span><span style={{ color: 'var(--danger)' }}>●</span> {late} atraso</span>
-          </div>
-        </div>
-
-        <RankCard title="Piores SPI (prazo)" rows={worstSpi} onOpen={onOpen} value={r => fmtIdx(r.spi)} tone={r => idxTone(r.spi)} />
-        <RankCard title="Mais atrasadas" rows={mostOverdue} onOpen={onOpen} value={r => `${r.overdue_pct}%`} tone={r => r.overdue_pct >= 20 ? 'var(--danger)' : 'var(--warning)'} />
-      </div>
-    </div>
-  )
-}
-
-function RankCard({ title, rows, onOpen, value, tone }: { title: string; rows: Row[]; onOpen: (id: number) => void; value: (r: Row) => string; tone: (r: Row) => string }) {
-  return (
-    <div className="ds-card p-4">
-      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{title}</span>
-      <div className="flex flex-col mt-2">
-        {rows.length === 0 ? <span className="text-[12px]" style={{ color: 'var(--text-light)' }}>—</span> : rows.map(r => (
-          <button key={r.id} onClick={() => onOpen(r.id)} className="flex items-center justify-between gap-2 py-1.5 text-sm ds-row-hover rounded px-1 text-left">
-            <span className="truncate" style={{ color: 'var(--text)' }}>{r.name}</span>
-            <span className="font-semibold shrink-0" style={{ color: tone(r) }}>{value(r)}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Kpi({ label, value, tone, sub }: { label: string; value: string; tone: string; sub: string }) {
-  return (
-    <div className="ds-card px-3.5 py-2.5" style={{ borderLeft: `3px solid ${tone}` }}>
-      <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{label}</div>
-      <div className="text-2xl font-bold" style={{ color: tone }}>{value}</div>
-      <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{sub}</div>
     </div>
   )
 }
