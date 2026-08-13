@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Calendar, TrendingUp, Activity, ArrowLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Skeleton } from '@/components/ui/loading'
-import { ClientProjectSchedule } from '@/components/portal-cliente/client-project-schedule'
+import { ClientSchedule } from '@/components/projects/client-schedule'
 import {
   useClientProjectSummary,
   type HealthLevel,
@@ -212,7 +212,7 @@ export default function VisaoClienteProjetoPage() {
               }}>
                 Acompanhamento do projeto
               </h2>
-              <ClientProjectSchedule projectId={projectId} />
+              <ClientSchedule projectId={projectId} />
             </section>
 
             <section>
