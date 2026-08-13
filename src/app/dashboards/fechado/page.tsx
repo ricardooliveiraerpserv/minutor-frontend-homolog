@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { useRouter } from 'next/navigation'
+import { useProjectActionsMenu } from '@/components/projects/use-project-actions-menu'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { CheckSquare, FolderOpen, Info } from 'lucide-react'
@@ -47,11 +47,10 @@ function NoTrackingNotice() {
 
 export default function FechadoPage() {
   const { user } = useAuth()
-  const router = useRouter()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
-  // Abre a tela do projeto ao clicar na linha — igual a "Demandas e Projetos".
-  const openProject = (id: number) => router.push(isCliente ? `/portal-cliente/projetos/${id}` : `/projetos/${id}/cronograma`)
+  // Ao clicar na linha, abre o menu de opções (Gestão de Projetos / Comentários).
+  const { openMenu, menu } = useProjectActionsMenu()
 
   const now = new Date()
   const [customers,   setCustomers]   = useState<Customer[]>([])
@@ -178,9 +177,9 @@ export default function FechadoPage() {
                 {displayedRows.map((row, idx) => (
                   <tr
                     key={row.id}
-                    onClick={() => openProject(row.id)}
+                    onClick={() => openMenu(row.id, row.name)}
                     className="cursor-pointer ds-row-hover"
-                    title="Abrir o projeto"
+                    title="Abrir opções do projeto"
                     style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--border)' : undefined }}
                   >
                     <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{row.code}</td>
@@ -212,6 +211,7 @@ export default function FechadoPage() {
         </div>
 
       </div>
+      {menu}
     </AppLayout>
   )
 }

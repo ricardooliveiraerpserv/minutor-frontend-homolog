@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { sanitizeHtml, previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
+import { useProjectActionsMenu } from '@/components/projects/use-project-actions-menu'
 import { BarChart2, Clock, TrendingUp, TrendingDown, AlertCircle, DollarSign, ChevronDown, Download, MoreVertical, Calendar, User as UserIcon, Building2, Folder, Paperclip, FileText, X as CloseIcon, Eye, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -210,6 +211,7 @@ function SkeletonCard() {
 export default function BankHoursFixedPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const { openMenu, menu } = useProjectActionsMenu()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
 
@@ -601,7 +603,7 @@ export default function BankHoursFixedPage() {
                 return (
                   <tr
                     key={p.id}
-                    onClick={() => router.push(isCliente ? `/portal-cliente/projetos/${p.id}` : `/projetos/${p.id}/cronograma`)}
+                    onClick={() => openMenu(p.id, p.name)}
                     className="transition-colors cursor-pointer"
                     style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
@@ -1120,6 +1122,7 @@ export default function BankHoursFixedPage() {
         />
       )}
 
+      {menu}
     </AppLayout>
   )
 }
