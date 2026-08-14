@@ -1029,6 +1029,18 @@ function TicketDetailInner({ id }: { id: number }) {
                     if (isSystem && !editing) {
                       const txt = html ? stripTags(c.body) : c.body
                       const SIcon = sysIconFor(txt)
+                      // Relatório multi-linha (ex.: varredura de fonte da GMUD) não cabe no pill compacto
+                      // do syscard → renderiza num card largo que quebra linha e fica dentro do balão.
+                      if (txt.includes('\n')) {
+                        return (
+                          <div key={c.id} className="hd-msg flex justify-center">
+                            <div className="w-full max-w-2xl rounded-2xl px-3.5 py-2.5 text-sm min-w-0" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                              <div className="whitespace-pre-wrap break-words">{txt}</div>
+                              <div className="mt-1.5 text-xs" style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</div>
+                            </div>
+                          </div>
+                        )
+                      }
                       return (
                         <div key={c.id} className="hd-msg flex justify-center">
                           <div className="hd-syscard">
