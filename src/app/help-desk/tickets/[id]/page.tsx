@@ -59,6 +59,7 @@ interface TicketDetail {
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   has_source_code?: boolean
+  gmud_source_status?: string | null
   project?: { id: number; name: string } | null
   contract?: { id: number; categoria?: string | null; helpdesk_integration_enabled?: boolean } | null
   service?: { id: number; name: string; code: string | null } | null
@@ -1280,7 +1281,7 @@ function TicketDetailInner({ id }: { id: number }) {
           {/* Sidebar de propriedades */}
           <div className="space-y-4">
             {/* Código-fonte — marca informativa (base p/ filtro futuro) + atalho para solicitar fontes */}
-            {(t.has_source_code || !t.status?.is_terminal) && (
+            {(t.has_source_code || t.gmud_source_status || !t.status?.is_terminal) && (
               <div className="ds-card p-4 space-y-2">
                 <div className="flex items-center gap-1.5"><FileCode size={13} style={{ color: 'var(--text-light)' }} /><span className={lbl} style={{ color: 'var(--text-light)' }}>Código-fonte</span></div>
                 {t.has_source_code && (
@@ -1288,6 +1289,21 @@ function TicketDetailInner({ id }: { id: number }) {
                     <span>📦</span><span>Solicitação de Fontes anexada</span>
                   </div>
                 )}
+                {t.gmud_source_status && (() => {
+                  const m: Record<string, { emoji: string; label: string; bg: string; fg: string }> = {
+                    atualizado:         { emoji: '📦', label: 'GMUD: fonte gravado no Git',        bg: 'var(--success-bg)',  fg: 'var(--success-border)' },
+                    sem_fonte:          { emoji: '➖', label: 'GMUD: sem fonte anexado',            bg: 'var(--surface-sunken)', fg: 'var(--text-muted)' },
+                    sem_repo:           { emoji: '⚠️', label: 'GMUD: fonte detectado, sem repositório', bg: 'var(--warning-bg)', fg: 'var(--warning-border)' },
+                    pendente_permissao: { emoji: '⚠️', label: 'GMUD: commit pendente (permissão)',  bg: 'var(--warning-bg)',  fg: 'var(--warning-border)' },
+                    erro:               { emoji: '⛔', label: 'GMUD: falha ao gravar fonte',        bg: 'var(--danger-bg)',   fg: 'var(--danger-border)' },
+                  }
+                  const s = m[t.gmud_source_status!] ?? { emoji: '🔎', label: `GMUD: ${t.gmud_source_status}`, bg: 'var(--surface-sunken)', fg: 'var(--text-muted)' }
+                  return (
+                    <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold" style={{ background: s.bg, color: s.fg }}>
+                      <span>{s.emoji}</span><span>{s.label}</span>
+                    </div>
+                  )
+                })()}
                 {!t.status?.is_terminal && (
                   <button
                     onClick={() => {
