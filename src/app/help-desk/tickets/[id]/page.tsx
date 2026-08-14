@@ -1294,6 +1294,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     atualizado:         { emoji: '📦', label: 'GMUD: fonte gravado no Git',        bg: 'var(--success-bg)',  fg: 'var(--success-border)' },
                     sem_fonte:          { emoji: '➖', label: 'GMUD: sem fonte anexado',            bg: 'var(--surface-sunken)', fg: 'var(--text-muted)' },
                     sem_repo:           { emoji: '⚠️', label: 'GMUD: fonte detectado, sem repositório', bg: 'var(--warning-bg)', fg: 'var(--warning-border)' },
+                    repo_pendente_verificacao: { emoji: '⚠️', label: 'GMUD: repositório pendente de verificação', bg: 'var(--warning-bg)', fg: 'var(--warning-border)' },
                     pendente_permissao: { emoji: '⚠️', label: 'GMUD: commit pendente (permissão)',  bg: 'var(--warning-bg)',  fg: 'var(--warning-border)' },
                     erro:               { emoji: '⛔', label: 'GMUD: falha ao gravar fonte',        bg: 'var(--danger-bg)',   fg: 'var(--danger-border)' },
                   }

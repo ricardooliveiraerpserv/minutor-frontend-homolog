@@ -6,13 +6,13 @@ import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Pencil, Zap, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Pencil, Zap, RefreshCw, Check, AlertTriangle } from 'lucide-react'
 
 /** Fonte Git autorizada de um cliente (Fase 0 — Solicitação de código-fonte). */
 interface Repo {
   id: number; owner: string; repository: string; full_name: string
   branch: string; base_path: string; tipo: string; descricao: string | null
-  active: boolean; created_by: string | null; updated_by: string | null; updated_at: string | null
+  active: boolean; needs_review?: boolean; created_by: string | null; updated_by: string | null; updated_at: string | null
 }
 const TIPOS: [string, string][] = [['protheus', 'Protheus'], ['fluig', 'Fluig'], ['integracoes', 'Integrações'], ['outros', 'Outros']]
 const BLANK = { owner: '', repository: '', branch: '', base_path: '', tipo: 'protheus', descricao: '', active: true }
@@ -85,6 +85,11 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
     try { await api.delete(`/source-repos/${r.id}`); toast.success('Repositório desativado'); load() } catch { toast.error('Erro ao desativar') }
   }
 
+  const verify = async (r: Repo) => {
+    if (!window.confirm(`Confirmar que ${r.full_name} é o repositório correto deste cliente? A GMUD passa a poder commitar nele.`)) return
+    try { await api.post(`/source-repos/${r.id}/verify`, {}); toast.success('Repositório confirmado'); load() } catch { toast.error('Erro ao confirmar') }
+  }
+
   const test = async (r: Repo, silent = false) => {
     if (!silent) setTesting(r.id)
     try {
@@ -124,12 +129,22 @@ export function SourceReposSection({ customerId }: { customerId: number }) {
       ) : (
         <div className="space-y-1.5">
           {rows.map(r => (
-            <div key={r.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', opacity: r.active ? 1 : 0.55 }}>
+            <div key={r.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]"
+              style={{ background: r.needs_review ? 'var(--warning-bg)' : 'var(--surface-sunken)', border: `1px solid ${r.needs_review ? 'var(--warning-border)' : 'var(--border)'}`, opacity: r.active ? 1 : 0.55 }}>
               <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{tipoLabel(r.tipo)}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-semibold text-[var(--text)]">{r.full_name} <span className="text-[var(--text-light)]">· {r.branch}</span></div>
                 <div className="truncate text-[var(--text-light)]">{r.base_path || '/'}{r.descricao ? ` · ${r.descricao}` : ''}{!r.active ? ' · inativo' : ''}</div>
+                {r.needs_review && (
+                  <div className="flex items-center gap-1 mt-0.5 font-semibold" style={{ color: 'var(--warning-border)' }}>
+                    <AlertTriangle size={10} /> Pendente de verificação — vinculado a um repo pré-existente. A GMUD só commita após confirmar.
+                  </div>
+                )}
               </div>
+              {r.needs_review && (
+                <button type="button" onClick={() => verify(r)} title="Confirmar que é o repositório correto do cliente" className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-semibold"
+                  style={{ background: 'var(--warning-border)', color: '#fff' }}><Check size={11} /> Confirmar</button>
+              )}
               <button type="button" onClick={() => test(r)} disabled={testing === r.id} className="shrink-0 hover:opacity-80"
                 title={status[r.id] === 'ok' ? 'Conectado — clique para testar de novo' : status[r.id] === 'fail' ? 'Desconectado — clique para ver o erro' : 'Testar acesso (read-only)'}
                 style={{ color: status[r.id] === 'ok' ? 'var(--warning-border)' : status[r.id] === 'fail' ? 'var(--danger-border)' : 'var(--text-muted)' }}><Zap size={13} /></button>
