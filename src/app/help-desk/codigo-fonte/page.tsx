@@ -155,6 +155,9 @@ export default function CodigoFontePage() {
   return (
     <AppLayout title="Solicitação de Código-Fonte">
       <div className="max-w-3xl mx-auto">
+        <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm mb-4 hover:underline" style={{ color: 'var(--text-muted)' }}>
+          <ChevronLeft size={16} /> Voltar
+        </button>
         {/* Stepper */}
         <div className="flex items-center gap-2 mb-5">
           {STEPS.map((s, i) => (
