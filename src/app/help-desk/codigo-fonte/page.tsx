@@ -51,6 +51,7 @@ export default function CodigoFontePage() {
 
   // Passo 4 — processamento (1C)
   const router = useRouter()
+  const [disclaimer, setDisclaimer] = useState('')
   const [phase, setPhase] = useState<'form' | 'processing' | 'done'>('form')
   const [submitting, setSubmitting] = useState(false)
   const [reqInfo, setReqInfo] = useState<{ id: number; ticket_id: number; ticket_number: string | null } | null>(null)
@@ -60,6 +61,10 @@ export default function CodigoFontePage() {
     // Só clientes com repositório de código-fonte AMARRADO (ativo) — sem vínculo, não aparece.
     api.get<{ data: Customer[] }>('/source-code/clients')
       .then(r => setCustomers((r?.data ?? []).map(c => ({ id: c.id, name: c.name, has_contract: c.has_contract }))))
+      .catch(() => {})
+    // Texto do aviso "cliente sem contrato" (configurável em Config. do Help Desk → Código-Fonte).
+    api.get<{ data: { no_contract_disclaimer: string } }>('/source-code/config')
+      .then(r => setDisclaimer(r?.data?.no_contract_disclaimer ?? ''))
       .catch(() => {})
   }, [])
   const custFiltered = customers.filter(c => c.name.toLowerCase().includes(custQuery.toLowerCase())).slice(0, 40)
@@ -178,10 +183,7 @@ export default function CodigoFontePage() {
         {customer && customer.has_contract === false && (
           <div className="rounded-xl p-3 mb-3 flex items-start gap-2" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
             <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--warning-border)' }} />
-            <div className="text-xs" style={{ color: 'var(--text)' }}>
-              <div className="font-bold" style={{ color: 'var(--warning-border)' }}>Cliente SEM contrato — atenção</div>
-              Os códigos-fonte obtidos aqui servem apenas como <b>exemplo/referência</b>. O fonte original deve ser solicitado <b>diretamente ao cliente</b>, e é possível que existam fontes que <b>não estejam em nossa posse</b>. Este aviso será registrado no chamado.
-            </div>
+            <div className="text-xs whitespace-pre-line" style={{ color: 'var(--text)' }}>{disclaimer || 'Cliente SEM contrato — os códigos-fonte obtidos aqui servem apenas como exemplo/referência. O fonte original deve ser solicitado diretamente ao cliente, e é possível que existam fontes que não estejam em nossa posse.'}</div>
           </div>
         )}
 

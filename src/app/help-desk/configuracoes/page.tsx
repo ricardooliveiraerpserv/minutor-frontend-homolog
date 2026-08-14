@@ -48,6 +48,7 @@ const TABS = [
   { id: 'formularios', label: 'Formulários' },
   { id: 'tags', label: 'Tags' },
   { id: 'playbooks', label: 'Macros' },
+  { id: 'codigo-fonte', label: 'Código-Fonte' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -91,6 +92,7 @@ function ConfigContent() {
         {tab === 'formularios' && <FormsTab />}
         {tab === 'tags' && <Tags />}
         {tab === 'playbooks' && <Playbooks />}
+        {tab === 'codigo-fonte' && <SourceCodeConfig />}
       </div>
     </AppLayout>
   )
@@ -101,6 +103,47 @@ interface PlaybookActions {
   assignee_id?: number; checklist?: string[]; start_finalize?: boolean; finalize_status_id?: number
 }
 interface Playbook { id: number; name: string; category: string | null; color: string | null; icon: string | null; active: boolean; sort_order: number; actions: PlaybookActions }
+
+// Aba "Código-Fonte": edita o texto do aviso mostrado/gravado quando o cliente não tem contrato.
+function SourceCodeConfig() {
+  const [text, setText] = useState('')
+  const [orig, setOrig] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    api.get<{ data: { no_contract_disclaimer: string } }>('/source-code/config')
+      .then(r => { const v = r?.data?.no_contract_disclaimer ?? ''; setText(v); setOrig(v) })
+      .catch(() => toast.error('Falha ao carregar a configuração.'))
+      .finally(() => setLoading(false))
+  }, [])
+  const save = async () => {
+    if (!text.trim()) return toast.error('Informe o texto do aviso.')
+    setSaving(true)
+    try {
+      await api.put('/source-code/config', { no_contract_disclaimer: text.trim() })
+      setOrig(text.trim()); toast.success('Aviso atualizado')
+    } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
+  }
+  return (
+    <div className="max-w-2xl">
+      <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>Aviso de cliente sem contrato</p>
+      <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
+        Exibido no wizard de <b>Solicitar Código-Fonte</b> ao escolher um cliente sem contrato, e gravado no chamado junto aos fontes anexados. As quebras de linha são preservadas.
+      </p>
+      {loading ? (
+        <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p>
+      ) : (
+        <>
+          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={6} value={text} onChange={e => setText(e.target.value)} maxLength={2000} />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{text.length}/2000</span>
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving || text.trim() === orig.trim()}><Save size={14} /> Salvar</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function Playbooks() {
   const [rows, setRows] = useState<Playbook[]>([])
