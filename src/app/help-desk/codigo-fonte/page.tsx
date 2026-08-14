@@ -12,7 +12,7 @@ import { Search, Plus, X, Check, ChevronLeft, ChevronRight, FileCode, Loader2, B
  * 4 passos: Cliente → Chamado → Fontes 1…N → Confirmação. Consome os endpoints da 1A
  * (/source-code/search e /source-code/tickets). A criação/anexação é a 1C.
  */
-interface Customer { id: number; name: string }
+interface Customer { id: number; name: string; has_contract?: boolean }
 interface TicketRow { id: number; ticket_number: string | null; subject: string; status: string | null; status_color?: string | null }
 interface Commit { sha: string | null; date: string | null; author: string | null; message: string | null }
 interface SearchItem { owner: string; repository: string; tipo: string; branch: string; path: string; name: string; commit: Commit | null }
@@ -59,7 +59,7 @@ export default function CodigoFontePage() {
   useEffect(() => {
     // Só clientes com repositório de código-fonte AMARRADO (ativo) — sem vínculo, não aparece.
     api.get<{ data: Customer[] }>('/source-code/clients')
-      .then(r => setCustomers((r?.data ?? []).map(c => ({ id: c.id, name: c.name }))))
+      .then(r => setCustomers((r?.data ?? []).map(c => ({ id: c.id, name: c.name, has_contract: c.has_contract }))))
       .catch(() => {})
   }, [])
   const custFiltered = customers.filter(c => c.name.toLowerCase().includes(custQuery.toLowerCase())).slice(0, 40)
@@ -173,6 +173,17 @@ export default function CodigoFontePage() {
             </div>
           ))}
         </div>
+
+        {/* Aviso persistente: cliente SEM contrato → fontes são apenas exemplo (registrado no chamado). */}
+        {customer && customer.has_contract === false && (
+          <div className="rounded-xl p-3 mb-3 flex items-start gap-2" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--warning-border)' }} />
+            <div className="text-xs" style={{ color: 'var(--text)' }}>
+              <div className="font-bold" style={{ color: 'var(--warning-border)' }}>Cliente SEM contrato — atenção</div>
+              Os códigos-fonte obtidos aqui servem apenas como <b>exemplo/referência</b>. O fonte original deve ser solicitado <b>diretamente ao cliente</b>, e é possível que existam fontes que <b>não estejam em nossa posse</b>. Este aviso será registrado no chamado.
+            </div>
+          </div>
+        )}
 
         <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* PASSO 1 — CLIENTE */}

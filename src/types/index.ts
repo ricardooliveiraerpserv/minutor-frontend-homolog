@@ -161,6 +161,7 @@ export interface CustomerFull {
   secondary_cgcs?: string[]
   code_prefix?: string | null
   active: boolean
+  has_contract?: boolean
   executive_id?: number | null
   executive?: Executive
   executive_bizify_id?: number | null
