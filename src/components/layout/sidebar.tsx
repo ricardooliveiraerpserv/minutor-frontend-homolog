@@ -477,6 +477,7 @@ const NAV: NavEntry[] = [
       { label: 'Formulários', href: '/help-desk/configuracoes?tab=formularios', icon: FileText },
       { label: 'Tags', href: '/help-desk/configuracoes?tab=tags', icon: Tag },
       { label: 'Playbooks', href: '/help-desk/configuracoes?tab=playbooks', icon: Star },
+      { label: 'Código-Fonte', href: '/help-desk/configuracoes?tab=codigo-fonte', icon: FileCode },
     ],
   },
 
