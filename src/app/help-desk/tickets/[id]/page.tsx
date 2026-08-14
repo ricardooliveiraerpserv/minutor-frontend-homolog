@@ -26,7 +26,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, FileCode, type LucideIcon } from 'lucide-react'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
 const MesclarModal = dynamic(() => import('@/components/help-desk/mesclar-modal').then(m => m.MesclarModal), { ssr: false })
@@ -58,6 +58,7 @@ interface TicketDetail {
   continuation_ticket?: { id: number; ticket_number: string | null } | null
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
+  has_source_code?: boolean
   project?: { id: number; name: string } | null
   contract?: { id: number; categoria?: string | null; helpdesk_integration_enabled?: boolean } | null
   service?: { id: number; name: string; code: string | null } | null
@@ -1278,6 +1279,31 @@ function TicketDetailInner({ id }: { id: number }) {
 
           {/* Sidebar de propriedades */}
           <div className="space-y-4">
+            {/* Código-fonte — marca informativa (base p/ filtro futuro) + atalho para solicitar fontes */}
+            {(t.has_source_code || !t.status?.is_terminal) && (
+              <div className="ds-card p-4 space-y-2">
+                <div className="flex items-center gap-1.5"><FileCode size={13} style={{ color: 'var(--text-light)' }} /><span className={lbl} style={{ color: 'var(--text-light)' }}>Código-fonte</span></div>
+                {t.has_source_code && (
+                  <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                    <span>📦</span><span>Solicitação de Fontes anexada</span>
+                  </div>
+                )}
+                {!t.status?.is_terminal && (
+                  <button
+                    onClick={() => {
+                      const q = new URLSearchParams({ ticket_id: String(t.id) })
+                      if (t.ticket_number) q.set('ticket_number', t.ticket_number)
+                      if (t.customer?.id) q.set('customer_id', String(t.customer.id))
+                      router.push(`/help-desk/codigo-fonte?${q.toString()}`)
+                    }}
+                    className="ds-btn-secondary w-full inline-flex items-center justify-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+                  >
+                    <FileCode size={13} /> Solicitar código-fonte
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* SLA */}
             <div className="ds-card p-4 space-y-2">
               <div className={lbl} style={{ color: 'var(--text-light)' }}>SLA</div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -28,12 +28,17 @@ const shortSha = (s?: string | null) => (s ? s.slice(0, 7) : '—')
 const STEPS = ['Cliente', 'Chamado', 'Fontes', 'Confirmação']
 
 export default function CodigoFontePage() {
+  const searchParams = useSearchParams()
   const [step, setStep] = useState(0) // 0..3
 
   // Passo 1 — Cliente
   const [customers, setCustomers] = useState<Customer[]>([])
   const [custQuery, setCustQuery] = useState('')
   const [customer, setCustomer] = useState<Customer | null>(null)
+
+  // Chamado travado (veio do botão "Solicitar código-fonte" no detalhe do chamado).
+  // Fica vinculado independentemente do cliente escolhido (cobre chamado interno erpserv/bizify).
+  const [lockedTicket, setLockedTicket] = useState<TicketRow | null>(null)
 
   // Passo 2 — Chamado
   const [ticketMode, setTicketMode] = useState<'existing' | 'new'>('existing')
@@ -69,7 +74,32 @@ export default function CodigoFontePage() {
     return () => clearTimeout(t)
   }, [customer, ticketQuery, ticketMode])
 
-  const pickCustomer = (c: Customer) => { setCustomer(c); setTicket(null); setTickets([]); setSources([null]) }
+  // Pré-preenchimento vindo do detalhe de um chamado (?ticket_id=&ticket_number=&customer_id=).
+  const prefillTicketDone = useRef(false)
+  const prefillCustDone = useRef(false)
+  useEffect(() => {
+    if (prefillTicketDone.current) return
+    const tid = searchParams.get('ticket_id')
+    if (!tid) return
+    const lt: TicketRow = { id: Number(tid), ticket_number: searchParams.get('ticket_number'), subject: '', status: null }
+    setLockedTicket(lt); setTicket(lt); setTicketMode('existing')
+    prefillTicketDone.current = true
+  }, [searchParams])
+  // Assim que a lista de clientes carrega: se o cliente do chamado tiver repo, pré-seleciona e pula
+  // direto pro passo Fontes. Se NÃO tiver (interno erpserv/bizify), deixa o seletor de cliente aberto.
+  useEffect(() => {
+    if (prefillCustDone.current || customers.length === 0) return
+    const cid = searchParams.get('customer_id')
+    if (!cid) { prefillCustDone.current = true; return }
+    const found = customers.find(c => String(c.id) === cid)
+    if (found) {
+      setCustomer(found)
+      if (searchParams.get('ticket_id')) setStep(2)
+    }
+    prefillCustDone.current = true
+  }, [customers, searchParams])
+
+  const pickCustomer = (c: Customer) => { setCustomer(c); if (!lockedTicket) { setTicket(null); setTickets([]) } setSources([null]) }
 
   const chosenSources = sources.filter(Boolean) as SearchItem[]
   const canNext =
@@ -165,7 +195,20 @@ export default function CodigoFontePage() {
           )}
 
           {/* PASSO 2 — CHAMADO */}
-          {step === 1 && (
+          {step === 1 && lockedTicket && (
+            <div>
+              <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>Chamado vinculado</h2>
+              <div className="rounded-lg px-3 py-3 flex items-center gap-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+                <FileCode size={16} style={{ color: 'var(--primary)' }} />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold" style={{ color: 'var(--primary)' }}>{lockedTicket.ticket_number ?? `#${lockedTicket.id}`}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>As fontes serão anexadas a este chamado.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 1 && !lockedTicket && (
             <div>
               <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text)' }}>Existe um chamado relacionado?</h2>
               <div className="flex gap-2 mb-3">
