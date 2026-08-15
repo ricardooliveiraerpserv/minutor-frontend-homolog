@@ -5,14 +5,13 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ApiError, api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
-  Info, Plus, Eye, EyeOff, Settings,
+  Info, Plus, Settings,
   Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, Activity, Bell,
 } from 'lucide-react'
 import { useProjectSchedule, type LastMovement } from '@/hooks/use-project-schedule'
 import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
-import { useExecutiveMode } from '@/hooks/use-executive-mode'
 import type { ProjectStage } from '@/lib/types/project-stage'
 import { OperacaoView } from './views/operacao'
 import { PlanejamentoView } from './views/planejamento'
@@ -137,9 +136,6 @@ function InternalCronogramaPage() {
   const { user } = useAuth()
   const isConsultor = user?.type === 'consultor'
   const canEdit = user?.type !== 'consultor' && user?.type !== 'cliente'
-  const [executiveRaw, toggleExecutive] = useExecutiveMode()
-  // Consultor nunca fica em modo executivo (toggle escondido); ignora valor preso no localStorage.
-  const executive = executiveRaw && !isConsultor
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
 
@@ -428,29 +424,12 @@ function InternalCronogramaPage() {
           diary: 0,
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* "Liberado à gestão" e "Modo executivo" são visão de gestão — o consultor
-              só vê o que foi liberado a ele, sem horas/pool do projeto. */}
+          {/* "Liberado à gestão" é visão de gestão — o consultor só vê o que foi
+              liberado a ele, sem horas/pool do projeto. (Modo executivo removido.) */}
           {!isConsultor && project && (
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Liberado à gestão: <strong style={{ color: 'var(--text)' }}>{cronogramaPoolHours(project)}h</strong>
             </span>
-          )}
-          {!isConsultor && (
-          <button
-            type="button"
-            onClick={() => toggleExecutive()}
-            title={executive ? 'Sair do modo executivo' : 'Ativar modo executivo — esconde detalhes operacionais'}
-            className="ds-btn-ghost"
-            style={{
-              fontSize: 12, padding: '6px 10px',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              color: executive ? 'var(--primary)' : 'var(--text-muted)',
-              fontWeight: executive ? 600 : 400,
-            }}
-          >
-            {executive ? <EyeOff size={12} /> : <Eye size={12} />}
-            Modo executivo
-          </button>
           )}
           {canEdit && (
             <button
