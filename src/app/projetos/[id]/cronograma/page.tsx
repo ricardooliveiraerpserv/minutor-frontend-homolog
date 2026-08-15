@@ -451,55 +451,55 @@ function InternalCronogramaPage() {
             { label: 'Prazo final', value: fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date) },
           ]} />
         )}
+
+        {/* EQUIPE · horas + ÚLTIMA MOVIMENTAÇÃO aglutinados — preenchem o espaço restante à direita, na mesma linha */}
+        {!isConsultor && (
+          <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', gap: 10, padding: '6px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Equipe · horas por consultor</div>
+              {teamLoad.length === 0 ? (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem alocações.</span>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {teamLoad.map(t => {
+                    const actual = Number(t.actual_hours) || 0
+                    const planned = Number(t.planned_hours) || 0
+                    const pctP = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 101 : 0)
+                    const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
+                    return (
+                      <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: '0 0 110px', fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
+                        <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 40 }}>
+                          <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
+                        </div>
+                        <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                          Disp. <strong style={{ color: 'var(--text)' }}>{Math.round(planned)}h</strong> · Apont. <strong style={{ color: 'var(--text)' }}>{Math.round(actual)}h</strong> · Saldo <strong style={{ color: (planned - actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{Math.round(planned - actual)}h</strong>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div style={{ flex: '0 0 auto', minWidth: 120, borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Última movimentação</div>
+              {lastMovement ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastMovement.user ?? '—'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: lastMovement.kind === 'timesheet' ? 'var(--success)' : 'var(--primary)' }}>{fmtMovement(lastMovement)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lastMovement.at ? timeAgo(lastMovement.at) : ''}</span>
+                </div>
+              ) : (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem movimentações.</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       {!isConsultor && alertsOpen && alerts.length > 0 && (
         <div style={{ marginBottom: 6 }}><CronogramaAlertsList alerts={alerts} /></div>
       )}
 
-      {/* Equipe (horas apontadas / planejadas por consultor) + Última movimentação. */}
-      {!isConsultor && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 8, marginBottom: 6 }}>
-          <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Equipe · horas por consultor</div>
-            {teamLoad.length === 0 ? (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem alocações.</span>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {teamLoad.map(t => {
-                  const actual = Number(t.actual_hours) || 0
-                  const planned = Number(t.planned_hours) || 0
-                  // Disp.=0 mas apontou horas = estouro (saldo negativo) → barra cheia + vermelha.
-                  const pctP = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 101 : 0)
-                  const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
-                  return (
-                    <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ flex: '0 0 130px', fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
-                      <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
-                      </div>
-                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        Disp. <strong style={{ color: 'var(--text)' }}>{Math.round(planned)}h</strong> · Apont. <strong style={{ color: 'var(--text)' }}>{Math.round(actual)}h</strong> · Saldo <strong style={{ color: (planned - actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{Math.round(planned - actual)}h</strong>
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Última movimentação</div>
-            {lastMovement ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastMovement.user ?? '—'}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: lastMovement.kind === 'timesheet' ? 'var(--success)' : 'var(--primary)' }}>{fmtMovement(lastMovement)}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lastMovement.at ? timeAgo(lastMovement.at) : ''}</span>
-              </div>
-            ) : (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem movimentações.</span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* BLOCO 2 fixo — barra de abas + ações (gruda no TOPO ao rolar; o Bloco 1 rola embora) */}
       <div style={{
