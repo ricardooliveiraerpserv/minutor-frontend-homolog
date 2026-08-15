@@ -240,9 +240,6 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
       padding: '16px 24px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
