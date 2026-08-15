@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { CalendarDays, Pencil, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -217,6 +218,10 @@ function PrazoKPI({
 export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const { user } = useAuth()
   const canEditPrazo = user?.type !== 'consultor' && user?.type !== 'cliente'
+  const pathname = usePathname()
+  // No Cronograma, Vendidas/Consumidas/Saldo vivem na faixa única de indicadores (page.tsx)
+  // → não duplica aqui. Nas outras abas (ex.: Gestão Operacional) segue no header.
+  const onCronograma = (pathname ?? '').includes('/cronograma')
 
   const sold = n(project.sold_hours)
   const consumed = n(project.consumed_hours)
@@ -271,9 +276,10 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         </div>
       </div>
 
-      {/* Vendidas · Consumidas · Saldo fundidos num card único (uma linha) + barra de progresso embutida; Prazo ao lado. */}
+      {/* Vendidas · Consumidas · Saldo fundidos num card único (uma linha) + barra de progresso embutida; Prazo ao lado.
+          No Cronograma some (vai pra faixa única do page.tsx); nas outras abas fica aqui. */}
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
-        <div style={{
+        {!onCronograma && <div style={{
           flex: '1 1 320px', minWidth: 0,
           padding: '7px 14px', borderRadius: 8,
           background: 'var(--surface)', border: '1px solid var(--border)',
@@ -299,7 +305,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
               <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
             </div>
           )}
-        </div>
+        </div>}
         <PrazoKPI
           projectId={project.id}
           expectedEndDate={project.expected_end_date}

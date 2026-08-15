@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ApiError, api } from '@/lib/api'
+import { useApiQuery } from '@/hooks/use-query'
 import { toast } from 'sonner'
 import {
   Info, Plus, Settings,
@@ -145,6 +146,16 @@ function InternalCronogramaPage() {
 
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
     useProjectSchedule(projectId)
+
+  // Horas do PROJETO (vendidas/consumidas/saldo) — não vêm no payload do cronograma;
+  // busca leve em /projects/{id} pra fundir na faixa única de indicadores.
+  const { data: projHours } = useApiQuery<{ sold_hours?: number | string | null; consumed_hours?: number | string | null; general_hours_balance?: number | string | null }>(
+    Number.isFinite(projectId) ? `/projects/${projectId}` : null
+  )
+  const soldH = Number(projHours?.sold_hours ?? project?.sold_hours ?? 0) || 0
+  const consumedH = Number(projHours?.consumed_hours ?? 0) || 0
+  const balanceH = Number(projHours?.general_hours_balance ?? 0) || 0
+  const consumedPct = soldH > 0 ? Math.round((consumedH / soldH) * 100) : 0
 
   // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
   const saude = executiveSummary?.overall_risk === 'high'
@@ -323,6 +334,11 @@ function InternalCronogramaPage() {
       {/* Indicadores secundários = MINI CARDS numa única linha (aproveita a largura).
           NÃO esconde indicador: recupera todos (Etapas..Prazo) em pouca altura. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 6, overflowX: 'auto', paddingBottom: 2, alignItems: 'stretch' }}>
+        {/* Grupo Financeiro (projeto) — só gestão */}
+        {!isConsultor && <MiniCard label="Vendidas" value={`${Math.round(soldH)}h`} />}
+        {!isConsultor && <MiniCard label="Consumidas" value={`${Math.round(consumedH)}h`} sub={soldH > 0 ? `${consumedPct}%` : undefined} bar={soldH > 0 ? Math.min(100, consumedPct) : undefined} tone={consumedPct > 100 ? 'danger' : consumedPct > 85 ? 'warning' : 'default'} />}
+        {!isConsultor && <MiniCard label="Saldo" value={`${Math.round(balanceH)}h`} tone={balanceH < 0 ? 'danger' : 'default'} />}
+        {!isConsultor && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 2px', flexShrink: 0 }} />}
         {/* Grupo Operacional */}
         <MiniCard icon={<Layers size={11} />} label="Etapas" value={stages.length} />
         <MiniCard icon={<ListChecks size={11} />} label="Atividades" value={counts.totalActivities} sub={`${Math.round(counts.totalHoursPlanned)}h`} />
