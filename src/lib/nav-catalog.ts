@@ -108,6 +108,9 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/ambientes-preview',   label: 'Cofre de Ambientes',    group: 'Cofre' },
   { key: '/ambientes/auditoria', label: 'Auditoria de Ambientes', group: 'Cofre' },
 
+  // Central de Fontes (catálogo de documentação de código-fonte)
+  { key: '/central-fontes', label: 'Central de Fontes', group: 'Central de Fontes' },
+
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
   { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },

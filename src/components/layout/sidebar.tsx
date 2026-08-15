@@ -61,6 +61,7 @@ import {
   SlidersHorizontal,
   Eye,
   KeyRound,
+  FolderGit2,
   Server,
   Target,
   Percent,
@@ -137,6 +138,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/relatorios/rentabilidade', 'administrativo'],
   ['/relatorios/contratos-sem-vencimento', 'administrativo'],
   ['/clientes', 'administrativo'],
+  ['/central-fontes', 'administrativo'],
   ['/partners', 'administrativo'],
   ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
@@ -379,6 +381,7 @@ const NAV: NavEntry[] = [
       // 🔐 Cofre de Senhas (zero-knowledge) — telas internas do módulo:
       // /cofre/configuracao e /cofre/auditoria são alcançadas de dentro do cofre.
       { label: 'Cofre de Senhas', href: '/cofre', icon: KeyRound },
+      { label: 'Central de Fontes', href: '/central-fontes', icon: FolderGit2 },
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
