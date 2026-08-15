@@ -271,15 +271,35 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         </div>
       </div>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 8,
-        marginTop: 8,
-      }}>
-        <KPI label="Vendidas" value={formatHours(sold)} />
-        <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
-        <KPI label="Saldo" value={formatHours(balance)} />
+      {/* Vendidas · Consumidas · Saldo fundidos num card único (uma linha) + barra de progresso embutida; Prazo ao lado. */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
+        <div style={{
+          flex: '1 1 320px', minWidth: 0,
+          padding: '7px 14px', borderRadius: 8,
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Vendidas</span>
+            <strong style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{formatHours(sold)}</strong>
+          </span>
+          <span style={{ opacity: .3 }}>·</span>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Consumidas</span>
+            <strong style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{formatHours(consumed)}</strong>
+            {sold > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{Math.round(pct)}%</span>}
+          </span>
+          <span style={{ opacity: .3 }}>·</span>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Saldo</span>
+            <strong style={{ fontSize: 16, fontWeight: 600, color: balance < 0 ? 'var(--danger)' : 'var(--text)' }}>{formatHours(balance)}</strong>
+          </span>
+          {sold > 0 && (
+            <div style={{ flex: '1 1 100px', minWidth: 70, height: 4, background: 'var(--surface-hover)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
+            </div>
+          )}
+        </div>
         <PrazoKPI
           projectId={project.id}
           expectedEndDate={project.expected_end_date}
@@ -287,25 +307,6 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           onChange={onProjectChange}
         />
       </div>
-
-      {sold > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{
-            height: 4,
-            width: '100%',
-            background: 'var(--surface-hover)',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${pct}%`,
-              background: healthColor,
-              transition: 'width .3s ease',
-            }} />
-          </div>
-        </div>
-      )}
 
       {delayRisk?.has_risk && delayRisk.latest_stage_end && (
         <div style={{
