@@ -6,7 +6,7 @@ import { ApiError, api } from '@/lib/api'
 import { useApiQuery } from '@/hooks/use-query'
 import { toast } from 'sonner'
 import {
-  Info, Plus, Settings,
+  Info, Plus, Settings, Pencil,
   Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, Activity, Bell,
 } from 'lucide-react'
 import { useProjectSchedule, type LastMovement } from '@/hooks/use-project-schedule'
@@ -96,6 +96,88 @@ function fmtMovement(m: LastMovement): string {
 }
 
 // Mini card dos indicadores — ícone + rótulo em cima, valor embaixo, barra opcional.
+type StackTone = 'default' | 'primary' | 'warning' | 'danger' | 'success'
+interface StackRow { label: string; value: React.ReactNode; tone?: StackTone; onClick?: () => void }
+function toneColor(t?: StackTone): string {
+  return t === 'danger' ? 'var(--danger)' : t === 'warning' ? 'var(--warning)' : t === 'primary' ? 'var(--primary)' : t === 'success' ? 'var(--success)' : 'var(--text)'
+}
+/** Card aglutinado: título + várias métricas empilhadas (label à esquerda, valor à direita). */
+function StackCard({ title, rows }: { title: string; rows: StackRow[] }) {
+  return (
+    <div style={{
+      flexShrink: 0, minWidth: 128,
+      padding: '6px 12px', borderRadius: 8,
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column', gap: 2,
+    }}>
+      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 1 }}>{title}</div>
+      {rows.map((r, i) => (
+        <div key={i} onClick={r.onClick} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
+          cursor: r.onClick ? 'pointer' : 'default',
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{r.label}</span>
+          <strong style={{ fontSize: 13, fontWeight: 600, color: toneColor(r.tone), whiteSpace: 'nowrap' }}>{r.value}</strong>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Prazo de entrega (editável) em formato de card da faixa — replica o PATCH do header. */
+function PrazoStackCard({ projectId, expectedEndDate, canEdit, onChange }: {
+  projectId: number; expectedEndDate?: string | null; canEdit: boolean; onChange?: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(expectedEndDate ? expectedEndDate.slice(0, 10) : '')
+  const [saving, setSaving] = useState(false)
+  const hasDate = Boolean(expectedEndDate)
+  const isOverdue = hasDate && new Date(expectedEndDate as string) < new Date(new Date().toDateString())
+  const displayDate = hasDate ? new Date(expectedEndDate as string).toLocaleDateString('pt-BR') : '—'
+  const overdueDays = hasDate && isOverdue ? Math.floor((Date.now() - new Date(expectedEndDate as string).getTime()) / 86400000) : 0
+  async function save() {
+    if (saving) return
+    setSaving(true)
+    try {
+      await api.patch(`/projects/${projectId}`, { expected_end_date: value || null })
+      toast.success('Prazo atualizado'); setEditing(false); onChange?.()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar prazo') }
+    finally { setSaving(false) }
+  }
+  return (
+    <div style={{
+      flexShrink: 0, minWidth: 150,
+      padding: '6px 12px', borderRadius: 8,
+      background: 'var(--surface)', border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border)'}`,
+      display: 'flex', flexDirection: 'column', gap: 1, justifyContent: 'center',
+    }}>
+      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <CalendarClock size={10} /> Prazo de entrega
+      </div>
+      {!editing ? (
+        <button type="button" onClick={canEdit ? () => { setValue(expectedEndDate ? expectedEndDate.slice(0, 10) : ''); setEditing(true) } : undefined} disabled={!canEdit}
+          style={{ background: 'transparent', border: 'none', padding: 0, cursor: canEdit ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left' }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: hasDate ? (isOverdue ? 'var(--danger)' : 'var(--text)') : 'var(--text-muted)', fontStyle: hasDate ? 'normal' : 'italic' }}>
+            {hasDate ? displayDate : 'Definir prazo'}
+          </span>
+          {canEdit && <Pencil size={11} style={{ color: 'var(--text-light)' }} />}
+        </button>
+      ) : (
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input type="date" className="ds-input" autoFocus value={value} onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+            style={{ fontSize: 13, padding: '3px 6px', minWidth: 0, width: 130 }} />
+          <button type="button" onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 11, padding: '3px 8px' }}>{saving ? '…' : 'OK'}</button>
+          <button type="button" onClick={() => setEditing(false)} className="ds-btn-ghost" style={{ fontSize: 11, padding: '3px 6px' }}>✕</button>
+        </div>
+      )}
+      {hasDate && !editing && isOverdue && (
+        <span style={{ fontSize: 10, color: 'var(--danger)' }}>{overdueDays} dia(s) em atraso</span>
+      )}
+    </div>
+  )
+}
+
 // NÃO trunca: rótulos curtos e quebra de linha se faltar largura (nunca "...").
 function MiniCard({ label, value, sub, tone = 'default', onClick, icon, bar }: {
   label: string; value: React.ReactNode; sub?: string
@@ -334,45 +416,41 @@ function InternalCronogramaPage() {
       {/* Indicadores secundários = MINI CARDS numa única linha (aproveita a largura).
           NÃO esconde indicador: recupera todos (Etapas..Prazo) em pouca altura. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 6, overflowX: 'auto', paddingBottom: 2, alignItems: 'stretch' }}>
-        {/* Grupo Financeiro (projeto) — só gestão */}
-        {!isConsultor && <MiniCard label="Vendidas" value={`${Math.round(soldH)}h`} />}
-        {!isConsultor && <MiniCard label="Consumidas" value={`${Math.round(consumedH)}h`} sub={soldH > 0 ? `${consumedPct}%` : undefined} bar={soldH > 0 ? Math.min(100, consumedPct) : undefined} tone={consumedPct > 100 ? 'danger' : consumedPct > 85 ? 'warning' : 'default'} />}
-        {!isConsultor && <MiniCard label="Saldo" value={`${Math.round(balanceH)}h`} tone={balanceH < 0 ? 'danger' : 'default'} />}
-        {!isConsultor && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 2px', flexShrink: 0 }} />}
-        {/* Grupo Operacional */}
-        <MiniCard icon={<Layers size={11} />} label="Etapas" value={stages.length} />
-        <MiniCard icon={<ListChecks size={11} />} label="Atividades" value={counts.totalActivities} sub={`${Math.round(counts.totalHoursPlanned)}h`} />
-        <MiniCard icon={<Play size={11} />} label="Execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
-        <MiniCard icon={<Lock size={11} />} label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
-        <MiniCard icon={<UserCheck size={11} />} label="Cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
-        <MiniCard icon={<Clock size={11} />} label="Atrasadas" value={counts.overdueCount} tone={counts.overdueCount > 0 ? 'danger' : 'default'} />
-        {/* Divisor discreto entre os grupos */}
-        {!isConsultor && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 2px', flexShrink: 0 }} />}
-        {/* Grupo Gestão */}
-        {!isConsultor && <MiniCard icon={<Users size={11} />} label="Equipe" value={teamLoad.length} sub="consultores" />}
-        {/* Evolução movida pra barra do header (abaixo do progresso de horas). */}
+        {/* Prazo de entrega (editável) — na mesma linha */}
+        <PrazoStackCard projectId={projectId} expectedEndDate={project?.expected_end_date} canEdit={canEdit} onChange={refetch} />
+
+        {/* HORAS — card único, empilhado (só gestão) */}
         {!isConsultor && (
-          <MiniCard
-            icon={<Activity size={11} />}
-            label="Saúde"
-            value={
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: saude.color, flexShrink: 0 }} />
-                <span style={{ color: 'var(--text)' }}>{saude.text}</span>
-              </span>
-            }
-          />
+          <StackCard title="Horas" rows={[
+            { label: 'Vendidas', value: `${Math.round(soldH)}h` },
+            { label: 'Consumidas', value: `${Math.round(consumedH)}h${soldH > 0 ? ` · ${consumedPct}%` : ''}`, tone: consumedPct > 100 ? 'danger' : consumedPct > 85 ? 'warning' : 'default' },
+            { label: 'Saldo', value: `${Math.round(balanceH)}h`, tone: balanceH < 0 ? 'danger' : 'default' },
+          ]} />
         )}
+
+        {/* ATIVIDADES — aglutinado */}
+        <StackCard title="Atividades" rows={[
+          { label: 'Etapas', value: stages.length },
+          { label: 'Atividades', value: `${counts.totalActivities} · ${Math.round(counts.totalHoursPlanned)}h` },
+          { label: 'Execução', value: counts.inProgressCount, tone: counts.inProgressCount > 0 ? 'primary' : 'default' },
+        ]} />
+
+        {/* PENDÊNCIAS — aglutinado */}
+        <StackCard title="Pendências" rows={[
+          { label: 'Bloqueadas', value: counts.blockedCount, tone: counts.blockedCount > 0 ? 'danger' : 'default' },
+          { label: 'Cliente', value: counts.waitingClientCount, tone: counts.waitingClientCount > 0 ? 'warning' : 'default' },
+          { label: 'Atrasadas', value: counts.overdueCount, tone: counts.overdueCount > 0 ? 'danger' : 'default' },
+        ]} />
+
+        {/* TIME & STATUS — aglutinado (só gestão) */}
         {!isConsultor && (
-          <MiniCard
-            icon={<Bell size={11} />}
-            label="Alertas"
-            value={alerts.length}
-            tone={alerts.length === 0 ? 'default' : (alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning')}
-            onClick={alerts.length > 0 ? () => setAlertsOpen(o => !o) : undefined}
-          />
+          <StackCard title="Time & status" rows={[
+            { label: 'Equipe', value: `${teamLoad.length}` },
+            { label: 'Saúde', value: (<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: saude.color }} />{saude.text}</span>) },
+            { label: 'Alertas', value: alerts.length, tone: alerts.length === 0 ? 'default' : (alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning'), onClick: alerts.length > 0 ? () => setAlertsOpen(o => !o) : undefined },
+            { label: 'Prazo final', value: fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date) },
+          ]} />
         )}
-        <MiniCard icon={<CalendarClock size={11} />} label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
       </div>
       {!isConsultor && alertsOpen && alerts.length > 0 && (
         <div style={{ marginBottom: 6 }}><CronogramaAlertsList alerts={alerts} /></div>

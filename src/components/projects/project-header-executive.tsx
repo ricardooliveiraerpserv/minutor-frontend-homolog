@@ -276,10 +276,11 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         </div>
       </div>
 
-      {/* Vendidas · Consumidas · Saldo fundidos num card único (uma linha) + barra de progresso embutida; Prazo ao lado.
-          No Cronograma some (vai pra faixa única do page.tsx); nas outras abas fica aqui. */}
+      {/* Vendidas · Consumidas · Saldo + Prazo. No Cronograma TODO o bloco some
+          (vai pra faixa única do page.tsx); nas outras abas (Gestão Operacional) fica aqui. */}
+      {!onCronograma && (
       <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
-        {!onCronograma && <div style={{
+        <div style={{
           flex: '1 1 320px', minWidth: 0,
           padding: '7px 14px', borderRadius: 8,
           background: 'var(--surface)', border: '1px solid var(--border)',
@@ -305,7 +306,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
               <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
             </div>
           )}
-        </div>}
+        </div>
         <PrazoKPI
           projectId={project.id}
           expectedEndDate={project.expected_end_date}
@@ -313,6 +314,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           onChange={onProjectChange}
         />
       </div>
+      )}
 
       {delayRisk?.has_risk && delayRisk.latest_stage_end && (
         <div style={{
