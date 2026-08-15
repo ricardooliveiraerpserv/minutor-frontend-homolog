@@ -8,7 +8,9 @@ export default function ProjectIndexPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace(`/projetos/${params.id}/visao-geral`)
+    // Tela principal do projeto = ambiente de gestão (cronograma: header denso +
+    // badges + abas Planejamento/Linha do Tempo/Operação), não a antiga Visão Geral.
+    router.replace(`/projetos/${params.id}/cronograma`)
   }, [params.id, router])
 
   return null
