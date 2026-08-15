@@ -545,12 +545,47 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
   )
 }
 
+// ─── Mudar data de digitação (admin) ───────────────────────────────────────────
+function ChangeDataDigitacaoModal({ id, date, onClose, onSaved }: { id: number; date: string; onClose: () => void; onSaved: () => void }) {
+  const [value, setValue] = useState(date)
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    if (!value) { toast.error('Informe a data'); return }
+    setSaving(true)
+    try {
+      await api.patch(`/timesheets/${id}/data-digitacao`, { date: value })
+      toast.success('Data de digitação alterada e travada')
+      onSaved(); onClose()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar a data') }
+    finally { setSaving(false) }
+  }
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Mudar data de digitação</p>
+          <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+        </div>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>A nova data fica <b>travada</b> — a integração do Movidesk não sobrescreve.</p>
+        <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Data</label>
+        <input type="date" value={value} onChange={e => setValue(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+          <button onClick={save} disabled={saving} className="px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando...' : 'Salvar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Row actions ─────────────────────────────────────────────────────────────
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseApproval, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseApproval, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict, onChangeDate }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void; onChangeDate?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -577,6 +612,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
     : [
         ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]),
         ...(dEdit ? [] : [{ label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } }]),
+        ...(onChangeDate ? [{ label: 'Mudar data de digitação', icon: <Calendar size={12} />, onClick: onChangeDate }] : []),
         ...(onShowConflict ? [{ label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: onShowConflict }] : []),
         ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
@@ -912,6 +948,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
   const [reverseRejectionReason, setReverseRejectionReason] = useState('')
   const [reverseRejecting, setReverseRejecting] = useState(false)
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
+  const [changeDateFor, setChangeDateFor] = useState<{ id: number; date: string } | null>(null)
   // Hover preview do apontamento (tooltip fixo no canto superior direito)
   const hover = useTimesheetHover()
   // Em telas de toque o hover do card é desligado: no iOS o 1º toque viraria "hover"
@@ -1678,6 +1715,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                       onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                       onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.date ?? '').slice(0, 10) }) : undefined}
                     />
                     </div>
                   </Td>
@@ -1856,6 +1894,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                         onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                         onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                         onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.date ?? '').slice(0, 10) }) : undefined}
                       />
                     </div>
                   </div>
@@ -2005,6 +2044,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
       )}
 
       {/* ExtraPct Modal */}
+      {changeDateFor && (
+        <ChangeDataDigitacaoModal id={changeDateFor.id} date={changeDateFor.date} onClose={() => setChangeDateFor(null)} onSaved={refetch} />
+      )}
       {extraPctModalData && (
         <ExtraPctModal
           ids={extraPctModalData.ids}
