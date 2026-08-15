@@ -374,7 +374,8 @@ function InternalCronogramaPage() {
                 {teamLoad.map(t => {
                   const actual = Number(t.actual_hours) || 0
                   const planned = Number(t.planned_hours) || 0
-                  const pctP = planned > 0 ? (actual / planned) * 100 : 0
+                  // Disp.=0 mas apontou horas = estouro (saldo negativo) → barra cheia + vermelha.
+                  const pctP = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 101 : 0)
                   const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
                   return (
                     <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -669,7 +670,7 @@ function SegmentedControl({
               fontSize: 13,
               fontWeight: active ? 700 : 600,
               background: active ? (isComments ? 'var(--danger)' : 'var(--primary)') : 'transparent',
-              color: active ? '#fff' : (isComments ? 'var(--danger)' : 'var(--text)'),
+              color: active ? (isComments ? '#fff' : '#000') : (isComments ? 'var(--danger)' : 'var(--text)'),
               border: 'none',
               borderRadius: 7,
               cursor: 'pointer',
