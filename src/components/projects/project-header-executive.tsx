@@ -61,20 +61,21 @@ function timeAgo(iso: string): string {
 function KPI({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div style={{
-      padding: '12px 14px',
+      padding: '6px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: '1px solid var(--border)',
       minWidth: 0,
+      display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
     }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
         {label}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
+      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
           {sub}
         </div>
       )}
@@ -121,7 +122,7 @@ function PrazoKPI({
 
   return (
     <div style={{
-      padding: '12px 14px',
+      padding: '6px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border)'}`,
@@ -129,7 +130,7 @@ function PrazoKPI({
       position: 'relative',
     }}>
       <div style={{
-        fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em',
+        fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em',
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         <CalendarDays size={11} /> Prazo de entrega
@@ -144,11 +145,11 @@ function PrazoKPI({
             background: 'transparent', border: 'none', padding: 0, margin: 0,
             cursor: canEdit ? 'pointer' : 'default',
             display: 'flex', alignItems: 'baseline', gap: 8,
-            marginTop: 2, width: '100%', textAlign: 'left',
+            marginTop: 0, width: '100%', textAlign: 'left',
           }}
         >
           <span style={{
-            fontSize: 20, fontWeight: 600,
+            fontSize: 16, fontWeight: 600,
             color: hasDate ? (isOverdue ? 'var(--danger)' : 'var(--text)') : 'var(--text-muted)',
             fontStyle: hasDate ? 'normal' : 'italic',
           }}>
@@ -193,7 +194,7 @@ function PrazoKPI({
       )}
 
       {hasDate && !editing && (
-        <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 2 }}>
+        <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 0 }}>
           {(() => {
             const d = new Date(expectedEndDate as string)
             d.setHours(0, 0, 0, 0)
@@ -237,14 +238,14 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
 
   return (
     <div style={{
-      padding: '16px 24px',
+      padding: '8px 24px 10px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+            <h1 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
               {project.name}
             </h1>
             {project.code && (
@@ -273,8 +274,8 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 12,
-        marginTop: 14,
+        gap: 8,
+        marginTop: 8,
       }}>
         <KPI label="Vendidas" value={formatHours(sold)} />
         <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
@@ -308,7 +309,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
 
       {delayRisk?.has_risk && delayRisk.latest_stage_end && (
         <div style={{
-          marginTop: 12,
+          marginTop: 6,
           padding: '6px 10px',
           borderRadius: 6,
           background: delayRisk.delay_days >= 14 ? 'var(--danger-bg)' : 'var(--warning-bg)',
@@ -331,7 +332,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
 
       {last && (
         <div style={{
-          marginTop: 12,
+          marginTop: 6,
           fontSize: 12,
           color: 'var(--text-muted)',
           display: 'flex',
