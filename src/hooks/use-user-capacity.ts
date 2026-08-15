@@ -8,7 +8,10 @@ export interface UserCapacityRow {
   planned_hours: number
   actual_hours: number
   remaining_hours: number
-  usage_pct: number
+  usage_pct: number              // ocupação do MÊS mais cheio ÷ capacidade mensal
+  peak_month?: string | null     // 'YYYY-MM' do mês mais cheio
+  peak_month_hours?: number      // horas planejadas nesse mês
+  monthly?: { month: string; hours: number }[]  // distribuição mês a mês (tooltip)
   allocation_count: number
   overload: boolean
   overload_reasons: string[]

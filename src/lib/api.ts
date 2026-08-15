@@ -25,7 +25,11 @@ export class ApiError extends Error {
   }
 }
 
-/** Mensagem amigável a partir de um erro desconhecido (ApiError/Error/fallback). */
+/**
+ * Mensagem amigável de qualquer erro (ApiError/Error) com fallback. Padrão oficial da Fase 2
+ * para `onError` — substitui o boilerplate `e instanceof ApiError ? e.message : '...'`:
+ *   { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) }
+ */
 export function apiMessage(e: unknown, fallback = 'Ocorreu um erro'): string {
   if (e instanceof ApiError) return e.message
   if (e instanceof Error && e.message) return e.message

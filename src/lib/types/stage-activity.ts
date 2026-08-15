@@ -7,6 +7,11 @@ export type StageActivityType =
   | 'block_set'
   | 'block_cleared'
   | 'comment'
+  | 'client_involved'
+  | 'client_removed'
+  | 'approval_requested'
+  | 'approval_approved'
+  | 'approval_rejected'
 
 export interface StageActivityActor {
   id: number
@@ -21,6 +26,8 @@ export interface StageActivityEvent {
   actor?: StageActivityActor | null
   type: StageActivityType
   payload: Record<string, unknown> | null
+  /** Público da mensagem: subconjunto de ['cliente','consultor']. Vazio = só admin/coord. */
+  audiences?: string[] | null
   created_at: string
   attachment_path?: string | null
   attachment_original_name?: string | null

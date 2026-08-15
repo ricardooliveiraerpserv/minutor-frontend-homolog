@@ -131,6 +131,44 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
   const isCliente = userRole === 'cliente'
   const isAdmin   = userRole === 'admin'
 
+  // Participantes CONVIDADOS: admin/coord do projeto libera um usuário específico a ver/postar.
+  const [participants, setParticipants]   = useState<{ user_id: number; name: string; type?: string | null }[]>([])
+  const [canManagePart, setCanManagePart] = useState(false)
+  const [showAddPart, setShowAddPart]     = useState(false)
+  const [partQuery, setPartQuery]         = useState('')
+  const [partHits, setPartHits]           = useState<{ id: number; name: string; email?: string }[]>([])
+
+  useEffect(() => {
+    api.get<any>(`/projects/${projectId}/messages/participants`)
+      .then(r => { setParticipants(r.data ?? []); setCanManagePart(!!r.can_manage) })
+      .catch(() => {})
+  }, [projectId])
+
+  useEffect(() => {
+    if (!showAddPart) { setPartHits([]); return }
+    const t = setTimeout(() => {
+      // Só usuários com LIBERAÇÃO de visualização do pipeline podem ser convidados.
+      api.get<any>(`/projects/${projectId}/messages/eligible-participants?search=${encodeURIComponent(partQuery.trim())}`)
+        .then(r => setPartHits(((r.data ?? []) as any[]).map(u => ({ id: u.id, name: u.name, email: u.email }))))
+        .catch(() => {})
+    }, 250)
+    return () => clearTimeout(t)
+  }, [partQuery, showAddPart, projectId])
+
+  const addParticipant = async (u: { id: number; name: string }) => {
+    try {
+      await api.post(`/projects/${projectId}/messages/participants`, { user_id: u.id })
+      setParticipants(p => p.some(x => x.user_id === u.id) ? p : [...p, { user_id: u.id, name: u.name }])
+      setPartQuery(''); setShowAddPart(false); toast.success('Participante adicionado ao Diário')
+    } catch { toast.error('Erro ao adicionar participante') }
+  }
+  const removeParticipant = async (userId: number) => {
+    try {
+      await api.delete(`/projects/${projectId}/messages/participants/${userId}`)
+      setParticipants(p => p.filter(x => x.user_id !== userId)); toast.success('Participante removido')
+    } catch { toast.error('Erro ao remover participante') }
+  }
+
   const [messages, setMessages]           = useState<MessageWithAttachments[]>([])
   const [loading, setLoading]             = useState(true)
   const [sending, setSending]             = useState(false)
@@ -345,6 +383,40 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
 
   return (
     <div className="flex flex-col h-full min-h-[400px]">
+      {/* Participantes convidados — libera usuário específico (ex.: parceiro) a ver/postar. */}
+      {!isCliente && (participants.length > 0 || canManagePart) && (
+        <div className="px-4 py-2 border-b flex flex-wrap items-center gap-1.5" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-[10px] font-semibold uppercase tracking-wider mr-1" style={{ color: 'var(--text-light)' }}>Participantes convidados</span>
+          {participants.map(p => (
+            <span key={p.user_id} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+              {p.name}
+              {canManagePart && <button type="button" onClick={() => removeParticipant(p.user_id)} className="hover:opacity-70" title="Remover"><X size={11} /></button>}
+            </span>
+          ))}
+          {participants.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ninguém convidado</span>}
+          {canManagePart && (
+            <div className="relative">
+              <button type="button" onClick={() => setShowAddPart(v => !v)} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full" style={{ border: '1px dashed var(--border-strong)', color: 'var(--text-muted)' }}>
+                <Users size={11} /> Adicionar
+              </button>
+              {showAddPart && (
+                <div className="absolute z-30 mt-1 w-64 rounded-lg shadow-lg p-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <input autoFocus value={partQuery} onChange={e => setPartQuery(e.target.value)} placeholder="Buscar usuário…"
+                    className="w-full px-2 py-1.5 rounded text-xs mb-1" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', outline: 'none' }} />
+                  <div className="max-h-48 overflow-y-auto">
+                    {partHits.filter(u => !participants.some(p => p.user_id === u.id)).map(u => (
+                      <button key={u.id} type="button" onClick={() => addParticipant(u)} className="block w-full text-left px-2 py-1.5 rounded text-xs hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                        {u.name}{u.email && <span className="text-[10px] ml-1" style={{ color: 'var(--text-light)' }}>{u.email}</span>}
+                      </button>
+                    ))}
+                    {partHits.length === 0 && <p className="text-[11px] px-2 py-1" style={{ color: 'var(--text-light)' }}>Nenhum usuário liberado. Libere antes em “Liberação de Visualização”.</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Feed */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {loading && messages.length === 0 && <MessagesSkeleton />}

@@ -4,11 +4,15 @@ export interface User {
   email: string
   profile_photo_url?: string | null
   modules?: string[] | null   // navegação modular: módulos liberados pro usuário
+  // Acesso a módulos POR USUÁRIO cliente: ['projetos','help_desk']. null/undefined = todos (legado).
+  allowed_modules?: string[] | null
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null
   partner_id?: number | null
   is_executive?: boolean | null
+  // Agente do Help Desk = vinculado a alguma equipe (helpdesk_team_user). Vem do /user.
+  is_helpdesk_agent?: boolean | null
   extra_permissions?: string[] | null
   consultant_type?: string | null
   daily_hours?: number | null
@@ -85,6 +89,11 @@ export interface Project {
 
 export interface Timesheet {
   id: number
+  // Controle de acesso por linha (vindo do backend — AccessControl/WithAbilities)
+  can_edit?: boolean
+  can_delete?: boolean
+  reason_edit?: string | null
+  reason_delete?: string | null
   user_id: number
   user?: User
   customer_id: number
@@ -152,6 +161,7 @@ export interface CustomerFull {
   secondary_cgcs?: string[]
   code_prefix?: string | null
   active: boolean
+  has_contract?: boolean
   executive_id?: number | null
   executive?: Executive
   executive_bizify_id?: number | null

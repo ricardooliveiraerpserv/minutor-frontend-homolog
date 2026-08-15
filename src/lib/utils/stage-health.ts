@@ -1,4 +1,5 @@
 import type { ProjectStage } from '@/lib/types/project-stage'
+import { parseDateLocal } from '@/lib/date-only'
 
 export type HealthLevel = 'ok' | 'warn' | 'bad' | 'unknown'
 
@@ -23,7 +24,7 @@ export function computeStageHealth({ stage, hoursActual }: StageHealthInput): St
 
   let deadline: HealthLevel = 'unknown'
   if (stage.expected_end_date) {
-    const end = new Date(stage.expected_end_date)
+    const end = parseDateLocal(stage.expected_end_date)
     end.setHours(0, 0, 0, 0)
     const daysLeft = Math.round((end.getTime() - today.getTime()) / DAY)
     if (daysLeft < 0 && stage.status !== 'done') deadline = 'bad'
