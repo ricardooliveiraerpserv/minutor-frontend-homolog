@@ -174,18 +174,8 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
 
   return (
     <>
-      {canEdit && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <button
-            type="button"
-            className="ds-btn-primary"
-            onClick={() => { setCreatingIn('backlog'); setNewTitle('') }}
-            style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Plus size={14} /> Nova atividade
-          </button>
-        </div>
-      )}
+      {/* Botão "Nova atividade" movido pra toolbar do cronograma (ao lado de Nova etapa).
+          Mantidos os "+" por coluna pra criar direto no status. */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(240px, 1fr))`, gap: 12, overflowX: 'auto' }}>
           {COLUMNS.map(col => {

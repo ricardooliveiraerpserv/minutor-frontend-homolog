@@ -359,6 +359,11 @@ function InternalCronogramaPage() {
   const [name, setName] = useState('')
   const [hours, setHours] = useState('')
   const [saving, setSaving] = useState(false)
+  // Nova atividade a partir da toolbar (ao lado de Nova etapa)
+  const [creatingActivity, setCreatingActivity] = useState(false)
+  const [activityTitle, setActivityTitle] = useState('')
+  const [activityStageId, setActivityStageId] = useState<number | null>(null)
+  const [savingActivity, setSavingActivity] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modelosOpen, setModelosOpen] = useState(false)
   const [calendarRecalc, setCalendarRecalc] = useState<RecalcTrigger | null>(null)
@@ -383,6 +388,24 @@ function InternalCronogramaPage() {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao criar etapa')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleCreateActivity(e: React.FormEvent) {
+    e.preventDefault()
+    const title = activityTitle.trim()
+    const stageId = activityStageId ?? stages[0]?.id
+    if (!title || !stageId) return
+    setSavingActivity(true)
+    try {
+      await api.post(`/stages/${stageId}/deliveries`, { title, status: 'backlog' })
+      setActivityTitle(''); setCreatingActivity(false)
+      refresh()
+      toast.success('Atividade criada')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao criar atividade')
+    } finally {
+      setSavingActivity(false)
     }
   }
 
@@ -565,6 +588,16 @@ function InternalCronogramaPage() {
               <Plus size={14} /> Nova etapa
             </button>
           )}
+          {canEdit && stages.length > 0 && !creatingActivity && (
+            <button
+              type="button"
+              className="ds-btn-primary"
+              onClick={() => { setActivityStageId(stages[0]?.id ?? null); setActivityTitle(''); setCreatingActivity(true) }}
+              style={{ fontSize: 13, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Plus size={14} /> Nova atividade
+            </button>
+          )}
         </div>
       </div>
 
@@ -606,20 +639,48 @@ function InternalCronogramaPage() {
         </form>
       )}
 
-      {/* Banner: cronograma é uma fonte só */}
-      <div style={{
-        marginBottom: 12,
-        padding: '8px 12px',
-        background: 'var(--primary-soft)',
-        borderRadius: 6,
-        fontSize: 11, color: 'var(--text-muted)',
-        display: 'flex', alignItems: 'center', gap: 6,
-      }}>
-        <Info size={11} />
-        <span>
-          Cronograma é a camada operacional do projeto: <strong>Planejamento</strong>, <strong>Linha do Tempo</strong> e <strong>Operação</strong> são views da mesma fonte (ADR 0009). Atalhos: <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd>.
-        </span>
-      </div>
+      {creatingActivity && (
+        <form
+          onSubmit={handleCreateActivity}
+          className="ds-card ds-card-pad"
+          style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}
+        >
+          {stages.length > 1 && (
+            <div style={{ width: 220 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Etapa</label>
+              <select
+                className="ds-input"
+                value={activityStageId ?? ''}
+                onChange={e => setActivityStageId(Number(e.target.value))}
+                style={{ width: '100%', marginTop: 4 }}
+              >
+                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ flex: '1 1 240px' }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Título da atividade</label>
+            <input
+              autoFocus className="ds-input" value={activityTitle}
+              onChange={e => setActivityTitle(e.target.value)}
+              placeholder="Ex.: Levantamento de requisitos…" maxLength={200}
+              style={{ width: '100%', marginTop: 4 }}
+            />
+          </div>
+          <button type="submit" className="ds-btn-primary"
+            style={{ fontSize: 13, padding: '8px 14px' }}
+            disabled={savingActivity || !activityTitle.trim()}
+          >
+            {savingActivity ? 'Salvando…' : 'Criar'}
+          </button>
+          <button type="button" className="ds-btn-ghost"
+            style={{ fontSize: 13, padding: '8px 14px' }}
+            onClick={() => { setCreatingActivity(false); setActivityTitle('') }}
+          >
+            Cancelar
+          </button>
+        </form>
+      )}
 
       {calendarFlexible && (
         <div
