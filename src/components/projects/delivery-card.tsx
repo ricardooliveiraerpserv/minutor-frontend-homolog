@@ -41,6 +41,12 @@ function formatHours(planned: number, actual: number | undefined): string {
   return `${actual.toFixed(1)}/${planned}h`
 }
 
+/** Horas em formato curto: inteiro sem casas, fracionário com 1 casa. */
+function fmtH(h: number): string {
+  const r = Math.round(h * 100) / 100
+  return `${Number.isInteger(r) ? r : r.toFixed(1)}h`
+}
+
 export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }: Props) {
   const planned = Number(delivery.hours_planned ?? 0)
   const actual = delivery.effort_minutes_sum !== undefined && delivery.effort_minutes_sum !== null
@@ -48,6 +54,9 @@ export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }:
     : undefined
   const overdue = delivery.due_date && new Date(delivery.due_date) < new Date() && delivery.status !== 'done'
   const due = formatDue(delivery.due_date)
+  // Horas: disponibilizadas (previstas) − usadas (apontadas) = saldo.
+  const usadas = actual ?? 0
+  const saldo = Math.round((planned - usadas) * 100) / 100
 
   return (
     <div
@@ -103,23 +112,24 @@ export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }:
         </div>
       </div>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 10,
-        fontSize: 11,
-        color: 'var(--text-muted)',
-      }}>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
-          {delivery.responsible?.name ?? '—'}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>
+            {delivery.responsible?.name ?? '—'}
+          </span>
           {due && (
-            <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)' }}>{due}</span>
+            <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              Prazo: <strong style={{ color: overdue ? 'var(--danger)' : 'var(--text)' }}>{due}</strong>
+            </span>
           )}
-          <span>{formatHours(planned, actual)}</span>
-        </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span>Disp. <strong style={{ color: 'var(--text)' }}>{fmtH(planned)}</strong></span>
+          <span style={{ opacity: .4 }}>·</span>
+          <span>Usadas <strong style={{ color: 'var(--text)' }}>{fmtH(usadas)}</strong></span>
+          <span style={{ opacity: .4 }}>·</span>
+          <span>Saldo <strong style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)' }}>{fmtH(saldo)}</strong></span>
+        </div>
       </div>
       </button>
       {onMove && columns && columns.length > 0 && (
