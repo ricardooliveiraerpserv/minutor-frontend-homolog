@@ -310,10 +310,10 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
 
       <Card>
         {tab === 'resumo' && (
-          <Section title="Objetivo">
-            <Prose value={sm.objetivo ?? sm.resumo ?? sm.finalidade} />
-            {sm.fluxo != null && <><h4 className="font-semibold mt-4 mb-1" style={{ color: 'var(--text)' }}>Fluxo</h4><Prose value={sm.fluxo} /></>}
-          </Section>
+          <div className="space-y-5">
+            <EntendimentoFuncional sm={sm} />
+            {sm.fluxo != null && <Section title="Fluxo"><Prose value={sm.fluxo} /></Section>}
+          </div>
         )}
 
         {tab === 'estrutura' && (
@@ -446,6 +446,65 @@ function StatusCell({ label, children }: { label: string; children: React.ReactN
 }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <div><h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>{title}</h3>{children}</div>
+}
+
+// Bloco 4.2 — Entendimento Funcional no topo da ficha (tolera schema antigo).
+function EntendimentoFuncional({ sm }: { sm: Record<string, unknown> }) {
+  const ef = (sm.entendimento_funcional ?? null) as Record<string, unknown> | null
+  const uf = (ef?.uma_frase ?? null) as Record<string, unknown> | null
+  const pm = (ef?.processo_modulo ?? null) as Record<string, unknown> | null
+  const objetivo = (ef?.objetivo ?? sm.objetivo ?? sm.resumo ?? sm.finalidade) as unknown
+  const io = (arr: unknown): { nome?: string; tipo?: string; descricao?: string }[] => Array.isArray(arr) ? arr as never : []
+  const steps = io(ef?.o_que_faz)
+  const conf = (c: unknown) => c === 'low' ? ' · possível (baixa confiança)' : c === 'medium' ? ' · confiança média' : ''
+
+  return (
+    <div className="space-y-4">
+      {uf?.texto ? (
+        <div className="rounded-xl p-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--border)' }}>
+          <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>EM UMA FRASE</span>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text)' }}>{String(uf.texto)}<span className="text-xs" style={{ color: 'var(--text-light)' }}>{conf(uf.confidence)}</span></p>
+        </div>
+      ) : null}
+      <Section title="Objetivo"><Prose value={objetivo} /></Section>
+      {ef ? (
+        <>
+          <Section title="Quando é utilizado"><Prose value={ef.quando_usado} /></Section>
+          {pm ? (
+            <Section title="Processo / Módulo">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Processo: <b style={{ color: 'var(--text)' }}>{String(pm.processo ?? '—')}</b> · Módulo: <b style={{ color: 'var(--text)' }}>{String(pm.modulo ?? '—')}</b>
+                <span className="text-xs" style={{ color: 'var(--text-light)' }}>{conf(pm.confidence)}</span>
+              </p>
+            </Section>
+          ) : null}
+          <div className="grid md:grid-cols-2 gap-4">
+            <IOList title="Entradas principais" items={io(ef.entradas_principais)} />
+            <IOList title="Saídas principais" items={io(ef.saidas_principais)} />
+          </div>
+          {steps.length > 0 && (
+            <Section title="O que faz">
+              <ol className="list-decimal ml-5 text-sm space-y-0.5" style={{ color: 'var(--text-muted)' }}>
+                {steps.map((s, i) => <li key={i}>{String((s as Record<string, unknown>).passo ?? '')}</li>)}
+              </ol>
+            </Section>
+          )}
+        </>
+      ) : null}
+    </div>
+  )
+}
+function IOList({ title, items }: { title: string; items: { nome?: string; tipo?: string; descricao?: string }[] }) {
+  return (
+    <div>
+      <h4 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>{title}</h4>
+      {items.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Não foi possível determinar com segurança.</p> : (
+        <ul className="text-sm space-y-1" style={{ color: 'var(--text-muted)' }}>
+          {items.map((it, i) => <li key={i}>{it.nome ? <b style={{ color: 'var(--text)' }}>{it.nome} — </b> : null}{it.descricao}{it.tipo ? <span style={{ color: 'var(--text-light)' }}> ({it.tipo})</span> : null}</li>)}
+        </ul>
+      )}
+    </div>
+  )
 }
 function Prose({ value }: { value: unknown }) {
   if (value == null || value === '') return <p style={{ color: 'var(--text-light)' }}>Não informado.</p>
