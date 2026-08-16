@@ -139,6 +139,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/relatorios/contratos-sem-vencimento', 'administrativo'],
   ['/clientes', 'administrativo'],
   ['/central-fontes', 'administrativo'],
+  ['/central-fontes/busca', 'administrativo'],
   ['/partners', 'administrativo'],
   ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
@@ -382,6 +383,7 @@ const NAV: NavEntry[] = [
       // /cofre/configuracao e /cofre/auditoria são alcançadas de dentro do cofre.
       { label: 'Cofre de Senhas', href: '/cofre', icon: KeyRound },
       { label: 'Central de Fontes', href: '/central-fontes', icon: FolderGit2 },
+      { label: 'Busca Técnica', href: '/central-fontes/busca', icon: Search },
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,

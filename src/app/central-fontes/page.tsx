@@ -124,6 +124,13 @@ export default function CentralFontesPage() {
         icon={FolderGit2}
         title="Central de Fontes"
         subtitle="Catálogo técnico vivo — documentação, situação e histórico dos fontes por cliente."
+        actions={
+          <button onClick={() => router.push('/central-fontes/busca')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+            <Search size={15} /> Busca Técnica
+          </button>
+        }
       />
 
       {/* Indicadores — 100% do banco (clicáveis) */}
