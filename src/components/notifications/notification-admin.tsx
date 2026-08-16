@@ -114,7 +114,12 @@ interface Notif {
   version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
   is_template?: boolean; template_name?: string | null; actions?: string[] | null
+  created_at?: string
 }
+// Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
+const COMPLETION_TITLES = new Set(['Tarefa de reunião concluída', 'Tarefa concluída', 'Tarefa resolvida pela coordenação'])
+const stripHtml = (s: string): string => (s || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim()
+const fmtDateTime = (iso?: string): string => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 // Dias da semana (0=domingo … 6=sábado, convenção Carbon dayOfWeek).
 const WEEKDAYS: [number, string][] = [[1, 'Seg'], [2, 'Ter'], [3, 'Qua'], [4, 'Qui'], [5, 'Sex'], [6, 'Sáb'], [0, 'Dom']]
 const RECUR = [
@@ -163,6 +168,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   }, [initialAction, onActionConsumed])
   const [logTarget, setLogTarget] = useState<Notif | null>(null)
   const [resendMenu, setResendMenu] = useState<number | null>(null)   // qual notif tem o menu de reenvio aberto
+  const [showDone, setShowDone] = useState(false)                     // seção "Tarefas concluídas" recolhida por padrão
   const [tplPreview, setTplPreview] = useState<{ html: string; recipients: number } | null>(null)
 
   // Prévia do e-mail de um modelo (sem precisar abri-lo).
@@ -204,6 +210,8 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   if (editing) return <Form draft={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load(); onChanged?.() }} />
 
   const notifs = rows.filter(n => !n.is_template)
+  const publications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
+  const completedTasks = notifs.filter(n => COMPLETION_TITLES.has(n.title))
   const templates = rows.filter(n => n.is_template)
 
   return (
@@ -222,8 +230,8 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
         </div>
       </div>
       <div className="space-y-1.5">
-        {notifs.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma notificação publicada.</p>}
-        {notifs.map(n => (
+        {publications.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma notificação publicada.</p>}
+        {publications.map(n => (
           <div key={n.id} className="flex items-center gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
             <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{n.title}</span>
             <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{n.type}</span>
@@ -252,6 +260,27 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
           </div>
         ))}
       </div>
+
+      {/* ── Tarefas concluídas (auto-geradas) — separadas das publicações, recolhíveis ── */}
+      {completedTasks.length > 0 && (
+        <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={() => setShowDone(s => !s)} className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+            <ChevronDown size={13} style={{ transform: showDone ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' }} />
+            <CalendarCheck size={13} /> Tarefas concluídas ({completedTasks.length})
+          </button>
+          {showDone && completedTasks.map(n => (
+            <div key={n.id} className="flex items-start gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+              <CalendarCheck size={14} style={{ color: 'var(--primary)', marginTop: 3, flexShrink: 0 }} />
+              <div className="flex-1 min-w-0">
+                <div style={{ color: 'var(--text)' }}>{stripHtml(n.message)}</div>
+                {n.created_at && <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>Registrada em {fmtDateTime(n.created_at)}</div>}
+              </div>
+              <button className="mt-0.5" title="Log: quem viu" onClick={() => setLogTarget(n)}><ClipboardList size={14} style={{ color: 'var(--primary)' }} /></button>
+              <button className="mt-0.5" title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {templates.length > 0 && (
         <div className="space-y-1.5 pt-2">
