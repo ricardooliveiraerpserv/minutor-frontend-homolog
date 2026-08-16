@@ -7,15 +7,17 @@
 // carregados sob demanda.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { use, useCallback, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Database, ExternalLink, FileCode2,
-  GitBranch, HelpCircle, History, Layers, ListTree, ShieldAlert,
+  AlertTriangle, ArrowLeft, CheckCircle2, Database, Download, ExternalLink, FileCode2,
+  GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Badge, Card, EmptyState, Skeleton } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, Modal, Skeleton } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { useAuth } from '@/contexts/auth-context'
 
 type Situation = 'ATUALIZADA' | 'DESATUALIZADA' | 'NAO_VALIDADO'
 
@@ -38,6 +40,13 @@ interface VersionRow {
   id: number; source_commit_sha: string | null; source_blob_sha: string | null
   gmud_id: number | null; ticket_number: string | null; responsavel: string | null
   analysis_status: string; diff_summary: string | null; created_at: string | null
+}
+
+interface ReprocessPlan {
+  layer: string; force: boolean; action: 'reuse' | 'new_version' | 'reprocess_in_place' | 'immutable_noop'
+  will_create_version: boolean; blob_sha: string | null; documented_blob_sha: string | null
+  analysis_status: string | null; situation: string | null; ai_enabled: boolean; environment: string
+  estimated_cost_usd: number; hard_limit_usd: number; blocked_reason: string | null
 }
 
 const SIT: Record<Situation, { variant: string; label: string; icon: typeof CheckCircle2 }> = {
@@ -86,6 +95,20 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
   const [versions, setVersions] = useState<VersionRow[] | null>(null)
   const [verLoading, setVerLoading] = useState(false)
 
+  const { hasPermission } = useAuth()
+  const [validating, setValidating] = useState(false)
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [reproOpen, setReproOpen] = useState(false)
+  const [plan, setPlan] = useState<ReprocessPlan | null>(null)
+  const [reproLayer, setReproLayer] = useState<'deterministic' | 'semantic' | 'both'>('both')
+  const [reproForce, setReproForce] = useState(false)
+  const [exec, setExec] = useState<{ status: string; reason?: string | null } | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const reload = useCallback(async () => {
+    try { const r = await api.get<{ data: Meta }>(`/source-docs/${id}`); setMeta(r.data) } catch { /* noop */ }
+  }, [id])
+
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -97,8 +120,73 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
         if (alive) setError(e instanceof ApiError && e.status === 404 ? 'Fonte não encontrada.' : 'Erro ao carregar a ficha.')
       } finally { if (alive) setLoading(false) }
     })()
-    return () => { alive = false }
+    return () => { alive = false; if (pollRef.current) clearInterval(pollRef.current) }
   }, [id])
+
+  // ── ações (C3) ──────────────────────────────────────────────────────────────
+  const doValidate = useCallback(async () => {
+    setValidating(true)
+    try {
+      const r = await api.post<{ data: { situation: { status: string } } }>(`/source-docs/${id}/validate`, {})
+      toast.success(`Situação: ${r.data.situation.status}`)
+      await reload()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao validar.') }
+    finally { setValidating(false) }
+  }, [id, reload])
+
+  const doDownload = useCallback(async (format: 'docx' | 'pdf' | 'md') => {
+    setDownloading(format)
+    try {
+      // download binário (o api client parseia JSON) — fetch direto com o token da aba.
+      const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+      const res = await fetch(`/api/v1/source-docs/${id}/render?format=${format}`, {
+        credentials: 'same-origin',
+        headers: { Accept: '*/*', ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Screen-Path': window.location.pathname },
+      })
+      if (!res.ok) throw new ApiError(res.status, 'Falha no download.')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${meta?.filename?.replace(/\.[^.]+$/, '') ?? 'fonte'}.${format}`
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha no download.') }
+    finally { setDownloading(null) }
+  }, [id, meta])
+
+  const openReprocess = useCallback(async () => {
+    setReproOpen(true); setPlan(null)
+    try {
+      const r = await api.get<{ data: ReprocessPlan }>(`/source-docs/${id}/reprocess/plan?layer=${reproLayer}&force=${reproForce}`)
+      setPlan(r.data)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao montar o plano.') }
+  }, [id, reproLayer, reproForce])
+
+  useEffect(() => { if (reproOpen) openReprocess() }, [reproLayer, reproForce, reproOpen, openReprocess])
+
+  const confirmReprocess = useCallback(async () => {
+    try {
+      const r = await api.post<{ data: { action: string; execution_id?: number } }>(`/source-docs/${id}/reprocess`, { layer: reproLayer, force: reproForce })
+      setReproOpen(false)
+      if (r.data.action === 'reuse') { toast.info('Documentação já reflete o blob atual (reutilizada).'); return }
+      toast.success('Reprocessamento enfileirado.')
+      setExec({ status: 'queued' })
+      pollRef.current = setInterval(async () => {
+        try {
+          const e = await api.get<{ data: { status: string; reason?: string | null } | null }>(`/source-docs/${id}/execution`)
+          const st = e.data?.status
+          setExec(e.data)
+          if (st === 'ok' || st === 'failed') {
+            if (pollRef.current) clearInterval(pollRef.current)
+            if (st === 'ok') { toast.success('Reprocessamento concluído.'); await reload() }
+            else toast.error(`Reprocessamento falhou: ${e.data?.reason ?? ''}`)
+          }
+        } catch { /* segue tentando */ }
+      }, 3000)
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : 'Falha ao reprocessar.'
+      toast.error(msg)
+    }
+  }, [id, reproLayer, reproForce, reload])
 
   // lazy: documentação pesada (só quando abre uma aba que precisa)
   const loadDet = useCallback(async () => {
@@ -158,10 +246,34 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
               <span className="truncate">{meta.path}</span>
             </div>
           </div>
-          <a href={ghUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-medium shrink-0" style={{ color: 'var(--primary)' }}>
-            Ver no GitHub <ExternalLink size={14} />
-          </a>
+          {hasPermission('source_docs.view_git') && (
+            <a href={ghUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium shrink-0" style={{ color: 'var(--primary)' }}>
+              Ver no GitHub <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
+
+        {/* Ações operacionais (C3) — cada uma gateada por sua permissão */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {hasPermission('source_docs.validate') && (
+            <Button size="sm" variant="secondary" icon={ShieldCheck} loading={validating} onClick={doValidate}>Validar agora</Button>
+          )}
+          {hasPermission('source_docs.reprocess') && (
+            <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => { setReproOpen(true) }}>Reprocessar</Button>
+          )}
+          {hasPermission('source_docs.download') && (
+            <>
+              <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'docx'} onClick={() => doDownload('docx')}>DOCX</Button>
+              <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'pdf'} onClick={() => doDownload('pdf')}>PDF</Button>
+              <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'md'} onClick={() => doDownload('md')}>MD</Button>
+            </>
+          )}
+          {exec && exec.status !== 'ok' && exec.status !== 'failed' && (
+            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" style={{ background: 'var(--warning-soft, var(--surface))', color: 'var(--warning, var(--text-muted))', border: '1px solid var(--border)' }}>
+              <RefreshCw size={12} className="animate-spin" /> reprocessando… ({exec.status})
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
@@ -272,6 +384,54 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
           </LazyBlock>
         )}
       </Card>
+
+      {/* Modal de reprocessamento — plano + confirmação */}
+      {reproOpen && (
+        <Modal open onClose={() => setReproOpen(false)} title="Reprocessar documentação">
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Camada</div>
+              <div className="flex gap-1">
+                {(['deterministic', 'semantic', 'both'] as const).map((l) => (
+                  <button key={l} onClick={() => setReproLayer(l)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={reproLayer === l ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                    {l === 'deterministic' ? 'Determinístico' : l === 'semantic' ? 'Semântico' : 'Ambos'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={reproForce} onChange={(e) => setReproForce(e.target.checked)} /> Forçar (mesmo blob)
+            </label>
+
+            {!plan ? (
+              <div className="text-sm" style={{ color: 'var(--text-light)' }}>Montando plano…</div>
+            ) : (
+              <div className="rounded-xl p-3 text-sm space-y-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div><b>Ação:</b> {plan.action === 'reuse' ? 'Reutilizar (nada a fazer)' : plan.action === 'new_version' ? 'Criar NOVA versão (código mudou)' : plan.action === 'reprocess_in_place' ? 'Reprocessar a versão atual' : 'Imutável — sem mudanças'}</div>
+                <div><b>Situação:</b> {plan.situation ?? '—'} · <b>blob:</b> {(plan.blob_sha ?? '—').slice(0, 8)}</div>
+                {(reproLayer !== 'deterministic') && (
+                  <div><b>Semântica:</b> {plan.ai_enabled ? `IA on (${plan.environment})` : `IA indisponível (${plan.environment})`}
+                    {plan.ai_enabled && <> · custo estimado <b>US$ {plan.estimated_cost_usd.toFixed(4)}</b> / limite US$ {plan.hard_limit_usd.toFixed(2)}</>}
+                  </div>
+                )}
+                {plan.blocked_reason === 'cost_over_limit' && <div style={{ color: 'var(--danger, #b23a3a)' }}>Estimativa acima do limite — não será enfileirado.</div>}
+                {plan.action === 'immutable_noop' && <div style={{ color: 'var(--warning, #a6631b)' }}>Versão concluída idêntica é imutável.</div>}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button size="sm" variant="secondary" onClick={() => setReproOpen(false)}>Cancelar</Button>
+              <Button size="sm" variant="primary" icon={RefreshCw}
+                disabled={!plan || plan.blocked_reason === 'cost_over_limit' || plan.action === 'immutable_noop'}
+                onClick={confirmReprocess}>
+                {plan?.action === 'reuse' ? 'Reprocessar mesmo assim' : 'Confirmar'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </AppLayout>
   )
 }
