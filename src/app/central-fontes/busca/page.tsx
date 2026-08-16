@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileCode2, FolderGit2, Search, XCircle } from 'lucide-react'
+import { Crosshair, FileCode2, FolderGit2, Search, XCircle } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Card, EmptyState, PageHeader, Pagination, SkeletonTable } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
@@ -134,9 +134,23 @@ export default function BuscaTecnicaPage() {
               ))}
             </div>
           </div>
-          <button onClick={() => run(1)}
-            className="px-5 py-2.5 rounded-xl text-sm font-semibold"
-            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Buscar</button>
+          <div className="flex gap-2">
+            <button onClick={() => run(1)}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Buscar</button>
+            {/* C4b — Ver impacto da entidade pesquisada (query→table; entidades sem impacto ficam de fora) */}
+            {q.trim() && (() => {
+              const impactEntity = entity === 'query' ? 'table' : entity
+              const supported = ['field', 'table', 'function', 'dependency', 'integration', 'risk'].includes(impactEntity)
+              return supported ? (
+                <button onClick={() => router.push(`/central-fontes/impacto?entity=${impactEntity}&name=${encodeURIComponent(q.trim())}`)}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                  <Crosshair size={15} /> Ver impacto
+                </button>
+              ) : null
+            })()}
+          </div>
         </div>
 
         {/* acesso (só p/ tabela/campo/query) */}

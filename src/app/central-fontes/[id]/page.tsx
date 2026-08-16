@@ -10,7 +10,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Database, Download, ExternalLink, FileCode2,
+  AlertTriangle, ArrowLeft, CheckCircle2, Crosshair, Database, Download, ExternalLink, FileCode2,
   GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -318,14 +318,14 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
 
         {tab === 'estrutura' && (
           <LazyBlock loading={detLoading}>
-            <NameList title="Funções / rotinas" items={asArray(det?.functions)} />
+            <NameList title="Funções / rotinas" items={asArray(det?.functions)} impactEntity="function" />
           </LazyBlock>
         )}
 
         {tab === 'dados' && (
           <LazyBlock loading={detLoading}>
-            <NameList title="Tabelas" items={asArray(det?.tables)} />
-            <NameList title="Campos" items={asArray(det?.fields)} />
+            <NameList title="Tabelas" items={asArray(det?.tables)} impactEntity="table" />
+            <NameList title="Campos" items={asArray(det?.fields)} impactEntity="field" />
             <NameList title="Consultas SQL" items={asArray(det?.sql)} render={(x) => {
               const o = x as Record<string, unknown>
               return typeof x === 'string' ? x : String(o.summary ?? o.type ?? o.operation ?? nameOf(x))
@@ -335,8 +335,8 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
 
         {tab === 'deps' && (
           <LazyBlock loading={detLoading}>
-            <NameList title="Dependências" items={asArray(det?.dependencies)} />
-            <NameList title="Integrações externas" items={asArray(det?.integrations)} />
+            <NameList title="Dependências" items={asArray(det?.dependencies)} impactEntity="dependency" />
+            <NameList title="Integrações externas" items={asArray(det?.integrations)} impactEntity="integration" />
             <NameList title="Chamadas (call graph)" items={asArray(det?.call_graph)} render={(x) => {
               const o = x as Record<string, unknown>
               return typeof x === 'string' ? x : `${o.from ?? '?'} → ${o.to ?? o.called_as ?? '?'}`
@@ -456,7 +456,7 @@ function LazyBlock({ loading, children }: { loading: boolean; children: React.Re
   if (loading) return <div className="space-y-2"><Skeleton className="h-5 w-1/3" /><Skeleton className="h-24" /></div>
   return <>{children}</>
 }
-function NameList({ title, items, render }: { title: string; items: unknown[]; render?: (x: unknown) => string }) {
+function NameList({ title, items, render, impactEntity }: { title: string; items: unknown[]; render?: (x: unknown) => string; impactEntity?: 'field' | 'table' | 'function' | 'dependency' | 'integration' }) {
   return (
     <div className="mb-5 last:mb-0">
       <h4 className="font-semibold mb-1.5 flex items-center gap-2" style={{ color: 'var(--text)' }}>
@@ -466,12 +466,26 @@ function NameList({ title, items, render }: { title: string; items: unknown[]; r
         <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhum.</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
-          {items.slice(0, 200).map((it, i) => (
-            <span key={i} className="inline-block px-2.5 py-1 rounded-lg text-xs"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              {render ? render(it) : nameOf(it)}
-            </span>
-          ))}
+          {items.slice(0, 200).map((it, i) => {
+            const label = render ? render(it) : nameOf(it)
+            // C4b — chip vira link "Ver impacto" quando a seção tem um tipo de impacto.
+            if (impactEntity) {
+              return (
+                <Link key={i} href={`/central-fontes/impacto?entity=${impactEntity}&name=${encodeURIComponent(label)}`}
+                  title={`Ver impacto de ${label}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs transition-colors"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  {label} <Crosshair size={11} style={{ color: 'var(--primary)', opacity: 0.7 }} />
+                </Link>
+              )
+            }
+            return (
+              <span key={i} className="inline-block px-2.5 py-1 rounded-lg text-xs"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                {label}
+              </span>
+            )
+          })}
         </div>
       )}
     </div>
