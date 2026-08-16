@@ -118,6 +118,9 @@ interface Notif {
 }
 // Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
 const COMPLETION_TITLES = new Set(['Tarefa de reunião concluída', 'Tarefa concluída', 'Tarefa resolvida pela coordenação'])
+// Pop-ups AUTO por usuário do fluxo de apontamento — não são publicações; some da tela de gestão
+// (continuam chegando ao dono via Recebidas/pop-up).
+const HIDDEN_TITLES = new Set(['Apontamento rejeitado', 'Ajuste solicitado no apontamento', 'Apontamento marcado como conflitante'])
 const stripHtml = (s: string): string => (s || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim()
 const fmtDateTime = (iso?: string): string => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
 // Dias da semana (0=domingo … 6=sábado, convenção Carbon dayOfWeek).
@@ -209,7 +212,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
 
   if (editing) return <Form draft={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load(); onChanged?.() }} />
 
-  const notifs = rows.filter(n => !n.is_template)
+  const notifs = rows.filter(n => !n.is_template && !HIDDEN_TITLES.has(n.title))
   const publications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
   const completedTasks = notifs.filter(n => COMPLETION_TITLES.has(n.title))
   const templates = rows.filter(n => n.is_template)
