@@ -46,6 +46,10 @@ export const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: st
   { value: 'financial.view_project_cost',        label: 'Ver custo do projeto',           group: 'Financeiro' },
   // Sistema
   { value: 'settings.view',                      label: 'Acessar Configurações',          group: 'Sistema' },
+  // Central de Fontes (C4a) — governança de escopo. Permissão EXPLÍCITA e auditável que
+  // libera o acervo de TODOS os clientes a um usuário interno. NÃO se aplica a cliente
+  // externo (a regra de segurança do backend tem precedência: cliente externo nunca é global).
+  { value: 'source_docs.view_all_customers',     label: 'Central de Fontes: ver todos os clientes', group: 'Central de Fontes' },
 ]
 
 // Sinônimos por ENTIDADE (prefixo da permissão) — PT/EN — pra casar a tela com suas permissões.
@@ -68,6 +72,7 @@ const ENTITY_SYNONYMS: Record<string, string[]> = {
   reports:         ['report', 'relatorio', 'relatório'],
   financial:       ['financeiro', 'financial', 'custo'],
   settings:        ['setting', 'configuracao', 'configuração', 'config'],
+  source_docs:     ['central de fontes', 'source doc', 'source-doc', 'fonte', 'documentação de fonte'],
 }
 
 /**
