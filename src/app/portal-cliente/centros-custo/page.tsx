@@ -8,9 +8,13 @@ import { Building2, Calculator, BarChart3, Search, Download, ChevronDown } from 
 import { CostCentersManager, portalCostCenterEndpoints } from '@/components/customers/cost-centers-modal'
 import { RateioTab } from '@/components/projects/project-view-modal'
 import { SearchSelect } from '@/components/ui/search-select'
+import { ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend } from 'recharts'
+
+const PALETTE = ['#0E7490', '#10B981', '#F59E0B', '#A78BFA', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316', '#8B5CF6']
+const TICK = '#94a3b8'
 
 interface MyProject { id: number; code: string | null; name: string }
-interface CCProjeto { project_id: number; code: string | null; name: string; percentual: number; valor: number; project_total: number }
+interface CCProjeto { project_id: number; code: string | null; name: string; percentual: number; valor: number; project_total: number; start_date: string | null }
 interface CCData { id: number; code: string; description: string; active: boolean; valor_total: number; projetos: CCProjeto[] }
 
 const brl = (n: number) => (n ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -88,6 +92,8 @@ function Acompanhamento() {
   const [fCentro, setFCentro] = useState<number | ''>('')
   const [fProjeto, setFProjeto] = useState<number | ''>('')
   const [soComValor, setSoComValor] = useState(false)
+  const [dtDe, setDtDe] = useState('')   // filtro por data de início (a partir de) — vazio = sem filtro
+  const [dtAte, setDtAte] = useState('')
   const [open, setOpen] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -111,7 +117,9 @@ function Acompanhamento() {
   const centerMatchesQ = (c: CCData) => !ql || `${c.code} ${c.description}`.toLowerCase().includes(ql)
   const projMatches = (c: CCData, p: CCProjeto) =>
     (!fProjeto || p.project_id === fProjeto) &&
-    (!ql || centerMatchesQ(c) || `${p.code ?? ''} ${p.name}`.toLowerCase().includes(ql))
+    (!ql || centerMatchesQ(c) || `${p.code ?? ''} ${p.name}`.toLowerCase().includes(ql)) &&
+    (!dtDe  || (p.start_date != null && p.start_date >= dtDe)) &&
+    (!dtAte || (p.start_date != null && p.start_date <= dtAte))
 
   // Visão POR CENTRO
   const centrosView = useMemo(() => {
@@ -125,7 +133,7 @@ function Acompanhamento() {
       .filter(({ c, projs }) => centerMatchesQ(c) || projs.length > 0)
       .filter(({ valor }) => !soComValor || valor > 0)
       .sort((a, b) => b.valor - a.valor)
-  }, [centers, fCentro, fProjeto, ql, soComValor])
+  }, [centers, fCentro, fProjeto, ql, soComValor, dtDe, dtAte])
 
   // Visão POR PROJETO (invertida)
   const projetosView = useMemo(() => {
@@ -139,15 +147,18 @@ function Acompanhamento() {
       })
     })
     return Array.from(map.values()).filter(e => !soComValor || e.valor > 0).sort((a, b) => b.valor - a.valor)
-  }, [centers, fCentro, fProjeto, ql, soComValor])
+  }, [centers, fCentro, fProjeto, ql, soComValor, dtDe, dtAte])
 
   // KPIs
   const totalGeral = Math.round(centrosView.reduce((s, x) => s + x.valor, 0) * 100) / 100
   const nCentros = centrosView.filter(x => x.valor > 0).length
   const nProjetos = new Set(centrosView.flatMap(x => x.projs.map(p => p.project_id))).size
 
-  const limpar = () => { setQ(''); setFCentro(''); setFProjeto(''); setSoComValor(false) }
-  const temFiltro = ql !== '' || fCentro !== '' || fProjeto !== '' || soComValor
+  const limpar = () => { setQ(''); setFCentro(''); setFProjeto(''); setSoComValor(false); setDtDe(''); setDtAte('') }
+  const temFiltro = ql !== '' || fCentro !== '' || fProjeto !== '' || soComValor || dtDe !== '' || dtAte !== ''
+
+  // Dados dos gráficos (top 10 centros com valor, respeitando os filtros)
+  const chartData = centrosView.filter(x => x.valor > 0).slice(0, 10).map(x => ({ name: x.c.code, valor: x.valor }))
 
   const exportar = () => {
     const rows = centrosView.flatMap(({ c, projs, valor }) =>
@@ -183,6 +194,12 @@ function Acompanhamento() {
           options={[{ id: '', name: 'Todos os centros' }, ...centers.map(c => ({ id: c.id, name: `${c.code} — ${c.description}` }))]} />
         <SearchSelect value={fProjeto} onChange={v => setFProjeto(v ? Number(v) : '')} placeholder="Todos os projetos" wide
           options={[{ id: '', name: 'Todos os projetos' }, ...projetoOpts.map(p => ({ id: p.id, name: p.label }))]} />
+        <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-muted)' }} title="Filtra pela data de início do projeto (vazio = todas)">
+          <span>Início:</span>
+          <input type="date" value={dtDe} onChange={e => setDtDe(e.target.value)} className="rounded-lg px-2 py-1 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          <span>até</span>
+          <input type="date" value={dtAte} onChange={e => setDtAte(e.target.value)} className="rounded-lg px-2 py-1 outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        </div>
         <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
           <input type="checkbox" checked={soComValor} onChange={e => setSoComValor(e.target.checked)} /> Só com valor
         </label>
@@ -199,6 +216,38 @@ function Acompanhamento() {
           </button>
         </div>
       </div>
+
+      {/* ── Gráficos ── */}
+      {chartData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="text-xs font-semibold mb-3" style={{ color: 'var(--text)' }}>Valor por Centro de Custo</div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.18)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: TICK, fontSize: 10 }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} interval={0} angle={-20} textAnchor="end" height={50} />
+                <YAxis tick={{ fill: TICK, fontSize: 10 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v: number) => brl(v).replace('R$', '').trim()} />
+                <RTooltip formatter={(v: any) => brl(Number(v))} cursor={{ fill: 'rgba(148,163,184,0.12)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                  {chartData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="text-xs font-semibold mb-3" style={{ color: 'var(--text)' }}>Proporção por Centro</div>
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={chartData} dataKey="valor" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>
+                  {chartData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                </Pie>
+                <RTooltip formatter={(v: any) => brl(Number(v))} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* ── Por Centro de Custo ── */}
       {view === 'centro' && (
