@@ -51,6 +51,12 @@ export default function IndicadoresProjetosPage() {
   const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
   const [clientFilter, setClientFilter] = useState<string>('')
   const [selected, setSelected] = useState<Card | null>(null)
+  const [sortField, setSortField] = useState<string>('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const toggleSort = (f: string) => {
+    if (sortField === f) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortField(f); setSortDir('asc') }
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -71,6 +77,34 @@ export default function IndicadoresProjetosPage() {
     if (clientFilter && c.customer_name !== clientFilter) return false
     return true
   }), [cards, statusFilter, clientFilter])
+
+  // Ordenação da tabela "Indicadores por Projeto" (não afeta os gráficos/KPIs).
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered
+    const colIndex = (s?: string) => STATUS_COLS.findIndex(c => c.id === (STATUS_TO_COL[s ?? ''] ?? 'proj_backlog'))
+    const healthIndex = (c: Card) => HEALTH.findIndex(h => h.key === healthOf(Number(c.sold_hours ?? 0), Number(c.consumed_hours ?? 0)))
+    const val = (c: Card): string | number => {
+      switch (sortField) {
+        case 'projeto':     return (c.project_name || '').toLowerCase()
+        case 'cliente':     return (c.customer_name || '').toLowerCase()
+        case 'status':      return colIndex(c.status)
+        case 'criticidade': return healthIndex(c)
+        case 'entrega':     return Number(c.delivery_percentage ?? 0)
+        case 'horas':       return Number(c.consumed_hours ?? 0)
+        case 'inicio':      return c.start_date || ''
+        case 'previsao':    return c.expected_end_date || ''
+        case 'prazo':       { const d = daysTo(c.expected_end_date); return d === null ? Number.POSITIVE_INFINITY : d }
+        default:            return 0
+      }
+    }
+    const arr = [...filtered]
+    arr.sort((a, b) => {
+      const va = val(a), vb = val(b)
+      const cmp = (typeof va === 'number' && typeof vb === 'number') ? va - vb : String(va).localeCompare(String(vb))
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return arr
+  }, [filtered, sortField, sortDir])
 
   /* ── Agregações ── */
   const total = filtered.length
@@ -275,20 +309,30 @@ export default function IndicadoresProjetosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[900px]">
                   <thead>
+                    {/* SortTh: cabeçalho clicável com seta de ordenação */}
                     <tr className="text-left" style={{ color: 'var(--text-light)' }}>
-                      <th className="py-2 pr-3 font-medium text-xs uppercase tracking-wider">Projeto</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Cliente</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Status</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Criticidade</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider text-center">Entrega</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider text-right">Horas</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Início</th>
-                      <th className="py-2 px-3 font-medium text-xs uppercase tracking-wider">Previsão</th>
-                      <th className="py-2 pl-3 font-medium text-xs uppercase tracking-wider text-right">Prazo</th>
+                      {([
+                        ['projeto', 'Projeto', 'py-2 pr-3'],
+                        ['cliente', 'Cliente', 'py-2 px-3'],
+                        ['status', 'Status', 'py-2 px-3'],
+                        ['criticidade', 'Criticidade', 'py-2 px-3'],
+                        ['entrega', 'Entrega', 'py-2 px-3 text-center'],
+                        ['horas', 'Horas', 'py-2 px-3 text-right'],
+                        ['inicio', 'Início', 'py-2 px-3'],
+                        ['previsao', 'Previsão', 'py-2 px-3'],
+                        ['prazo', 'Prazo', 'py-2 pl-3 text-right'],
+                      ] as const).map(([field, label, cls]) => (
+                        <th key={field} onClick={() => toggleSort(field)}
+                          className={`${cls} font-medium text-xs uppercase tracking-wider cursor-pointer select-none`}
+                          style={{ color: sortField === field ? 'var(--primary)' : undefined }}
+                          title="Clique para ordenar">
+                          <span className="inline-flex items-center gap-1">{label}<span className="text-[9px] w-2" style={{ opacity: sortField === field ? 1 : 0.25 }}>{sortField === field ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span></span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((p, i) => {
+                    {sorted.map((p, i) => {
                       const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
                       const hk = healthOf(Number(p.sold_hours ?? 0), Number(p.consumed_hours ?? 0))
                       const h = HEALTH.find(x => x.key === hk)!
@@ -319,7 +363,7 @@ export default function IndicadoresProjetosPage() {
                         </tr>
                       )
                     })}
-                    {filtered.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</td></tr>}
+                    {sorted.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</td></tr>}
                   </tbody>
                 </table>
               </div>
