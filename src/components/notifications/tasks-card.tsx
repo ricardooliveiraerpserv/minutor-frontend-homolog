@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw, CalendarDays } from 'lucide-react'
+import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw, CalendarDays, Eye } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { RoutinesPanel } from '@/components/notifications/routines-panel'
 
@@ -200,6 +200,7 @@ function Row({ t, onToggle, onEdit, onDelete, onRename }: { t: Task; onToggle: (
   const [title, setTitle] = useState(t.title)
   useEffect(() => { setTitle(t.title) }, [t.title])
   const commit = () => { const v = title.trim(); if (v && v !== t.title) onRename(v); else if (!v) setTitle(t.title) }
+  const [view, setView] = useState(false)
 
   // Estado por data: concluído / atrasado / hoje / futuro.
   const today = todayStr()
@@ -210,6 +211,7 @@ function Row({ t, onToggle, onEdit, onDelete, onRename }: { t: Task; onToggle: (
   const isMeeting = t.entity_type === 'meeting'
 
   return (
+    <>
     <div className="group flex items-start gap-2 px-2 py-1.5 rounded-lg transition-colors"
       style={overdue ? { background: 'var(--danger-bg)', borderLeft: '3px solid var(--danger-border)', paddingLeft: 8 } : { borderLeft: '3px solid transparent' }}
       onMouseEnter={e => (e.currentTarget.style.background = overdue ? 'var(--danger-bg)' : 'var(--surface-hover)')}
@@ -266,11 +268,26 @@ function Row({ t, onToggle, onEdit, onDelete, onRename }: { t: Task; onToggle: (
         {t.completed && t.completed_name && <div className="text-[10px]" style={{ color: 'var(--success-border)' }}>✓ Concluído por {t.completed_name}{t.completed_at ? ` às ${hhmm(t.completed_at)}` : ''}</div>}
       </div>
 
-      <div className="shrink-0 flex items-center gap-1.5 mt-0.5 opacity-0 group-hover:opacity-100">
-        <button type="button" onClick={onEdit} title="Editar detalhes"><Pencil size={13} style={{ color: 'var(--primary)' }} /></button>
-        <button type="button" onClick={onDelete} title="Excluir"><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
+      <div className="shrink-0 flex items-center gap-1.5 mt-0.5">
+        <button type="button" onClick={() => setView(true)} title="Visualizar texto completo"><Eye size={13} style={{ color: 'var(--text-muted)' }} /></button>
+        <button type="button" onClick={onEdit} title="Editar detalhes" className="opacity-0 group-hover:opacity-100"><Pencil size={13} style={{ color: 'var(--primary)' }} /></button>
+        <button type="button" onClick={onDelete} title="Excluir" className="opacity-0 group-hover:opacity-100"><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
       </div>
     </div>
+    {view && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setView(false)}>
+        <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Tarefa</span>
+            <button onClick={() => setView(false)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+          </div>
+          <div className="p-4 max-h-[70vh] overflow-auto">
+            <p className="text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--text)', lineHeight: 1.5 }}>{t.title}</p>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
@@ -354,7 +371,7 @@ export function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: 
         </div>
         <div className="p-4 space-y-3">
           <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Título</label>
-            <input className={fieldCls} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} autoFocus={isNew} /></div>
+            <textarea className={fieldCls} style={{ ...inputStyle, minHeight: 96, resize: 'vertical', lineHeight: 1.4 }} rows={3} value={title} onChange={e => setTitle(e.target.value)} autoFocus={isNew} /></div>
 
           {/* Concluir: botão com confirmação (só na edição de tarefa que é minha e ainda pendente) */}
           {!isNew && task.is_assignee && !task.completed && (
