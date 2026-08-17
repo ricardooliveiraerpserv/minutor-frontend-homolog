@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { Users, Plus, Pencil, Trash2, X, Search, Download } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, X, Search, Download, Building2 } from 'lucide-react'
+import { CostCentersModal } from '@/components/customers/cost-centers-modal'
 import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -93,6 +94,7 @@ export default function ClientesPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
+  const [ccModal, setCcModal] = useState<CustomerFull | null>(null)
 
   useEffect(() => {
     api.get<any>('/executives?pageSize=100').then(r => {
@@ -304,6 +306,7 @@ export default function ClientesPage() {
                     {(canUpdate || canDelete) && (
                       <RowMenu items={[
                         ...(canUpdate && !dEdit ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
+                        { label: 'Centros de Custo', icon: <Building2 size={12} />, onClick: () => setCcModal(item) },
                         ...(canDelete && !dDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
                       ]} />
                     )}
@@ -458,6 +461,10 @@ export default function ClientesPage() {
               </div>
             </div>
           </ModalOverlay>
+        )}
+
+        {ccModal && (
+          <CostCentersModal customerId={ccModal.id} customerName={ccModal.name} canEdit={canUpdate} onClose={() => setCcModal(null)} />
         )}
 
         <ConfirmDeleteModal
