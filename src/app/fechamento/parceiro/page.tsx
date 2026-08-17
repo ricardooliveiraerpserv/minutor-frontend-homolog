@@ -171,6 +171,7 @@ export default function FechamentoParceiroPage() {
   const yearMonth = toYearMonth(effMonth, effYear)
 
   const [parceiros, setParceiros]     = useState<ParceiroStatus[]>([])
+  const [soMovimento, setSoMovimento] = useState(false)   // consolidado: só parceiros com movimento no mês
   const [status, setStatus]           = useState<ParceiroStatus | null>(null)
 
   const [consultores, setConsultores] = useState<ConsultorRow[]>([])
@@ -1061,17 +1062,24 @@ export default function FechamentoParceiroPage() {
             (() => {
               // Consolidado de TODOS os parceiros na competência. Serviços e Total a Pagar
               // vêm calculados ao vivo do index; despesas = total_a_pagar − serviços.
-              const linhas = parceiros.map(p => {
+              const fmtHoras = (h: number) => h.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'h'
+              const todas = parceiros.map(p => {
                 const serv   = p.total_servicos ?? 0
                 const pagar  = p.total_a_pagar ?? 0
                 const desp   = Math.round((pagar - serv) * 100) / 100
                 const receb  = p.recebimento ?? pagar
-                return { p, serv, desp: desp > 0 ? desp : 0, pagar, receb }
+                const horas  = p.total_horas ?? 0
+                const despPos = desp > 0 ? desp : 0
+                const temMovimento = horas > 0 || serv !== 0 || despPos !== 0 || pagar !== 0 || receb !== 0
+                return { p, serv, desp: despPos, pagar, receb, horas, temMovimento }
               })
+              const comMovimento = todas.filter(l => l.temMovimento).length
+              const linhas = soMovimento ? todas.filter(l => l.temMovimento) : todas
               const tServ  = linhas.reduce((s, l) => s + l.serv, 0)
               const tDesp  = linhas.reduce((s, l) => s + l.desp, 0)
               const tPagar = linhas.reduce((s, l) => s + l.pagar, 0)
               const tReceb = linhas.reduce((s, l) => s + l.receb, 0)
+              const tHoras = linhas.reduce((s, l) => s + l.horas, 0)
               const statusChip = (st: ParceiroStatus['status']) => {
                 const map = {
                   closed:       { label: 'Fechado',     bg: 'var(--success-bg)', fg: 'var(--success)' },
@@ -1086,15 +1094,30 @@ export default function FechamentoParceiroPage() {
                     <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                       Consolidado — Todos os Parceiros
                     </div>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {linhas.length} parceiro{linhas.length === 1 ? '' : 's'} · {fmtYearMonth(yearMonth)}
-                    </span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        onClick={() => setSoMovimento(v => !v)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+                        style={{
+                          background: soMovimento ? 'var(--primary)' : 'var(--surface)',
+                          color: soMovimento ? 'var(--primary-fg)' : 'var(--text-muted)',
+                          border: '1px solid var(--border)',
+                        }}
+                        title="Mostrar apenas parceiros com movimento (horas, serviços ou despesas) no mês"
+                      >
+                        {soMovimento ? '✓ ' : ''}Somente com movimento
+                      </button>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {linhas.length} parceiro{linhas.length === 1 ? '' : 's'}{soMovimento ? ` (de ${todas.length})` : ` · ${comMovimento} com movimento`} · {fmtYearMonth(yearMonth)}
+                      </span>
+                    </div>
                   </div>
                   <Table>
                     <Thead>
                       <tr>
                         <Th>Parceiro</Th>
                         <Th className="text-center">Status</Th>
+                        <Th className="text-center">Horas</Th>
                         <Th className="text-center">Serviços</Th>
                         <Th className="text-center">Despesas</Th>
                         <Th className="text-center">Total a Pagar</Th>
@@ -1102,7 +1125,7 @@ export default function FechamentoParceiroPage() {
                       </tr>
                     </Thead>
                     <Tbody>
-                      {linhas.map(({ p, serv, desp, pagar, receb }) => (
+                      {linhas.map(({ p, serv, desp, pagar, receb, horas }) => (
                         <Tr key={p.partner_id}>
                           <Td>
                             <button
@@ -1115,6 +1138,7 @@ export default function FechamentoParceiroPage() {
                             </button>
                           </Td>
                           <Td className="text-center">{statusChip(p.status)}</Td>
+                          <Td right className="tabular-nums text-xs" style={{ color: horas > 0 ? 'var(--text)' : 'var(--text-light)' }}>{fmtHoras(horas)}</Td>
                           <Td right className="tabular-nums text-xs">{formatBRL(serv)}</Td>
                           <Td right className="tabular-nums text-xs" style={{ color: desp > 0 ? 'var(--text)' : 'var(--text-light)' }}>{formatBRL(desp)}</Td>
                           <Td right className="tabular-nums text-xs font-medium">{formatBRL(pagar)}</Td>
@@ -1124,6 +1148,7 @@ export default function FechamentoParceiroPage() {
                       <Tr>
                         <Td className="text-xs font-bold" style={{ color: 'var(--text)' }}>Total geral</Td>
                         <Td className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>{linhas.length}</Td>
+                        <Td right className="tabular-nums text-xs font-bold">{fmtHoras(tHoras)}</Td>
                         <Td right className="tabular-nums text-xs font-bold">{formatBRL(tServ)}</Td>
                         <Td right className="tabular-nums text-xs font-bold">{formatBRL(tDesp)}</Td>
                         <Td right className="tabular-nums text-xs font-bold">{formatBRL(tPagar)}</Td>
