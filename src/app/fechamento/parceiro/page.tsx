@@ -29,6 +29,7 @@ interface ParceiroStatus {
   status: 'open' | 'closed' | 'sem_registro'
   total_horas: number
   total_despesas: number
+  total_servicos?: number       // mão de obra (soma dos consultores) — vem do index, calculado ao vivo
   total_a_pagar: number
   closed_at?: string
   closed_by_name?: string
@@ -1047,7 +1048,95 @@ export default function FechamentoParceiroPage() {
         )}
 
         {!partnerId ? (
-          <EmptyState icon={Handshake} title="Selecione um parceiro" description="Escolha o parceiro e a competência para visualizar o fechamento." />
+          !yearMonth ? (
+            <EmptyState icon={Handshake} title="Selecione a competência" description="Escolha a competência para visualizar o consolidado de todos os parceiros." />
+          ) : parceiros.length === 0 ? (
+            <EmptyState icon={Handshake} title="Nenhum parceiro" description="Nenhum parceiro ativo nesta competência." />
+          ) : (
+            (() => {
+              // Consolidado de TODOS os parceiros na competência. Serviços e Total a Pagar
+              // vêm calculados ao vivo do index; despesas = total_a_pagar − serviços.
+              const linhas = parceiros.map(p => {
+                const serv   = p.total_servicos ?? 0
+                const pagar  = p.total_a_pagar ?? 0
+                const desp   = Math.round((pagar - serv) * 100) / 100
+                const receb  = p.recebimento ?? pagar
+                return { p, serv, desp: desp > 0 ? desp : 0, pagar, receb }
+              })
+              const tServ  = linhas.reduce((s, l) => s + l.serv, 0)
+              const tDesp  = linhas.reduce((s, l) => s + l.desp, 0)
+              const tPagar = linhas.reduce((s, l) => s + l.pagar, 0)
+              const tReceb = linhas.reduce((s, l) => s + l.receb, 0)
+              const statusChip = (st: ParceiroStatus['status']) => {
+                const map = {
+                  closed:       { label: 'Fechado',     bg: 'var(--success-bg)', fg: 'var(--success)' },
+                  open:         { label: 'Aberto',      bg: 'var(--warning-bg)', fg: 'var(--warning)' },
+                  sem_registro: { label: 'Sem registro', bg: 'var(--surface-hover)', fg: 'var(--text-muted)' },
+                }[st] ?? { label: st, bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }
+                return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap" style={{ background: map.bg, color: map.fg }}>{map.label}</span>
+              }
+              return (
+                <div className="flex-1 overflow-auto p-4 md:p-6">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                      Consolidado — Todos os Parceiros
+                    </div>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {linhas.length} parceiro{linhas.length === 1 ? '' : 's'} · {fmtYearMonth(yearMonth)}
+                    </span>
+                  </div>
+                  <Table>
+                    <Thead>
+                      <tr>
+                        <Th>Parceiro</Th>
+                        <Th className="text-center">Status</Th>
+                        <Th className="text-center">Serviços</Th>
+                        <Th className="text-center">Despesas</Th>
+                        <Th className="text-center">Total a Pagar</Th>
+                        <Th className="text-center">Recebimento</Th>
+                      </tr>
+                    </Thead>
+                    <Tbody>
+                      {linhas.map(({ p, serv, desp, pagar, receb }) => (
+                        <Tr key={p.partner_id}>
+                          <Td>
+                            <button
+                              onClick={() => setPartnerId(p.partner_id)}
+                              className="text-xs font-medium text-left hover:underline"
+                              style={{ color: 'var(--primary)' }}
+                              title="Abrir fechamento deste parceiro"
+                            >
+                              {p.nome}
+                            </button>
+                          </Td>
+                          <Td className="text-center">{statusChip(p.status)}</Td>
+                          <Td right className="tabular-nums text-xs">{formatBRL(serv)}</Td>
+                          <Td right className="tabular-nums text-xs" style={{ color: desp > 0 ? 'var(--text)' : 'var(--text-light)' }}>{formatBRL(desp)}</Td>
+                          <Td right className="tabular-nums text-xs font-medium">{formatBRL(pagar)}</Td>
+                          <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--primary)' }}>{formatBRL(receb)}</Td>
+                        </Tr>
+                      ))}
+                      <Tr>
+                        <Td className="text-xs font-bold" style={{ color: 'var(--text)' }}>Total geral</Td>
+                        <Td className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>{linhas.length}</Td>
+                        <Td right className="tabular-nums text-xs font-bold">{formatBRL(tServ)}</Td>
+                        <Td right className="tabular-nums text-xs font-bold">{formatBRL(tDesp)}</Td>
+                        <Td right className="tabular-nums text-xs font-bold">{formatBRL(tPagar)}</Td>
+                        <Td right className="tabular-nums text-sm font-bold" style={{ color: 'var(--primary)' }}>{formatBRL(tReceb)}</Td>
+                      </Tr>
+                    </Tbody>
+                  </Table>
+
+                  <div className="mt-5 flex justify-end">
+                    <div className="px-5 py-3 rounded-lg text-right" style={{ background: 'var(--primary-soft)' }}>
+                      <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--primary)' }}>Total geral a pagar (recebimento)</div>
+                      <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{formatBRL(tReceb)}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()
+          )
         ) : (
           <>
             {/* Tabs */}
