@@ -147,6 +147,8 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
   const months = Array.from(new Set(meetings.map(m => m.month).filter(Boolean) as string[])).sort().reverse()
   // Reuniões do mês selecionado (o dropdown filtra client-side).
   const meetingChoices = month ? meetings.filter(m => m.month === month) : meetings
+  // Data da reunião de origem por id — para exibir junto do chip da atividade.
+  const meetingDateById = new Map(meetings.map(m => [m.id, m.meeting_date] as const))
 
   return (
     <div className="space-y-3">
@@ -200,9 +202,14 @@ function PendingTasksView({ openMeeting }: { openMeeting: (id: number) => void; 
                   {t.assignees.length > 1 ? ` · 👥 ${t.assignees.map(a => a.name).join(', ')}` : ''}
                 </p>
               </div>
-              <button onClick={() => openMeeting(t.meeting_id)} title="Abrir reunião de origem" className="shrink-0 text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                {t.meeting_title} <ChevronRight size={13} />
-              </button>
+              <div className="shrink-0 flex flex-col items-end gap-1">
+                <button onClick={() => openMeeting(t.meeting_id)} title="Abrir reunião de origem" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  {t.meeting_title} <ChevronRight size={13} />
+                </button>
+                <span className="text-[10px] inline-flex items-center gap-1 whitespace-nowrap" style={{ color: 'var(--text-light)' }} title="Data da reunião">
+                  <CalendarClock size={10} />{fmtDayUTC(meetingDateById.get(t.meeting_id) ?? null)}
+                </span>
+              </div>
             </div>
           ))}
         </div>
