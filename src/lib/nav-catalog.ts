@@ -112,6 +112,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/central-fontes', label: 'Central de Fontes', group: 'Central de Fontes' },
   { key: '/central-fontes/busca', label: 'Busca Técnica', group: 'Central de Fontes' },
   { key: '/central-fontes/impacto', label: 'Análise de Impacto', group: 'Central de Fontes' },
+  { key: '/central-fontes/campanha', label: 'Campanha (Docs)', group: 'Central de Fontes' },
 
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
