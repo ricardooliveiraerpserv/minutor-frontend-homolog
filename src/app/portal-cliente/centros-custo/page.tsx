@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import { Building2, Calculator, BarChart3, Search, Download, ChevronDown } from 'lucide-react'
 import { CostCentersManager, portalCostCenterEndpoints } from '@/components/customers/cost-centers-modal'
 import { RateioTab } from '@/components/projects/project-view-modal'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface MyProject { id: number; code: string | null; name: string }
 interface CCProjeto { project_id: number; code: string | null; name: string; percentual: number; valor: number; project_total: number }
@@ -61,11 +62,8 @@ export default function PortalCentrosCustoPage() {
                 <Calculator size={16} style={{ color: 'var(--primary)' }} />
                 <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Rateio por Projeto</h2>
               </div>
-              <select value={projectId} onChange={e => setProjectId(e.target.value ? Number(e.target.value) : '')}
-                className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[280px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-                <option value="">Selecione um projeto…</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
-              </select>
+              <SearchSelect value={projectId} onChange={v => setProjectId(v ? Number(v) : '')} placeholder="Selecione um projeto…" wide
+                options={projects.map(p => ({ id: p.id, name: `${p.code ? p.code + ' · ' : ''}${p.name}` }))} />
             </div>
             {projectId === '' ? (
               <div className="text-center py-8 text-sm rounded-xl" style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
@@ -181,16 +179,10 @@ function Acompanhamento() {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar centro ou projeto…"
             className="w-full pl-8 pr-2 py-1.5 rounded-lg text-sm outline-none" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
         </div>
-        <select value={fCentro} onChange={e => setFCentro(e.target.value ? Number(e.target.value) : '')}
-          className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[200px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-          <option value="">Todos os centros</option>
-          {centers.map(c => <option key={c.id} value={c.id}>{c.code} — {c.description}</option>)}
-        </select>
-        <select value={fProjeto} onChange={e => setFProjeto(e.target.value ? Number(e.target.value) : '')}
-          className="text-sm rounded-lg px-2.5 py-1.5 outline-none max-w-[200px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-          <option value="">Todos os projetos</option>
-          {projetoOpts.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-        </select>
+        <SearchSelect value={fCentro} onChange={v => setFCentro(v ? Number(v) : '')} placeholder="Todos os centros" wide
+          options={[{ id: '', name: 'Todos os centros' }, ...centers.map(c => ({ id: c.id, name: `${c.code} — ${c.description}` }))]} />
+        <SearchSelect value={fProjeto} onChange={v => setFProjeto(v ? Number(v) : '')} placeholder="Todos os projetos" wide
+          options={[{ id: '', name: 'Todos os projetos' }, ...projetoOpts.map(p => ({ id: p.id, name: p.label }))]} />
         <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
           <input type="checkbox" checked={soComValor} onChange={e => setSoComValor(e.target.checked)} /> Só com valor
         </label>
