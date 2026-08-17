@@ -39,7 +39,11 @@ type Card = {
   status?: string; sold_hours?: number; consumed_hours?: number; delivery_percentage?: number | null
   start_date?: string | null; expected_end_date?: string | null; service_type?: string; contract_type?: string
   executivo_conta_name?: string | null; card_type?: string
+  coordinators?: string[]; kanban_coordinator_override_name?: string | null
 }
+
+// Coordenador efetivo do card: override do kanban, senão o 1º coordenador do projeto.
+const coordName = (c: Card) => c.kanban_coordinator_override_name || (c.coordinators && c.coordinators[0]) || ''
 
 const fmtNum = (n: number) => n.toLocaleString('pt-BR')
 const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'
@@ -50,6 +54,8 @@ export default function IndicadoresProjetosPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
   const [clientFilter, setClientFilter] = useState<string>('')
+  const [coordFilter, setCoordFilter] = useState<string>('')
+  const [execFilter, setExecFilter] = useState<string>('')
   const [selected, setSelected] = useState<Card | null>(null)
   const [sortField, setSortField] = useState<string>('')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -70,13 +76,28 @@ export default function IndicadoresProjetosPage() {
     () => Array.from(new Set(cards.map(c => c.customer_name).filter(Boolean) as string[])).sort(),
     [cards],
   )
+  const coordinatorsList = useMemo(
+    () => Array.from(new Set(cards.map(coordName).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [cards],
+  )
+  const executivesList = useMemo(
+    () => Array.from(new Set(cards.map(c => c.executivo_conta_name).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b)),
+    [cards],
+  )
+
+  // Filtros do topo (exceto status): cliente + coordenador + executivo.
+  const matchesBase = (c: Card) =>
+    (!clientFilter || c.customer_name === clientFilter) &&
+    (!coordFilter || coordName(c) === coordFilter) &&
+    (!execFilter || c.executivo_conta_name === execFilter)
 
   const filtered = useMemo(() => cards.filter(c => {
+    if (!matchesBase(c)) return false
     const col = STATUS_TO_COL[c.status ?? ''] ?? 'proj_backlog'
     if (statusFilter && col !== statusFilter) return false
-    if (clientFilter && c.customer_name !== clientFilter) return false
     return true
-  }), [cards, statusFilter, clientFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [cards, statusFilter, clientFilter, coordFilter, execFilter])
 
   // Ordenação da tabela "Indicadores por Projeto" (não afeta os gráficos/KPIs).
   const sorted = useMemo(() => {
@@ -186,6 +207,20 @@ export default function IndicadoresProjetosPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Filtro coordenador */}
+          <select value={coordFilter} onChange={e => setCoordFilter(e.target.value)}
+            className="text-sm rounded-xl px-3 py-2 outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <option value="">Todos coordenadores</option>
+            {coordinatorsList.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {/* Filtro executivo */}
+          <select value={execFilter} onChange={e => setExecFilter(e.target.value)}
+            className="text-sm rounded-xl px-3 py-2 outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <option value="">Todos executivos</option>
+            {executivesList.map(e => <option key={e} value={e}>{e}</option>)}
+          </select>
           {/* Filtro cliente */}
           <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
             className="text-sm rounded-xl px-3 py-2 outline-none"
@@ -201,10 +236,10 @@ export default function IndicadoresProjetosPage() {
         <button onClick={() => setStatusFilter('')}
           className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
           style={statusFilter === '' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-          Todos ({cards.filter(c => !clientFilter || c.customer_name === clientFilter).length})
+          Todos ({cards.filter(matchesBase).length})
         </button>
         {STATUS_COLS.map(c => {
-          const n = cards.filter(x => (STATUS_TO_COL[x.status ?? ''] ?? 'proj_backlog') === c.id && (!clientFilter || x.customer_name === clientFilter)).length
+          const n = cards.filter(x => (STATUS_TO_COL[x.status ?? ''] ?? 'proj_backlog') === c.id && matchesBase(x)).length
           if (n === 0) return null
           const on = statusFilter === c.id
           return (
@@ -215,8 +250,8 @@ export default function IndicadoresProjetosPage() {
             </button>
           )
         })}
-        {(statusFilter || clientFilter) && (
-          <button onClick={() => { setStatusFilter(''); setClientFilter('') }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+        {(statusFilter || clientFilter || coordFilter || execFilter) && (
+          <button onClick={() => { setStatusFilter(''); setClientFilter(''); setCoordFilter(''); setExecFilter('') }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
             <X size={12} /> limpar
           </button>
         )}
