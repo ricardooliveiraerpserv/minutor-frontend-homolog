@@ -491,9 +491,70 @@ export default function PortalClientePage() {
                 </ul>
               )}
             </div>
+
+            {/* Centros de Custo — valores rateados por centro + projetos associados */}
+            <PortalCostCenters customerId={isCliente ? (user?.customer_id ?? null) : (customerId || null)} />
           </>
         )}
       </div>
     </AppLayout>
+  )
+}
+
+interface PortalCC { id: number; code: string; description: string; valor_total: number; projetos: { project_id: number; code: string; name: string; percentual: number; valor: number }[] }
+
+function PortalCostCenters({ customerId }: { customerId: number | null }) {
+  const [rows, setRows] = useState<PortalCC[]>([])
+  const [totalGeral, setTotalGeral] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState<Set<number>>(new Set())
+  const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  useEffect(() => {
+    if (!customerId) { setRows([]); setLoading(false); return }
+    setLoading(true)
+    api.get<{ data: PortalCC[]; total_geral: number }>(`/client/portal/cost-centers?customer_id=${customerId}`)
+      .then(r => { setRows(r.data ?? []); setTotalGeral(r.total_geral ?? 0) })
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
+  }, [customerId])
+
+  if (loading || rows.length === 0) return null
+
+  const toggle = (id: number) => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+      <div className="px-5 py-3.5 flex items-center justify-between gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2">
+          <Building2 size={14} style={{ color: 'var(--primary)' }} />
+          <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Centros de Custo</h2>
+        </div>
+        <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{brl(totalGeral)}</span>
+      </div>
+      <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+        {rows.map(cc => (
+          <li key={cc.id}>
+            <button type="button" onClick={() => toggle(cc.id)} className="w-full px-5 py-3 flex items-center justify-between gap-3 text-left hover:bg-[var(--surface-hover)] transition-colors">
+              <div className="min-w-0">
+                <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{cc.code} — {cc.description}</div>
+                <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{cc.projetos.length} projeto(s)</div>
+              </div>
+              <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: 'var(--text)' }}>{brl(cc.valor_total)}</span>
+            </button>
+            {open.has(cc.id) && cc.projetos.length > 0 && (
+              <ul className="px-5 pb-3 space-y-1">
+                {cc.projetos.map(p => (
+                  <li key={p.project_id} className="flex items-center justify-between gap-3 text-xs px-3 py-1.5 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
+                    <span className="truncate" style={{ color: 'var(--text-muted)' }}>{p.code ? `${p.code} · ` : ''}{p.name} <span style={{ color: 'var(--text-light)' }}>({p.percentual}%)</span></span>
+                    <span className="tabular-nums shrink-0" style={{ color: 'var(--text)' }}>{brl(p.valor)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
