@@ -1652,7 +1652,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
 interface RateioCenter { id: number; code: string; description: string }
 interface RateioRow { cost_center_id: number | null; percentual: number }
 
-function RateioTab({ projectId, canEdit }: { projectId: number; canEdit: boolean }) {
+export function RateioTab({ projectId, canEdit, pathPrefix = '/projects' }: { projectId: number; canEdit: boolean; pathPrefix?: string }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [total, setTotal] = useState(0)
@@ -1662,7 +1662,7 @@ function RateioTab({ projectId, canEdit }: { projectId: number; canEdit: boolean
 
   useEffect(() => {
     setLoading(true)
-    api.get<{ project_total: number; cost_centers: RateioCenter[]; allocations: { cost_center_id: number; percentual: number }[] }>(`/projects/${projectId}/rateio`)
+    api.get<{ project_total: number; cost_centers: RateioCenter[]; allocations: { cost_center_id: number; percentual: number }[] }>(`${pathPrefix}/${projectId}/rateio`)
       .then(r => {
         setTotal(r.project_total ?? 0)
         setCenters(r.cost_centers ?? [])
@@ -1693,7 +1693,7 @@ function RateioTab({ projectId, canEdit }: { projectId: number; canEdit: boolean
     if (rows.length > 0 && !somaOk) { toast.error(`A soma dos percentuais deve ser 100%. Atual: ${soma}%.`); return }
     setSaving(true)
     try {
-      await api.put(`/projects/${projectId}/rateio`, { allocations: rows.map(r => ({ cost_center_id: r.cost_center_id, percentual: r.percentual })) })
+      await api.put(`${pathPrefix}/${projectId}/rateio`, { allocations: rows.map(r => ({ cost_center_id: r.cost_center_id, percentual: r.percentual })) })
       toast.success('Rateio salvo')
     } catch (e) {
       toast.error((e as { message?: string })?.message ?? 'Erro ao salvar o rateio')
