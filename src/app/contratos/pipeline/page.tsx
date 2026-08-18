@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
@@ -2087,7 +2088,12 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
   // Abas financeiras removidas desta tela: se abrir numa delas (initialTab), cai em Visão Geral.
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'comments' | 'chat'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'comments' | 'chat' | 'documents'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
+  const [docs, setDocs] = useState<{ id: number; original_name: string; mime_type?: string; size?: number; source?: string; created_at?: string }[]>([])
+  const [docsLoaded, setDocsLoaded] = useState(false)
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [docUploading, setDocUploading] = useState(false)
+  const docInputRef = useRef<HTMLInputElement>(null)
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -2139,7 +2145,53 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
         .catch(() => {})
         .finally(() => setAportesLoading(false))
     }
-  }, [tab, projectId, tsLoaded, aportesLoaded])
+    if (tab === 'documents' && !docsLoaded) loadDocs()
+  }, [tab, projectId, tsLoaded, aportesLoaded, docsLoaded])
+
+  const loadDocs = () => {
+    setDocsLoading(true)
+    api.get<any>(`/projects/${projectId}/attachments`)
+      .then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoaded(true) })
+      .catch(() => {})
+      .finally(() => setDocsLoading(false))
+  }
+
+  const uploadDoc = async (file: File) => {
+    setDocUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'outro')
+      await uploadDirect(`/projects/${projectId}/attachments`, fd)
+      toast.success('Documento enviado')
+      setDocsLoaded(false); loadDocs()
+    } catch {
+      toast.error('Erro ao enviar documento')
+    } finally {
+      setDocUploading(false)
+      if (docInputRef.current) docInputRef.current.value = ''
+    }
+  }
+
+  const downloadDoc = async (d: { id: number; original_name: string }) => {
+    const res = await fetch(`/api/v1/projects/${projectId}/attachments/${d.id}`, { credentials: 'same-origin' })
+    if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = d.original_name; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const deleteDoc = async (d: { id: number; source?: string }) => {
+    if (d.source === 'contract') { toast.error('Anexo do contrato — gerencie na Gestão de Contratos.'); return }
+    if (!confirm('Remover este documento?')) return
+    try {
+      await api.delete(`/projects/${projectId}/attachments/${d.id}`)
+      toast.success('Documento removido')
+      setDocsLoaded(false); loadDocs()
+    } catch { toast.error('Erro ao remover documento') }
+  }
 
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -2225,6 +2277,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     { id: 'overview'    as const, label: 'Visão Geral' },
     { id: 'consultants' as const, label: `Consultores${consultantsCount > 0 ? ` (${consultantsCount})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
+    // Documentos: anexos do projeto — visível a todos, inclusive o cliente.
+    { id: 'documents'   as const, label: 'Documentos' },
     // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
     // Diário do Projeto: aparece já no 1º render (otimista) e só some se o acesso vier
     // EXPLICITAMENTE false — evita o bug do Safari em que a aba só surgia depois do `p`
@@ -2705,6 +2759,56 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                       </div>
                     </div>
                   </>
+                )}
+              </div>
+            )}
+
+            {/* ── DOCUMENTOS ── */}
+            {tab === 'documents' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Documentos do projeto</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Anexos documentais do projeto. Visível ao cliente.</p>
+                  </div>
+                  <button type="button" disabled={docUploading} onClick={() => docInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                    style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                    <Paperclip size={13} /> {docUploading ? 'Enviando…' : 'Anexar documento'}
+                  </button>
+                  <input ref={docInputRef} type="file" className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadDoc(f) }} />
+                </div>
+
+                {docsLoading ? (
+                  <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+                ) : docs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <Paperclip size={22} style={{ color: 'var(--text-light)' }} />
+                    <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Nenhum documento anexado ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {docs.map(d => (
+                      <div key={`${d.source}-${d.id}`} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
+                        style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                        <button type="button" onClick={() => downloadDoc(d)} className="flex items-center gap-2 min-w-0 text-left">
+                          <Paperclip size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
+                          <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{d.original_name}</span>
+                          {d.source === 'contract' && <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>contrato</span>}
+                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button type="button" onClick={() => downloadDoc(d)} title="Baixar"
+                            className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Download size={14} /></button>
+                          {d.source !== 'contract' && (
+                            <button type="button" onClick={() => deleteDoc(d)} title="Remover"
+                              className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
