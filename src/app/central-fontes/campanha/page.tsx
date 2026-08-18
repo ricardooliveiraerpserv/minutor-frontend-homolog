@@ -8,7 +8,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Megaphone, Play, Pause, RotateCcw, XCircle, RefreshCw } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 
@@ -67,7 +66,7 @@ export default function CampanhaPage() {
   const money = (v: unknown) => `US$ ${Number(v ?? 0).toFixed(2)}`
 
   return (
-    <AppLayout>
+    <>
       <PageHeader icon={Megaphone} title="Campanha de Documentação Semântica"
         subtitle="Carga inicial governada do acervo — orçamento global, dedup por blob, pausa/retomada. Interno ERPSERV." />
 
@@ -150,6 +149,6 @@ export default function CampanhaPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </>
   )
 }

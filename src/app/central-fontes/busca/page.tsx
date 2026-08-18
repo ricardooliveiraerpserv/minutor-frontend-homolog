@@ -9,7 +9,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Crosshair, FileCode2, FolderGit2, Search, XCircle } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Card, EmptyState, PageHeader, Pagination, SkeletonTable } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 
@@ -76,7 +75,7 @@ export default function BuscaTecnicaPage() {
   const toggleAccess = (a: string) => setAccess((cur) => cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a])
 
   return (
-    <AppLayout>
+    <>
       <PageHeader icon={FolderGit2} title="Busca Técnica"
         subtitle="Pesquise o acervo por entidade técnica — quem usa uma tabela, escreve num campo, chama uma função, ou tem SQL de risco." />
 
@@ -220,6 +219,6 @@ export default function BuscaTecnicaPage() {
           )}
         </>
       )}
-    </AppLayout>
+    </>
   )
 }

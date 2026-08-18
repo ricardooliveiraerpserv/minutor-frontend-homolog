@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation'
 import {
   AlertTriangle, CheckCircle2, FileCode2, FolderGit2, HelpCircle, Search, XCircle,
 } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import {
   Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable,
   Table, Tbody, Td, Th, Thead, Tr,
@@ -119,7 +118,7 @@ export default function CentralFontesPage() {
   ]), [ind])
 
   return (
-    <AppLayout>
+    <>
       <PageHeader
         icon={FolderGit2}
         title="Central de Fontes"
@@ -248,6 +247,6 @@ export default function CentralFontesPage() {
           total={resp.pagination.total}
         />
       )}
-    </AppLayout>
+    </>
   )
 }

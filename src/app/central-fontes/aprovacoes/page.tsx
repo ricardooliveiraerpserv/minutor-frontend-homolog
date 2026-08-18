@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { BadgeCheck, ChevronDown, Coins, FileCode2, Gauge, XCircle } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 
@@ -86,7 +85,7 @@ export default function AprovacoesIaPage() {
   }, [load])
 
   return (
-    <AppLayout>
+    <>
       <PageHeader
         icon={BadgeCheck}
         title="Aprovações de IA"
@@ -249,7 +248,7 @@ export default function AprovacoesIaPage() {
           </div>
         )}
       </Modal>
-    </AppLayout>
+    </>
   )
 }
 
