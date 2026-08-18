@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api'
-import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp, CalendarClock, X } from 'lucide-react'
+import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp, CalendarClock, X, ChevronDown, Search, Check } from 'lucide-react'
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
@@ -38,9 +38,13 @@ type Card = {
   id?: number; project_id?: number; code?: string; project_name?: string; customer_name?: string
   status?: string; sold_hours?: number; consumed_hours?: number; delivery_percentage?: number | null
   start_date?: string | null; expected_end_date?: string | null; service_type?: string; contract_type?: string
-  executivo_conta_name?: string | null; card_type?: string
+  executivo_conta_name?: string | null; card_type?: string; categoria?: string
   coordinators?: string[]; kanban_coordinator_override_name?: string | null
 }
+
+// Só Projetos (Demandas e Projetos) — exclui sustentação desta visão.
+const isSustentacao = (c: Card) =>
+  c.categoria === 'sustentacao' || (c.service_type ?? '').toLowerCase().includes('sustenta')
 
 // Coordenador efetivo do card: override do kanban, senão o 1º coordenador do projeto.
 const coordName = (c: Card) => c.kanban_coordinator_override_name || (c.coordinators && c.coordinators[0]) || ''
@@ -49,13 +53,73 @@ const fmtNum = (n: number) => n.toLocaleString('pt-BR')
 const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'
 const daysTo = (d?: string | null) => { if (!d) return null; const t = new Date(d.includes('T') ? d : d + 'T00:00:00Z').getTime(); return isNaN(t) ? null : Math.ceil((t - Date.now()) / 86400000) }
 
+/* Dropdown de multi-seleção com busca por texto. */
+function MultiFilter({ allLabel, options, selected, onChange }: {
+  allLabel: string
+  options: string[]
+  selected: string[]
+  onChange: (v: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const list = options.filter(o => o.toLowerCase().includes(q.trim().toLowerCase()))
+  const toggle = (o: string) => onChange(selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o])
+  const btn = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className="text-sm rounded-xl px-3 py-2 outline-none flex items-center gap-2 max-w-[220px]"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: selected.length ? 'var(--text)' : 'var(--text-muted)' }}>
+        <span className="truncate">{btn}</span>
+        <ChevronDown size={14} className="shrink-0" style={{ color: 'var(--text-light)' }} />
+      </button>
+      {open && (
+        <div className="absolute z-[200] mt-1 right-0 w-64 rounded-xl overflow-hidden shadow-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <Search size={14} style={{ color: 'var(--text-light)' }} />
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..."
+              className="text-sm bg-transparent outline-none w-full" style={{ color: 'var(--text)' }} />
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1">
+            <button onClick={() => { onChange([]); }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
+              style={{ color: selected.length === 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
+              <span className="w-4">{selected.length === 0 && <Check size={14} />}</span> {allLabel}
+            </button>
+            {list.map(o => (
+              <button key={o} onClick={() => toggle(o)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--text)' }}>
+                <span className="w-4">{selected.includes(o) && <Check size={14} style={{ color: 'var(--primary)' }} />}</span>
+                <span className="truncate">{o}</span>
+              </button>
+            ))}
+            {list.length === 0 && <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum resultado.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function IndicadoresProjetosPage() {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string[]>([]) // col ids (multi); vazio = todos
-  const [clientFilter, setClientFilter] = useState<string>('')
-  const [coordFilter, setCoordFilter] = useState<string>('')
-  const [execFilter, setExecFilter] = useState<string>('')
+  const [clientFilter, setClientFilter] = useState<string[]>([])
+  const [coordFilter, setCoordFilter] = useState<string[]>([])
+  const [execFilter, setExecFilter] = useState<string[]>([])
   const [selected, setSelected] = useState<Card | null>(null)
   const [sortField, setSortField] = useState<string>('')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -67,7 +131,7 @@ export default function IndicadoresProjetosPage() {
   useEffect(() => {
     setLoading(true)
     api.get<{ project_cards?: Card[] }>('/contracts/kanban')
-      .then(r => setCards(Array.isArray(r?.project_cards) ? r.project_cards : []))
+      .then(r => setCards((Array.isArray(r?.project_cards) ? r.project_cards : []).filter(c => !isSustentacao(c))))
       .catch(() => setCards([]))
       .finally(() => setLoading(false))
   }, [])
@@ -87,9 +151,9 @@ export default function IndicadoresProjetosPage() {
 
   // Filtros do topo (exceto status): cliente + coordenador + executivo.
   const matchesBase = (c: Card) =>
-    (!clientFilter || c.customer_name === clientFilter) &&
-    (!coordFilter || coordName(c) === coordFilter) &&
-    (!execFilter || c.executivo_conta_name === execFilter)
+    (clientFilter.length === 0 || clientFilter.includes(c.customer_name ?? '')) &&
+    (coordFilter.length === 0 || coordFilter.includes(coordName(c))) &&
+    (execFilter.length === 0 || execFilter.includes(c.executivo_conta_name ?? ''))
 
   const filtered = useMemo(() => cards.filter(c => {
     if (!matchesBase(c)) return false
@@ -207,27 +271,9 @@ export default function IndicadoresProjetosPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Filtro coordenador */}
-          <select value={coordFilter} onChange={e => setCoordFilter(e.target.value)}
-            className="text-sm rounded-xl px-3 py-2 outline-none"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            <option value="">Todos coordenadores</option>
-            {coordinatorsList.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          {/* Filtro executivo */}
-          <select value={execFilter} onChange={e => setExecFilter(e.target.value)}
-            className="text-sm rounded-xl px-3 py-2 outline-none"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            <option value="">Todos executivos</option>
-            {executivesList.map(e => <option key={e} value={e}>{e}</option>)}
-          </select>
-          {/* Filtro cliente */}
-          <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-            className="text-sm rounded-xl px-3 py-2 outline-none"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-            <option value="">Todos os clientes</option>
-            {clients.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <MultiFilter allLabel="Todos coordenadores" options={coordinatorsList} selected={coordFilter} onChange={setCoordFilter} />
+          <MultiFilter allLabel="Todos executivos"    options={executivesList}   selected={execFilter}  onChange={setExecFilter} />
+          <MultiFilter allLabel="Todos os clientes"   options={clients}          selected={clientFilter} onChange={setClientFilter} />
         </div>
       </div>
 
@@ -250,8 +296,8 @@ export default function IndicadoresProjetosPage() {
             </button>
           )
         })}
-        {(statusFilter.length > 0 || clientFilter || coordFilter || execFilter) && (
-          <button onClick={() => { setStatusFilter([]); setClientFilter(''); setCoordFilter(''); setExecFilter('') }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+        {(statusFilter.length > 0 || clientFilter.length > 0 || coordFilter.length > 0 || execFilter.length > 0) && (
+          <button onClick={() => { setStatusFilter([]); setClientFilter([]); setCoordFilter([]); setExecFilter([]) }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
             <X size={12} /> limpar
           </button>
         )}
