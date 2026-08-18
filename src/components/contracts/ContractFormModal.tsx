@@ -92,7 +92,8 @@ const allowedForService = (
   const isProjeto = sn.includes('projeto')
   const isSustenta = sn.includes('sustenta')
   const isBizify = sn.includes('bizify')
-  if (!isProjeto && !isSustenta && !isBizify && !isSubproject) return contractTypes
+  const isAlocacao = sn.includes('aloca')
+  if (!isProjeto && !isSustenta && !isBizify && !isAlocacao && !isSubproject) return contractTypes
   return contractTypes.filter(ct => {
     if (String(ct.id) === String(selectedContractTypeId ?? '')) return true
     const n = String(ct.name ?? '').toLowerCase()
@@ -100,6 +101,8 @@ const allowedForService = (
     if (isProjeto && (n.includes('saas') || n === 'cloud')) return false
     if (isSustenta && (n.includes('fechado') || n.includes('saas'))) return false
     if (isBizify && (n.includes('banco de horas mensal') || n === 'cloud')) return false
+    // Alocação: sem SaaS nem Cloud (permite BH Fixo, BH Mensal, On Demand, Fechado).
+    if (isAlocacao && (n.includes('saas') || n === 'cloud')) return false
     return true
   })
 }
