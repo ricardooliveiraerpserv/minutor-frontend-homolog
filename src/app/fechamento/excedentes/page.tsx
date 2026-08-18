@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Clock, RefreshCw, Search, DollarSign, AlertTriangle, CheckCircle, Ban, FileText, Send } from 'lucide-react'
+import { Clock, RefreshCw, Search, DollarSign, AlertTriangle, CheckCircle, Ban, FileText, Send, Download } from 'lucide-react'
 import { PageHeader, Card, Badge, Button, Th, Tbody, Tr, Td, SkeletonTable, EmptyState } from '@/components/ds'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
@@ -155,6 +155,24 @@ function ExcedentesPage() {
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Falha ao enviar o e-mail')
     } finally { setSending(false) }
+  }
+
+  const [downloadingXlsx, setDownloadingXlsx] = useState(false)
+  const downloadExcel = async () => {
+    if (!reportFor || !ym) return
+    setDownloadingXlsx(true)
+    try {
+      const res = await fetch(`/api/v1/fechamento-excedente/${reportFor.customerId}/${ym}/export-excel`, { credentials: 'same-origin' })
+      if (!res.ok) { toast.error('Erro ao gerar o Excel'); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Horas_Excedentes_${ym}_${reportFor.name.replace(/[^A-Za-z0-9]+/g, '_')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Erro ao baixar o Excel') }
+    finally { setDownloadingXlsx(false) }
   }
 
   return (
@@ -337,6 +355,7 @@ function ExcedentesPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setReportFor(null)} disabled={sending}>Cancelar</Button>
+          <Button variant="secondary" icon={Download} onClick={downloadExcel} loading={downloadingXlsx} disabled={downloadingXlsx || reportLoading}>Baixar Excel</Button>
           <Button variant="primary" icon={Send} onClick={sendEmail} loading={sending} disabled={sending || reportLoading}>
             Enviar ao cliente
           </Button>
