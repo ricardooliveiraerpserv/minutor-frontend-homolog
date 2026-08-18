@@ -594,3 +594,11 @@ export function Modal({
     </div>
   )
 }
+
+// ─── F1 · primitives do Acervo (arquivos separados, re-exportados) ────────────
+export { Breadcrumb } from './breadcrumb'
+export type { Crumb } from './breadcrumb'
+export { Accordion, AccordionItem } from './accordion'
+export { SplitPanel } from './split-panel'
+export { Tree } from './tree'
+export type { TreeNode } from './tree'
