@@ -52,7 +52,7 @@ const daysTo = (d?: string | null) => { if (!d) return null; const t = new Date(
 export default function IndicadoresProjetosPage() {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>('') // col id ou ''
+  const [statusFilter, setStatusFilter] = useState<string[]>([]) // col ids (multi); vazio = todos
   const [clientFilter, setClientFilter] = useState<string>('')
   const [coordFilter, setCoordFilter] = useState<string>('')
   const [execFilter, setExecFilter] = useState<string>('')
@@ -94,7 +94,7 @@ export default function IndicadoresProjetosPage() {
   const filtered = useMemo(() => cards.filter(c => {
     if (!matchesBase(c)) return false
     const col = STATUS_TO_COL[c.status ?? ''] ?? 'proj_backlog'
-    if (statusFilter && col !== statusFilter) return false
+    if (statusFilter.length > 0 && !statusFilter.includes(col)) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cards, statusFilter, clientFilter, coordFilter, execFilter])
@@ -233,25 +233,25 @@ export default function IndicadoresProjetosPage() {
 
       {/* Filtro de status (chips) */}
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={() => setStatusFilter('')}
+        <button onClick={() => setStatusFilter([])}
           className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
-          style={statusFilter === '' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+          style={statusFilter.length === 0 ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
           Todos ({cards.filter(matchesBase).length})
         </button>
         {STATUS_COLS.map(c => {
           const n = cards.filter(x => (STATUS_TO_COL[x.status ?? ''] ?? 'proj_backlog') === c.id && matchesBase(x)).length
           if (n === 0) return null
-          const on = statusFilter === c.id
+          const on = statusFilter.includes(c.id)
           return (
-            <button key={c.id} onClick={() => setStatusFilter(on ? '' : c.id)}
+            <button key={c.id} onClick={() => setStatusFilter(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
               className="text-xs px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5"
               style={on ? { background: c.color, color: '#0a0a0a' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
               <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />{c.label} ({n})
             </button>
           )
         })}
-        {(statusFilter || clientFilter || coordFilter || execFilter) && (
-          <button onClick={() => { setStatusFilter(''); setClientFilter(''); setCoordFilter(''); setExecFilter('') }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+        {(statusFilter.length > 0 || clientFilter || coordFilter || execFilter) && (
+          <button onClick={() => { setStatusFilter([]); setClientFilter(''); setCoordFilter(''); setExecFilter('') }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
             <X size={12} /> limpar
           </button>
         )}
