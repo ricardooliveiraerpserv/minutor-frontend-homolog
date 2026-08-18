@@ -390,6 +390,8 @@ const NAV: NavEntry[] = [
       { label: 'Busca Técnica', href: '/central-fontes/busca', icon: Search },
       { label: 'Análise de Impacto', href: '/central-fontes/impacto', icon: Target },
       { label: 'Campanha (Docs)', href: '/central-fontes/campanha', icon: Megaphone },
+      { label: 'Aprovações de IA', href: '/central-fontes/aprovacoes', icon: CheckSquare },
+      { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
