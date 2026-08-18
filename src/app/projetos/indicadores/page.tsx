@@ -64,7 +64,7 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   const place = () => {
@@ -74,15 +74,13 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
     setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), width })
   }
 
-  const openMenu = () => { place(); setQ(''); setOpen(true) }
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const openMenu = () => { place(); setQ(''); setOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }
 
   useEffect(() => {
     if (!open) return
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node
-      if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return
-      setOpen(false)
-    }
+    const onDoc = (e: MouseEvent) => { if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) setOpen(false) }
     const onScroll = () => place()
     document.addEventListener('mousedown', onDoc)
     window.addEventListener('resize', onScroll)
@@ -99,19 +97,19 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
   const btn = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
 
   return (
-    <>
-      <button ref={triggerRef} type="button" onClick={() => (open ? setOpen(false) : openMenu())}
+    <div ref={triggerRef} className="relative">
+      <button type="button" onClick={() => (open ? setOpen(false) : openMenu())}
         className="text-sm rounded-xl px-3 py-2 outline-none flex items-center gap-2 max-w-[220px]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: selected.length ? 'var(--text)' : 'var(--text-muted)' }}>
         <span className="truncate">{btn}</span>
         <ChevronDown size={14} className="shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
       {open && pos && createPortal(
-        <div ref={panelRef} className="rounded-xl overflow-hidden shadow-xl"
+        <div ref={panelRef} onMouseDown={e => e.stopPropagation()} className="rounded-xl overflow-hidden shadow-xl"
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <Search size={14} style={{ color: 'var(--text-light)' }} />
-            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..."
+            <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..."
               className="text-sm bg-transparent outline-none w-full" style={{ color: 'var(--text)' }} />
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
@@ -133,7 +131,7 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
         </div>,
         document.body,
       )}
-    </>
+    </div>
   )
 }
 
