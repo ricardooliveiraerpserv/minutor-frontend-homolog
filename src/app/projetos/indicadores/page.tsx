@@ -117,6 +117,7 @@ export default function IndicadoresProjetosPage() {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string[]>([]) // col ids (multi); vazio = todos
+  const [healthFilter, setHealthFilter] = useState<string[]>([]) // criticidade (multi); vazio = todas
   const [clientFilter, setClientFilter] = useState<string[]>([])
   const [coordFilter, setCoordFilter] = useState<string[]>([])
   const [execFilter, setExecFilter] = useState<string[]>([])
@@ -159,9 +160,10 @@ export default function IndicadoresProjetosPage() {
     if (!matchesBase(c)) return false
     const col = STATUS_TO_COL[c.status ?? ''] ?? 'proj_backlog'
     if (statusFilter.length > 0 && !statusFilter.includes(col)) return false
+    if (healthFilter.length > 0 && !healthFilter.includes(healthOf(Number(c.sold_hours ?? 0), Number(c.consumed_hours ?? 0)))) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [cards, statusFilter, clientFilter, coordFilter, execFilter])
+  }), [cards, statusFilter, healthFilter, clientFilter, coordFilter, execFilter])
 
   // Ordenação da tabela "Indicadores por Projeto" (não afeta os gráficos/KPIs).
   const sorted = useMemo(() => {
@@ -296,8 +298,20 @@ export default function IndicadoresProjetosPage() {
             </button>
           )
         })}
-        {(statusFilter.length > 0 || clientFilter.length > 0 || coordFilter.length > 0 || execFilter.length > 0) && (
-          <button onClick={() => { setStatusFilter([]); setClientFilter([]); setCoordFilter([]); setExecFilter([]) }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+        <span className="mx-1 w-px h-4 self-center" style={{ background: 'var(--border)' }} />
+        {HEALTH.map(h => {
+          const n = cards.filter(x => matchesBase(x) && healthOf(Number(x.sold_hours ?? 0), Number(x.consumed_hours ?? 0)) === h.key).length
+          const on = healthFilter.includes(h.key)
+          return (
+            <button key={h.key} onClick={() => setHealthFilter(prev => prev.includes(h.key) ? prev.filter(x => x !== h.key) : [...prev, h.key])}
+              className="text-xs px-3 py-1.5 rounded-full font-medium transition-all flex items-center gap-1.5"
+              style={on ? { background: h.color, color: '#0a0a0a' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: h.color }} />{h.label} ({n})
+            </button>
+          )
+        })}
+        {(statusFilter.length > 0 || healthFilter.length > 0 || clientFilter.length > 0 || coordFilter.length > 0 || execFilter.length > 0) && (
+          <button onClick={() => { setStatusFilter([]); setHealthFilter([]); setClientFilter([]); setCoordFilter([]); setExecFilter([]) }} className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
             <X size={12} /> limpar
           </button>
         )}
@@ -398,7 +412,7 @@ export default function IndicadoresProjetosPage() {
                         ['status', 'Status', 'py-2 px-3'],
                         ['criticidade', 'Criticidade', 'py-2 px-3'],
                         ['entrega', 'Entrega', 'py-2 px-3 text-center'],
-                        ['horas', 'Horas', 'py-2 px-3 text-right'],
+                        ['horas', 'Horas (Vend./Util.)', 'py-2 px-3 text-right'],
                         ['inicio', 'Início', 'py-2 px-3'],
                         ['previsao', 'Previsão', 'py-2 px-3'],
                         ['prazo', 'Prazo', 'py-2 pl-3 text-right'],
@@ -437,7 +451,7 @@ export default function IndicadoresProjetosPage() {
                               <span className="text-[11px] tabular-nums w-8" style={{ color: 'var(--text-muted)' }}>{del}%</span>
                             </div>
                           </td>
-                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{cons.toFixed(1)}/{sold.toFixed(1)}h</td>
+                          <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: cons > sold ? '#ef4444' : 'var(--text-muted)', fontWeight: cons > sold ? 600 : 400 }}>{sold.toFixed(1)}/{cons.toFixed(1)}h</td>
                           <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.start_date)}</td>
                           <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.expected_end_date)}</td>
                           <td className="py-2 pl-3 text-right whitespace-nowrap">{dt === null ? '—' : <span className="text-xs font-medium" style={{ color: dt < 0 ? '#ef4444' : dt <= 7 ? '#f97316' : 'var(--text-light)' }}>{dt < 0 ? `venceu há ${Math.abs(dt)}d` : dt === 0 ? 'hoje' : `em ${dt}d`}</span>}</td>
