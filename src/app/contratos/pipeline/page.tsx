@@ -4366,10 +4366,15 @@ function KanbanContent() {
     setLoading(true)
     try {
       const r = await api.get<KanbanResponse>('/contracts/kanban')
-      setDemandCards(r.demand_cards ?? [])
-      setTransitionCards(r.transition_cards ?? [])
-      setProjectCards(r.project_cards ?? [])
-      setRequestCards(r.request_cards ?? [])
+      // "Alocação" NÃO entra em Demandas e Projetos (gerenciada no Kanban de Contratos).
+      const notAloc = (c: any) => {
+        const s = String(c?.service_type ?? '').toLowerCase()
+        return s !== 'alocação' && s !== 'alocacao'
+      }
+      setDemandCards((r.demand_cards ?? []).filter(notAloc))
+      setTransitionCards((r.transition_cards ?? []).filter(notAloc))
+      setProjectCards((r.project_cards ?? []).filter(notAloc))
+      setRequestCards((r.request_cards ?? []).filter(notAloc))
       setCoordinators(r.coordinators ?? [])
       setUserRole(r.user_role ?? 'admin')
       setPipelineView(r.pipeline_view ?? null)
