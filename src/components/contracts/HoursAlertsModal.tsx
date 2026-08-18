@@ -31,10 +31,14 @@ interface AlertContact {
   id: number; name: string; email: string | null; cargo: string | null; recebe_alerta_consumo: boolean
 }
 
+interface PreviewField { label: string; value: string }
+interface Preview { band: number; fields: PreviewField[] }
+
 interface Payload {
   enabled: boolean
   contract_id: number | null
   current: CurrentMetrics | null
+  preview: Preview | null
   contacts: AlertContact[]
   alerts: HoursAlert[]
 }
@@ -68,14 +72,16 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const [loading, setLoading] = useState(false)
   const [enabled, setEnabled] = useState(false)
   const [current, setCurrent] = useState<CurrentMetrics | null>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
   const [contacts, setContacts] = useState<AlertContact[]>([])
   const [alerts, setAlerts] = useState<HoursAlert[]>([])
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [savingFlag, setSavingFlag] = useState(false)
   const [savingContacts, setSavingContacts] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const apply = (r: Payload) => {
-    setEnabled(!!r.enabled); setCurrent(r.current); setContacts(r.contacts ?? []); setAlerts(r.alerts ?? [])
+    setEnabled(!!r.enabled); setCurrent(r.current); setPreview(r.preview); setContacts(r.contacts ?? []); setAlerts(r.alerts ?? [])
   }
 
   const load = useCallback(async () => {
@@ -109,6 +115,16 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
       toast.success('Destinatários atualizados')
     } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar destinatários')) }
     finally { setSavingContacts(false) }
+  }
+
+  const sendNow = async () => {
+    setSending(true)
+    try {
+      const r = await api.post<Payload & { message: string }>(`${base}/send`, {})
+      apply(r)
+      toast[(r as any).alert?.status === 'sent' ? 'success' : 'error']((r as any).message ?? 'Processado')
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao enviar')) }
+    finally { setSending(false) }
   }
 
   const resend = async (id: number) => {
@@ -170,6 +186,31 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                   <p className="text-sm font-semibold mt-0.5" style={{ color: k.l === 'Excedente' ? 'var(--danger-border)' : 'var(--text)' }}>{k.v}</p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Prévia do e-mail (dados reais) + envio manual */}
+          {preview && (
+            <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Prévia do e-mail</p>
+                <button disabled={sending} onClick={sendNow}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  style={{ background: '#F97316', color: '#fff' }}>
+                  {sending ? <Loader2 className="animate-spin" size={13} /> : <Send size={13} />} Enviar agora
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                {preview.fields.map((f, idx) => (
+                  <div key={idx} className="flex justify-between gap-3 py-0.5 text-[12px]" style={{ borderBottom: '1px dashed var(--border)' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{f.label}</span>
+                    <span className="font-medium text-right" style={{ color: 'var(--text)' }}>{f.value}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                O envio manual dispara agora para os destinatários marcados abaixo + executivo, independente do envio automático estar ligado, e fica registrado no histórico.
+              </p>
             </div>
           )}
 
