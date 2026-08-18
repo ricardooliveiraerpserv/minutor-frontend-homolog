@@ -116,16 +116,26 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
             <button type="button" onClick={() => onChange([])}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
               style={{ color: selected.length === 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
-              <span className="w-4">{selected.length === 0 && <Check size={14} />}</span> {allLabel}
+              <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                style={{ border: `1.5px solid ${selected.length === 0 ? 'var(--primary)' : 'var(--border)'}`, background: selected.length === 0 ? 'var(--primary)' : 'transparent' }}>
+                {selected.length === 0 && <Check size={12} style={{ color: '#fff' }} />}
+              </span>
+              {allLabel}
             </button>
-            {list.map(o => (
-              <button key={o} type="button" onClick={() => toggle(o)}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--text)' }}>
-                <span className="w-4">{selected.includes(o) && <Check size={14} style={{ color: 'var(--primary)' }} />}</span>
-                <span className="truncate">{o}</span>
-              </button>
-            ))}
+            {list.map(o => {
+              const on = selected.includes(o)
+              return (
+                <button key={o} type="button" onClick={() => toggle(o)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--text)' }}>
+                  <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                    style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
+                    {on && <Check size={12} style={{ color: '#fff' }} />}
+                  </span>
+                  <span className="truncate">{o}</span>
+                </button>
+              )
+            })}
             {list.length === 0 && <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum resultado.</p>}
           </div>
         </div>,
