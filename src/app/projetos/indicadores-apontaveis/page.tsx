@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
-import { cronogramaPoolHours } from '@/lib/cronograma-pool'
+
+// Horas APONTÁVEIS (liberadas à gestão): coordination_hours se > 0, senão sold_hours.
+// Espelha Project::cronogramaPoolHours() do backend.
+function cronogramaPoolHours(p?: { sold_hours?: number | string | null; coordination_hours?: number | string | null } | null): number {
+  const coord = Number(p?.coordination_hours) || 0
+  if (coord > 0) return coord
+  return Number(p?.sold_hours) || 0
+}
 import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp, CalendarClock, X, ChevronDown, Search, Check } from 'lucide-react'
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
