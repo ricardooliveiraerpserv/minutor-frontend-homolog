@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
 import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp, CalendarClock, X, ChevronDown, Search, Check } from 'lucide-react'
 import {
@@ -62,13 +63,35 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
 }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  const place = () => {
+    const r = triggerRef.current?.getBoundingClientRect()
+    if (!r) return
+    const width = 256
+    setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), width })
+  }
+
+  const openMenu = () => { place(); setQ(''); setOpen(true) }
 
   useEffect(() => {
     if (!open) return
-    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    const onScroll = () => place()
     document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    window.addEventListener('resize', onScroll)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('resize', onScroll)
+      window.removeEventListener('scroll', onScroll, true)
+    }
   }, [open])
 
   const list = options.filter(o => o.toLowerCase().includes(q.trim().toLowerCase()))
@@ -76,29 +99,29 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
   const btn = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
 
   return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)}
+    <>
+      <button ref={triggerRef} type="button" onClick={() => (open ? setOpen(false) : openMenu())}
         className="text-sm rounded-xl px-3 py-2 outline-none flex items-center gap-2 max-w-[220px]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: selected.length ? 'var(--text)' : 'var(--text-muted)' }}>
         <span className="truncate">{btn}</span>
         <ChevronDown size={14} className="shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
-      {open && (
-        <div className="absolute z-[200] mt-1 right-0 w-64 rounded-xl overflow-hidden shadow-xl"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {open && pos && createPortal(
+        <div ref={panelRef} className="rounded-xl overflow-hidden shadow-xl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <Search size={14} style={{ color: 'var(--text-light)' }} />
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..."
               className="text-sm bg-transparent outline-none w-full" style={{ color: 'var(--text)' }} />
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            <button onClick={() => { onChange([]); }}
+            <button type="button" onClick={() => onChange([])}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
               style={{ color: selected.length === 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
               <span className="w-4">{selected.length === 0 && <Check size={14} />}</span> {allLabel}
             </button>
             {list.map(o => (
-              <button key={o} onClick={() => toggle(o)}
+              <button key={o} type="button" onClick={() => toggle(o)}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--text)' }}>
                 <span className="w-4">{selected.includes(o) && <Check size={14} style={{ color: 'var(--primary)' }} />}</span>
@@ -107,9 +130,10 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
             ))}
             {list.length === 0 && <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum resultado.</p>}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
 
