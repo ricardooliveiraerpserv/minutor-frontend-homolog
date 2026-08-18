@@ -162,7 +162,7 @@ function ExcedentesPage() {
     if (!reportFor || !ym) return
     setDownloadingXlsx(true)
     try {
-      const res = await fetch(`/api/v1/fechamento-excedente/${reportFor.customerId}/${ym}/export-excel`, { credentials: 'same-origin' })
+      const res = await fetch(`/api/v1/fechamento-excedente/${reportFor.customerId}/${ym}/export-excel?t=${Date.now()}`, { credentials: 'same-origin', cache: 'no-store' })
       if (!res.ok) { toast.error('Erro ao gerar o Excel'); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
