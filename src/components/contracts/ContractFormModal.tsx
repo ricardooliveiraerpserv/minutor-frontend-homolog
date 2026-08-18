@@ -15,6 +15,7 @@ interface ContractContact {
   cargo: string
   email: string
   phone: string
+  recebe_alerta_consumo?: boolean
 }
 import { type ContractItemForm, ITEM_TIPO_OPTS, emptyContractItem, computeContractItem, validateContractItems, contractItemsPayload, itemCodePreview } from '@/lib/contract-items'
 
@@ -634,8 +635,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
 
   // ─── Contacts helpers ─────────────────────────────────────────────────────
 
-  const addContact    = () => setContacts(c => [...c, { name: '', cargo: '', email: '', phone: '' }])
-  const updateContact = (i: number, field: keyof ContractContact, value: string) =>
+  const addContact    = () => setContacts(c => [...c, { name: '', cargo: '', email: '', phone: '', recebe_alerta_consumo: false }])
+  const updateContact = (i: number, field: keyof ContractContact, value: string | boolean) =>
     setContacts(c => c.map((ct, idx) => idx === i ? { ...ct, [field]: value } : ct))
   const removeContact = (i: number) => setContacts(c => c.filter((_, idx) => idx !== i))
 
@@ -1465,6 +1466,11 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, hideAt
                           className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} />
                       </div>
                     </div>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: 'var(--text)' }}>
+                      <input type="checkbox" checked={!!ct.recebe_alerta_consumo}
+                        onChange={e => updateContact(i, 'recebe_alerta_consumo', e.target.checked)} />
+                      Recebe alerta de consumo de horas
+                    </label>
                   </div>
                 ))}
               </div>

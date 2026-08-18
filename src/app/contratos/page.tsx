@@ -6,10 +6,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2, Bell } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
+import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -184,6 +185,7 @@ export default function ContratosPage() {
   const [sustQueue, setSustQueue]   = useState('')
   const [sustMoving, setSustMoving] = useState(false)
   const [editContract, setEditContract] = useState<Contract | null>(null)
+  const [alertsContract, setAlertsContract] = useState<Contract | null>(null)
 
   // Generate project modal
   const [genModal, setGenModal] = useState<{ contract: Contract } | null>(null)
@@ -320,11 +322,13 @@ export default function ContratosPage() {
     { action: 'expenses',   label: 'Despesas',          icon: BarChart2, del: false },
     // 'Aportes' removido do menu de linha (2026-05-28): aporte se cria via "É aporte?" no Novo Contrato.
     { action: 'team',       label: 'Selecionar Equipe', icon: Users,    del: false },
+    { action: 'hours_alerts', label: 'Alertas de consumo', icon: Bell,  del: false },
     { action: 'delete',     label: 'Excluir',           icon: Trash2,   del: true  },
   ] as const
 
   const handleProjectAction = (contract: Contract, action: string) => {
     const pid = contract.project_id!
+    if (action === 'hours_alerts') { setAlertsContract(contract); return }
     if (action === 'timesheets') { router.push(`/timesheets?project_id=${pid}`); return }
     if (action === 'expenses')   { router.push(`/expenses?project_id=${pid}`);   return }
     if (action === 'cost')       { router.push(`/gestao-projetos`); return }
@@ -472,6 +476,12 @@ export default function ContratosPage() {
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
                             <Pencil size={14} className="text-[var(--text-muted)]" /> Editar
                           </button>
+                          {c.project_id && (
+                            <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setAlertsContract(c) }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                              <Bell size={14} className="text-[var(--text-muted)]" /> Alertas de consumo
+                            </button>
+                          )}
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setDeleteTarget({ id: c.id, name: c.customer?.name ?? `Contrato #${c.id}`, type: 'contract' }) }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}>
                             <Trash2 size={14} style={{ color: 'var(--danger)' }} /> Excluir
@@ -541,6 +551,14 @@ export default function ContratosPage() {
         editContract={editContract}
         onClose={() => { setModalOpen(false); setEditContract(null) }}
         onSaved={loadContracts}
+      />
+
+      {/* ── Alertas de consumo de horas ── */}
+      <HoursAlertsModal
+        contractId={alertsContract?.id ?? null}
+        contractLabel={alertsContract ? `${alertsContract.customer?.name ?? ''}${alertsContract.project?.code ? ' · ' + alertsContract.project.code : ''}` : undefined}
+        isAdmin={user?.type === 'admin'}
+        onClose={() => setAlertsContract(null)}
       />
 
       {/* ── View Modal ── */}

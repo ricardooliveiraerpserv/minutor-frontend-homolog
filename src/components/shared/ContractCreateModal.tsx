@@ -10,7 +10,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ContractContact { name: string; cargo: string; email: string; phone: string }
+interface ContractContact { name: string; cargo: string; email: string; phone: string; recebe_alerta_consumo?: boolean }
 interface CustomerContact { id: number; customer_id: number; name: string; cargo: string; email: string; phone: string }
 interface SelectOption { id: number | string; name: string; code_prefix?: string | null }
 
@@ -443,8 +443,8 @@ export function ContractCreateModal({
 
   // ── Contacts ──────────────────────────────────────────────────────────────
 
-  const addContact = () => setContacts(c => [...c, { name: '', cargo: '', email: '', phone: '' }])
-  const updateContact = (i: number, field: keyof ContractContact, value: string) =>
+  const addContact = () => setContacts(c => [...c, { name: '', cargo: '', email: '', phone: '', recebe_alerta_consumo: false }])
+  const updateContact = (i: number, field: keyof ContractContact, value: string | boolean) =>
     setContacts(c => c.map((ct, idx) => idx === i ? { ...ct, [field]: value } : ct))
   const removeContact = (i: number) => setContacts(c => c.filter((_, idx) => idx !== i))
 
@@ -1692,6 +1692,11 @@ export function ContractCreateModal({
                       <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Telefone</label>
                         <input type="tel" value={ct.phone} onChange={e => updateContact(i, 'phone', e.target.value.replace(/\D/g, ''))} className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} /></div>
                     </div>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: 'var(--text)' }}>
+                      <input type="checkbox" checked={!!ct.recebe_alerta_consumo}
+                        onChange={e => updateContact(i, 'recebe_alerta_consumo', e.target.checked)} />
+                      Recebe alerta de consumo de horas
+                    </label>
                   </div>
                 ))}
               </div>
