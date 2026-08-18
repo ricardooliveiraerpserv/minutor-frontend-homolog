@@ -142,6 +142,8 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/central-fontes/busca', 'administrativo'],
   ['/central-fontes/impacto', 'administrativo'],
   ['/central-fontes/campanha', 'administrativo'],
+  ['/central-fontes/aprovacoes', 'administrativo'],
+  ['/central-fontes/configuracoes', 'administrativo'],
   ['/partners', 'administrativo'],
   ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
