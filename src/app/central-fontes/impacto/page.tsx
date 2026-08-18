@@ -9,7 +9,6 @@
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Crosshair, FileCode2, FolderGit2, Search, ShieldAlert } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, Pagination, SkeletonTable, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 
@@ -79,7 +78,7 @@ function ImpactoInner() {
   const s = resp?.summary
 
   return (
-    <AppLayout>
+    <>
       <PageHeader icon={Crosshair} title="Análise de Impacto"
         subtitle="Onde uma alteração pode impactar — cliente, fonte, função, acesso e evidência. Sobre o índice técnico, sem IA." />
 
@@ -217,7 +216,7 @@ function ImpactoInner() {
           )}
         </>
       )}
-    </AppLayout>
+    </>
   )
 }
 

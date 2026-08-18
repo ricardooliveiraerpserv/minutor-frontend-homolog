@@ -8,7 +8,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Coins, Save, ShieldCheck } from 'lucide-react'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 
@@ -101,7 +100,7 @@ export default function IaCustosConfigPage() {
   }, [autoLimit, margin, stepMax, approvalRequired, maxApproved, mandatoryAbove])
 
   return (
-    <AppLayout>
+    <>
       <PageHeader
         icon={Coins}
         title="Configurações · IA e Custos"
@@ -174,7 +173,7 @@ export default function IaCustosConfigPage() {
           )}
         </div>
       )}
-    </AppLayout>
+    </>
   )
 }
 

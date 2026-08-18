@@ -14,7 +14,6 @@ import {
   GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, Modal, Skeleton } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
@@ -213,11 +212,11 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
   }, [tab, loadDet, loadVersions])
 
   if (loading) {
-    return <AppLayout><div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-64" /></div></AppLayout>
+    return <><div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-64" /></div></>
   }
   if (error || !meta) {
-    return <AppLayout><EmptyState icon={HelpCircle} title={error ?? 'Erro'}
-      action={<Link href="/central-fontes" className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>Voltar ao catálogo</Link>} /></AppLayout>
+    return <><EmptyState icon={HelpCircle} title={error ?? 'Erro'}
+      action={<Link href="/central-fontes" className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>Voltar ao catálogo</Link>} /></>
   }
 
   const sit = SIT[meta.situation.status]
@@ -226,7 +225,7 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
   const ghUrl = `https://github.com/${meta.owner}/${meta.repository}/blob/${meta.branch}/${meta.path}`
 
   return (
-    <AppLayout>
+    <>
       <Link href="/central-fontes" className="inline-flex items-center gap-1.5 text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
         <ArrowLeft size={15} /> Voltar ao catálogo
       </Link>
@@ -432,7 +431,7 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
           </div>
         </Modal>
       )}
-    </AppLayout>
+    </>
   )
 }
 
