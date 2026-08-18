@@ -132,7 +132,10 @@ export default function AprovacoesIaPage() {
                         </div>
                       </div>
                     </div>
-                    <StatusBadge status={a.status} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <a href={`/central-fontes/acervo?doc=${a.source_doc_id}`} className="whitespace-nowrap text-xs text-[color:var(--accent,#2563eb)] hover:underline">Mostrar no Acervo →</a>
+                      <StatusBadge status={a.status} />
+                    </div>
                   </div>
 
                   {/* métricas do card (exatamente: custo atual / próximo passo / total projetado) */}
