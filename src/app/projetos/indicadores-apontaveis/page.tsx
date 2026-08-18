@@ -308,7 +308,7 @@ export default function IndicadoresProjetosPage() {
             <BarChart3 size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Indicadores de Projetos (Apontáveis)</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Indicadores de Projetos (Coordenador)</h1>
             <p className="text-xs" style={{ color: 'var(--text-light)' }}>Visão em dashboards de Demandas e Projetos</p>
           </div>
         </div>
@@ -452,7 +452,7 @@ export default function IndicadoresProjetosPage() {
                         ['status', 'Status', 'py-2 px-3'],
                         ['criticidade', 'Criticidade', 'py-2 px-3'],
                         ['entrega', 'Entrega', 'py-2 px-3 text-center'],
-                        ['horas', 'Horas (Apont./Util.)', 'py-2 px-3 text-right'],
+                        ['horas', 'Horas (Coord./Util.)', 'py-2 px-3 text-right'],
                         ['inicio', 'Início', 'py-2 px-3'],
                         ['previsao', 'Previsão', 'py-2 px-3'],
                         ['prazo', 'Prazo', 'py-2 pl-3 text-right'],
@@ -544,7 +544,7 @@ export default function IndicadoresProjetosPage() {
               </div>
               <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 90px)' }}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Box label="Horas Apontáveis" value={`${sold.toFixed(1)}h`} />
+                  <Box label="Horas Coordenador" value={`${sold.toFixed(1)}h`} />
                   <Box label="Horas Consumidas" value={`${cons.toFixed(1)}h`} color="var(--text-muted)" />
                   <Box label="Saldo" value={`${saldo.toFixed(1)}h`} color={saldo < 0 ? '#ef4444' : '#22c55e'} />
                   <Box label="Consumido" value={`${pctCons}%`} color={h.color} bar={pctCons} />
