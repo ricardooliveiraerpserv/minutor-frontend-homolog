@@ -101,8 +101,8 @@ const allowedForService = (
     if (isProjeto && (n.includes('saas') || n === 'cloud')) return false
     if (isSustenta && (n.includes('fechado') || n.includes('saas'))) return false
     if (isBizify && (n.includes('banco de horas mensal') || n === 'cloud')) return false
-    // Alocação: sem SaaS nem Cloud (permite BH Fixo, BH Mensal, On Demand, Fechado).
-    if (isAlocacao && (n.includes('saas') || n === 'cloud')) return false
+    // Alocação: só BH Fixo, BH Mensal e On Demand (sem SaaS, Cloud nem Fechado).
+    if (isAlocacao && (n.includes('saas') || n === 'cloud' || n.includes('fechado'))) return false
     return true
   })
 }
