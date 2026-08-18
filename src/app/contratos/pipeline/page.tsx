@@ -2151,7 +2151,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const loadDocs = () => {
     setDocsLoading(true)
     api.get<any>(`/projects/${projectId}/attachments`)
-      .then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoaded(true) })
+      .then(r => { setDocs((Array.isArray(r) ? r : []).filter((a: any) => a.source !== 'contract')); setDocsLoaded(true) })
       .catch(() => {})
       .finally(() => setDocsLoading(false))
   }
