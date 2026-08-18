@@ -169,6 +169,18 @@ export default function IndicadoresProjetosPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Rentabilidade por projeto (relatório de rentabilidade) — admin/diretor; 403 → colunas em '—'.
+  const [rentab, setRentab] = useState<Record<number, { margem: number; margem_pct: number | null }>>({})
+  useEffect(() => {
+    api.get<any[]>('/relatorios/rentabilidade/projetos')
+      .then(r => {
+        const m: Record<number, { margem: number; margem_pct: number | null }> = {}
+        ;(Array.isArray(r) ? r : []).forEach((x: any) => { m[Number(x.project_id)] = { margem: Number(x.margem), margem_pct: x.margem_pct != null ? Number(x.margem_pct) : null } })
+        setRentab(m)
+      })
+      .catch(() => setRentab({}))
+  }, [])
+
   const clients = useMemo(
     () => Array.from(new Set(cards.map(c => c.customer_name).filter(Boolean) as string[])).sort(),
     [cards],
@@ -210,6 +222,8 @@ export default function IndicadoresProjetosPage() {
         case 'criticidade': return healthIndex(c)
         case 'entrega':     return Number(c.delivery_percentage ?? 0)
         case 'horas':       return Number(c.consumed_hours ?? 0)
+        case 'rentab_pct':   return rentab[c.id ?? 0]?.margem_pct ?? Number.NEGATIVE_INFINITY
+        case 'rentab_valor': return rentab[c.id ?? 0]?.margem ?? Number.NEGATIVE_INFINITY
         case 'inicio':      return c.start_date || ''
         case 'previsao':    return c.expected_end_date || ''
         case 'prazo':       { const d = daysTo(c.expected_end_date); return d === null ? Number.POSITIVE_INFINITY : d }
@@ -223,7 +237,8 @@ export default function IndicadoresProjetosPage() {
       return sortDir === 'asc' ? cmp : -cmp
     })
     return arr
-  }, [filtered, sortField, sortDir])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortField, sortDir, rentab])
 
   /* ── Agregações ── */
   const total = filtered.length
@@ -445,6 +460,8 @@ export default function IndicadoresProjetosPage() {
                         ['criticidade', 'Criticidade', 'py-2 px-3'],
                         ['entrega', 'Entrega', 'py-2 px-3 text-center'],
                         ['horas', 'Horas (Vend./Util.)', 'py-2 px-3 text-right'],
+                        ['rentab_pct', '% Rentab.', 'py-2 px-3 text-right'],
+                        ['rentab_valor', 'Lucro/Prejuízo', 'py-2 px-3 text-right'],
                         ['inicio', 'Início', 'py-2 px-3'],
                         ['previsao', 'Previsão', 'py-2 px-3'],
                         ['prazo', 'Prazo', 'py-2 pl-3 text-right'],
@@ -484,13 +501,22 @@ export default function IndicadoresProjetosPage() {
                             </div>
                           </td>
                           <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: cons > sold ? '#ef4444' : 'var(--text-muted)', fontWeight: cons > sold ? 600 : 400 }}>{sold.toFixed(1)}/{cons.toFixed(1)}h</td>
+                          {(() => {
+                            const rt = rentab[p.id ?? 0]
+                            const pct = rt?.margem_pct
+                            const val = rt?.margem
+                            return (<>
+                              <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: pct == null ? 'var(--text-light)' : pct < 0 ? '#ef4444' : '#16a34a', fontWeight: 600 }}>{pct == null ? '—' : `${pct.toFixed(1)}%`}</td>
+                              <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap" style={{ color: val == null ? 'var(--text-light)' : val < 0 ? '#ef4444' : '#16a34a', fontWeight: 600 }}>{val == null ? '—' : val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            </>)
+                          })()}
                           <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.start_date)}</td>
                           <td className="py-2 px-3 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(p.expected_end_date)}</td>
                           <td className="py-2 pl-3 text-right whitespace-nowrap">{dt === null ? '—' : <span className="text-xs font-medium" style={{ color: dt < 0 ? '#ef4444' : dt <= 7 ? '#f97316' : 'var(--text-light)' }}>{dt < 0 ? `venceu há ${Math.abs(dt)}d` : dt === 0 ? 'hoje' : `em ${dt}d`}</span>}</td>
                         </tr>
                       )
                     })}
-                    {sorted.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</td></tr>}
+                    {sorted.length === 0 && <tr><td colSpan={11} className="py-8 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</td></tr>}
                   </tbody>
                 </table>
               </div>
