@@ -11,7 +11,8 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink, Bell } from 'lucide-react'
+import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -404,7 +405,7 @@ interface ProjectRowProps {
   project: ProjectWithTeam
   expanded: boolean
   onToggle: () => void
-  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent', project: ProjectWithTeam) => void
+  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => void
   canEdit?: boolean
   canChangeStatus?: boolean
   canDetach?: boolean
@@ -540,6 +541,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               // toggle "É aporte?" no Novo Contrato do Kanban Contratos; visualização via aba
               // Aportes do projeto no modal Visualizar.
               { label: 'Selecionar Equipe', icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
+              { label: 'Alertas de consumo', icon: <Bell       size={12} />, onClick: () => onMenuAction('hours-alerts', project) },
               {
                 label: (project as any).has_open_period ? 'Fechar Mês' : 'Abrir Mês',
                 icon: (project as any).has_open_period
@@ -2239,6 +2241,7 @@ function GestaoProjetosInner() {
 
   // Modal de edição de projeto
   const [editProjectId, setEditProjectId] = useState<number | null>(null)
+  const [alertsProject, setAlertsProject] = useState<ProjectWithTeam | null>(null)
 
   // Abre modal de edição se URL contém ?edit=ID
   useEffect(() => {
@@ -2713,7 +2716,8 @@ function GestaoProjetosInner() {
     }
   }, [projects, messagesParam])
 
-  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent', project: ProjectWithTeam) => {
+  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => {
+    if (action === 'hours-alerts') { setAlertsProject(project); return }
     if (action === 'attach-parent') {
       setAttachModal({ project, parentId: '', parents: [], loading: true })
       try {
@@ -3961,6 +3965,14 @@ function GestaoProjetosInner() {
           }}
         />
       )}
+
+      {/* ── Alertas de consumo de horas ── */}
+      <HoursAlertsModal
+        projectId={alertsProject?.id ?? null}
+        contractLabel={alertsProject ? `${alertsProject.customer?.name ?? ''}${alertsProject.code ? ' · ' + alertsProject.code : ''}` : undefined}
+        isAdmin={isAdmin}
+        onClose={() => setAlertsProject(null)}
+      />
 
       {/* ── Modal de Exclusão de Projeto ── */}
       {deleteProject && (
