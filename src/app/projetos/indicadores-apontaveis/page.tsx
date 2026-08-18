@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '@/lib/api'
+import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { BarChart3, FolderKanban, Clock, AlertTriangle, CheckCircle2, TrendingUp, CalendarClock, X, ChevronDown, Search, Check } from 'lucide-react'
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList,
@@ -37,7 +38,7 @@ function healthOf(sold: number, consumed: number): 'saudavel' | 'atencao' | 'cri
 
 type Card = {
   id?: number; project_id?: number; code?: string; project_name?: string; customer_name?: string
-  status?: string; sold_hours?: number; consumed_hours?: number; delivery_percentage?: number | null
+  status?: string; sold_hours?: number; coordination_hours?: number; consumed_hours?: number; delivery_percentage?: number | null
   start_date?: string | null; expected_end_date?: string | null; service_type?: string; contract_type?: string
   executivo_conta_name?: string | null; card_type?: string; categoria?: string
   coordinators?: string[]; kanban_coordinator_override_name?: string | null
@@ -192,7 +193,7 @@ export default function IndicadoresProjetosPage() {
     if (!matchesBase(c)) return false
     const col = STATUS_TO_COL[c.status ?? ''] ?? 'proj_backlog'
     if (statusFilter.length > 0 && !statusFilter.includes(col)) return false
-    if (healthFilter.length > 0 && !healthFilter.includes(healthOf(Number(c.sold_hours ?? 0), Number(c.consumed_hours ?? 0)))) return false
+    if (healthFilter.length > 0 && !healthFilter.includes(healthOf(cronogramaPoolHours(c), Number(c.consumed_hours ?? 0)))) return false
     return true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cards, statusFilter, healthFilter, clientFilter, coordFilter, execFilter])
@@ -201,7 +202,7 @@ export default function IndicadoresProjetosPage() {
   const sorted = useMemo(() => {
     if (!sortField) return filtered
     const colIndex = (s?: string) => STATUS_COLS.findIndex(c => c.id === (STATUS_TO_COL[s ?? ''] ?? 'proj_backlog'))
-    const healthIndex = (c: Card) => HEALTH.findIndex(h => h.key === healthOf(Number(c.sold_hours ?? 0), Number(c.consumed_hours ?? 0)))
+    const healthIndex = (c: Card) => HEALTH.findIndex(h => h.key === healthOf(cronogramaPoolHours(c), Number(c.consumed_hours ?? 0)))
     const val = (c: Card): string | number => {
       switch (sortField) {
         case 'projeto':     return (c.project_name || '').toLowerCase()
@@ -232,7 +233,7 @@ export default function IndicadoresProjetosPage() {
   })).filter(c => c.count > 0)
 
   const health = HEALTH.map(h => ({
-    ...h, count: filtered.filter(x => healthOf(Number(x.sold_hours ?? 0), Number(x.consumed_hours ?? 0)) === h.key).length,
+    ...h, count: filtered.filter(x => healthOf(cronogramaPoolHours(x), Number(x.consumed_hours ?? 0)) === h.key).length,
   }))
 
   const deliveryBuckets = [
@@ -300,7 +301,7 @@ export default function IndicadoresProjetosPage() {
             <BarChart3 size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Indicadores de Projetos (Gerencial)</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Indicadores de Projetos (Apontáveis)</h1>
             <p className="text-xs" style={{ color: 'var(--text-light)' }}>Visão em dashboards de Demandas e Projetos</p>
           </div>
         </div>
@@ -332,7 +333,7 @@ export default function IndicadoresProjetosPage() {
         })}
         <span className="mx-1 w-px h-4 self-center" style={{ background: 'var(--border)' }} />
         {HEALTH.map(h => {
-          const n = cards.filter(x => matchesBase(x) && healthOf(Number(x.sold_hours ?? 0), Number(x.consumed_hours ?? 0)) === h.key).length
+          const n = cards.filter(x => matchesBase(x) && healthOf(cronogramaPoolHours(x), Number(x.consumed_hours ?? 0)) === h.key).length
           const on = healthFilter.includes(h.key)
           return (
             <button key={h.key} onClick={() => setHealthFilter(prev => prev.includes(h.key) ? prev.filter(x => x !== h.key) : [...prev, h.key])}
@@ -444,7 +445,7 @@ export default function IndicadoresProjetosPage() {
                         ['status', 'Status', 'py-2 px-3'],
                         ['criticidade', 'Criticidade', 'py-2 px-3'],
                         ['entrega', 'Entrega', 'py-2 px-3 text-center'],
-                        ['horas', 'Horas (Vend./Util.)', 'py-2 px-3 text-right'],
+                        ['horas', 'Horas (Apont./Util.)', 'py-2 px-3 text-right'],
                         ['inicio', 'Início', 'py-2 px-3'],
                         ['previsao', 'Previsão', 'py-2 px-3'],
                         ['prazo', 'Prazo', 'py-2 pl-3 text-right'],
@@ -461,11 +462,11 @@ export default function IndicadoresProjetosPage() {
                   <tbody>
                     {sorted.map((p, i) => {
                       const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
-                      const hk = healthOf(Number(p.sold_hours ?? 0), Number(p.consumed_hours ?? 0))
+                      const hk = healthOf(cronogramaPoolHours(p), Number(p.consumed_hours ?? 0))
                       const h = HEALTH.find(x => x.key === hk)!
                       const del = Math.round(Number(p.delivery_percentage ?? 0))
                       const dt = daysTo(p.expected_end_date)
-                      const sold = Number(p.sold_hours ?? 0), cons = Number(p.consumed_hours ?? 0)
+                      const sold = cronogramaPoolHours(p), cons = Number(p.consumed_hours ?? 0)
                       return (
                         <tr key={p.id ?? i} onClick={() => setSelected(p)} className="cursor-pointer transition-colors hover:brightness-95" style={{ borderTop: '1px solid var(--border)', background: 'transparent' }}
                         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
@@ -501,7 +502,7 @@ export default function IndicadoresProjetosPage() {
       {/* Modal: indicadores do projeto selecionado */}
       {selected && (() => {
         const p = selected
-        const sold = Number(p.sold_hours ?? 0), cons = Number(p.consumed_hours ?? 0)
+        const sold = cronogramaPoolHours(p), cons = Number(p.consumed_hours ?? 0)
         const saldo = Math.round((sold - cons) * 100) / 100
         const pctCons = sold > 0 ? Math.min(100, Math.round((cons / sold) * 100)) : 0
         const col = COL_BY_ID[STATUS_TO_COL[p.status ?? ''] ?? 'proj_backlog']
@@ -536,7 +537,7 @@ export default function IndicadoresProjetosPage() {
               </div>
               <div className="p-6 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 90px)' }}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <Box label="Horas Vendidas" value={`${sold.toFixed(1)}h`} />
+                  <Box label="Horas Apontáveis" value={`${sold.toFixed(1)}h`} />
                   <Box label="Horas Consumidas" value={`${cons.toFixed(1)}h`} color="var(--text-muted)" />
                   <Box label="Saldo" value={`${saldo.toFixed(1)}h`} color={saldo < 0 ? '#ef4444' : '#22c55e'} />
                   <Box label="Consumido" value={`${pctCons}%`} color={h.color} bar={pctCons} />
