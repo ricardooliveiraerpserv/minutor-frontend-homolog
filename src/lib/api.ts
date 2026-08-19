@@ -111,7 +111,7 @@ function serialize(body: unknown): BodyInit | undefined {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
+  get: <T>(path: string, options?: RequestInit) => request<T>(path, options),
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: serialize(body) }),
   put: <T>(path: string, body: unknown) =>

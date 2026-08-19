@@ -7,7 +7,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Building2, ChevronRight, FileCode2, Folder, FolderGit2, GitBranch, List, Network } from 'lucide-react'
+import { ArrowLeft, Building2, ChevronRight, FileCode2, Folder, FolderGit2, GitBranch, List, Network, Search } from 'lucide-react'
 import {
   Badge, Breadcrumb, Card, EmptyState, PageHeader, SplitPanel, Skeleton, Tree,
   Table, Thead, Tbody, Tr, Th, Td,
@@ -129,6 +129,12 @@ function ProgressiveNav() {
     } catch { /* ignore */ }
   }, [router])
   const dirPathFromId = (id: string) => id.replace(`d:${customerId}:${repository}:`, '')
+  // navegação absoluta p/ resultados da busca contextual (usa dados do próprio hit)
+  const navAbs: NavAbs = useMemo(() => ({
+    file: (h) => router.push(buildAcervoHref({ customer_id: h.customer?.id ?? customerId ?? undefined, repository: h.repository, path: dirOf(h.path), doc: h.id })),
+    folder: (repo, p) => router.push(buildAcervoHref({ customer_id: customerId, repository: repo, path: p })),
+    repo: (repo) => router.push(buildAcervoHref({ customer_id: customerId, repository: repo })),
+  }), [router, customerId])
 
   const effRepo = repository || docIdent?.repository || ''
   const effCustId = customerId ?? docIdent?.customer?.id ?? null
@@ -157,9 +163,9 @@ function ProgressiveNav() {
 
   let body: React.ReactNode
   if (!customerId) body = <EmpresaList customers={customers} err={custErr} onOpen={openCustomer} />
-  else if (!repository) body = <CustomerPanel m={{ type: 'customer', customer_id: customerId, name: customerName }} onNavigateSource={gotoSource} onOpenRepo={openRepo} crumbs={crumbs} />
-  else if (!path) body = <RepoPanel m={{ type: 'repo', customer_id: customerId, customerName, repository, row: repoRow ?? undefined }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onNavigateSource={gotoSource} crumbs={crumbs} />
-  else body = <FolderPanel selected={{ type: 'dir', customer_id: customerId, customerName, repository, path }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onOpenFile={(id) => openFile(id)} onNavigateSource={gotoSource} crumbs={crumbs} />
+  else if (!repository) body = <CustomerPanel m={{ type: 'customer', customer_id: customerId, name: customerName }} onNavigateSource={gotoSource} onOpenRepo={openRepo} crumbs={crumbs} nav={navAbs} />
+  else if (!path) body = <RepoPanel m={{ type: 'repo', customer_id: customerId, customerName, repository, row: repoRow ?? undefined }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onNavigateSource={gotoSource} crumbs={crumbs} nav={navAbs} />
+  else body = <FolderPanel selected={{ type: 'dir', customer_id: customerId, customerName, repository, path }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onOpenFile={(id) => openFile(id)} onNavigateSource={gotoSource} crumbs={crumbs} nav={navAbs} />
 
   return <>{header}<Card padding="none" className="overflow-hidden"><div className="min-h-[60vh]">{body}</div></Card></>
 }
@@ -361,34 +367,54 @@ function RightPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { sel
   return <FolderPanel key={nodeIdOf(selected)} selected={selected} onOpenDir={onOpenDir} onOpenFile={onOpenFile} onNavigateSource={onNavigateSource} />
 }
 
-function CustomerPanel({ m, onNavigateSource, onOpenRepo, crumbs }: { m: Extract<Meta, { type: 'customer' }>; onNavigateSource: (id: number) => void; onOpenRepo?: (repository: string) => void; crumbs?: Crumb[] }) {
+function CustomerPanel({ m, onNavigateSource, onOpenRepo, crumbs, nav }: { m: Extract<Meta, { type: 'customer' }>; onNavigateSource: (id: number) => void; onOpenRepo?: (repository: string) => void; crumbs?: Crumb[]; nav?: NavAbs }) {
   const { k, failed } = useKnowledge({ customer_id: m.customer_id })
   const [repos, setRepos] = useState<RepoRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)).catch(() => a && setRepos([])); return () => { a = false } }, [m.customer_id])
+  const search = useScopedSearch({ customer_id: m.customer_id })
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? [{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
-    <ScopeSearch customer_id={m.customer_id} />
+    {nav && <ScopeSearchBox search={search} label={m.name} />}
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
+    {nav && search.term.trim() ? <ScopeResults search={search} scopeLabel={m.name} repos={repos} nav={nav} /> : (
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
-      {repos === null ? <Skeleton className="h-16" /> : repos.length === 0 ? <EmptyState icon={FolderGit2} title="Sem repositórios" description="Nenhum repositório de fonte nesta empresa." /> : <div className="flex flex-col gap-1">{repos.map((rp) => (
-        <button key={rp.repository} onClick={() => onOpenRepo?.(rp.repository)} disabled={!onOpenRepo} className={`flex items-center gap-3 rounded-md border border-[color:var(--border)] px-3 py-2 text-left text-sm ${onOpenRepo ? 'hover:bg-[color:var(--muted-bg,#f1f5f9)] cursor-pointer' : 'cursor-default'}`}><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /><span className="font-medium">{rp.repository}</span><span className="text-xs text-[color:var(--muted-fg)]">{rp.fontes} fontes · {rp.cobertura_semantica}%</span>{onOpenRepo && <ChevronRight size={15} className="ml-auto text-[color:var(--muted-fg)]" />}</button>
-      ))}</div>}</div></div>
+      {repos === null ? <Skeleton className="h-16" /> : repos.length === 0 ? <EmptyState icon={FolderGit2} title="Sem repositórios" description="Nenhum repositório de fonte nesta empresa." /> : (
+        <Table><Thead><Tr><Th>Repositório</Th><Th>Branch</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th></Th></Tr></Thead>
+          <Tbody>{repos.map((rp) => (
+            <Tr key={rp.repository} onClick={() => onOpenRepo?.(rp.repository)} className={onOpenRepo ? 'cursor-pointer' : ''}>
+              <Td><div className="flex items-center gap-2 font-medium"><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /> {rp.repository}</div></Td>
+              <Td>{rp.branch}</Td><Td right>{rp.fontes}</Td><Td right>{rp.documentadas}</Td><Td right>{rp.cobertura_semantica}%</Td>
+              <Td right>{onOpenRepo && <ChevronRight size={15} className="text-[color:var(--muted-fg)]" />}</Td>
+            </Tr>
+          ))}</Tbody></Table>
+      )}</div>
+    )}</div>
 }
 
-function RepoPanel({ m, onOpenDir, onNavigateSource, crumbs }: { m: Extract<Meta, { type: 'repo' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[] }) {
+function RepoPanel({ m, onOpenDir, onNavigateSource, crumbs, nav }: { m: Extract<Meta, { type: 'repo' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[]; nav?: NavAbs }) {
   const { k, failed } = useKnowledge({ customer_id: m.customer_id, repository: m.repository })
   const [dirs, setDirs] = useState<DirRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: { dirs: DirRow[] } }>(`/source-docs/tree/nodes?customer_id=${m.customer_id}&repository=${encodeURIComponent(m.repository)}&path=`).then((r) => a && setDirs(r.data.dirs)).catch(() => a && setDirs([])); return () => { a = false } }, [m.customer_id, m.repository])
+  const search = useScopedSearch({ customer_id: m.customer_id, repository: m.repository })
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? [{ label: m.customerName }, { label: m.repository }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><FolderGit2 size={18} /> {m.repository}</h2>
-    <ScopeSearch customer_id={m.customer_id} repository={m.repository} />
+    {nav && <ScopeSearchBox search={search} label={m.repository} />}
     {m.row && <div className="text-xs text-[color:var(--muted-fg)]"><span className="inline-flex items-center gap-1"><GitBranch size={12} /> {m.row.branch}</span> · Última atualização do acervo: {dt(m.row.ultima_atualizacao_acervo)} <span className="opacity-70">(não é sync do GitHub)</span></div>}
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
-    <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Estrutura principal</div>
-      {dirs === null ? <Skeleton className="h-16" /> : <div className="flex flex-wrap gap-2">{dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return (
-        <button key={d.path} onClick={() => onOpenDir(`d:${m.customer_id}:${m.repository}:${d.path}`)} className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2.5 py-1.5 text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name} <span className="text-xs text-[color:var(--muted-fg)]">{d.fontes} · {cob}%</span></button>
-      ) })}</div>}</div></div>
+    {nav && search.term.trim() ? <ScopeResults search={search} scopeLabel={`${m.customerName} / ${m.repository}`} nav={nav} /> : (
+    <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Diretórios</div>
+      {dirs === null ? <Skeleton className="h-16" /> : dirs.length === 0 ? <EmptyState icon={Folder} title="Sem diretórios" description="Repositório sem estrutura de pastas." /> : (
+        <Table><Thead><Tr><Th>Diretório</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th right>Parciais</Th><Th></Th></Tr></Thead>
+          <Tbody>{dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return (
+            <Tr key={d.path} onClick={() => onOpenDir(`d:${m.customer_id}:${m.repository}:${d.path}`)} className="cursor-pointer">
+              <Td><div className="flex items-center gap-2 font-medium"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name}</div></Td>
+              <Td right>{d.fontes}</Td><Td right>{d.documentadas}</Td><Td right>{cob}%</Td><Td right>{d.parciais}</Td>
+              <Td right><ChevronRight size={15} className="text-[color:var(--muted-fg)]" /></Td>
+            </Tr>
+          ) })}</Tbody></Table>
+      )}</div>
+    )}</div>
 }
 
-function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs }: { selected: Extract<Meta, { type: 'dir' }>; onOpenDir: (id: string) => void; onOpenFile: (id: number, fn: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[] }) {
+function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs, nav }: { selected: Extract<Meta, { type: 'dir' }>; onOpenDir: (id: string) => void; onOpenFile: (id: number, fn: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[]; nav?: NavAbs }) {
   const [data, setData] = useState<{ dirs: DirRow[]; files: FileRow[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
@@ -397,20 +423,32 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs
     api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${selected.customer_id}&repository=${encodeURIComponent(selected.repository)}&path=${encodeURIComponent(selected.path)}`).then((r) => alive && setData(r.data)).catch(() => alive && setData({ dirs: [], files: [] })).finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [selected])
+  const search = useScopedSearch({ customer_id: selected.customer_id, repository: selected.repository, path: selected.path })
+  const folderName = selected.path.split('/').filter(Boolean).slice(-1)[0] ?? selected.repository
   const builtCrumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').filter(Boolean).map((s) => ({ label: s }))]
   const files = (data?.files ?? []).filter((f) => !filter || f.semantic === filter)
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? builtCrumbs} maxItems={6} />
-    <ScopeSearch customer_id={selected.customer_id} repository={selected.repository} path={selected.path} />
+    {nav && <ScopeSearchBox search={search} label={folderName} />}
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} onHealth={(key) => setFilter(key === 'completed' || key === 'partial' || key === 'none' ? key : (key === 'gaps' ? 'partial' : null))} />
-    {loading || !data ? <Skeleton className="h-40" /> : <>
-      {data.dirs.length > 0 && <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Subdiretórios</div><div className="flex flex-wrap gap-2">{data.dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return <button key={d.path} onClick={() => onOpenDir(`d:${selected.customer_id}:${selected.repository}:${d.path}`)} className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2.5 py-1.5 text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name} <span className="text-xs text-[color:var(--muted-fg)]">{d.fontes} · {cob}%</span></button> })}</div></div>}
+    {nav && search.term.trim() ? <ScopeResults search={search} scopeLabel={`${selected.customerName} / ${selected.repository} / ${selected.path}`} nav={nav} /> : (
+    loading || !data ? <Skeleton className="h-40" /> : <>
+      {data.dirs.length > 0 && <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Subdiretórios</div>
+        <Table><Thead><Tr><Th>Diretório</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th right>Parciais</Th><Th></Th></Tr></Thead>
+          <Tbody>{data.dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return (
+            <Tr key={d.path} onClick={() => onOpenDir(`d:${selected.customer_id}:${selected.repository}:${d.path}`)} className="cursor-pointer">
+              <Td><div className="flex items-center gap-2 font-medium"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name}</div></Td>
+              <Td right>{d.fontes}</Td><Td right>{d.documentadas}</Td><Td right>{cob}%</Td><Td right>{d.parciais}</Td>
+              <Td right><ChevronRight size={15} className="text-[color:var(--muted-fg)]" /></Td>
+            </Tr>
+          ) })}</Tbody></Table></div>}
       {(data.files.length > 0) && (
         <div><div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Fontes {filter && <button onClick={() => setFilter(null)} className="text-[color:var(--accent,#2563eb)] normal-case">(limpar filtro: {filter})</button>}</div>
-        <Table><Thead><Tr><Th>Fonte</Th><Th>Conhecimento</Th><Th>Funções</Th><Th>Análise</Th><Th>Última análise</Th><Th>Custo IA</Th></Tr></Thead>
-          <Tbody>{files.map((f) => <Tr key={f.id} onClick={() => onOpenFile(f.id, f.filename)}><Td>{f.filename}</Td><Td>{semBadge(f.semantic)}</Td><Td>{f.functions_count ?? '—'}</Td><Td>{f.analysis_status}</Td><Td>{dt(f.last_change_at)}</Td><Td>{money(f.cost_usd)}</Td></Tr>)}</Tbody></Table></div>
+        <Table><Thead><Tr><Th>Fonte</Th><Th>Conhecimento</Th><Th right>Funções</Th><Th>Análise</Th><Th>Última análise</Th><Th right>Custo IA</Th></Tr></Thead>
+          <Tbody>{files.map((f) => <Tr key={f.id} onClick={() => onOpenFile(f.id, f.filename)} className="cursor-pointer"><Td>{f.filename}</Td><Td>{semBadge(f.semantic)}</Td><Td right>{f.functions_count ?? '—'}</Td><Td>{f.analysis_status}</Td><Td>{dt(f.last_change_at)}</Td><Td right>{money(f.cost_usd)}</Td></Tr>)}</Tbody></Table></div>
       )}
       {data.files.length === 0 && data.dirs.length === 0 && <EmptyState icon={Folder} title="Pasta vazia" description="Sem fontes neste nível." />}
-    </>}
+    </>
+    )}
   </div>
 }
 
@@ -418,9 +456,100 @@ function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return <div className="flex flex-col"><span className="text-xs text-[color:var(--muted-fg)]">{label}</span><span className="text-base font-semibold tabular-nums">{value}</span></div>
 }
 
-function ScopeSearch({ customer_id, repository, path }: { customer_id: number; repository?: string; path?: string }) {
-  const qs = new URLSearchParams({ scope: '1', customer_id: String(customer_id) })
-  if (repository) qs.set('repository', repository)
-  if (path) qs.set('path', path)
-  return <a href={`/central-fontes/busca?${qs.toString()}`} className="inline-flex w-fit items-center gap-1 text-xs text-[color:var(--accent,#2563eb)] hover:underline">🔍 Buscar neste escopo</a>
+// ── Busca contextual instantânea (nível atual do Acervo) — reusa GET /source-docs ──
+interface Hit { id: number; filename: string; path: string; repository: string; customer?: { id: number; name: string } | null; semantic_quality?: string; functions_count?: number | null }
+interface FolderHit { name: string; path: string; repository: string; count: number }
+type NavAbs = { file: (h: Hit) => void; folder: (repository: string, path: string) => void; repo: (repository: string) => void }
+const dirOf = (p: string) => p.split('/').slice(0, -1).join('/')
+const semLabel = (s: string) => (s === 'completed' ? 'Completa' : s === 'partial' ? 'Parcial' : 'Sem semântica')
+
+function deriveFolders(hits: Hit[], term: string): FolderHit[] {
+  const t = term.toLowerCase(); const map = new Map<string, FolderHit>()
+  for (const h of hits) {
+    const segs = h.path.split('/').filter(Boolean); let acc = ''
+    for (let i = 0; i < segs.length - 1; i++) {
+      acc = acc ? `${acc}/${segs[i]}` : segs[i]
+      if (segs[i].toLowerCase().includes(t)) { const key = `${h.repository}|${acc}`; const e = map.get(key) ?? { name: segs[i], path: acc, repository: h.repository, count: 0 }; e.count++; map.set(key, e) }
+    }
+  }
+  return [...map.values()].slice(0, 8)
+}
+
+function useScopedSearch(scope: { customer_id: number; repository?: string; path?: string }) {
+  const [term, setTerm] = useState('')
+  const [inKnowledge, setInKnowledge] = useState(false)
+  const [hits, setHits] = useState<Hit[] | null>(null) // null = sem busca ativa
+  const [updating, setUpdating] = useState(false)
+  const seq = useRef(0)
+  const ctrl = useRef<AbortController | null>(null)
+  const scopeKey = `${scope.customer_id}|${scope.repository ?? ''}|${scope.path ?? ''}`
+
+  // novo contexto → zera termo/toggle/resultados (toggle sempre volta desligado)
+  useEffect(() => { setTerm(''); setInKnowledge(false); setHits(null); setUpdating(false) }, [scopeKey])
+
+  useEffect(() => {
+    const t = term.trim()
+    if (!t) { setHits(null); setUpdating(false); if (ctrl.current) ctrl.current.abort(); return }
+    setUpdating(true)
+    const timer = setTimeout(() => {
+      const my = ++seq.current
+      if (ctrl.current) ctrl.current.abort()
+      const c = new AbortController(); ctrl.current = c
+      const p = new URLSearchParams({ q: t, per_page: '40', with_situation: 'false' })
+      p.set('customer_id', String(scope.customer_id))
+      if (scope.repository) p.set('repository', scope.repository)
+      if (scope.path) p.set('path_prefix', scope.path)
+      if (inKnowledge) p.set('in', 'knowledge')
+      api.get<{ data: Hit[] }>(`/source-docs?${p.toString()}`, { signal: c.signal })
+        .then((r) => { if (my === seq.current) { setHits(r.data); setUpdating(false) } })
+        .catch((e) => { if ((e as { name?: string })?.name === 'AbortError') return; if (my === seq.current) { setHits([]); setUpdating(false) } })
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [term, inKnowledge, scopeKey, scope.customer_id, scope.repository, scope.path])
+
+  return { term, setTerm, inKnowledge, setInKnowledge, hits, updating, clear: () => setTerm('') }
+}
+type ScopedSearch = ReturnType<typeof useScopedSearch>
+
+function ScopeSearchBox({ search, label }: { search: ScopedSearch; label: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--muted-fg)]" />
+          <input value={search.term} onChange={(e) => search.setTerm(e.target.value)} placeholder={`Buscar em ${label}…`} className="w-full rounded-lg border border-[color:var(--border)] bg-[var(--surface)] py-2 pl-9 pr-8 text-sm outline-none" />
+          {search.updating && <span className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-xs text-[color:var(--muted-fg)]">⟳</span>}
+        </div>
+        {search.term && <button onClick={search.clear} className="whitespace-nowrap text-xs text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]">Limpar busca</button>}
+      </div>
+      <label className="flex w-fit items-center gap-1.5 text-xs text-[color:var(--muted-fg)]">
+        <input type="checkbox" checked={search.inKnowledge} onChange={(e) => search.setInKnowledge(e.target.checked)} /> Buscar também no conhecimento
+      </label>
+    </div>
+  )
+}
+
+function ResultSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">{title}</div><div className="flex flex-col divide-y divide-[color:var(--border)] overflow-hidden rounded-md border border-[color:var(--border)]">{children}</div></div>
+}
+function ResultRow({ onClick, icon: Icon, title, sub }: { onClick: () => void; icon: typeof Folder; title: string; sub: string }) {
+  return <button onClick={onClick} className="flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Icon size={14} className="shrink-0 text-[color:var(--muted-fg)]" /><span className="min-w-0 truncate"><span className="font-medium">{title}</span> <span className="text-xs text-[color:var(--muted-fg)]">{sub}</span></span><ChevronRight size={15} className="ml-auto shrink-0 text-[color:var(--muted-fg)]" /></button>
+}
+
+function ScopeResults({ search, scopeLabel, repos, nav }: { search: ScopedSearch; scopeLabel: string; repos?: RepoRow[] | null; nav: NavAbs }) {
+  const hits = search.hits
+  const term = search.term.trim()
+  const folders = useMemo(() => (hits ? deriveFolders(hits, term) : []), [hits, term])
+  const matchRepos = useMemo(() => (repos ?? []).filter((r) => r.repository.toLowerCase().includes(term.toLowerCase())), [repos, term])
+  if (hits === null) return <div className="py-6 text-sm text-[color:var(--muted-fg)]">Buscando…</div>
+  const total = hits.length + folders.length + matchRepos.length
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 text-xs text-[color:var(--muted-fg)]">Buscando em: <Badge variant="default">{scopeLabel}</Badge> · {total} encontrado{total === 1 ? '' : 's'}{search.updating && <span className="animate-spin">⟳</span>}</div>
+      {total === 0 && <EmptyState icon={Search} title="Nada encontrado" description="Ajuste o termo ou limpe a busca." />}
+      {matchRepos.length > 0 && <ResultSection title="Repositórios">{matchRepos.map((r) => <ResultRow key={`r:${r.repository}`} onClick={() => nav.repo(r.repository)} icon={FolderGit2} title={r.repository} sub={`${r.fontes} fontes · ${r.cobertura_semantica}%`} />)}</ResultSection>}
+      {folders.length > 0 && <ResultSection title="Pastas">{folders.map((f) => <ResultRow key={`d:${f.repository}:${f.path}`} onClick={() => nav.folder(f.repository, f.path)} icon={Folder} title={f.name} sub={`${f.repository}/${f.path} · ${f.count} fonte${f.count === 1 ? '' : 's'}`} />)}</ResultSection>}
+      {hits.length > 0 && <ResultSection title="Fontes">{hits.map((h) => <ResultRow key={`f:${h.id}`} onClick={() => nav.file(h)} icon={FileCode2} title={h.filename} sub={`${h.repository}/${h.path}${h.semantic_quality ? ' · ' + semLabel(h.semantic_quality) : ''}${h.functions_count != null ? ' · ' + h.functions_count + ' funções' : ''}`} />)}</ResultSection>}
+    </div>
+  )
 }
