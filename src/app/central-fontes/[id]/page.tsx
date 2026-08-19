@@ -84,6 +84,14 @@ function nameOf(item: unknown): string {
 
 export default function FichaFontePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  return <SourceDocDetail docId={id} />
+}
+
+// Conteúdo rico da ficha, reutilizável: página cheia (/central-fontes/[id]) e painel
+// direito do Acervo (embedded, ao lado da árvore). embedded ajusta padding/scroll e
+// esconde o "Voltar ao catálogo".
+export function SourceDocDetail({ docId, embedded }: { docId: string | number; embedded?: boolean }) {
+  const id = String(docId)
   const [meta, setMeta] = useState<Meta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -225,10 +233,12 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
   const ghUrl = `https://github.com/${meta.owner}/${meta.repository}/blob/${meta.branch}/${meta.path}`
 
   return (
-    <>
-      <Link href="/central-fontes" className="inline-flex items-center gap-1.5 text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-        <ArrowLeft size={15} /> Voltar ao catálogo
-      </Link>
+    <div className={embedded ? 'h-full overflow-auto p-5' : ''}>
+      {!embedded && (
+        <Link href="/central-fontes" className="inline-flex items-center gap-1.5 text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+          <ArrowLeft size={15} /> Voltar ao catálogo
+        </Link>
+      )}
 
       {/* Cabeçalho + 4 status separados */}
       <Card className="mb-4">
@@ -431,7 +441,7 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
           </div>
         </Modal>
       )}
-    </>
+    </div>
   )
 }
 
