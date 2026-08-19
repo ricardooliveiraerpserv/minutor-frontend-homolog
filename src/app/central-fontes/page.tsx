@@ -9,7 +9,7 @@
 import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Crosshair, Eye, EyeOff, FileCode2, FilePlus2, FolderGit2, HelpCircle, RotateCcw, Search, XCircle,
+  AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Crosshair, EyeOff, FileCode2, FilePlus2, FolderGit2, HelpCircle, RotateCcw, Search, XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImpactoInner } from './impacto/page'
@@ -88,7 +88,7 @@ export default function CentralFontesPage() {
   const [analysis, setAnalysis] = useState('')
   const [semantic, setSemantic] = useState('')
   const [situation, setSituation] = useState('')
-  const [mainTab, setMainTab] = useState<'acervo' | 'impacto'>('acervo')
+  const [mainTab, setMainTab] = useState<'acervo' | 'impacto' | 'inativos'>('acervo')
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Acervo por Empresa (nível 1) — só aparece quando não há busca/filtro; o EmpresaBlock
@@ -144,6 +144,7 @@ export default function CentralFontesPage() {
       <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
         <button onClick={() => setMainTab('acervo')} className="flex items-center gap-1.5 px-4 py-2 font-medium" style={mainTab === 'acervo' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><FolderGit2 size={14} /> Acervo</button>
         <button onClick={() => setMainTab('impacto')} className="flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium" style={mainTab === 'impacto' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Crosshair size={14} /> Impacto</button>
+        <button onClick={() => setMainTab('inativos')} className="flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium" style={mainTab === 'inativos' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><EyeOff size={14} /> Inativos</button>
       </div>
 
       {mainTab === 'acervo' ? (<>
@@ -269,7 +270,7 @@ export default function CentralFontesPage() {
       )}
        </>
       )}
-      </>) : (<Suspense fallback={null}><ImpactoInner embedded /></Suspense>)}
+      </>) : mainTab === 'impacto' ? (<Suspense fallback={null}><ImpactoInner embedded /></Suspense>) : (<InativosPanel />)}
     </>
   )
 }
@@ -280,7 +281,6 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
   const pct = (doc: number, total: number) => total ? Math.round((doc / total) * 100) : 0
   const [customers, setCustomers] = useState<CustomerRow[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [showHidden, setShowHidden] = useState(false)
   const [busy, setBusy] = useState<number | null>(null)
   const [reqModal, setReqModal] = useState<{ customer_id: number; name: string } | null>(null)
   const [openId, setOpenId] = useState<number | null>(null)
@@ -289,12 +289,12 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
 
   const load = useCallback(() => {
     setCustomers(null); setErr(null)
+    // Acervo mostra só ATIVAS; inativas (ocultas) ficam na aba Inativos.
     const p = new URLSearchParams({ include_empty: '1' })
-    if (showHidden) p.set('include_hidden', '1')
     api.get<{ data: CustomerRow[] }>(`/source-docs/tree/customers?${p.toString()}`)
       .then((r) => setCustomers(r.data))
       .catch((e) => setErr(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.'))
-  }, [showHidden])
+  }, [])
   useEffect(() => { load() }, [load])
 
   const patchSetting = async (id: number, body: { own_source?: boolean; hidden?: boolean }) => {
@@ -306,8 +306,8 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
 
   const loadRepos = useCallback((id: number) => {
     setRepos((r) => ({ ...r, [id]: 'loading' }))
-    // include_hidden=1: traz também os desabilitados (com flag hidden) p/ reativar aqui mesmo.
-    api.get<{ data: RepoLite[] }>(`/source-docs/tree/customers/${id}/repos?include_hidden=1`)
+    // Acervo lista só repos ATIVOS; os inativos ficam na aba Inativos.
+    api.get<{ data: RepoLite[] }>(`/source-docs/tree/customers/${id}/repos`)
       .then((r) => setRepos((prev) => ({ ...prev, [id]: r.data })))
       .catch(() => setRepos((prev) => ({ ...prev, [id]: [] })))
   }, [])
@@ -335,11 +335,7 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
     <Card padding="none">
       <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2">
         <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Acervo por empresa</div>
-        {canManage && (
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs" style={{ color: 'var(--text-light)' }}>
-            <input type="checkbox" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> Mostrar ocultas
-          </label>
-        )}
+        {canManage && <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Empresas e repositórios inativos ficam na aba <b>Inativos</b>.</div>}
       </div>
       {err ? (
         <EmptyState icon={XCircle} title="Não foi possível carregar as empresas" description={err} />
@@ -389,7 +385,11 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
                   <Td right>
                     <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1.5">
                       {empty && <button onClick={() => setReqModal({ customer_id: c.customer_id, name: c.name })} className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--primary)' }}><FilePlus2 size={13} /> Solicitar fonte</button>}
-                      {canManage && <button onClick={() => void patchSetting(c.customer_id, { hidden: !c.hidden })} disabled={busy === c.customer_id} title={c.hidden ? 'Reativar empresa' : 'Ocultar empresa da Central'} style={{ color: 'var(--text-light)' }}>{c.hidden ? <Eye size={15} /> : <EyeOff size={15} />}</button>}
+                      {canManage && !empty && (
+                        <button onClick={() => void patchSetting(c.customer_id, { hidden: true })} disabled={busy === c.customer_id} title="Tornar a empresa inativa (some da Central; vai para a aba Inativos)">
+                          <Badge variant="success">Ativo</Badge>
+                        </button>
+                      )}
                     </div>
                   </Td>
                 </Tr>
@@ -397,25 +397,23 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
                   <Tr>
                     <Td colSpan={7}>
                       <div className="px-2 py-1">
-                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Repositórios de {c.name} — desabilitar tira das consultas (mantém a ingestão)</div>
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Repositórios de {c.name} — tornar inativo tira das consultas (mantém a ingestão)</div>
                         {rlist === 'loading' || rlist === undefined ? <div className="py-2 text-xs" style={{ color: 'var(--text-light)' }}>Carregando…</div>
-                          : rlist.length === 0 ? <div className="py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum repositório.</div>
+                          : rlist.length === 0 ? <div className="py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum repositório ativo.</div>
                           : (
                             <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
                               {rlist.map((rp) => {
                                 const rk = `${c.customer_id}:${rp.repository}`
                                 return (
-                                  <div key={rp.repository} className={`flex items-center gap-3 py-1.5 ${rp.hidden ? 'opacity-50' : ''}`}>
+                                  <div key={rp.repository} className="flex items-center gap-3 py-1.5">
                                     <FolderGit2 size={14} style={{ color: 'var(--text-light)' }} />
                                     <span className="font-medium" style={{ color: 'var(--text)' }}>{rp.repository}</span>
-                                    {rp.hidden && <Badge variant="default">inativo</Badge>}
                                     <span className="text-xs" style={{ color: 'var(--text-light)' }}>{rp.fontes} fontes · {rp.cobertura_semantica}%</span>
                                     {canManage && (
-                                      <button onClick={() => void toggleRepoHidden(c.customer_id, rp.repository, !rp.hidden)} disabled={repoBusy === rk}
-                                        className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-40"
-                                        style={{ color: rp.hidden ? 'var(--primary)' : 'var(--text-light)' }}
-                                        title={rp.hidden ? 'Reativar (volta às consultas)' : 'Desabilitar (some das consultas)'}>
-                                        {rp.hidden ? <><RotateCcw size={13} /> Reativar</> : <><EyeOff size={14} /> Desabilitar</>}
+                                      <button onClick={() => void toggleRepoHidden(c.customer_id, rp.repository, true)} disabled={repoBusy === rk}
+                                        className="ml-auto disabled:opacity-40"
+                                        title="Tornar o repositório inativo (some das consultas; vai para a aba Inativos)">
+                                        <Badge variant="success">Ativo</Badge>
                                       </button>
                                     )}
                                   </div>
@@ -435,6 +433,90 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
         </div>
       )}
       {reqModal && <SolicitarFonteModal ctx={{ title: `Solicitar fonte — ${reqModal.name}`, customerId: reqModal.customer_id, scopeType: 'repository', items: [] }} onClose={() => setReqModal(null)} />}
+    </Card>
+  )
+}
+
+// ── Segmento INATIVOS: local gerencial de ativo/inativo. Empresas ocultas + repositórios
+// desabilitados (= inativos). Reativar volta às consultas. Inativo mantém a ingestão.
+interface HiddenRepoRow { customer_id: number; customer_name: string | null; repository: string; fontes: number }
+function InativosPanel() {
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('source_docs.inventory')
+  const [empresas, setEmpresas] = useState<CustomerRow[] | null>(null)
+  const [repos, setRepos] = useState<HiddenRepoRow[] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    setEmpresas(null); setRepos(null)
+    api.get<{ data: CustomerRow[] }>('/source-docs/tree/customers?include_empty=1&include_hidden=1')
+      .then((r) => setEmpresas(r.data.filter((c) => c.hidden))).catch(() => setEmpresas([]))
+    api.get<{ data: HiddenRepoRow[] }>('/source-docs/repos/hidden')
+      .then((r) => setRepos(r.data)).catch(() => setRepos([]))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const reativarEmpresa = async (id: number) => {
+    setBusy(`c:${id}`)
+    try { await api.put(`/source-docs/customers/${id}/settings`, { hidden: false }); toast.success('Empresa reativada.'); load() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao reativar.') } finally { setBusy(null) }
+  }
+  const reativarRepo = async (customer_id: number, repository: string) => {
+    setBusy(`r:${customer_id}:${repository}`)
+    try { await api.put('/source-docs/repos/settings', { customer_id, repository, hidden: false }); toast.success(`Repositório "${repository}" reativado.`); load() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao reativar.') } finally { setBusy(null) }
+  }
+
+  const nEmp = empresas?.length ?? 0
+  const nRepo = repos?.length ?? 0
+  const loading = empresas === null || repos === null
+
+  return (
+    <Card padding="none">
+      <div className="px-5 pt-4 pb-2">
+        <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Inativos</div>
+        <div className="mt-0.5 text-[11px]" style={{ color: 'var(--text-light)' }}>Empresas e repositórios inativos não aparecem nas consultas (mas seguem sendo ingeridos). Reative quando precisar.</div>
+      </div>
+
+      {loading ? <SkeletonTable rows={5} cols={3} /> : nEmp === 0 && nRepo === 0 ? (
+        <EmptyState icon={EyeOff} title="Nada inativo" description="Nenhuma empresa ou repositório inativo. Torne inativo pela aba Acervo (chip Ativo)." />
+      ) : (
+        <div className="flex flex-col gap-4 px-5 pb-5">
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Empresas inativas ({nEmp})</div>
+            {nEmp === 0 ? <div className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma empresa inativa.</div> : (
+              <div className="flex flex-col divide-y rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+                {empresas!.map((c) => (
+                  <div key={c.customer_id} className="flex items-center gap-3 px-3 py-2">
+                    <Building2 size={15} style={{ color: 'var(--text-light)' }} />
+                    <span className="font-medium" style={{ color: 'var(--text)' }}>{c.name}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-light)' }}>{c.fontes} fontes · {c.repos} repos</span>
+                    <Badge variant="default">inativo</Badge>
+                    {canManage && <button onClick={() => void reativarEmpresa(c.customer_id)} disabled={busy === `c:${c.customer_id}`} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-40" style={{ color: 'var(--primary)' }}><RotateCcw size={13} /> Reativar</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Repositórios inativos ({nRepo})</div>
+            {nRepo === 0 ? <div className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum repositório inativo.</div> : (
+              <div className="flex flex-col divide-y rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+                {repos!.map((rp) => (
+                  <div key={`${rp.customer_id}:${rp.repository}`} className="flex items-center gap-3 px-3 py-2">
+                    <FolderGit2 size={15} style={{ color: 'var(--text-light)' }} />
+                    <span className="font-medium" style={{ color: 'var(--text)' }}>{rp.repository}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-light)' }}>{rp.customer_name ?? `#${rp.customer_id}`} · {rp.fontes} fontes</span>
+                    <Badge variant="default">inativo</Badge>
+                    {canManage && <button onClick={() => void reativarRepo(rp.customer_id, rp.repository)} disabled={busy === `r:${rp.customer_id}:${rp.repository}`} className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-40" style={{ color: 'var(--primary)' }}><RotateCcw size={13} /> Reativar</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
