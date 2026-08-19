@@ -50,6 +50,16 @@ function ImpactoInner() {
   const [table, setTable] = useState(sp.get('table') || '')
   const [access, setAccess] = useState<'any' | 'read' | 'write'>((sp.get('access') as 'read' | 'write') || 'any')
   const [cross, setCross] = useState(sp.get('cross') === 'true')
+  const [customerId, setCustomerId] = useState(sp.get('customer_id') || '')
+  const [customerName, setCustomerName] = useState('')
+  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
+
+  useEffect(() => {
+    api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers')
+      .then((r) => { setCustomers(r.data); const c = r.data.find((x) => String(x.customer_id) === (sp.get('customer_id') || '')); if (c) setCustomerName(c.name) })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [resp, setResp] = useState<ImpactResp | null>(null)
   const [loading, setLoading] = useState(false)
@@ -64,13 +74,24 @@ function ImpactoInner() {
       if (table.trim() && entity === 'field') p.set('table', table.trim())
       if (access !== 'any' && HAS_ACCESS.includes(entity)) p.set('access', access)
       if (cross) p.set('cross', 'true')
+      if (customerId) p.set('customer_id', customerId)
       const r = await api.get<ImpactResp>(`/source-docs/impact?${p.toString()}`)
       setResp(r)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao analisar o impacto.')
       setResp(null)
     } finally { setLoading(false) }
-  }, [entity, name, table, access, cross])
+  }, [entity, name, table, access, cross, customerId])
+
+  const pickCustomer = useCallback((id: string, nm: string) => {
+    setCustomerId(id); setCustomerName(nm)
+  }, [])
+
+  // re-executa ao trocar o cliente, se já houver um resultado (run já traz o customerId novo)
+  useEffect(() => {
+    if (resp && name.trim()) run(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId])
 
   // auto-executa quando veio com ?name= na URL (deep-link de "Ver impacto")
   useEffect(() => { if (sp.get('name')) run(1) /* eslint-disable-next-line */ }, [])
@@ -107,6 +128,7 @@ function ImpactoInner() {
               <TextInput label="Tabela (opcional)" value={table} onChange={(ev) => setTable(ev.target.value)} placeholder="ex.: SPED050" />
             </div>
           )}
+          <ClienteFilter value={customerId} name={customerName} customers={customers} onChange={pickCustomer} />
           <Button variant="primary" icon={Crosshair} loading={loading} onClick={() => run(1)}>Analisar</Button>
         </div>
         <div className="flex flex-wrap items-center gap-3 mt-3">
@@ -231,6 +253,44 @@ function IntegrationChip({ p }: { p: IntegrationProj }) {
       {p.has_path && <Badge variant="default">tem path</Badge>}
       {p.has_credential && <Badge variant="warning">credencial</Badge>}
     </span>
+  )
+}
+
+// Filtro de cliente com busca por texto (combobox): digita p/ filtrar, clica p/ selecionar, × limpa.
+function ClienteFilter({ value, name, customers, onChange }: { value: string; name: string; customers: { customer_id: number; name: string }[]; onChange: (id: string, name: string) => void }) {
+  const [q, setQ] = useState(name)
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setQ(name) }, [name])
+  const term = q.trim().toLowerCase()
+  const filtered = (term ? customers.filter((c) => c.name.toLowerCase().includes(term)) : customers).slice(0, 12)
+  return (
+    <div className="relative w-56">
+      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Cliente</label>
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+        <input
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value && value) onChange('', '') }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Todos os clientes"
+          className="w-full rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+        />
+        {value && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange('', ''); setQ('') }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm leading-none" style={{ color: 'var(--text-light)' }}>×</button>}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {filtered.map((c) => (
+            <button key={c.customer_id} type="button" onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onChange(String(c.customer_id), c.name); setQ(c.name); setOpen(false) }}
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]" style={{ color: 'var(--text)' }}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
