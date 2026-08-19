@@ -72,8 +72,8 @@ export default function AcervoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // persiste contexto mínimo (fonte selecionada) — restauração razoável ao voltar
-  useEffect(() => { try { sessionStorage.setItem(SS_KEY, JSON.stringify({ fileId, expanded: [...expanded] })) } catch {} }, [fileId, expanded])
+  // persiste contexto mínimo (fonte selecionada); revealDoc reconstrói a cadeia da árvore ao voltar
+  useEffect(() => { try { sessionStorage.setItem(SS_KEY, JSON.stringify({ fileId })) } catch {} }, [fileId])
 
   const getRepos = (cid: number) => api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${cid}/repos`).then((r) => r.data)
   const getNodes = (cid: number, repo: string, path: string) => api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${cid}&repository=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`).then((r) => r.data)
@@ -169,15 +169,17 @@ interface Knowledge {
 
 function useKnowledge(scope: { customer_id: number; repository?: string; path?: string }) {
   const [k, setK] = useState<Knowledge | null>(null)
-  useEffect(() => { let alive = true; setK(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { let alive = true; setK(null); setFailed(false)
     const qs = `customer_id=${scope.customer_id}${scope.repository ? `&repository=${encodeURIComponent(scope.repository)}` : ''}${scope.path ? `&path=${encodeURIComponent(scope.path)}` : ''}`
-    api.get<{ data: Knowledge }>(`/source-docs/tree/knowledge?${qs}`).then((r) => alive && setK(r.data)).catch(() => {})
+    api.get<{ data: Knowledge }>(`/source-docs/tree/knowledge?${qs}`).then((r) => alive && setK(r.data)).catch(() => alive && setFailed(true))
     return () => { alive = false }
   }, [scope.customer_id, scope.repository, scope.path])
-  return k
+  return { k, failed }
 }
 
-function KnowledgeBlock({ k, onNavigateSource, onHealth }: { k: Knowledge | null; onNavigateSource?: (id: number) => void; onHealth?: (key: string) => void }) {
+function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledge | null; failed?: boolean; onNavigateSource?: (id: number) => void; onHealth?: (key: string) => void }) {
+  if (failed) return <div className="rounded-md bg-[var(--danger-bg,#fef2f2)] px-3 py-2 text-xs text-[var(--danger-fg,#b91c1c)]">Não foi possível carregar o conhecimento agregado deste escopo.</div>
   if (!k) return <Skeleton className="h-40" />
   const chip = (label: string, n: number, key: string, tone: string) => (
     <button disabled={!onHealth} onClick={() => onHealth?.(key)} className={`rounded-md border border-[color:var(--border)] px-2.5 py-1 text-xs ${onHealth ? 'hover:bg-[color:var(--muted-bg,#f1f5f9)]' : 'cursor-default'}`}>
@@ -228,12 +230,12 @@ function RightPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { sel
 }
 
 function CustomerPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type: 'customer' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void }) {
-  const k = useKnowledge({ customer_id: m.customer_id })
+  const { k, failed } = useKnowledge({ customer_id: m.customer_id })
   const [repos, setRepos] = useState<RepoRow[] | null>(null)
-  useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)); return () => { a = false } }, [m.customer_id])
+  useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)).catch(() => a && setRepos([])); return () => { a = false } }, [m.customer_id])
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
     <ScopeSearch customer_id={m.customer_id} />
-    <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} />
+    <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
       {repos === null ? <Skeleton className="h-16" /> : <div className="flex flex-col gap-1">{repos.map((rp) => (
         <div key={rp.repository} className="flex items-center gap-3 rounded-md border border-[color:var(--border)] px-3 py-2 text-sm"><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /><span className="font-medium">{rp.repository}</span><span className="text-xs text-[color:var(--muted-fg)]">{rp.fontes} fontes · {rp.cobertura_semantica}%</span></div>
@@ -241,13 +243,13 @@ function CustomerPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { 
 }
 
 function RepoPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type: 'repo' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void }) {
-  const k = useKnowledge({ customer_id: m.customer_id, repository: m.repository })
+  const { k, failed } = useKnowledge({ customer_id: m.customer_id, repository: m.repository })
   const [dirs, setDirs] = useState<DirRow[] | null>(null)
-  useEffect(() => { let a = true; api.get<{ data: { dirs: DirRow[] } }>(`/source-docs/tree/nodes?customer_id=${m.customer_id}&repository=${encodeURIComponent(m.repository)}&path=`).then((r) => a && setDirs(r.data.dirs)); return () => { a = false } }, [m.customer_id, m.repository])
+  useEffect(() => { let a = true; api.get<{ data: { dirs: DirRow[] } }>(`/source-docs/tree/nodes?customer_id=${m.customer_id}&repository=${encodeURIComponent(m.repository)}&path=`).then((r) => a && setDirs(r.data.dirs)).catch(() => a && setDirs([])); return () => { a = false } }, [m.customer_id, m.repository])
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.customerName }, { label: m.repository }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><FolderGit2 size={18} /> {m.repository}</h2>
     <ScopeSearch customer_id={m.customer_id} repository={m.repository} />
     {m.row && <div className="text-xs text-[color:var(--muted-fg)]"><span className="inline-flex items-center gap-1"><GitBranch size={12} /> {m.row.branch}</span> · Última atualização do acervo: {dt(m.row.ultima_atualizacao_acervo)} <span className="opacity-70">(não é sync do GitHub)</span></div>}
-    <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} />
+    <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Estrutura principal</div>
       {dirs === null ? <Skeleton className="h-16" /> : <div className="flex flex-wrap gap-2">{dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return (
         <button key={d.path} onClick={() => onOpenDir(`d:${m.customer_id}:${m.repository}:${d.path}`)} className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2.5 py-1.5 text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name} <span className="text-xs text-[color:var(--muted-fg)]">{d.fontes} · {cob}%</span></button>
@@ -258,16 +260,16 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { se
   const [data, setData] = useState<{ dirs: DirRow[]; files: FileRow[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
-  const k = useKnowledge({ customer_id: selected.customer_id, repository: selected.repository, path: selected.path })
+  const { k, failed } = useKnowledge({ customer_id: selected.customer_id, repository: selected.repository, path: selected.path })
   useEffect(() => { let alive = true; setLoading(true); setFilter(null)
-    api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${selected.customer_id}&repository=${encodeURIComponent(selected.repository)}&path=${encodeURIComponent(selected.path)}`).then((r) => alive && setData(r.data)).finally(() => alive && setLoading(false))
+    api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${selected.customer_id}&repository=${encodeURIComponent(selected.repository)}&path=${encodeURIComponent(selected.path)}`).then((r) => alive && setData(r.data)).catch(() => alive && setData({ dirs: [], files: [] })).finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [selected])
-  const crumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').map((s) => ({ label: s }))]
+  const crumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').filter(Boolean).map((s) => ({ label: s }))]
   const files = (data?.files ?? []).filter((f) => !filter || f.semantic === filter)
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs} maxItems={6} />
     <ScopeSearch customer_id={selected.customer_id} repository={selected.repository} path={selected.path} />
-    <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} onHealth={(key) => setFilter(key === 'completed' || key === 'partial' || key === 'none' ? key : (key === 'gaps' ? 'partial' : null))} />
+    <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} onHealth={(key) => setFilter(key === 'completed' || key === 'partial' || key === 'none' ? key : (key === 'gaps' ? 'partial' : null))} />
     {loading || !data ? <Skeleton className="h-40" /> : <>
       {data.dirs.length > 0 && <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Subdiretórios</div><div className="flex flex-wrap gap-2">{data.dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return <button key={d.path} onClick={() => onOpenDir(`d:${selected.customer_id}:${selected.repository}:${d.path}`)} className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2.5 py-1.5 text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name} <span className="text-xs text-[color:var(--muted-fg)]">{d.fontes} · {cob}%</span></button> })}</div></div>}
       {(data.files.length > 0) && (

@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Search } from 'lucide-react'
 import { Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, TextInput, Tr } from '@/components/ds'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 
 type Mode = 'nome' | 'conhecimento' | 'simbolo'
 type Entity = 'table' | 'field' | 'function' | 'dependency'
@@ -17,7 +17,7 @@ const SS = 'busca-ctx'
 interface CatalogRow { id: number; filename: string; path: string; repository: string; customer: { name: string } | null; semantic_quality: string; analysis_status: string }
 interface SymbolHit { source_doc: { id: number; filename: string; path: string; repository: string; customer: { name: string } | null }; occurrences: { entity_type: string; name: string; line_start?: number }[] }
 
-const semBadge = (s: string) => s === 'completed' ? <Badge variant="success">Completa</Badge> : s === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">—</Badge>
+const semBadge = (s: string) => s === 'completed' ? <Badge variant="success">Completa</Badge> : s === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">Sem semântica</Badge>
 
 export default function BuscaPage() {
   const [mode, setMode] = useState<Mode>('nome')
@@ -37,6 +37,8 @@ export default function BuscaPage() {
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [autoRun, setAutoRun] = useState(false)
   const inited = useRef(false)
 
   // empresas p/ o filtro
@@ -46,7 +48,7 @@ export default function BuscaPage() {
 
   const run = useCallback(async (toPage = 1) => {
     if (!q.trim() && mode !== 'nome') return
-    setLoading(true); setPage(toPage)
+    setLoading(true); setPage(toPage); setError(null)
     try {
       if (mode === 'simbolo') {
         const p = new URLSearchParams({ entity, q: q.trim(), match: 'contains', per_page: '30', page: String(toPage) })
@@ -64,8 +66,14 @@ export default function BuscaPage() {
         setRows(r.data); setHits(null); setPages(r.pagination.last_page)
       }
       try { sessionStorage.setItem(SS, JSON.stringify({ mode, entity, q, customerId, repository, path, lang, semantic })) } catch {}
+    } catch (e) {
+      setRows(null); setHits(null)
+      setError(e instanceof ApiError ? e.message : 'Falha ao buscar. Tente novamente.')
     } finally { setLoading(false) }
   }, [mode, entity, q, customerId, repository, path, lang, semantic])
+
+  // deep-link ?q= dispara a busca só depois que termo/escopo entraram no estado (evita closure obsoleta)
+  useEffect(() => { if (autoRun) { setAutoRun(false); void run(1) } }, [autoRun, run])
 
   // reconstrução de contexto: ?customer_id/&repository/&path (Buscar neste escopo) OU sessionStorage
   useEffect(() => {
@@ -73,7 +81,7 @@ export default function BuscaPage() {
     const u = new URLSearchParams(window.location.search)
     if (u.get('customer_id') || u.get('scope')) {
       setCustomerId(u.get('customer_id') || ''); setRepository(u.get('repository') || ''); setPath(u.get('path') || '')
-      if (u.get('q')) { setQ(u.get('q') || ''); setTimeout(() => void run(1), 50) }
+      if (u.get('q')) { setQ(u.get('q') || ''); setAutoRun(true) }
       return
     }
     try { const s = JSON.parse(sessionStorage.getItem(SS) || '{}'); if (s.q !== undefined) { setMode(s.mode || 'nome'); setEntity(s.entity || 'function'); setQ(s.q || ''); setCustomerId(s.customerId || ''); setRepository(s.repository || ''); setPath(s.path || ''); setLang(s.lang || ''); setSemantic(s.semantic || '') } } catch {}
@@ -108,7 +116,8 @@ export default function BuscaPage() {
         </div>
       </Card>
 
-      {loading ? <SkeletonTable /> : hits ? (
+      {error && <div className="mb-4 rounded-lg bg-[var(--danger-bg,#fef2f2)] px-4 py-3 text-sm text-[var(--danger-fg,#b91c1c)]">{error}</div>}
+      {loading ? <SkeletonTable /> : error ? null : hits ? (
         hits.length === 0 ? <EmptyState icon={Search} title="Sem resultados" description="Nenhum símbolo encontrado." /> : (
           <Table><Thead><Tr><Th>Fonte</Th><Th>Empresa / Repo</Th><Th>Ocorrências</Th><Th>Acervo</Th></Tr></Thead>
             <Tbody>{hits.map((h) => <Tr key={h.source_doc.id}><Td><div className="font-medium">{h.source_doc.filename}</div><div className="text-xs text-[color:var(--muted-fg)]">{h.source_doc.path}</div></Td><Td>{h.source_doc.customer?.name} / {h.source_doc.repository}</Td><Td className="text-xs">{h.occurrences.slice(0, 4).map((o) => o.name).join(', ')}{h.occurrences.length > 4 ? '…' : ''}</Td><Td><Acervo id={h.source_doc.id} /></Td></Tr>)}</Tbody></Table>

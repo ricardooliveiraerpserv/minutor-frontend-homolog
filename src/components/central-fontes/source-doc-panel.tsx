@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowRight, ExternalLink, FileCode2 } from 'lucide-react'
 import { Accordion, AccordionItem, Badge, Breadcrumb, Card, Skeleton, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import type { Crumb } from '@/components/ds'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 
 type Dict = Record<string, unknown>
 const A = (v: unknown): Dict[] => Array.isArray(v) ? (v as Dict[]) : []
@@ -37,10 +37,11 @@ export function SourceDocPanel({ docId, onNavigateSource }: { docId: number; onN
   const [code, setCode] = useState<{ content: string; bytes: number } | null>(null)
   const [tab, setTab] = useState<Tab>('Visão Geral')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let alive = true; setLoading(true); setMeta(null); setDet(null); setVersions(null); setCode(null); setTab('Visão Geral')
-    api.get<{ data: Meta }>(`/source-docs/${docId}`).then((r) => alive && setMeta(r.data)).catch(() => {}).finally(() => alive && setLoading(false))
+    let alive = true; setLoading(true); setError(null); setMeta(null); setDet(null); setVersions(null); setCode(null); setTab('Visão Geral')
+    api.get<{ data: Meta }>(`/source-docs/${docId}`).then((r) => alive && setMeta(r.data)).catch((e) => alive && setError(e instanceof ApiError ? e.message : 'Falha ao carregar a fonte.')).finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [docId])
 
@@ -63,11 +64,12 @@ export function SourceDocPanel({ docId, onNavigateSource }: { docId: number; onN
   const ef = useMemo(() => D(sm.entendimento_funcional), [sm])
   const ghUrl = meta ? `https://github.com/${meta.owner}/${meta.repository}/blob/${meta.branch}/${meta.path}` : '#'
 
-  if (loading || !meta) return <div className="p-5"><Skeleton className="h-64" /></div>
+  if (loading) return <div className="p-5"><Skeleton className="h-64" /></div>
+  if (error || !meta) return <div className="p-5 text-sm text-[color:var(--danger-fg,#b91c1c)]">{error ?? 'Fonte indisponível.'}</div>
 
   const crumbs: Crumb[] = [
     { label: meta.customer?.name ?? '—' }, { label: meta.repository },
-    ...meta.path.split('/').slice(0, -1).map((s) => ({ label: s })), { label: meta.filename },
+    ...meta.path.split('/').filter(Boolean).slice(0, -1).map((s) => ({ label: s })), { label: meta.filename },
   ]
   const sem = meta.current_version?.semantic_quality
   const compl = S(D(sm.documentary_completeness).level)
@@ -86,7 +88,7 @@ export function SourceDocPanel({ docId, onNavigateSource }: { docId: number; onN
           <a href={ghUrl} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]"><ExternalLink size={13} /> GitHub</a>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--muted-fg)]">
-          <span>Semântica: {sem === 'completed' ? <Badge variant="success">Completa</Badge> : sem === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">—</Badge>}</span>
+          <span>Semântica: {sem === 'completed' ? <Badge variant="success">Completa</Badge> : sem === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">Sem semântica</Badge>}</span>
           {compl && <span>Completude: {compl}</span>}
           {meta.lang && <span>Ling.: {meta.lang}</span>}
           <span>Última análise: {dt(meta.current_version?.created_at)}</span>
