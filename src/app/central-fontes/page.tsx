@@ -6,11 +6,12 @@
 // como tal). Lista enxuta; ficha detalhada em /central-fontes/[id].
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, Building2, CheckCircle2, ChevronRight, FileCode2, FolderGit2, HelpCircle, Search, XCircle,
+  AlertTriangle, Building2, CheckCircle2, ChevronRight, Crosshair, FileCode2, FolderGit2, HelpCircle, Search, XCircle,
 } from 'lucide-react'
+import { ImpactoInner } from './impacto/page'
 import {
   Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable,
   Table, Tbody, Td, Th, Thead, Tr,
@@ -82,6 +83,7 @@ export default function CentralFontesPage() {
   const [analysis, setAnalysis] = useState('')
   const [semantic, setSemantic] = useState('')
   const [situation, setSituation] = useState('')
+  const [mainTab, setMainTab] = useState<'acervo' | 'impacto'>('acervo')
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Acervo por Empresa (nível 1 da navegação progressiva) — só aparece quando não há busca/filtro
@@ -141,6 +143,12 @@ export default function CentralFontesPage() {
         subtitle="Catálogo técnico vivo — documentação, situação e histórico dos fontes por cliente."
       />
 
+      <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
+        <button onClick={() => setMainTab('acervo')} className="flex items-center gap-1.5 px-4 py-2 font-medium" style={mainTab === 'acervo' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><FolderGit2 size={14} /> Acervo</button>
+        <button onClick={() => setMainTab('impacto')} className="flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium" style={mainTab === 'impacto' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Crosshair size={14} /> Impacto</button>
+      </div>
+
+      {mainTab === 'acervo' ? (<>
       {/* Indicadores — 100% do banco (clicáveis) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
         {chips.map((c) => (
@@ -263,6 +271,7 @@ export default function CentralFontesPage() {
       )}
        </>
       )}
+      </>) : (<Suspense fallback={null}><ImpactoInner embedded /></Suspense>)}
     </>
   )
 }
