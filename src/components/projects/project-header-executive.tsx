@@ -6,8 +6,9 @@ import { CalendarDays, Pencil, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
-import { useApiQuery } from '@/hooks/use-query'
 import { useDelayRisk } from '@/hooks/use-delay-risk'
+import { useProjectSchedule } from '@/hooks/use-project-schedule'
+import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
 interface Project {
   id: number
@@ -17,19 +18,12 @@ interface Project {
   status_display?: string
   customer?: { id: number; name: string } | null
   sold_hours?: number | string | null
+  coordination_hours?: number | string | null
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
   coordinators?: { id: number; name: string }[] | null
   executivo_conta?: { id: number; name: string } | null
-}
-
-interface TimesheetItem {
-  id: number
-  date: string
-  user?: { name: string } | null
-  effort_minutes: number
-  observation?: string | null
 }
 
 interface Props {
@@ -48,35 +42,24 @@ function formatHours(value: number): string {
   return value >= 100 ? `${Math.round(value)}h` : `${value.toFixed(1)}h`
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'agora'
-  if (m < 60) return `há ${m}min`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `há ${h}h`
-  const d = Math.floor(h / 24)
-  return `há ${d}d`
-}
-
-function KPI({ label, value, sub }: { label: string; value: string; sub?: string }) {
+// Indicador compacto (~70px) da tira do header.
+function KPI({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
   return (
     <div style={{
-      padding: '6px 12px',
+      padding: '10px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: '1px solid var(--border)',
       minWidth: 0,
-      display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
     }}>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
         {label}
       </div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
+      <div style={{ fontSize: 19, fontWeight: 600, color: valueColor ?? 'var(--text)', marginTop: 2, lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
           {sub}
         </div>
       )}
@@ -100,11 +83,12 @@ function PrazoKPI({
   const [saving, setSaving] = useState(false)
 
   const hasDate = Boolean(expectedEndDate)
-  const isOverdue = hasDate && new Date(expectedEndDate as string) < new Date(new Date().toDateString())
+  // Data YYYY-MM-DD via `new Date()` é parseada como UTC → deslocava 1 dia no
+  // Brasil (UTC-3), exibindo a véspera. Parse como meia-noite LOCAL.
+  const endLocal = hasDate ? new Date((expectedEndDate as string).slice(0, 10) + 'T00:00:00') : null
+  const isOverdue = !!endLocal && endLocal < new Date(new Date().toDateString())
 
-  const displayDate = hasDate
-    ? new Date(expectedEndDate as string).toLocaleDateString('pt-BR')
-    : '—'
+  const displayDate = endLocal ? endLocal.toLocaleDateString('pt-BR') : '—'
 
   async function save() {
     if (saving) return
@@ -123,18 +107,17 @@ function PrazoKPI({
 
   return (
     <div style={{
-      padding: '6px 12px',
+      padding: '10px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border)'}`,
       minWidth: 0,
-      position: 'relative',
     }}>
       <div style={{
         fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em',
-        display: 'flex', alignItems: 'center', gap: 6,
+        display: 'flex', alignItems: 'center', gap: 5,
       }}>
-        <CalendarDays size={11} /> Prazo de entrega
+        <CalendarDays size={10} /> Prazo
       </div>
 
       {!editing ? (
@@ -145,23 +128,21 @@ function PrazoKPI({
           style={{
             background: 'transparent', border: 'none', padding: 0, margin: 0,
             cursor: canEdit ? 'pointer' : 'default',
-            display: 'flex', alignItems: 'baseline', gap: 8,
-            marginTop: 0, width: '100%', textAlign: 'left',
+            display: 'flex', alignItems: 'baseline', gap: 6,
+            marginTop: 2, width: '100%', textAlign: 'left',
           }}
         >
           <span style={{
-            fontSize: 16, fontWeight: 600,
+            fontSize: 19, fontWeight: 600, lineHeight: 1.1,
             color: hasDate ? (isOverdue ? 'var(--danger)' : 'var(--text)') : 'var(--text-muted)',
             fontStyle: hasDate ? 'normal' : 'italic',
           }}>
-            {hasDate ? displayDate : 'Definir prazo'}
+            {hasDate ? displayDate : 'Definir'}
           </span>
-          {canEdit && (
-            <Pencil size={11} style={{ color: 'var(--text-light)', marginLeft: 'auto' }} />
-          )}
+          {canEdit && <Pencil size={10} style={{ color: 'var(--text-light)', marginLeft: 'auto' }} />}
         </button>
       ) : (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
           <input
             type="date"
             className="ds-input"
@@ -172,32 +153,19 @@ function PrazoKPI({
               if (e.key === 'Enter') save()
               if (e.key === 'Escape') setEditing(false)
             }}
-            style={{ fontSize: 14, padding: '4px 8px', flex: 1, minWidth: 0 }}
+            style={{ fontSize: 13, padding: '3px 6px', flex: 1, minWidth: 0 }}
           />
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="ds-btn-primary"
-            style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
-          >
-            {saving ? '…' : 'Salvar'}
+          <button type="button" onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }}>
+            {saving ? '…' : 'OK'}
           </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="ds-btn-ghost"
-            style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }}
-          >
-            ✕
-          </button>
+          <button type="button" onClick={() => setEditing(false)} className="ds-btn-ghost" style={{ fontSize: 12, padding: '3px 6px', flexShrink: 0 }}>✕</button>
         </div>
       )}
 
       {hasDate && !editing && (
-        <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 0 }}>
+        <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 2 }}>
           {(() => {
-            const d = new Date(expectedEndDate as string)
+            const d = new Date(endLocal as Date)
             d.setHours(0, 0, 0, 0)
             const today = new Date()
             today.setHours(0, 0, 0, 0)
@@ -207,7 +175,7 @@ function PrazoKPI({
             if (days < 0)  return `${Math.abs(days)} dia(s) em atraso`
             if (days < 30) return `em ${days} dia(s)`
             const months = Math.round(days / 30)
-            return `em ~${months} mês${months === 1 ? '' : 'es'}`
+            return `em ~${months} ${months === 1 ? 'mês' : 'meses'}`
           })()}
         </div>
       )}
@@ -217,153 +185,140 @@ function PrazoKPI({
 
 export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
   const canEditPrazo = user?.type !== 'consultor' && user?.type !== 'cliente'
   const pathname = usePathname()
-  // No Cronograma, Vendidas/Consumidas/Saldo vivem na faixa única de indicadores (page.tsx)
-  // → não duplica aqui. Nas outras abas (ex.: Gestão Operacional) segue no header.
   const onCronograma = (pathname ?? '').includes('/cronograma')
 
-  const sold = n(project.sold_hours)
+  // Horas APONTÁVEIS (pool liberado à gestão) — nunca a base comercial "Vendidas".
+  const appointable = cronogramaPoolHours(project)
   const consumed = n(project.consumed_hours)
-  const balance = n(project.general_hours_balance)
-  const pct = sold > 0 ? Math.min(100, (consumed / sold) * 100) : 0
+  const balance = appointable - consumed
+  const pct = appointable > 0 ? Math.min(100, (consumed / appointable) * 100) : 0
 
   const healthColor =
     pct >= 90 ? 'var(--danger)' :
     pct >= 70 ? 'var(--warning)' : 'var(--success)'
 
-  // Última atividade — V1: último timesheet do projeto
-  const { data: tsResp } = useApiQuery<{ items: TimesheetItem[] }>(
-    `/timesheets?project_id=${project.id}&pageSize=1&order=-date,-created_at`
-  )
-  const last = tsResp?.items?.[0]
-
   // Risco de atraso (Pilar 2): última etapa termina depois do prazo macro?
   const { data: delayRisk } = useDelayRisk(project.id)
 
+  // Evolução das atividades — barra abaixo do progresso de horas.
+  const { executive: exec } = useProjectSchedule(project.id)
+
+  // Risco geral do header (badge): compõe horas + risco de atraso.
+  const riskLevel: 'baixo' | 'medio' | 'alto' =
+    (pct >= 90 || (delayRisk?.has_risk === true && delayRisk.delay_days >= 14)) ? 'alto'
+    : (pct >= 70 || delayRisk?.has_risk === true) ? 'medio' : 'baixo'
+  const riskMeta = {
+    baixo: { cls: 'ds-status-success', dot: '🟢', label: 'Baixo' },
+    medio: { cls: 'ds-status-warning', dot: '🟡', label: 'Médio' },
+    alto:  { cls: 'ds-status-danger',  dot: '🔴', label: 'Alto' },
+  }[riskLevel]
+
   return (
-    <div style={{
-      padding: '8px 24px 10px',
+    <>
+    {/* BLOCO 1 — identidade + cards (rola normalmente com a página; não gruda no topo) */}
+    <div id="proj-page-header" style={{
+      position: 'relative', zIndex: 30,
+      padding: '8px 24px 8px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
+      boxShadow: '0 6px 8px -6px rgba(0,0,0,.16)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
-              {project.name}
-            </h1>
-            {project.code && (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                {project.code}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-            {project.customer?.name && <span>{project.customer.name}</span>}
-            {project.status_display && (
-              <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>
-                {project.status_display}
-              </span>
-            )}
-            {((project as any).kanban_override_coordinator || (project.coordinators && project.coordinators.length > 0)) && (
-              <span title="Coordenador do projeto">👤 {(project as any).kanban_override_coordinator?.name ?? project.coordinators![0].name}</span>
-            )}
-            {project.executivo_conta?.name && (
-              <span title="Executivo de conta">🎯 Exec: {project.executivo_conta.name}</span>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Linha 1 — identidade + pessoas + risco + alertas (barra superior) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{project.name}</h1>
+        {project.code && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{project.code}</span>
+        )}
+        {project.customer?.name && (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>· {project.customer.name}</span>
+        )}
+        {project.status_display && (
+          <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>{project.status_display}</span>
+        )}
+        {project.coordinators && project.coordinators.length > 0 && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }} title="Responsável">👤 {project.coordinators[0].name}</span>
+        )}
+        {project.executivo_conta?.name && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }} title="Executivo de conta">🎯 {project.executivo_conta.name}</span>
+        )}
 
-      {/* Vendidas · Consumidas · Saldo + Prazo. No Cronograma TODO o bloco some
-          (vai pra faixa única do page.tsx); nas outras abas (Gestão Operacional) fica aqui. */}
-      {!onCronograma && (
-      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'stretch' }}>
-        <div style={{
-          flex: '1 1 320px', minWidth: 0,
-          padding: '7px 14px', borderRadius: 8,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-        }}>
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Vendidas</span>
-            <strong style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{formatHours(sold)}</strong>
-          </span>
-          <span style={{ opacity: .3 }}>·</span>
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Consumidas</span>
-            <strong style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{formatHours(consumed)}</strong>
-            {sold > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{Math.round(pct)}%</span>}
-          </span>
-          <span style={{ opacity: .3 }}>·</span>
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Saldo</span>
-            <strong style={{ fontSize: 16, fontWeight: 600, color: balance < 0 ? 'var(--danger)' : 'var(--text)' }}>{formatHours(balance)}</strong>
-          </span>
-          {sold > 0 && (
-            <div style={{ flex: '1 1 100px', minWidth: 70, height: 4, background: 'var(--surface-hover)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
-            </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Alertas → indicador compacto na barra (era banner) */}
+          {!isConsultor && delayRisk?.has_risk && delayRisk.latest_stage_end && (
+            <span
+              className={`ds-status ${delayRisk.delay_days >= 14 ? 'ds-status-danger' : 'ds-status-warning'}`}
+              style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              title={`Última etapa termina em ${new Date(delayRisk.latest_stage_end).toLocaleDateString('pt-BR')} — ${delayRisk.delay_days} dia(s) após o prazo do projeto`}
+            >
+              <AlertTriangle size={11} /> {delayRisk.delay_days}d de atraso
+            </span>
+          )}
+          {/* Risco → badge (era card) */}
+          {!isConsultor && (
+            <span className={`ds-status ${riskMeta.cls}`} style={{ fontSize: 11 }} title="Risco geral (horas + prazo)">
+              {riskMeta.dot} {riskMeta.label}
+            </span>
           )}
         </div>
-        <PrazoKPI
-          projectId={project.id}
-          expectedEndDate={project.expected_end_date}
-          canEdit={canEditPrazo}
-          onChange={onProjectChange}
-        />
       </div>
-      )}
 
-      {delayRisk?.has_risk && delayRisk.latest_stage_end && (
+      {/* Linha 2 — indicadores ~70px */}
+      {/* Consultor: NÃO vê os KPIs de horas do projeto nem o card de Prazo — o prazo aparece
+          na atividade (card do kanban/lista). Só perfis de gestão veem esta faixa.
+          No Cronograma some (vai pra faixa única aglutinada do page.tsx); nas outras abas fica. */}
+      {!isConsultor && !onCronograma && (
         <div style={{
-          marginTop: 6,
-          padding: '6px 10px',
-          borderRadius: 6,
-          background: delayRisk.delay_days >= 14 ? 'var(--danger-bg)' : 'var(--warning-bg)',
-          color: delayRisk.delay_days >= 14 ? 'var(--danger)' : 'var(--warning)',
-          fontSize: 12,
-          fontWeight: 500,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: 8,
+          marginTop: 8,
         }}>
-          <AlertTriangle size={13} />
-          <span>
-            Última etapa termina em{' '}
-            <strong>{new Date(delayRisk.latest_stage_end).toLocaleDateString('pt-BR')}</strong>
-            {' — '}
-            {delayRisk.delay_days} dia{delayRisk.delay_days === 1 ? '' : 's'} após o prazo do projeto
+          <KPI label="Apontáveis" value={formatHours(appointable)} />
+          <KPI label="Consumidas" value={formatHours(consumed)} sub={appointable > 0 ? `${Math.round(pct)}%` : undefined} valueColor={healthColor} />
+          <KPI label="Saldo" value={formatHours(balance)} sub={appointable > 0 ? `${Math.round(100 - pct)}%` : undefined} />
+          <PrazoKPI
+            projectId={project.id}
+            expectedEndDate={project.expected_end_date}
+            canEdit={canEditPrazo}
+            onChange={onProjectChange}
+          />
+        </div>
+      )}
+    </div>
+
+    {/* Barras de progresso — ROLAM (fora do bloco fixo) */}
+    {!isConsultor && (appointable > 0 || (exec && exec.total_deliveries > 0)) && (
+    <div style={{ padding: '6px 24px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+      {/* Barra de progresso geral (com informação: % + consumidas/restantes) */}
+      {appointable > 0 && (
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: healthColor, minWidth: 38 }}>{Math.round(pct)}%</span>
+          <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            {formatHours(consumed)} consumidas · {formatHours(balance)} restantes
           </span>
         </div>
       )}
 
-      {last && (
-        <div style={{
-          marginTop: 6,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <span style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'var(--success)',
-            display: 'inline-block',
-          }} />
-          <span>
-            <strong style={{ color: 'var(--text)', fontWeight: 500 }}>{last.user?.name ?? 'Alguém'}</strong>
-            {' apontou '}
-            {formatHours((last.effort_minutes ?? 0) / 60)}
-            {' · '}
-            {timeAgo(last.date)}
+      {/* Evolução das atividades — barra logo abaixo do progresso de horas */}
+      {exec && exec.total_deliveries > 0 && (
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)', minWidth: 38 }}>{Math.round(exec.progress_pct ?? 0)}%</span>
+          <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(100, exec.progress_pct ?? 0)}%`, background: 'var(--primary)', transition: 'width .3s ease' }} />
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            Evolução · {exec.done_deliveries}/{exec.total_deliveries} atividades
           </span>
         </div>
       )}
     </div>
+    )}
+    </>
   )
 }

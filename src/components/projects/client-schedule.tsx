@@ -300,8 +300,8 @@ export function ClientSchedule({ projectId }: { projectId: number }) {
   }
 
   const stages = data.stages ?? []
-  // Abre a conversa da atividade DENTRO do cronograma (drawer), sem navegar pra outra tela.
-  const openCard = (d: ClientDelivery) => setOpenActId(d.id)
+  // Cliente é READ-ONLY no cronograma: não abre o card / drawer da atividade.
+  const openCard = (_d: ClientDelivery) => {}
   const flat: FlatDelivery[] = stages.flatMap(s => s.deliveries.map(d => ({ ...d, stageName: s.name })))
 
   return (

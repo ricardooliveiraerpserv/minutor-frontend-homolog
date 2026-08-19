@@ -1,20 +1,25 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ApiError, api } from '@/lib/api'
-import { useApiQuery } from '@/hooks/use-query'
 import { toast } from 'sonner'
 import {
-  Info, Plus, Settings, Pencil,
+  Info, Plus, Eye, EyeOff, Settings, Pencil,
   Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, Activity, Bell,
+  LayoutGrid, List,
 } from 'lucide-react'
 import { useProjectSchedule, type LastMovement } from '@/hooks/use-project-schedule'
+import { useApiQuery } from '@/hooks/use-query'
 import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
+import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
+import { useExecutiveMode } from '@/hooks/use-executive-mode'
 import type { ProjectStage } from '@/lib/types/project-stage'
 import { OperacaoView } from './views/operacao'
+import { ActivityGroups, DespesasView } from '../gestao-operacional/page'
 import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
 import { IndicadoresView } from './views/indicadores'
@@ -54,6 +59,10 @@ function normalizeView(raw: string | null): ViewMode | null {
  * silently na leitura inicial e em localStorage).
  */
 export default function CronogramaPage() {
+  return <Suspense fallback={null}><CronogramaPageInner /></Suspense>
+}
+
+function CronogramaPageInner() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
   const { user } = useAuth()
@@ -219,6 +228,9 @@ function InternalCronogramaPage() {
   const { user } = useAuth()
   const isConsultor = user?.type === 'consultor'
   const canEdit = user?.type !== 'consultor' && user?.type !== 'cliente'
+  const [executiveRaw, toggleExecutive] = useExecutiveMode()
+  // Consultor nunca fica em modo executivo (toggle escondido); ignora valor preso no localStorage.
+  const executive = executiveRaw && !isConsultor
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
   const [alertsOpen, setAlertsOpen] = useState(false)
 
@@ -229,15 +241,11 @@ function InternalCronogramaPage() {
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
     useProjectSchedule(projectId)
 
-  // Horas do PROJETO (vendidas/consumidas/saldo) — não vêm no payload do cronograma;
-  // busca leve em /projects/{id} pra fundir na faixa única de indicadores.
-  const { data: projHours } = useApiQuery<{ sold_hours?: number | string | null; consumed_hours?: number | string | null; general_hours_balance?: number | string | null }>(
-    Number.isFinite(projectId) ? `/projects/${projectId}` : null
+  // Consultor: tela ÚNICA — puxa a Descrição do projeto (Visão Geral) pra exibir junto da Operação.
+  const isConsultorView = user?.type === 'consultor'
+  const { data: projMeta } = useApiQuery<{ description: string | null }>(
+    isConsultorView ? `/projects/${projectId}` : null
   )
-  const soldH = Number(projHours?.sold_hours ?? project?.sold_hours ?? 0) || 0
-  const consumedH = Number(projHours?.consumed_hours ?? 0) || 0
-  const balanceH = Number(projHours?.general_hours_balance ?? 0) || 0
-  const consumedPct = soldH > 0 ? Math.round((consumedH / soldH) * 100) : 0
 
   // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
   const saude = executiveSummary?.overall_risk === 'high'
@@ -249,6 +257,15 @@ function InternalCronogramaPage() {
   // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
   // ele recarregar o projeto — o "Prazo de entrega" deriva da última data daqui.
   const refresh = () => { refetch(); notifyProjectUpdated(projectId) }
+
+  // Horas do projeto pra faixa (Apontáveis = pool liberado à gestão; Consumidas/Saldo).
+  const { data: projHours } = useApiQuery<{ consumed_hours?: number | string | null }>(
+    !isConsultor && Number.isFinite(projectId) ? `/projects/${projectId}` : null
+  )
+  const appointableH = project ? cronogramaPoolHours(project) : 0
+  const consumedH = Number(projHours?.consumed_hours ?? 0) || 0
+  const saldoH = appointableH - consumedH
+  const consumedPctH = appointableH > 0 ? Math.round((consumedH / appointableH) * 100) : 0
 
   // Restore last-used view do localStorage quando entra sem ?view= explícito.
   // Normaliza legacy (board/tabela/gantt) → operacao/planejamento/timeline.
@@ -355,15 +372,20 @@ function InternalCronogramaPage() {
   }, [searchParams])
 
   // Form criar etapa (vive aqui, no hub)
+  const [opMode, setOpMode] = useState<'kanban' | 'lista'>('kanban')
+  // Consultor: alterna entre o board (Kanban/Lista) e a aba Apontamentos & Despesas (só deste projeto).
+  const [consultorTab, setConsultorTab] = useState<'board' | 'apont'>('board')
+  const [apontSub, setApontSub] = useState<'apontamentos' | 'despesas'>('apontamentos')
+  const [showApontModal, setShowApontModal] = useState(false)
+  const [showDespesaModal, setShowDespesaModal] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const [hours, setHours] = useState('')
-  const [saving, setSaving] = useState(false)
-  // Nova atividade a partir da toolbar (ao lado de Nova etapa)
   const [creatingActivity, setCreatingActivity] = useState(false)
   const [activityTitle, setActivityTitle] = useState('')
   const [activityStageId, setActivityStageId] = useState<number | null>(null)
   const [savingActivity, setSavingActivity] = useState(false)
+  const [name, setName] = useState('')
+  const [hours, setHours] = useState('')
+  const [saving, setSaving] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modelosOpen, setModelosOpen] = useState(false)
   const [calendarRecalc, setCalendarRecalc] = useState<RecalcTrigger | null>(null)
@@ -433,39 +455,39 @@ function InternalCronogramaPage() {
 
   return (
     <div>
-      {/* Fase 10: header executivo + alertas (acima dos KPIs simples).
-          Consultor NÃO vê o resumo/alertas do projeto (total, equipe, risco) —
-          só o board com as atividades dele. */}
-      {/* Indicadores secundários = MINI CARDS numa única linha (aproveita a largura).
-          NÃO esconde indicador: recupera todos (Etapas..Prazo) em pouca altura. */}
+      {/* Faixa única de indicadores — cards aglutinados empilhados + Prazo + Equipe/Última (ajuste restaurado).
+          Consultor: Descrição + Período entram NA MESMA faixa (mesma linha do Prazo/Atividades/Pendências). */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 6, overflowX: 'auto', paddingBottom: 2, alignItems: 'stretch' }}>
-        {/* Prazo de entrega (editável) — na mesma linha */}
+        {isConsultor && (
+          <div style={{ flex: '1 1 200px', minWidth: 160, padding: '6px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Descrição</div>
+            <div style={{ fontSize: 12, color: 'var(--text)', overflow: 'hidden' }}>{projMeta?.description || 'Sem descrição.'}</div>
+          </div>
+        )}
+        {isConsultor && (
+          <div style={{ flexShrink: 0, minWidth: 130, padding: '6px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Período</div>
+            <div style={{ fontSize: 12, color: 'var(--text)', whiteSpace: 'nowrap' }}>Início: {fmtShortDate(project?.start_date)}<br />Previsto: {fmtShortDate(project?.expected_end_date)}</div>
+          </div>
+        )}
         <PrazoStackCard projectId={projectId} expectedEndDate={project?.expected_end_date} canEdit={canEdit} onChange={refetch} />
-
-        {/* HORAS — card único, empilhado (só gestão) */}
         {!isConsultor && (
           <StackCard title="Horas" rows={[
-            { label: 'Vendidas', value: `${Math.round(soldH)}h` },
-            { label: 'Consumidas', value: `${Math.round(consumedH)}h${soldH > 0 ? ` · ${consumedPct}%` : ''}`, tone: consumedPct > 100 ? 'danger' : consumedPct > 85 ? 'warning' : 'default' },
-            { label: 'Saldo', value: `${Math.round(balanceH)}h`, tone: balanceH < 0 ? 'danger' : 'default' },
+            { label: 'Apontáveis', value: `${Math.round(appointableH)}h` },
+            { label: 'Consumidas', value: `${Math.round(consumedH)}h${appointableH > 0 ? ` · ${consumedPctH}%` : ''}`, tone: consumedPctH > 100 ? 'danger' : consumedPctH > 85 ? 'warning' : 'default' },
+            { label: 'Saldo', value: `${Math.round(saldoH)}h`, tone: saldoH < 0 ? 'danger' : 'default' },
           ]} />
         )}
-
-        {/* ATIVIDADES — aglutinado */}
         <StackCard title="Atividades" rows={[
           { label: 'Etapas', value: stages.length },
           { label: 'Atividades', value: `${counts.totalActivities} · ${Math.round(counts.totalHoursPlanned)}h` },
           { label: 'Execução', value: counts.inProgressCount, tone: counts.inProgressCount > 0 ? 'primary' : 'default' },
         ]} />
-
-        {/* PENDÊNCIAS — aglutinado */}
         <StackCard title="Pendências" rows={[
           { label: 'Bloqueadas', value: counts.blockedCount, tone: counts.blockedCount > 0 ? 'danger' : 'default' },
           { label: 'Cliente', value: counts.waitingClientCount, tone: counts.waitingClientCount > 0 ? 'warning' : 'default' },
           { label: 'Atrasadas', value: counts.overdueCount, tone: counts.overdueCount > 0 ? 'danger' : 'default' },
         ]} />
-
-        {/* TIME & STATUS — aglutinado (só gestão) */}
         {!isConsultor && (
           <StackCard title="Time & status" rows={[
             { label: 'Equipe', value: `${teamLoad.length}` },
@@ -474,25 +496,23 @@ function InternalCronogramaPage() {
             { label: 'Prazo final', value: fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date) },
           ]} />
         )}
-
-        {/* EQUIPE · horas + ÚLTIMA MOVIMENTAÇÃO aglutinados — preenchem o espaço restante à direita, na mesma linha */}
         {!isConsultor && (
-          <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', gap: 10, padding: '6px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <div style={{ flex: '1 1 260px', minWidth: 220, display: 'flex', flexDirection: 'column', gap: 6, padding: '6px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Equipe · horas por consultor</div>
               {teamLoad.length === 0 ? (
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem alocações.</span>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 96, overflowY: 'auto', paddingRight: 2 }}>
                   {teamLoad.map(t => {
                     const actual = Number(t.actual_hours) || 0
                     const planned = Number(t.planned_hours) || 0
                     const pctP = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 101 : 0)
                     const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
                     return (
-                      <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ flex: '0 0 110px', fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
-                        <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 40 }}>
+                      <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ flex: '1 1 90px', minWidth: 60, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
+                        <div style={{ flex: '0 1 70px', height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 30 }}>
                           <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
                         </div>
                         <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -504,13 +524,15 @@ function InternalCronogramaPage() {
                 </div>
               )}
             </div>
-            <div style={{ flex: '0 0 auto', minWidth: 120, borderLeft: '1px solid var(--border)', paddingLeft: 10 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3 }}>Última movimentação</div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, minWidth: 0 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-light)', marginBottom: 3, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <span>Última movimentação</span>
+                {lastMovement?.at && <span style={{ color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>· {timeAgo(lastMovement.at)}</span>}
+              </div>
               {lastMovement ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastMovement.user ?? '—'}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: lastMovement.kind === 'timesheet' ? 'var(--success)' : 'var(--primary)' }}>{fmtMovement(lastMovement)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lastMovement.at ? timeAgo(lastMovement.at) : ''}</span>
                 </div>
               ) : (
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem movimentações.</span>
@@ -523,8 +545,9 @@ function InternalCronogramaPage() {
         <div style={{ marginBottom: 6 }}><CronogramaAlertsList alerts={alerts} /></div>
       )}
 
-
-      {/* BLOCO 2 fixo — barra de abas + ações (gruda no TOPO ao rolar; o Bloco 1 rola embora) */}
+      {/* BLOCO 2 fixo — barra de abas + ações. Consultor tem VIEW ÚNICA (Operação): sem
+          seletor de views nem ações de gestão. O toggle Kanban/Lista fica na própria Operação. */}
+      {!isConsultor && (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 10,
@@ -542,13 +565,8 @@ function InternalCronogramaPage() {
           diary: 0,
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* "Liberado à gestão" é visão de gestão — o consultor só vê o que foi
-              liberado a ele, sem horas/pool do projeto. (Modo executivo removido.) */}
-          {!isConsultor && project && (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Liberado à gestão: <strong style={{ color: 'var(--text)' }}>{cronogramaPoolHours(project)}h</strong>
-            </span>
-          )}
+          {/* "Liberado à gestão" e "Modo executivo" removidos (a pedido). O pool liberado
+              já aparece como "Apontáveis" na faixa de indicadores. */}
           {canEdit && (
             <button
               type="button"
@@ -598,8 +616,28 @@ function InternalCronogramaPage() {
               <Plus size={14} /> Nova atividade
             </button>
           )}
+          {view === 'operacao' && stages.length > 0 && (
+            <div style={{ display: 'inline-flex', gap: 4, marginLeft: 4 }}>
+              {(['kanban', 'lista'] as const).map(m => {
+                const active = opMode === m
+                return (
+                  <button key={m} type="button" onClick={() => setOpMode(m)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', fontSize: 12, fontWeight: 600,
+                      borderRadius: 8, cursor: 'pointer',
+                      border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                      background: active ? 'var(--primary)' : 'transparent',
+                      color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                    }}>
+                    {m === 'kanban' ? <LayoutGrid size={13} /> : <List size={13} />} {m === 'kanban' ? 'Kanban' : 'Lista'}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
+      )}
 
       {creating && (
         <form
@@ -640,47 +678,28 @@ function InternalCronogramaPage() {
       )}
 
       {creatingActivity && (
-        <form
-          onSubmit={handleCreateActivity}
-          className="ds-card ds-card-pad"
-          style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}
-        >
+        <form onSubmit={handleCreateActivity} className="ds-card ds-card-pad" style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           {stages.length > 1 && (
             <div style={{ width: 220 }}>
               <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Etapa</label>
-              <select
-                className="ds-input"
-                value={activityStageId ?? ''}
-                onChange={e => setActivityStageId(Number(e.target.value))}
-                style={{ width: '100%', marginTop: 4 }}
-              >
+              <select className="ds-input" value={activityStageId ?? ''} onChange={e => setActivityStageId(Number(e.target.value))} style={{ width: '100%', marginTop: 4 }}>
                 {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           )}
           <div style={{ flex: '1 1 240px' }}>
             <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Título da atividade</label>
-            <input
-              autoFocus className="ds-input" value={activityTitle}
-              onChange={e => setActivityTitle(e.target.value)}
-              placeholder="Ex.: Levantamento de requisitos…" maxLength={200}
-              style={{ width: '100%', marginTop: 4 }}
-            />
+            <input autoFocus className="ds-input" value={activityTitle} onChange={e => setActivityTitle(e.target.value)} placeholder="Ex.: Levantamento de requisitos…" maxLength={200} style={{ width: '100%', marginTop: 4 }} />
           </div>
-          <button type="submit" className="ds-btn-primary"
-            style={{ fontSize: 13, padding: '8px 14px' }}
-            disabled={savingActivity || !activityTitle.trim()}
-          >
+          <button type="submit" className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 14px' }} disabled={savingActivity || !activityTitle.trim()}>
             {savingActivity ? 'Salvando…' : 'Criar'}
           </button>
-          <button type="button" className="ds-btn-ghost"
-            style={{ fontSize: 13, padding: '8px 14px' }}
-            onClick={() => { setCreatingActivity(false); setActivityTitle('') }}
-          >
+          <button type="button" className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }} onClick={() => { setCreatingActivity(false); setActivityTitle('') }}>
             Cancelar
           </button>
         </form>
       )}
+
 
       {calendarFlexible && (
         <div
@@ -703,9 +722,77 @@ function InternalCronogramaPage() {
         </div>
       )}
 
+      {/* Consultor: tab-bar própria (sem toolbar de gestão) — Kanban/Lista + aba Apontamentos & Despesas (só deste projeto). */}
+      {isConsultor && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {(['kanban', 'lista'] as const).map(m => {
+            const active = consultorTab === 'board' && opMode === m
+            return (
+              <button key={m} type="button" onClick={() => { setOpMode(m); setConsultorTab('board') }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', fontSize: 12, fontWeight: 600,
+                  borderRadius: 8, cursor: 'pointer',
+                  border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                  background: active ? 'var(--primary)' : 'transparent',
+                  color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                }}>
+                {m === 'kanban' ? <LayoutGrid size={13} /> : <List size={13} />} {m === 'kanban' ? 'Kanban' : 'Lista'}
+              </button>
+            )
+          })}
+          <button type="button" onClick={() => setConsultorTab('apont')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600,
+              borderRadius: 8, cursor: 'pointer', marginLeft: 'auto',
+              border: `1px solid ${consultorTab === 'apont' ? 'var(--primary)' : 'var(--border)'}`,
+              background: consultorTab === 'apont' ? 'var(--primary)' : 'transparent',
+              color: consultorTab === 'apont' ? 'var(--primary-fg)' : 'var(--text-muted)',
+            }}>
+            <Clock size={13} /> Apontamentos & Despesas
+          </button>
+        </div>
+      )}
+
       {/* View ativa — key força remontagem suave; CSS animation fade-in rápido */}
       <div key={view} className="cronograma-view-fade">
-        {view === 'operacao' && <OperacaoView projectId={projectId} stages={stages} onChanged={refresh} canEdit={canEdit} />}
+        {view === 'operacao' && (isConsultor && consultorTab === 'apont' ? (
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'inline-flex', gap: 4 }}>
+                {(['apontamentos', 'despesas'] as const).map(s => {
+                  const active = apontSub === s
+                  return (
+                    <button key={s} type="button" onClick={() => setApontSub(s)}
+                      style={{
+                        padding: '5px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, cursor: 'pointer',
+                        border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                        background: active ? 'var(--primary)' : 'transparent',
+                        color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                      }}>
+                      {s === 'apontamentos' ? 'Apontamentos' : 'Despesas'}
+                    </button>
+                  )
+                })}
+              </div>
+              {apontSub === 'apontamentos' ? (
+                <button type="button" className="ds-btn-primary" onClick={() => setShowApontModal(true)}
+                  style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Plus size={14} /> Novo Apontamento
+                </button>
+              ) : (
+                <button type="button" className="ds-btn-primary" onClick={() => setShowDespesaModal(true)}
+                  style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Plus size={14} /> Nova Despesa
+                </button>
+              )}
+            </div>
+            {apontSub === 'apontamentos'
+              ? <ActivityGroups projectId={projectId} mode="view" />
+              : <DespesasView projectId={projectId} />}
+          </div>
+        ) : (
+          <OperacaoView projectId={projectId} stages={stages} onChanged={refresh} canEdit={canEdit} mode={opMode} />
+        ))}
         {view === 'planejamento' && (
           <PlanejamentoView
             projectId={projectId}
@@ -734,7 +821,7 @@ function InternalCronogramaPage() {
           </div>
         )}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
-        {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type ?? undefined} />}
+        {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade {
@@ -774,6 +861,19 @@ function InternalCronogramaPage() {
           onApplied={refresh}
         />
       )}
+
+      <TimesheetFormModal
+        open={showApontModal}
+        onClose={() => setShowApontModal(false)}
+        onSaved={() => { setShowApontModal(false); refresh() }}
+        currentUser={user}
+      />
+      <ExpenseQuickModal
+        open={showDespesaModal}
+        onClose={() => setShowDespesaModal(false)}
+        onSaved={() => { setShowDespesaModal(false); refresh() }}
+        currentUser={user}
+      />
     </div>
   )
 }
@@ -825,7 +925,8 @@ function SegmentedControl({
               fontSize: 13,
               fontWeight: active ? 700 : 600,
               background: active ? (isComments ? 'var(--danger)' : 'var(--primary)') : 'transparent',
-              color: active ? (isComments ? '#fff' : '#000') : (isComments ? 'var(--danger)' : 'var(--text)'),
+              // No cyan (primary) o texto precisa ser ESCURO (contraste); só o vermelho de Comentários usa branco.
+              color: active ? (isComments ? '#fff' : 'var(--primary-fg)') : (isComments ? 'var(--danger)' : 'var(--text)'),
               border: 'none',
               borderRadius: 7,
               cursor: 'pointer',

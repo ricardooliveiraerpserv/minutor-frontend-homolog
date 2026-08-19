@@ -148,6 +148,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
     is_billable_only: false,
+    stage_delivery_id: '',
   })
 
   const [customers,    setCustomers]    = useState<SelectOption[]>([])
@@ -155,7 +156,15 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const [projects,     setProjects]     = useState<SelectOption[]>([])
   // Candidatos a "Projeto Real": todos os projetos abertos do cliente, sem consultant_only.
   const [realProjects, setRealProjects] = useState<SelectOption[]>([])
+  // Atividades (cronograma) do projeto selecionado — pra vincular o apontamento a uma atividade.
+  const [activities,   setActivities]   = useState<{ id: number; title: string; stage_name?: string }[]>([])
   const [loadingData,  setLoadingData]  = useState(false)
+
+  // Admin/coord têm LIBERDADE de apontar em qualquer projeto: apontando pra SI veem TODAS as
+  // atividades do cronograma (opcional). Só é obrigatório quando a hora é de um consultor
+  // (ele/ela alocado) — aí a lista já vem filtrada pelo BE.
+  const actingForOtherUser = canActAsUser && !!form.user_id && form.user_id !== String(currentUser?.id ?? '')
+  const activityRequired   = !canActAsUser || actingForOtherUser
 
   // Reset and load users list when modal opens
   useEffect(() => {
@@ -253,6 +262,22 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.project_id, form.user_id])
 
+  // Atividades do cronograma do projeto EM QUE O DONO DA HORA está alocado/responsável.
+  // O BE filtra por user_id — se o consultor não está alocado em nenhuma, volta vazio e
+  // o campo nem aparece ("se não tiver alocado não traga"). Quando aparece, é obrigatório.
+  useEffect(() => {
+    if (!form.project_id) { setActivities([]); return }
+    let cancelled = false
+    // actingForOtherUser → só as atividades daquele consultor. Admin/coord pra si → SEM filtro
+    // (BE devolve todas). Consultor → BE já força as próprias mesmo com qs vazio.
+    const qs = actingForOtherUser ? `?user_id=${form.user_id}` : ''
+    api.get<{ items: { id: number; title: string; stage_name?: string }[] }>(`/projects/${form.project_id}/deliveries${qs}`)
+      .then(r => { if (!cancelled) setActivities(Array.isArray(r?.items) ? r.items : []) })
+      .catch(() => { if (!cancelled) setActivities([]) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.project_id, form.user_id])
+
   // Auto-calculate times in Horário mode
   useEffect(() => {
     if (useTotal) return
@@ -289,6 +314,12 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
       && (selProj?.categoria_interna === 'Projeto' || selProj?.categoria_interna === 'Suporte')
     if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
+    // Atividade obrigatória quando o dono da hora está alocado no cronograma (a lista só
+    // vem preenchida nesse caso — ver efeito acima).
+    if (activities.length > 0 && activityRequired && !form.stage_delivery_id) {
+      toast.error('Selecione a atividade do cronograma para esta hora')
+      return
+    }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
     } else {
@@ -308,6 +339,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
           : undefined,
         ticket:      form.ticket || null,
         observation: form.observation || null,
+        ...(form.stage_delivery_id ? { stage_delivery_id: Number(form.stage_delivery_id) } : {}),
       }
       if (canActAsUser && form.user_id) body.user_id = Number(form.user_id)
       if (isAdmin && form.user_id && form.user_id !== String(currentUser?.id) && form.is_billable_only) {
@@ -394,7 +426,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <div className="mt-1">
                 <SearchSelect
                   value={form.project_id}
-                  onChange={v => setForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
+                  onChange={v => setForm(f => ({ ...f, project_id: v, real_project_id: '', stage_delivery_id: '' }))}
                   options={projects}
                   placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
                   disabled={!form.customer_id}
@@ -436,6 +468,27 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 </div>
               )
             })()}
+
+            {/* Atividade (cronograma) — aparece SÓ quando o dono da hora está alocado em
+                alguma atividade do projeto (lista filtrada por user_id no BE). Obrigatória. */}
+            {activities.length > 0 && (
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">Atividade {activityRequired && <span style={{ color: 'var(--danger)' }}>*</span>}</Label>
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
+                  {activityRequired
+                    ? 'Você está alocado no cronograma — selecione a atividade desta hora.'
+                    : 'Opcional — vincule esta hora a uma atividade do cronograma.'}
+                </p>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={form.stage_delivery_id}
+                    onChange={v => setForm(f => ({ ...f, stage_delivery_id: v }))}
+                    options={activities.map(a => ({ id: a.id, name: a.stage_name ? `${a.stage_name} · ${a.title}` : a.title }))}
+                    placeholder="Sem atividade"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Data */}
             <div>

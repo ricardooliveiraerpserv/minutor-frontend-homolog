@@ -6,11 +6,6 @@ interface Props {
   delivery: StageDelivery
   onClick: () => void
   isDragging?: boolean
-  code?: string
-  predecessorTitle?: string
-  /** Colunas disponíveis + callback para mover via dropdown (além do arrastar). */
-  columns?: { status: string; label: string }[]
-  onMove?: (status: string) => void
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -21,9 +16,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 function formatDue(iso: string | null): string | null {
   if (!iso) return null
-  // Data YYYY-MM-DD parseada por new Date() vira UTC → no Brasil (UTC-3) volta 1 dia.
-  // Força meia-noite LOCAL para exibir o dia correto (ex.: 02/09 não virar "01 de set.").
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso)
+  const d = new Date(iso)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   d.setHours(0, 0, 0, 0)
@@ -36,53 +29,40 @@ function formatDue(iso: string | null): string | null {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
-function formatHours(planned: number, actual: number | undefined): string {
-  if (actual === undefined) return planned ? `${planned}h` : '—'
-  return `${actual.toFixed(1)}/${planned}h`
+function fmtH(v: number): string {
+  const n = Number(v) || 0
+  return `${Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 10) / 10}h`
 }
 
-/** Horas em formato curto: inteiro sem casas, fracionário com 1 casa. */
-function fmtH(h: number): string {
-  const r = Math.round(h * 100) / 100
-  return `${Number.isInteger(r) ? r : r.toFixed(1)}h`
-}
-
-export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }: Props) {
+export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
   const planned = Number(delivery.hours_planned ?? 0)
   const actual = delivery.effort_minutes_sum !== undefined && delivery.effort_minutes_sum !== null
     ? Number(delivery.effort_minutes_sum) / 60
     : undefined
+  // Disponível ao consultor (planejadas) · Apontadas · Saldo.
+  const disp = planned
+  const apont = actual ?? 0
+  const saldo = disp - apont
   const overdue = delivery.due_date && new Date(delivery.due_date) < new Date() && delivery.status !== 'done'
   const due = formatDue(delivery.due_date)
-  // Horas: disponibilizadas (previstas) − usadas (apontadas) = saldo.
-  const usadas = actual ?? 0
-  const saldo = Math.round((planned - usadas) * 100) / 100
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className="ds-card"
       style={{
+        display: 'block',
         width: '100%',
+        padding: 12,
+        textAlign: 'left',
+        cursor: isDragging ? 'grabbing' : 'pointer',
         background: 'var(--surface)',
         borderLeft: overdue ? '2px solid var(--danger)' : '1px solid var(--border)',
         boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
         transition: 'box-shadow .12s ease, transform .12s ease',
       }}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        style={{
-          display: 'block',
-          width: '100%',
-          padding: 12,
-          textAlign: 'left',
-          background: 'transparent',
-          border: 'none',
-          color: 'inherit',
-          cursor: isDragging ? 'grabbing' : 'pointer',
-        }}
-      >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
         <span
           title={`Prioridade: ${delivery.priority}`}
@@ -112,46 +92,31 @@ export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }:
         </div>
       </div>
 
-      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>
-            {delivery.responsible?.name ?? '—'}
-          </span>
-          {due && (
-            <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              Prazo: <strong style={{ color: overdue ? 'var(--danger)' : 'var(--text)' }}>{due}</strong>
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span>Disp. <strong style={{ color: 'var(--text)' }}>{fmtH(planned)}</strong></span>
-          <span style={{ opacity: .4 }}>·</span>
-          <span>Usadas <strong style={{ color: 'var(--text)' }}>{fmtH(usadas)}</strong></span>
-          <span style={{ opacity: .4 }}>·</span>
-          <span>Saldo <strong style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)' }}>{fmtH(saldo)}</strong></span>
-        </div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 10,
+        fontSize: 11,
+        color: 'var(--text-muted)',
+      }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
+          {delivery.responsible?.name ?? '—'}
+        </span>
+        <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          Prazo: <b style={{ color: overdue ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{due ?? '—'}</b>
+        </span>
       </div>
-      </button>
-      {onMove && columns && columns.length > 0 && (
-        <div
-          onClick={e => e.stopPropagation()}
-          onMouseDown={e => e.stopPropagation()}
-          style={{ borderTop: '1px solid var(--border)', padding: '6px 10px' }}
-        >
-          <select
-            className="ds-input"
-            value=""
-            onChange={e => { const v = e.target.value; if (v) onMove(v); e.currentTarget.value = '' }}
-            title="Mover para outra coluna"
-            style={{ width: '100%', fontSize: 11, padding: '3px 6px', color: 'var(--text-muted)' }}
-          >
-            <option value="">Mover para…</option>
-            {columns.filter(c => c.status !== delivery.status).map(c => (
-              <option key={c.status} value={c.status}>{c.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
-    </div>
+
+      {/* Horas do consultor na atividade: Disponível (planejadas), Apontadas e Saldo. */}
+      <div style={{
+        display: 'flex', gap: 10, marginTop: 8, fontSize: 10,
+        color: 'var(--text-light)',
+      }}>
+        <span>Disp <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(disp)}</b></span>
+        <span>Apont <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(apont)}</b></span>
+        <span>Saldo <b style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtH(saldo)}</b></span>
+      </div>
+    </button>
   )
 }

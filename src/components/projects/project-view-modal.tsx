@@ -6,7 +6,7 @@ import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
-import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText, Eye, SquarePen, Plus, Calculator } from 'lucide-react'
+import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText, Eye, SquarePen } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 import { Skeleton } from '@/components/ui/loading'
@@ -112,7 +112,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'extrato' | 'rateio'>((initialTab as any) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'extrato'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -297,7 +297,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     ...(isSustCoord ? [] : [
       { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
       { id: 'extrato'     as const, label: 'Extrato' },
-      { id: 'rateio'      as const, label: 'Centro de Custos' },
     ]),
     ...(isCoordRole ? [] : [
       { id: 'financial'   as const, label: 'Financeiro' },
@@ -814,10 +813,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                 })()}
                 <MonthlyAccrualTable projectId={projectId} canEditConsumption={viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'} />
               </div>
-            )}
-
-            {tab === 'rateio' && !isSustCoord && (
-              <RateioTab projectId={projectId} canEdit={viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'} />
             )}
 
             {tab === 'financial' && !isCoordRole && (
@@ -1643,159 +1638,6 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         </div>
       )}
 
-    </div>
-  )
-}
-
-// ── Aba "Centro de Custos": rateio do projeto por centro de custo do cliente ──
-// O valor rateado é o VALOR TOTAL DO PROJETO; cada linha tem um % (soma = 100%).
-interface RateioCenter { id: number; code: string; description: string }
-interface RateioRow { cost_center_id: number | null; percentual: number }
-
-export function RateioTab({ projectId, canEdit, pathPrefix = '/projects' }: { projectId: number; canEdit: boolean; pathPrefix?: string }) {
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [total, setTotal] = useState(0)
-  const [centers, setCenters] = useState<RateioCenter[]>([])
-  const [rows, setRows] = useState<RateioRow[]>([])
-  const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-
-  useEffect(() => {
-    setLoading(true)
-    api.get<{ project_total: number; cost_centers: RateioCenter[]; allocations: { cost_center_id: number; percentual: number }[] }>(`${pathPrefix}/${projectId}/rateio`)
-      .then(r => {
-        setTotal(r.project_total ?? 0)
-        setCenters(r.cost_centers ?? [])
-        setRows((r.allocations ?? []).map(a => ({ cost_center_id: a.cost_center_id, percentual: a.percentual })))
-      })
-      .catch(() => toast.error('Erro ao carregar o rateio'))
-      .finally(() => setLoading(false))
-  }, [projectId])
-
-  const soma = Math.round(rows.reduce((s, r) => s + (Number(r.percentual) || 0), 0) * 100) / 100
-  const somaOk = rows.length === 0 || Math.abs(soma - 100) < 0.01
-
-  const addRow = () => setRows(rs => [...rs, { cost_center_id: null, percentual: 0 }])
-  const removeRow = (i: number) => setRows(rs => rs.filter((_, idx) => idx !== i))
-  const setRow = (i: number, patch: Partial<RateioRow>) => setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch } : r))
-
-  // Distribui 100% igualmente entre as linhas existentes (a última absorve o resto p/ fechar 100).
-  const distribuir = () => {
-    const n = rows.length
-    if (n === 0) { toast.error('Adicione ao menos uma linha antes de distribuir.'); return }
-    const base = Math.floor((100 / n) * 100) / 100
-    const next = rows.map((r, i) => ({ ...r, percentual: i === n - 1 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base }))
-    setRows(next)
-  }
-
-  const salvar = async () => {
-    if (rows.some(r => !r.cost_center_id)) { toast.error('Selecione o centro de custo em todas as linhas.'); return }
-    if (rows.length > 0 && !somaOk) { toast.error(`A soma dos percentuais deve ser 100%. Atual: ${soma}%.`); return }
-    setSaving(true)
-    try {
-      await api.put(`${pathPrefix}/${projectId}/rateio`, { allocations: rows.map(r => ({ cost_center_id: r.cost_center_id, percentual: r.percentual })) })
-      toast.success('Rateio salvo')
-    } catch (e) {
-      toast.error((e as { message?: string })?.message ?? 'Erro ao salvar o rateio')
-    } finally { setSaving(false) }
-  }
-
-  if (loading) return <Skeleton className="h-40 w-full" />
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor total do projeto (base do rateio)</span>
-        <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{brl(total)}</span>
-      </div>
-
-      {centers.length === 0 ? (
-        <div className="text-center py-8 text-sm rounded-xl" style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-          Nenhum centro de custo cadastrado para este cliente.<br />Cadastre em Clientes → Centros de Custo.
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: 'var(--surface-hover)' }}>
-                  <th className="text-left px-3 py-2 text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Item</th>
-                  <th className="text-left px-3 py-2 text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Centro de Custo</th>
-                  <th className="text-center px-3 py-2 text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>%</th>
-                  <th className="text-right px-3 py-2 text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Valor Rateio</th>
-                  {canEdit && <th className="px-3 py-2" />}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 && (
-                  <tr><td colSpan={canEdit ? 5 : 4} className="px-3 py-6 text-center text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma linha de rateio. {canEdit ? 'Adicione itens abaixo.' : ''}</td></tr>
-                )}
-                {rows.map((r, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td className="px-3 py-2 tabular-nums text-xs" style={{ color: 'var(--text-light)' }}>{String(i + 1).padStart(4, '0')}</td>
-                    <td className="px-3 py-2">
-                      <select
-                        disabled={!canEdit}
-                        value={r.cost_center_id ?? ''}
-                        onChange={e => setRow(i, { cost_center_id: e.target.value ? Number(e.target.value) : null })}
-                        className="w-full min-w-[180px] px-2 py-1.5 rounded-lg text-sm outline-none"
-                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                      >
-                        <option value="">Selecione…</option>
-                        {centers.map(c => <option key={c.id} value={c.id}>{c.code} — {c.description}</option>)}
-                      </select>
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="number" min={0} max={100} step="0.01" inputMode="decimal"
-                        disabled={!canEdit}
-                        value={r.percentual}
-                        onChange={e => setRow(i, { percentual: Number(e.target.value) })}
-                        className="w-20 px-2 py-1.5 rounded-lg text-sm text-right tabular-nums outline-none"
-                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-sm font-medium" style={{ color: 'var(--text)' }}>{brl(Math.round(total * (Number(r.percentual) || 0)) / 100)}</td>
-                    {canEdit && (
-                      <td className="px-3 py-2 text-right">
-                        <button type="button" onClick={() => removeRow(i)} title="Remover" className="p-1 rounded hover:bg-[var(--surface-hover)]"><Trash2 size={14} style={{ color: 'var(--danger-border)' }} /></button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface-hover)' }}>
-                  <td className="px-3 py-2 text-xs font-bold" style={{ color: 'var(--text)' }}>Total</td>
-                  <td className="px-3 py-2" />
-                  <td className="px-3 py-2 text-center tabular-nums text-sm font-bold" style={{ color: somaOk ? 'var(--success-border)' : 'var(--danger-border)' }}>{soma}%</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-sm font-bold" style={{ color: 'var(--primary)' }}>{brl(Math.round(total * soma) / 100)}</td>
-                  {canEdit && <td />}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {canEdit && (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
-                  <Plus size={14} /> Adicionar item no Rateio
-                </button>
-                <button type="button" onClick={distribuir} className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg font-medium" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
-                  <Calculator size={14} /> Distribuir Rateio
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                {!somaOk && <span className="text-xs" style={{ color: 'var(--danger-border)' }}>Soma deve ser 100%</span>}
-                <button type="button" onClick={salvar} disabled={saving || !somaOk} className="inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-                  <Check size={14} /> {saving ? 'Salvando…' : 'Salvar rateio'}
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </div>
   )
 }

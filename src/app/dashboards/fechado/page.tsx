@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { useProjectActionsMenu } from '@/components/projects/use-project-actions-menu'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { CheckSquare, FolderOpen, Info } from 'lucide-react'
@@ -48,6 +49,8 @@ export default function FechadoPage() {
   const { user } = useAuth()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
+  // Ao clicar na linha, abre o menu de opções (Gestão de Projetos / Comentários).
+  const { openMenu, menu } = useProjectActionsMenu()
 
   const now = new Date()
   const [customers,   setCustomers]   = useState<Customer[]>([])
@@ -174,6 +177,9 @@ export default function FechadoPage() {
                 {displayedRows.map((row, idx) => (
                   <tr
                     key={row.id}
+                    onClick={() => openMenu(row.id, row.name, row.code)}
+                    className="cursor-pointer ds-row-hover"
+                    title="Abrir opções do projeto"
                     style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--border)' : undefined }}
                   >
                     <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{row.code}</td>
@@ -205,6 +211,7 @@ export default function FechadoPage() {
         </div>
 
       </div>
+      {menu}
     </AppLayout>
   )
 }

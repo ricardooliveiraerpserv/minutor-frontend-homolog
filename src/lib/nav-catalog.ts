@@ -72,7 +72,6 @@ export const NAV_CATALOG: CatalogItem[] = [
 
   // Administrativo — Visão Externa
   { key: '/portal-cliente',                  label: 'Home do Cliente',        group: 'Visão Externa' },
-  { key: '/portal-cliente/centros-custo',    label: 'Centros de Custo',       group: 'Visão Externa' },
   { key: '/dashboards/bank-hours-fixed',     label: 'Banco de Horas Fixo',    group: 'Visão Externa' },
   { key: '/dashboards/bank-hours-monthly',   label: 'Banco de Horas Mensais', group: 'Visão Externa' },
   { key: '/dashboards/on-demand',            label: 'On Demand',              group: 'Visão Externa' },

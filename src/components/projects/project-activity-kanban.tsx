@@ -174,8 +174,7 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
 
   return (
     <>
-      {/* Botão "Nova atividade" movido pra toolbar do cronograma (ao lado de Nova etapa).
-          Mantidos os "+" por coluna pra criar direto no status. */}
+      {/* "Nova atividade" movido pra toolbar do cronograma (ao lado de Nova etapa). Mantidos os "+" por coluna. */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(240px, 1fr))`, gap: 12, overflowX: 'auto' }}>
           {COLUMNS.map(col => {

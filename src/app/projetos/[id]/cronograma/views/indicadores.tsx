@@ -57,7 +57,9 @@ export function IndicadoresView({ project, stages, executive, teamLoad = [] }: {
   const horas = useMemo(() => {
     const consumidas = num(ex?.hours_consumed ?? ex?.hours_actual)
     const planejadas = num(ex?.hours_planned)
-    const contratadas = num(project?.sold_hours)
+    // Horas APONTÁVEIS (pool liberado à gestão) — nunca a base comercial "Vendidas".
+    const coord = num((project as any)?.coordination_hours)
+    const contratadas = coord > 0 ? coord : num(project?.sold_hours)
     const base = contratadas > 0 ? contratadas : planejadas
     const saldo = num(ex?.hours_balance ?? (base - consumidas))
     const pct = base > 0 ? (consumidas / base) * 100 : 0
@@ -289,7 +291,7 @@ export function IndicadoresView({ project, stages, executive, teamLoad = [] }: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Gauge pct={horas.pct} centerTop={pctText(horas.pct)} centerBottom={`${fmtH(horas.consumidas)}/${fmtH(horas.contratadas || horas.planejadas)}`} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 140 }}>
-              <KV label="Contratadas" value={fmtH(horas.contratadas)} />
+              <KV label="Apontáveis" value={fmtH(horas.contratadas)} />
               <KV label="Planejadas" value={fmtH(horas.planejadas)} />
               <KV label="Consumidas" value={fmtH(horas.consumidas)} />
               <KV label="Saldo" value={fmtH(horas.saldo)} strong tone={horas.saldo < 0 ? 'danger' : 'success'} />
@@ -297,7 +299,7 @@ export function IndicadoresView({ project, stages, executive, teamLoad = [] }: {
           </div>
           {horas.saldoDiverge && (
             <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)', background: 'var(--surface-hover)', borderRadius: 6, padding: '5px 8px' }}>
-              ℹ️ O saldo difere de “contratadas − consumidas” — inclui aportes/ajustes lançados no projeto.
+              ℹ️ O saldo difere de “apontáveis − consumidas” — inclui aportes/ajustes lançados no projeto.
             </div>
           )}
         </Card>

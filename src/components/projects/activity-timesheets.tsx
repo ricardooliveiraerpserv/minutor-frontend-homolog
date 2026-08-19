@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Check, XCircle, Trash2, Clock, Edit3, Pencil, RotateCcw } from 'lucide-react'
+import { Plus, Check, XCircle, Trash2, Clock, Edit3, Pencil, RotateCcw, Receipt } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 import { SearchSelect } from '@/components/ui/search-select'
 
 /**
@@ -54,6 +55,7 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   onSummary?: (s: { previstas: number; apontadas: number; saldo: number }) => void
 }) {
   const { user } = useAuth()
+  const [expenseOpen, setExpenseOpen] = useState(false)
   const canActAsUser = user?.type === 'admin' || user?.type === 'coordenador'
   const canApprove = canActAsUser
   const [items, setItems] = useState<TS[]>([])
@@ -200,7 +202,10 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Apontamentos desta atividade</span>
-        <button onClick={() => (creating ? (setCreating(false), setEditingId(null)) : openForm())} className="ds-btn-primary" style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Plus size={12} /> Apontar</button>
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          <button onClick={() => setExpenseOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Receipt size={12} /> Despesa</button>
+          <button onClick={() => (creating ? (setCreating(false), setEditingId(null)) : openForm())} className="ds-btn-primary" style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Plus size={12} /> Apontar</button>
+        </div>
       </div>
 
       {/* Resumo do teto: horas disponíveis (previstas), apontadas e saldo. */}
@@ -349,6 +354,12 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
               })}
             </div>
           )}
+      <ExpenseQuickModal
+        open={expenseOpen}
+        onClose={() => setExpenseOpen(false)}
+        onSaved={() => { setExpenseOpen(false); load() }}
+        currentUser={user}
+      />
     </div>
   )
 }

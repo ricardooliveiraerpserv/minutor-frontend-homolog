@@ -13,6 +13,7 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV
 const ICON_HREF =
   APP_ENV === 'dev'     ? '/favicon-dev.svg' :
+  APP_ENV === 'teste'   ? '/favicon-teste.svg' :
   APP_ENV === 'homolog' ? '/favicon-homolog.svg' :
                           '/favicon-prod.svg'
 
@@ -59,7 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               left: 0,
               right: 0,
               zIndex: 9999,
-              background: APP_ENV === 'teste' ? '#2563EB' : 'linear-gradient(90deg, #f59e0b 0%, #ef4444 50%, #f59e0b 100%)',
+              background: APP_ENV === 'teste' ? '#16A34A' : 'linear-gradient(90deg, #f59e0b 0%, #ef4444 50%, #f59e0b 100%)',
               color: APP_ENV === 'teste' ? '#fff' : '#0a0a0a',
               fontWeight: 700,
               fontSize: 12,
