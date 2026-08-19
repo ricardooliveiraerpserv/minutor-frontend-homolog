@@ -8,6 +8,7 @@ import { AuthProvider } from '@/contexts/auth-context'
 import { DeniedActionsProvider } from '@/contexts/denied-actions-context'
 import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { ChatNotifier } from '@/components/inbox/chat-notifier'
+import { MeetingAlerts } from '@/components/notifications/meeting-alerts'
 import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <AuthProvider>
             <PresenceHeartbeat />
             <ChatNotifier />
+            <MeetingAlerts />
             <DeniedActionsProvider>
               {children}
             </DeniedActionsProvider>
