@@ -838,21 +838,6 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
             </div>
           </div>
 
-          {/* Faturamento consolidado (item BH Mensal) — dentro do card, em evidência. */}
-          {card.bh_mensal_item && (
-            <div className="rounded-lg px-3 py-2 mb-2 text-[11px] font-bold leading-snug"
-              style={{ background: '#f973161f', color: '#c2410c', border: '1px solid #f9731666' }}>
-              💰 O faturamento será no contrato principal de Cloud nº {card.parent_contract_code ?? '—'} — fatura única.
-            </div>
-          )}
-          {card.has_bh_mensal_items && card.combined_billing_value != null && (
-            <div className="rounded-lg px-3 py-2 mb-2 text-[11px] font-bold leading-snug"
-              style={{ background: '#0e74901f', color: '#0e7490', border: '1px solid #0e749066' }}>
-              💰 Fatura única: {Number(card.combined_billing_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}<br />
-              <span style={{ fontWeight: 500 }}>Inclui a mensalidade + o(s) item(ns) de Banco de Horas Mensal.</span>
-            </div>
-          )}
-
           {card.is_aditivo && (() => {
             const fieldLabel: Record<string, string> = { valor_hora: 'Valor-hora', horas_contratadas: 'Horas', valor_projeto: 'Valor do contrato', multiplo: 'Valor do contrato' }
             const money = (n?: number | null) => n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -951,6 +936,22 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
               )}
             </div>
           </div>
+
+          {/* Faturamento consolidado (item BH Mensal) — no conteúdo do card, em evidência. */}
+          {card.bh_mensal_item && (
+            <div className="rounded-lg px-3 py-2 mt-2 text-[11px] font-bold leading-snug"
+              style={{ background: '#f973161f', color: '#c2410c', border: '1px solid #f9731666' }}>
+              💰 O faturamento será no contrato principal de Cloud nº {card.parent_contract_code ?? '—'} — fatura única.
+            </div>
+          )}
+          {card.has_bh_mensal_items && card.combined_billing_value != null && (
+            <div className="rounded-lg px-3 py-2 mt-2 text-[11px] font-bold leading-snug"
+              style={{ background: '#0e74901f', color: '#0e7490', border: '1px solid #0e749066' }}>
+              💰 Fatura única: {Number(card.combined_billing_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}<br />
+              <span style={{ fontWeight: 500 }}>Inclui a mensalidade + o(s) item(ns) de Banco de Horas Mensal.</span>
+            </div>
+          )}
+
           {availableColumns && availableColumns.length > 0 && (
             <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}
               onClick={e => e.stopPropagation()}>
