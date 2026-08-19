@@ -29,6 +29,7 @@ interface Gmud {
   source_commit_sha: string | null; responsavel: string | null; diff_summary: string | null
   created_at: string | null; filename: string; repository: string; owner: string
   customer_id: number | null; customer_name: string | null
+  hd_ticket_id: number | null; hd_subject: string | null
 }
 
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—')
@@ -74,8 +75,6 @@ export default function SolicitacoesPage() {
       .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
   }, [gCustomer, gQ, gFrom, gTo])
   useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
-
-  const movidesk = (t: string | null) => t && /^\d+$/.test(t) ? `https://erpserv.movidesk.com/Ticket/Edit/${t}` : null
 
   const on = 'bg-[var(--primary,#157582)] text-white'
   const off = 'text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]'
@@ -163,17 +162,17 @@ export default function SolicitacoesPage() {
                   <Table>
                     <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th></Tr></Thead>
                     <Tbody>
-                      {gmud.map((g) => { const tkUrl = movidesk(g.ticket_number); return (
-                        <Tr key={g.id} onClick={() => { if (tkUrl) window.open(tkUrl, '_blank', 'noopener') }} className={tkUrl ? 'cursor-pointer' : ''}>
-                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} onClick={(e) => e.stopPropagation()} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
+                      {gmud.map((g) => (
+                        <Tr key={g.id}>
+                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
-                          <Td>{g.ticket_number ? (tkUrl ? <a href={tkUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>#{g.ticket_number} <ExternalLink size={11} /></a> : <Badge variant="default">{g.ticket_number}</Badge>) : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
+                          <Td>{g.hd_ticket_id ? <span title={g.hd_subject ?? ''}><Badge variant="success">#{g.ticket_number}</Badge>{g.hd_subject && <div className="mt-0.5 max-w-[180px] truncate text-xs" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</div>}</span> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
                           <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
                           <Td className="text-xs">{dt(g.created_at)}</Td>
                         </Tr>
-                      )})}
+                      ))}
                     </Tbody>
                   </Table>
                 </div>
