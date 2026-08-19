@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, CheckCircle2, FileCode2, FolderGit2, HelpCircle, Search, XCircle,
+  AlertTriangle, Building2, CheckCircle2, ChevronRight, FileCode2, FolderGit2, HelpCircle, Search, XCircle,
 } from 'lucide-react'
 import {
   Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable,
@@ -49,6 +49,11 @@ interface CatalogResponse {
   page_situation: (Record<Situation, number> & { scope: string }) | null
 }
 
+interface CustomerRow {
+  customer_id: number; name: string; repos: number; fontes: number
+  documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number
+}
+
 const SITUATION_META: Record<Situation, { variant: string; label: string; icon: typeof CheckCircle2 }> = {
   ATUALIZADA:    { variant: 'success', label: 'Atualizada',    icon: CheckCircle2 },
   DESATUALIZADA: { variant: 'warning', label: 'Desatualizada', icon: AlertTriangle },
@@ -78,6 +83,17 @@ export default function CentralFontesPage() {
   const [semantic, setSemantic] = useState('')
   const [situation, setSituation] = useState('')
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Acervo por Empresa (nível 1 da navegação progressiva) — só aparece quando não há busca/filtro
+  const [customers, setCustomers] = useState<CustomerRow[] | null>(null)
+  const [custErr, setCustErr] = useState<string | null>(null)
+  const hasFilter = !!(q.trim() || analysis || semantic || situation)
+
+  useEffect(() => {
+    api.get<{ data: CustomerRow[] }>('/source-docs/tree/customers')
+      .then((r) => setCustomers(r.data))
+      .catch((e) => setCustErr(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.'))
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -183,6 +199,11 @@ export default function CentralFontesPage() {
         </div>
       </Card>
 
+      {/* Sem busca/filtro: o protagonista é o Acervo por Empresa (nível 1). */}
+      {!hasFilter ? (
+        <EmpresaBlock customers={customers} err={custErr} onOpen={(id) => router.push(`/central-fontes/acervo?customer_id=${id}`)} />
+      ) : (
+       <>
       {/* Roll-up da situação — SÓ da página, rotulado */}
       {ps && (
         <div className="flex items-center gap-2 mb-3 text-xs" style={{ color: 'var(--text-light)' }}>
@@ -247,6 +268,49 @@ export default function CentralFontesPage() {
           total={resp.pagination.total}
         />
       )}
+       </>
+      )}
     </>
+  )
+}
+
+function EmpresaBlock({ customers, err, onOpen }: { customers: CustomerRow[] | null; err: string | null; onOpen: (id: number) => void }) {
+  const pct = (doc: number, total: number) => total ? Math.round((doc / total) * 100) : 0
+  return (
+    <Card padding="none">
+      <div className="px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Acervo por empresa</div>
+      {err ? (
+        <EmptyState icon={XCircle} title="Não foi possível carregar as empresas" description={err} />
+      ) : customers === null ? (
+        <SkeletonTable rows={6} cols={5} />
+      ) : customers.length === 0 ? (
+        <EmptyState icon={Building2} title="Nenhuma empresa com acervo" description="Nenhum cliente tem repositório de fonte no seu escopo." />
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <Thead>
+              <Tr><Th>Empresa</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th right>Repos.</Th><Th></Th></Tr>
+            </Thead>
+            <Tbody>
+              {customers.map((c) => (
+                <Tr key={c.customer_id} onClick={() => onOpen(c.customer_id)} className="cursor-pointer">
+                  <Td>
+                    <div className="flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
+                      <Building2 size={15} style={{ color: 'var(--text-light)' }} /> {c.name}
+                      {c.aguardando_aprovacao > 0 && <Badge variant="warning">{c.aguardando_aprovacao} aguard. IA</Badge>}
+                    </div>
+                  </Td>
+                  <Td right>{c.fontes}</Td>
+                  <Td right>{c.documentadas}</Td>
+                  <Td right>{pct(c.documentadas, c.fontes)}%</Td>
+                  <Td right>{c.repos}</Td>
+                  <Td right><ChevronRight size={16} style={{ color: 'var(--text-light)' }} /></Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </div>
+      )}
+    </Card>
   )
 }

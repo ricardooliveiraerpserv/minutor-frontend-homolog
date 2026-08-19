@@ -4,8 +4,10 @@
 // ficha da fonte no painel direito (split-view), navegação cross-source dentro do próprio Acervo,
 // "Mostrar no Acervo" (via ?doc=) e persistência de contexto (sessionStorage + URL). Sem lógica de motor.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Building2, FileCode2, Folder, FolderGit2, GitBranch } from 'lucide-react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Building2, ChevronRight, FileCode2, Folder, FolderGit2, GitBranch, List, Network } from 'lucide-react'
 import {
   Badge, Breadcrumb, Card, EmptyState, PageHeader, SplitPanel, Skeleton, Tree,
   Table, Thead, Tbody, Tr, Th, Td,
@@ -32,7 +34,137 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : 
 const semBadge = (s: string) => s === 'completed' ? <Badge variant="success">Completa</Badge> : s === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">Sem semântica</Badge>
 const fileBadge = (s: string) => s === 'completed' ? '●' : s === 'partial' ? '◐' : '○'
 
+// ── Navegação progressiva (default) — dirigida por URL, reusa os mesmos painéis ──
 export default function AcervoPage() {
+  return <Suspense fallback={<div className="p-6"><Skeleton className="h-64" /></div>}><AcervoRouter /></Suspense>
+}
+
+function AcervoRouter() {
+  const view = useSearchParams()?.get('view')
+  return view === 'tree' ? <TreeExplorer /> : <ProgressiveNav />
+}
+
+function buildAcervoHref(p: { customer_id?: number | null; repository?: string; path?: string; doc?: number; view?: string }): string {
+  const q = new URLSearchParams()
+  if (p.customer_id) q.set('customer_id', String(p.customer_id))
+  if (p.repository) q.set('repository', p.repository)
+  if (p.path) q.set('path', p.path)
+  if (p.doc) q.set('doc', String(p.doc))
+  if (p.view) q.set('view', p.view)
+  const s = q.toString()
+  return s ? `/central-fontes/acervo?${s}` : '/central-fontes/acervo'
+}
+
+function ViewToggle({ current, ctx }: { current: 'list' | 'tree'; ctx?: { customer_id?: number | null; repository?: string; path?: string } }) {
+  const on = 'bg-[var(--primary,#157582)] text-white'
+  const off = 'text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]'
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-[color:var(--border)] text-sm">
+      <Link href={buildAcervoHref({ ...(ctx ?? {}) })} className={`flex items-center gap-1 px-3 py-1.5 ${current === 'list' ? on : off}`}><List size={14} /> Lista</Link>
+      <Link href={buildAcervoHref({ view: 'tree' })} className={`flex items-center gap-1 border-l border-[color:var(--border)] px-3 py-1.5 ${current === 'tree' ? on : off}`}><Network size={14} /> Árvore</Link>
+    </div>
+  )
+}
+
+function EmpresaList({ customers, err, onOpen }: { customers: CustomerRow[] | null; err: string | null; onOpen: (id: number) => void }) {
+  const pct = (d: number, t: number) => (t ? Math.round((d / t) * 100) : 0)
+  return (
+    <div className="p-5">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-fg)]">Acervo por empresa</div>
+      {err ? <EmptyState icon={Building2} title="Erro" description={err} />
+        : customers === null ? <Skeleton className="h-40" />
+        : customers.length === 0 ? <EmptyState icon={Building2} title="Sem empresas" description="Nenhuma empresa no seu escopo." />
+        : <Table><Thead><Tr><Th>Empresa</Th><Th right>Fontes</Th><Th right>Cobertura</Th><Th right>Repos.</Th><Th></Th></Tr></Thead>
+            <Tbody>{customers.map((c) => (
+              <Tr key={c.customer_id} onClick={() => onOpen(c.customer_id)} className="cursor-pointer">
+                <Td><div className="flex items-center gap-2 font-medium"><Building2 size={15} className="text-[color:var(--muted-fg)]" /> {c.name}</div></Td>
+                <Td right>{c.fontes}</Td><Td right>{pct(c.documentadas, c.fontes)}%</Td><Td right>{c.repos}</Td>
+                <Td right><ChevronRight size={16} className="text-[color:var(--muted-fg)]" /></Td>
+              </Tr>
+            ))}</Tbody></Table>}
+    </div>
+  )
+}
+
+function ProgressiveNav() {
+  const router = useRouter()
+  const sp = useSearchParams()
+  const customerId = sp.get('customer_id') ? Number(sp.get('customer_id')) : null
+  const repository = sp.get('repository') || ''
+  const path = sp.get('path') || ''
+  const docId = sp.get('doc') ? Number(sp.get('doc')) : null
+
+  const [customers, setCustomers] = useState<CustomerRow[] | null>(null)
+  const [custErr, setCustErr] = useState<string | null>(null)
+  useEffect(() => { api.get<{ data: CustomerRow[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch((e) => setCustErr(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.')) }, [])
+  const customerName = customers?.find((c) => c.customer_id === customerId)?.name ?? ''
+
+  // linha do repo (branch/última atualização) — só quando estamos no nível repo
+  const [repoRow, setRepoRow] = useState<RepoRow | null>(null)
+  useEffect(() => {
+    if (!customerId || !repository) { setRepoRow(null); return }
+    let a = true
+    api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${customerId}/repos`).then((r) => { if (a) setRepoRow(r.data.find((x) => x.repository === repository) ?? null) }).catch(() => {})
+    return () => { a = false }
+  }, [customerId, repository])
+
+  // deep-link ?doc= (Mostrar no Acervo): resolve empresa/repo/path p/ breadcrumb
+  const [docIdent, setDocIdent] = useState<Ident['data'] | null>(null)
+  useEffect(() => {
+    if (!docId) { setDocIdent(null); return }
+    let a = true
+    api.get<Ident>(`/source-docs/${docId}`).then((r) => { if (a) setDocIdent(r.data) }).catch(() => {})
+    return () => { a = false }
+  }, [docId])
+
+  const openCustomer = useCallback((id: number) => router.push(buildAcervoHref({ customer_id: id })), [router])
+  const openRepo = useCallback((repo: string) => router.push(buildAcervoHref({ customer_id: customerId, repository: repo })), [router, customerId])
+  const openDirPath = useCallback((p: string) => router.push(buildAcervoHref({ customer_id: customerId, repository, path: p })), [router, customerId, repository])
+  const openFile = useCallback((id: number) => router.push(buildAcervoHref({ customer_id: customerId, repository, path, doc: id })), [router, customerId, repository, path])
+  const gotoSource = useCallback(async (id: number) => {
+    try {
+      const m = (await api.get<Ident>(`/source-docs/${id}`)).data
+      const dir = m.path.split('/').slice(0, -1).join('/')
+      router.push(buildAcervoHref({ customer_id: m.customer?.id ?? null, repository: m.repository, path: dir, doc: id }))
+    } catch { /* ignore */ }
+  }, [router])
+  const dirPathFromId = (id: string) => id.replace(`d:${customerId}:${repository}:`, '')
+
+  const effRepo = repository || docIdent?.repository || ''
+  const effCustId = customerId ?? docIdent?.customer?.id ?? null
+  const effCustName = customerName || docIdent?.customer?.name || ''
+  const effDir = docIdent ? docIdent.path.split('/').slice(0, -1).join('/') : path
+  const crumbs: Crumb[] = useMemo(() => {
+    const out: Crumb[] = [{ label: 'Central de Fontes', href: '/central-fontes' }]
+    if (effCustId) out.push({ label: effCustName || '…', href: buildAcervoHref({ customer_id: effCustId }) })
+    if (effRepo) out.push({ label: effRepo, href: buildAcervoHref({ customer_id: effCustId, repository: effRepo }) })
+    if (effDir) { let acc = ''; for (const seg of effDir.split('/').filter(Boolean)) { acc = acc ? `${acc}/${seg}` : seg; out.push({ label: seg, href: buildAcervoHref({ customer_id: effCustId, repository: effRepo, path: acc }) }) } }
+    if (docId && docIdent) out.push({ label: docIdent.filename })
+    return out
+  }, [effCustId, effCustName, effRepo, effDir, docId, docIdent])
+
+  const header = <PageHeader icon={FolderGit2} title="Central de Fontes — Acervo" subtitle="Empresa → Repositório → Diretório → Fonte → Conhecimento." actions={<ViewToggle current="list" ctx={{ customer_id: customerId, repository, path }} />} />
+
+  if (docId) {
+    return <>{header}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <Breadcrumb items={crumbs} maxItems={7} />
+        <button onClick={() => router.push(buildAcervoHref({ customer_id: effCustId, repository: effRepo, path: effDir }))} className="inline-flex items-center gap-1 whitespace-nowrap text-sm text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]"><ArrowLeft size={14} /> Voltar</button>
+      </div>
+      <Card padding="none" className="overflow-hidden"><div className="min-h-[60vh]"><SourceDocPanel docId={docId} onNavigateSource={gotoSource} /></div></Card>
+    </>
+  }
+
+  let body: React.ReactNode
+  if (!customerId) body = <EmpresaList customers={customers} err={custErr} onOpen={openCustomer} />
+  else if (!repository) body = <CustomerPanel m={{ type: 'customer', customer_id: customerId, name: customerName }} onNavigateSource={gotoSource} onOpenRepo={openRepo} crumbs={crumbs} />
+  else if (!path) body = <RepoPanel m={{ type: 'repo', customer_id: customerId, customerName, repository, row: repoRow ?? undefined }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onNavigateSource={gotoSource} crumbs={crumbs} />
+  else body = <FolderPanel selected={{ type: 'dir', customer_id: customerId, customerName, repository, path }} onOpenDir={(id) => openDirPath(dirPathFromId(id))} onOpenFile={(id) => openFile(id)} onNavigateSource={gotoSource} crumbs={crumbs} />
+
+  return <>{header}<Card padding="none" className="overflow-hidden"><div className="min-h-[60vh]">{body}</div></Card></>
+}
+
+function TreeExplorer() {
   const [nodes, setNodes] = useState<TreeNode[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Meta | null>(null)
@@ -126,7 +258,7 @@ export default function AcervoPage() {
 
   return (
     <>
-      <PageHeader icon={FolderGit2} title="Acervo" subtitle="Empresa → Repositório → Diretório Git → Fonte → Conhecimento. Explorador técnico do legado." />
+      <PageHeader icon={FolderGit2} title="Acervo — Árvore" subtitle="Empresa → Repositório → Diretório Git → Fonte → Conhecimento. Explorador técnico do legado." actions={<ViewToggle current="tree" />} />
       {err ? <EmptyState icon={FolderGit2} title="Erro" description={err} /> : (
         <Card padding="none" className="overflow-hidden">
           <div className="h-[calc(100vh-300px)] min-h-[460px]">
@@ -223,30 +355,30 @@ function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledg
 
 function RightPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { selected: Meta | null; onOpenDir: (id: string) => void; onOpenFile: (id: number, fn: string) => void; onNavigateSource: (id: number) => void }) {
   if (!selected) return <div className="p-6"><EmptyState icon={FolderGit2} title="Selecione no navegador" description="Escolha uma empresa, repositório, pasta ou fonte." /></div>
-  if (selected.type === 'customer') return <CustomerPanel key={`c:${selected.customer_id}`} m={selected} onOpenDir={onOpenDir} onNavigateSource={onNavigateSource} />
+  if (selected.type === 'customer') return <CustomerPanel key={`c:${selected.customer_id}`} m={selected} onNavigateSource={onNavigateSource} />
   if (selected.type === 'repo') return <RepoPanel key={`r:${selected.customer_id}:${selected.repository}`} m={selected} onOpenDir={onOpenDir} onNavigateSource={onNavigateSource} />
   if (selected.type !== 'dir') return null
   return <FolderPanel key={nodeIdOf(selected)} selected={selected} onOpenDir={onOpenDir} onOpenFile={onOpenFile} onNavigateSource={onNavigateSource} />
 }
 
-function CustomerPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type: 'customer' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void }) {
+function CustomerPanel({ m, onNavigateSource, onOpenRepo, crumbs }: { m: Extract<Meta, { type: 'customer' }>; onNavigateSource: (id: number) => void; onOpenRepo?: (repository: string) => void; crumbs?: Crumb[] }) {
   const { k, failed } = useKnowledge({ customer_id: m.customer_id })
   const [repos, setRepos] = useState<RepoRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)).catch(() => a && setRepos([])); return () => { a = false } }, [m.customer_id])
-  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
+  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? [{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
     <ScopeSearch customer_id={m.customer_id} />
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
-      {repos === null ? <Skeleton className="h-16" /> : <div className="flex flex-col gap-1">{repos.map((rp) => (
-        <div key={rp.repository} className="flex items-center gap-3 rounded-md border border-[color:var(--border)] px-3 py-2 text-sm"><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /><span className="font-medium">{rp.repository}</span><span className="text-xs text-[color:var(--muted-fg)]">{rp.fontes} fontes · {rp.cobertura_semantica}%</span></div>
+      {repos === null ? <Skeleton className="h-16" /> : repos.length === 0 ? <EmptyState icon={FolderGit2} title="Sem repositórios" description="Nenhum repositório de fonte nesta empresa." /> : <div className="flex flex-col gap-1">{repos.map((rp) => (
+        <button key={rp.repository} onClick={() => onOpenRepo?.(rp.repository)} disabled={!onOpenRepo} className={`flex items-center gap-3 rounded-md border border-[color:var(--border)] px-3 py-2 text-left text-sm ${onOpenRepo ? 'hover:bg-[color:var(--muted-bg,#f1f5f9)] cursor-pointer' : 'cursor-default'}`}><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /><span className="font-medium">{rp.repository}</span><span className="text-xs text-[color:var(--muted-fg)]">{rp.fontes} fontes · {rp.cobertura_semantica}%</span>{onOpenRepo && <ChevronRight size={15} className="ml-auto text-[color:var(--muted-fg)]" />}</button>
       ))}</div>}</div></div>
 }
 
-function RepoPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type: 'repo' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void }) {
+function RepoPanel({ m, onOpenDir, onNavigateSource, crumbs }: { m: Extract<Meta, { type: 'repo' }>; onOpenDir: (id: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[] }) {
   const { k, failed } = useKnowledge({ customer_id: m.customer_id, repository: m.repository })
   const [dirs, setDirs] = useState<DirRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: { dirs: DirRow[] } }>(`/source-docs/tree/nodes?customer_id=${m.customer_id}&repository=${encodeURIComponent(m.repository)}&path=`).then((r) => a && setDirs(r.data.dirs)).catch(() => a && setDirs([])); return () => { a = false } }, [m.customer_id, m.repository])
-  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.customerName }, { label: m.repository }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><FolderGit2 size={18} /> {m.repository}</h2>
+  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? [{ label: m.customerName }, { label: m.repository }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><FolderGit2 size={18} /> {m.repository}</h2>
     <ScopeSearch customer_id={m.customer_id} repository={m.repository} />
     {m.row && <div className="text-xs text-[color:var(--muted-fg)]"><span className="inline-flex items-center gap-1"><GitBranch size={12} /> {m.row.branch}</span> · Última atualização do acervo: {dt(m.row.ultima_atualizacao_acervo)} <span className="opacity-70">(não é sync do GitHub)</span></div>}
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
@@ -256,7 +388,7 @@ function RepoPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type
       ) })}</div>}</div></div>
 }
 
-function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { selected: Extract<Meta, { type: 'dir' }>; onOpenDir: (id: string) => void; onOpenFile: (id: number, fn: string) => void; onNavigateSource: (id: number) => void }) {
+function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs }: { selected: Extract<Meta, { type: 'dir' }>; onOpenDir: (id: string) => void; onOpenFile: (id: number, fn: string) => void; onNavigateSource: (id: number) => void; crumbs?: Crumb[] }) {
   const [data, setData] = useState<{ dirs: DirRow[]; files: FileRow[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
@@ -265,9 +397,9 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { se
     api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${selected.customer_id}&repository=${encodeURIComponent(selected.repository)}&path=${encodeURIComponent(selected.path)}`).then((r) => alive && setData(r.data)).catch(() => alive && setData({ dirs: [], files: [] })).finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [selected])
-  const crumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').filter(Boolean).map((s) => ({ label: s }))]
+  const builtCrumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').filter(Boolean).map((s) => ({ label: s }))]
   const files = (data?.files ?? []).filter((f) => !filter || f.semantic === filter)
-  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs} maxItems={6} />
+  return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? builtCrumbs} maxItems={6} />
     <ScopeSearch customer_id={selected.customer_id} repository={selected.repository} path={selected.path} />
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} onHealth={(key) => setFilter(key === 'completed' || key === 'partial' || key === 'none' ? key : (key === 'gaps' ? 'partial' : null))} />
     {loading || !data ? <Skeleton className="h-40" /> : <>
