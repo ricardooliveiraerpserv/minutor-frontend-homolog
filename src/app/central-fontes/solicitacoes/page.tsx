@@ -162,17 +162,17 @@ export default function SolicitacoesPage() {
                   <Table>
                     <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th></Tr></Thead>
                     <Tbody>
-                      {gmud.map((g) => { const chamadoUrl = g.hd_ticket_id && g.ticket_number ? `https://erpserv.movidesk.com/Ticket/Edit/${g.ticket_number}` : null; return (
-                        <Tr key={g.id} onClick={() => { if (chamadoUrl) window.open(chamadoUrl, '_blank', 'noopener') }} className={chamadoUrl ? 'cursor-pointer' : ''}>
-                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} onClick={(e) => e.stopPropagation()} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
+                      {gmud.map((g) => (
+                        <Tr key={g.id}>
+                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
-                          <Td>{chamadoUrl ? <a href={chamadoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={g.hd_subject ?? ''} className="inline-flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}><Badge variant="success">#{g.ticket_number}</Badge> <ExternalLink size={11} /></a> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}{chamadoUrl && g.hd_subject && <div className="mt-0.5 max-w-[180px] truncate text-xs" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</div>}</Td>
+                          <Td>{g.hd_ticket_id ? <span title={g.hd_subject ?? ''}><Badge variant="success">#{g.ticket_number}</Badge>{g.hd_subject && <div className="mt-0.5 max-w-[180px] truncate text-xs" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</div>}</span> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
                           <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
                           <Td className="text-xs">{dt(g.created_at)}</Td>
                         </Tr>
-                      )})}
+                      ))}
                     </Tbody>
                   </Table>
                 </div>
