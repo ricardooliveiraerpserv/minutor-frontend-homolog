@@ -10,11 +10,11 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Crosshair, Database, Download, ExternalLink, FileCode2,
+  AlertTriangle, ArrowLeft, CheckCircle2, Crosshair, Database, Download, ExternalLink, FileCode2, FilePlus2,
   GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, Card, EmptyState, Modal, Skeleton } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, Modal, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -106,6 +106,10 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
   const [validating, setValidating] = useState(false)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [reproOpen, setReproOpen] = useState(false)
+  const [reqOpen, setReqOpen] = useState(false)
+  const [reqRepo, setReqRepo] = useState('')
+  const [reqNote, setReqNote] = useState('')
+  const [reqSaving, setReqSaving] = useState(false)
   const [plan, setPlan] = useState<ReprocessPlan | null>(null)
   const [reproLayer, setReproLayer] = useState<'deterministic' | 'semantic' | 'both'>('both')
   const [reproForce, setReproForce] = useState(false)
@@ -273,11 +277,11 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
           )}
           {hasPermission('source_docs.download') && (
             <>
-              <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'docx'} onClick={() => doDownload('docx')}>DOCX</Button>
               <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'pdf'} onClick={() => doDownload('pdf')}>PDF</Button>
               <Button size="sm" variant="secondary" icon={Download} loading={downloading === 'md'} onClick={() => doDownload('md')}>MD</Button>
             </>
           )}
+          <Button size="sm" variant="secondary" icon={FilePlus2} onClick={() => { setReqRepo(meta.repository); setReqOpen(true) }}>Solicitar fonte</Button>
           {exec && exec.status !== 'ok' && exec.status !== 'failed' && (
             <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" style={{ background: 'var(--warning-soft, var(--surface))', color: 'var(--warning, var(--text-muted))', border: '1px solid var(--border)' }}>
               <RefreshCw size={12} className="animate-spin" /> reprocessando… ({exec.status})
@@ -437,6 +441,30 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
                 onClick={confirmReprocess}>
                 {plan?.action === 'reuse' ? 'Reprocessar mesmo assim' : 'Confirmar'}
               </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {reqOpen && (
+        <Modal open onClose={() => setReqOpen(false)} title={`Solicitar fonte — ${meta.filename}`}>
+          <div className="space-y-3">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Registra um pedido para obter/provisionar esta fonte na Central.</p>
+            <TextInput label="Repositório" value={reqRepo} onChange={(e) => setReqRepo(e.target.value)} placeholder="owner/repositorio" />
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Observação (opcional)</label>
+              <textarea value={reqNote} onChange={(e) => setReqNote(e.target.value)} rows={3} className="mt-1.5 w-full rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} placeholder="Contexto, prioridade, quem pediu…" />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button size="sm" variant="secondary" onClick={() => setReqOpen(false)}>Cancelar</Button>
+              <Button size="sm" variant="primary" icon={FilePlus2} loading={reqSaving} onClick={async () => {
+                setReqSaving(true)
+                try {
+                  await api.post('/source-docs/source-requests', { customer_id: meta.customer?.id ?? null, repository: reqRepo.trim() || null, note: reqNote.trim() || null })
+                  toast.success('Solicitação registrada.'); setReqOpen(false); setReqNote('')
+                } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao registrar a solicitação.') }
+                finally { setReqSaving(false) }
+              }}>Registrar solicitação</Button>
             </div>
           </div>
         </Modal>
