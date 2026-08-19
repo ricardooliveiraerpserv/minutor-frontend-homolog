@@ -51,10 +51,13 @@ function ActivityList({ stages, onOpen }: { stages: ScheduleStage[]; onOpen: (d:
                   key={d.id}
                   type="button"
                   onClick={() => onOpen(d)}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
-                    padding: '10px 14px', cursor: 'pointer', background: 'transparent',
+                    padding: '10px 14px', cursor: 'pointer', background: 'var(--surface)',
                     border: 'none', borderTop: i ? '1px solid var(--border)' : 'none',
+                    transition: 'background 0.12s',
                   }}
                 >
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
