@@ -14,7 +14,7 @@ import {
 } from '@/components/ds'
 import type { Crumb, TreeNode } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
-import { SourceDocPanel } from '@/components/central-fontes/source-doc-panel'
+import { SourceDocDetail } from '@/app/central-fontes/[id]/page'
 
 interface CustomerRow { customer_id: number; name: string; repos: number; fontes: number; documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number }
 interface RepoRow { repository: string; source_repo_id: number | null; branch: string; owner: string; fontes: number; documentadas: number; parciais: number; cobertura_semantica: number; ultima_atualizacao_acervo: string | null }
@@ -226,7 +226,7 @@ function TreeExplorer({ customerId, initialDoc }: { customerId: number | null; i
                 </div>
               }
               right={
-                fileId ? <SourceDocPanel docId={fileId} onNavigateSource={(id) => void revealDoc(id)} />
+                fileId ? <SourceDocDetail docId={fileId} embedded />
                   : <RightPanel selected={selected} nav={treeNav} onOpenRepo={(repo) => void revealRepo(cidRef.current ?? 0, custName, repo)} onOpenDir={(id) => { const n = findNode(nodes, id); if (n) onSelect(n) }} onOpenFile={(id, fn) => selectFile(id, fn)} onNavigateSource={(id) => void revealDoc(id)} />
               }
             />
