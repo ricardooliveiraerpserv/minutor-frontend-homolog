@@ -14,7 +14,7 @@ interface HireForm {
   contato: string
   email: string
   perfil: string; coordinator_type: string
-  contratacao_fixa: string; consultant_type: string; valor: string; start_date: string
+  contratacao_fixa: string; consultant_type: string; valor: string; start_date: string; data_primeiro_contato: string
   tem_garantia: string; guaranteed_hours: string; empresa: string
   recursos: string[]; email_criado: string; incluir_whatsapp: string; whatsapp_date: string
   cpf: string; nascimento: string; matricula: string
@@ -68,7 +68,21 @@ export default function ContratacaoPage() {
   }
 
   const createHire = async () => {
-    if (!nTitle.trim()) { toast.error('Informe o nome da contratação'); return }
+    // Todos os campos são obrigatórios (regra do administrativo).
+    if (!nTitle.trim())     { toast.error('Informe o nome do contratado'); return }
+    if (!nContato.trim())   { toast.error('Informe o contato (telefone / e-mail)'); return }
+    if (!nModal)            { toast.error('Selecione a modalidade'); return }
+    if (!nStartDate)        { toast.error('Informe a data de início'); return }
+    if (!nFirstContact)     { toast.error('Informe a data de primeiro contato'); return }
+    if (!nFixa)             { toast.error('Informe se a contratação é fixa'); return }
+    if (!nCargo.trim())     { toast.error('Informe o cargo'); return }
+    if (!nRemun)            { toast.error('Selecione a remuneração'); return }
+    if (!nValor.trim())     { toast.error('Informe o valor'); return }
+    if (!nRecursos.length)  { toast.error('Selecione ao menos um recurso'); return }
+    if (!nEmailCriado)      { toast.error('Informe se o e-mail corporativo já foi criado'); return }
+    if (!nWhats)            { toast.error('Informe se inclui no WhatsApp'); return }
+    if (nWhats === 'sim' && !nWhatsDate) { toast.error('Informe a data de inclusão no WhatsApp'); return }
+    if (!nObs.trim())       { toast.error('Preencha a observação'); return }
     setCreating(true)
     try {
       await api.post('/competencias/contratacao', {
@@ -242,6 +256,11 @@ export default function ContratacaoPage() {
               <div className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>Script de passagem</div>
 
               <div>
+                <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Contato (telefone / e-mail)</div>
+                <input key={`contato-${open.id}`} className="ds-input" defaultValue={open.form.contato} placeholder="(11) 90000-0000" onBlur={e => setForm(open, { contato: e.target.value })} />
+              </div>
+
+              <div>
                 <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>E-mail ERPSERV <span style={{ color: 'var(--text-light)' }}>· será o login do usuário</span></div>
                 <input key={`email-${open.id}`} className="ds-input" type="email" defaultValue={open.form.email} placeholder="nome@erpserv.com.br" onBlur={e => setForm(open, { email: e.target.value })} />
               </div>
@@ -308,6 +327,11 @@ export default function ContratacaoPage() {
                   <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Data de início</div>
                   <input key={`sd-${open.id}`} className="ds-input" type="date" defaultValue={open.form.start_date} onBlur={e => setForm(open, { start_date: e.target.value })} />
                   <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Entrada no meio do mês é calculada proporcionalmente aos dias úteis.</div>
+                </div>
+                <div>
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Data de primeiro contato</div>
+                  <input key={`pc-${open.id}`} className="ds-input" type="date" defaultValue={open.form.data_primeiro_contato} onBlur={e => setForm(open, { data_primeiro_contato: e.target.value })} />
+                  <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Fixa o lembrete no Meu Dia do administrativo; atrasa se passar.</div>
                 </div>
               </div>
 
@@ -408,7 +432,7 @@ export default function ContratacaoPage() {
           <div className="ds-card w-full max-w-2xl max-h-[88vh] overflow-y-auto" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
             <div className="ds-card-pad">
               <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Nova contratação — script de passagem</h2>
-              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”. Só o nome é obrigatório — o restante pode ser completado depois no card.</p>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”. Todos os campos são obrigatórios.</p>
               <div className="space-y-4">
                 {/* 1. Nome + contato */}
                 <div className="grid grid-cols-2 gap-3">
