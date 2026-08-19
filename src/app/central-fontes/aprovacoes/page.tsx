@@ -42,18 +42,26 @@ export default function AprovacoesIaPage() {
   const [newLimit, setNewLimit] = useState('')
   const [confirm, setConfirm] = useState<{ a: Approval; action: string; title: string; lines: string[]; note: string; confirmLabel: string; variant: 'primary' | 'danger' } | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [customerId, setCustomerId] = useState('')
+  const [nextStep, setNextStep] = useState('')
+  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
+
+  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const resp = await api.get<{ data: Approval[] }>(`/source-docs/cost-approvals?status=${status}`)
+      const p = new URLSearchParams({ status })
+      if (customerId) p.set('customer_id', customerId)
+      if (nextStep) p.set('next_step', nextStep)
+      const resp = await api.get<{ data: Approval[] }>(`/source-docs/cost-approvals?${p}`)
       setRows(resp.data || [])
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Falha ao carregar a fila.' })
     } finally {
       setLoading(false)
     }
-  }, [status])
+  }, [status, customerId, nextStep])
 
   useEffect(() => { void load() }, [load])
 
@@ -91,6 +99,9 @@ export default function AprovacoesIaPage() {
         title="Aprovações de IA"
         subtitle="Solicitações abertas quando o próximo passo ultrapassaria o limite operacional por fonte. Nenhuma IA é chamada até a decisão."
         actions={
+          <div className="flex flex-wrap items-end gap-2">
+          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">Todas empresas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</Select>
+          <Select value={nextStep} onChange={(e) => setNextStep(e.target.value)}><option value="">Todo passo</option><option value="reprocess">Reprocessamento</option><option value="top_up">Top-up</option><option value="critical_rules">Regras críticas</option><option value="deepen">Aprofundamento</option></Select>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="pending">Pendentes</option>
             <option value="approved_step">Passo liberado</option>
@@ -99,6 +110,7 @@ export default function AprovacoesIaPage() {
             <option value="rejected">Rejeitadas</option>
             <option value="all">Todas</option>
           </Select>
+          </div>
         }
       />
 

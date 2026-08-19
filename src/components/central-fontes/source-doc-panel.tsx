@@ -22,6 +22,7 @@ interface Meta {
   current_version?: { id: number; semantic_quality?: string; created_at?: string; gmud?: { ticket_number?: string } | null } | null
   situation?: { status?: string; documented_blob_sha?: string | null; checked_at?: string } | null
   documentation_meta?: { semantic?: Dict; security_findings?: unknown } | null
+  open_cost_approval?: { id: number; next_step: string } | null
 }
 
 const TABS = ['Visão Geral', 'Regras', 'Funções', 'Dependências', 'Evidências', 'Código', 'Histórico'] as const
@@ -92,6 +93,10 @@ export function SourceDocPanel({ docId, onNavigateSource }: { docId: number; onN
           {meta.situation?.documented_blob_sha && <span>blob: {S(meta.situation.documented_blob_sha).slice(0, 10)}</span>}
           {cost != null && <span>Custo IA: US$ {Number(cost).toFixed(2)}</span>}
           {meta.situation?.status === 'DESATUALIZADA' && <Badge variant="warning">Desatualizada</Badge>}
+          {meta.open_cost_approval && (
+            <span className="inline-flex items-center gap-1.5"><Badge variant="warning">Aguardando aprovação de IA</Badge>
+              <a href="/central-fontes/aprovacoes" className="text-[color:var(--accent,#2563eb)] hover:underline">Ver aprovação →</a></span>
+          )}
         </div>
       </div>
 
