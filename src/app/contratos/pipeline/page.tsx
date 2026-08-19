@@ -652,7 +652,7 @@ const PROJECT_PRIMARY_ITEMS = [
   { action: 'view',     label: 'Gestão de Projetos', icon: Eye,           clientVisible: true },
   { action: 'diary',    label: 'Diário do Projeto',  icon: BookOpen,      clientVisible: false }, // interno — cliente não vê
   { action: 'comments', label: 'Comentários',        icon: MessageSquare, clientVisible: true, accent: true, legend: 'O cliente participa' },
-  { action: 'documentos', label: 'Documentos',       icon: Paperclip,     clientVisible: true },
+  { action: 'documentos', label: 'Documentos',       icon: Paperclip,     clientVisible: false },
 ]
 // Menu SECUNDÁRIO (⋮): demais ações de gestão.
 const PROJECT_SECONDARY_ITEMS = [

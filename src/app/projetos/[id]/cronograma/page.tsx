@@ -26,6 +26,7 @@ import { IndicadoresView } from './views/indicadores'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { CronogramaEvmPanel } from '@/components/projects/cronograma-evm-panel'
+import { ProjectDocsPanel } from '@/components/projects/project-docs-panel'
 import { CronogramaSettingsModal } from '@/components/projects/cronograma-settings-modal'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
@@ -33,8 +34,8 @@ import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos
 import { ClientSchedule } from '@/components/projects/client-schedule'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
-type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'conversa' | 'diary'
-const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'conversa', 'diary']
+type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'conversa' | 'diary' | 'documentos'
+const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'conversa', 'diary', 'documentos']
 /** Compat permanente: bookmarks/links antigos continuam funcionando. */
 const LEGACY_MAP: Record<string, ViewMode> = {
   board: 'operacao',
@@ -822,6 +823,7 @@ function InternalCronogramaPage() {
         )}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
         {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
+        {view === 'documentos' && <ProjectDocsPanel projectId={projectId} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade {
@@ -895,6 +897,7 @@ function SegmentedControl({
     { value: 'indicadores',  label: 'Indicadores',    hintBase: 'Atalho: 4', countSuffix: n => `${n}`,                              countTone: 'primary' },
     { value: 'conversa',     label: 'Comentários',    hintBase: 'Comentários com o cliente', countSuffix: n => `${n}`,               countTone: 'danger' },
     { value: 'diary',        label: 'Diário do Projeto', hintBase: 'Diário interno — o cliente NÃO participa', countSuffix: n => `${n}`, countTone: 'primary' },
+    { value: 'documentos',   label: 'Documentos',        hintBase: 'Documentos do projeto (coord/admin e relacionados)', countSuffix: n => `${n}`, countTone: 'primary' },
   ]
   // Consultor: só a Operação (as outras views são de gestão).
   const opts = onlyOperacao ? allOpts.filter(o => o.value === 'operacao') : allOpts
