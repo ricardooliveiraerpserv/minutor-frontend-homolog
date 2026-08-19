@@ -3,7 +3,7 @@
 // Modal ÚNICO de solicitação de fonte — usado na ficha, na lista de empresas e no diretório
 // do Acervo (múltiplas fontes ou a pasta). Campos: prioridade, chamado aberto, observação.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FilePlus2 } from 'lucide-react'
 import { Button, Modal, Select, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
@@ -25,8 +25,18 @@ export function SolicitarFonteModal({ ctx, onClose }: { ctx: SolicitarCtx; onClo
   const [priority, setPriority] = useState('media')
   const [hasTicket, setHasTicket] = useState(false)
   const [ticket, setTicket] = useState('')
+  const [tickets, setTickets] = useState<{ id: number; ticket_number: string; subject: string }[] | null>(null)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!hasTicket || !ctx.customerId) { setTickets(null); return }
+    let a = true
+    api.get<{ data: { id: number; ticket_number: string; subject: string }[] }>(`/source-docs/open-tickets?customer_id=${ctx.customerId}`)
+      .then((r) => { if (a) setTickets(r.data) })
+      .catch(() => { if (a) setTickets([]) })
+    return () => { a = false }
+  }, [hasTicket, ctx.customerId])
 
   const alvo = ctx.scopeType === 'folder' ? 'esta pasta' : items.length > 1 ? `${items.length} fontes` : items.length === 1 ? 'esta fonte' : 'este repositório'
 
@@ -78,7 +88,14 @@ export function SolicitarFonteModal({ ctx, onClose }: { ctx: SolicitarCtx; onClo
         <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
           <input type="checkbox" checked={hasTicket} onChange={(e) => setHasTicket(e.target.checked)} /> Já existe chamado aberto?
         </label>
-        {hasTicket && <TextInput label="Número/link do chamado" value={ticket} onChange={(e) => setTicket(e.target.value)} placeholder="ex.: #12345 ou URL do chamado" />}
+        {hasTicket && (
+          tickets === null ? <div className="text-xs" style={{ color: 'var(--text-light)' }}>Carregando chamados abertos…</div>
+            : tickets.length === 0 ? <div className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum chamado aberto para esta empresa.</div>
+              : <Select label="Chamado aberto" value={ticket} onChange={(e) => setTicket(e.target.value)}>
+                  <option value="">Selecione o chamado…</option>
+                  {tickets.map((t) => <option key={t.id} value={t.ticket_number}>#{t.ticket_number} — {t.subject}</option>)}
+                </Select>
+        )}
 
         <div>
           <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Observação (opcional)</label>
