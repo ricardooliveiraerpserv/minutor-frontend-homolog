@@ -4,7 +4,7 @@
 // prioridade, solicitante). Ações: atender / rejeitar / reabrir. Só leitura do acervo.
 
 import { useCallback, useEffect, useState } from 'react'
-import { ExternalLink, FilePlus2, GitCommitHorizontal } from 'lucide-react'
+import { ExternalLink, FilePlus2, GitCommitHorizontal, Ticket } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -21,6 +21,8 @@ interface Req {
   note: string | null
   status: 'open' | 'provisioned' | 'rejected' | string
   requester_name: string | null
+  hd_ticket_id: number | null
+  hd_subject: string | null
   created_at: string | null
 }
 
@@ -119,7 +121,7 @@ export default function SolicitacoesPage() {
                         <Tr key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="cursor-pointer">
                           <Td><div className="font-medium">{r.customer_name ?? (r.customer_id ? `#${r.customer_id}` : '—')}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{r.repository ?? '—'}</div></Td>
                           <Td><div className="text-sm">{scopeLabel(r)}</div>{expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}{expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}</Td>
-                          <Td>{r.ticket ? <Badge variant="default">#{r.ticket}</Badge> : '—'}</Td>
+                          <Td>{r.ticket ? (r.hd_ticket_id ? <a href={`/help-desk/tickets/${r.hd_ticket_id}`} onClick={(e) => e.stopPropagation()} title={r.hd_subject ? `Abrir chamado: ${r.hd_subject}` : 'Abrir chamado'} className="group inline-flex items-center gap-1"><Badge variant="success">#{r.ticket}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></a> : <Badge variant="default">#{r.ticket}</Badge>) : '—'}</Td>
                           <Td>{prioBadge(r.priority)}</Td>
                           <Td className="text-sm">{r.requester_name ?? '—'}</Td>
                           <Td className="text-xs">{dt(r.created_at)}</Td>
@@ -166,7 +168,7 @@ export default function SolicitacoesPage() {
                         <Tr key={g.id}>
                           <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
-                          <Td>{g.hd_ticket_id ? <span title={g.hd_subject ?? ''}><Badge variant="success">#{g.ticket_number}</Badge>{g.hd_subject && <div className="mt-0.5 max-w-[180px] truncate text-xs" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</div>}</span> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
+                          <Td>{g.hd_ticket_id ? <a href={`/help-desk/tickets/${g.hd_ticket_id}`} title={g.hd_subject ? `Abrir chamado: ${g.hd_subject}` : 'Abrir chamado'} className="group inline-flex flex-col gap-0.5"><span className="inline-flex items-center gap-1"><Badge variant="success">#{g.ticket_number}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></span>{g.hd_subject && <span className="max-w-[180px] truncate text-xs group-hover:underline" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</span>}</a> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
                           <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
