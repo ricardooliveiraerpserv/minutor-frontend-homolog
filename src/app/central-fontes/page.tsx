@@ -92,7 +92,7 @@ export default function CentralFontesPage() {
   const hasFilter = !!(q.trim() || analysis || semantic || situation)
 
   useEffect(() => {
-    api.get<{ data: CustomerRow[] }>('/source-docs/tree/customers')
+    api.get<{ data: CustomerRow[] }>('/source-docs/tree/customers?include_empty=1')
       .then((r) => setCustomers(r.data))
       .catch((e) => setCustErr(e instanceof ApiError ? e.message : 'Falha ao carregar empresas.'))
   }, [])
@@ -294,21 +294,25 @@ function EmpresaBlock({ customers, err, onOpen }: { customers: CustomerRow[] | n
               <Tr><Th>Empresa</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th right>Repos.</Th><Th></Th></Tr>
             </Thead>
             <Tbody>
-              {customers.map((c) => (
-                <Tr key={c.customer_id} onClick={() => onOpen(c.customer_id)} className="cursor-pointer">
+              {customers.map((c) => {
+                const empty = c.fontes === 0
+                return (
+                <Tr key={c.customer_id} onClick={empty ? undefined : () => onOpen(c.customer_id)} className={empty ? '' : 'cursor-pointer'} style={empty ? { opacity: 0.5 } : undefined}>
                   <Td>
                     <div className="flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
                       <Building2 size={15} style={{ color: 'var(--text-light)' }} /> {c.name}
+                      {empty && <Badge variant="default">sem dados</Badge>}
                       {c.aguardando_aprovacao > 0 && <Badge variant="warning">{c.aguardando_aprovacao} aguard. IA</Badge>}
                     </div>
                   </Td>
-                  <Td right>{c.fontes}</Td>
-                  <Td right>{c.documentadas}</Td>
-                  <Td right>{pct(c.documentadas, c.fontes)}%</Td>
+                  <Td right>{empty ? '—' : c.fontes}</Td>
+                  <Td right>{empty ? '—' : c.documentadas}</Td>
+                  <Td right>{empty ? '—' : `${pct(c.documentadas, c.fontes)}%`}</Td>
                   <Td right>{c.repos}</Td>
-                  <Td right><ChevronRight size={16} style={{ color: 'var(--text-light)' }} /></Td>
+                  <Td right>{!empty && <ChevronRight size={16} style={{ color: 'var(--text-light)' }} />}</Td>
                 </Tr>
-              ))}
+                )
+              })}
             </Tbody>
           </Table>
         </div>
