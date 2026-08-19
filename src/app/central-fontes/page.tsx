@@ -6,10 +6,10 @@
 // como tal). Lista enxuta; ficha detalhada em /central-fontes/[id].
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, Building2, CheckCircle2, ChevronRight, Crosshair, Eye, EyeOff, FileCode2, FilePlus2, FolderGit2, HelpCircle, Search, XCircle,
+  AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Crosshair, Eye, EyeOff, FileCode2, FilePlus2, FolderGit2, HelpCircle, RotateCcw, Search, XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ImpactoInner } from './impacto/page'
@@ -58,6 +58,7 @@ interface CustomerRow {
   documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number
   own_source?: boolean; hidden?: boolean
 }
+interface RepoLite { repository: string; branch: string; fontes: number; documentadas: number; cobertura_semantica: number; hidden?: boolean }
 
 const SITUATION_META: Record<Situation, { variant: string; label: string; icon: typeof CheckCircle2 }> = {
   ATUALIZADA:    { variant: 'success', label: 'Atualizada',    icon: CheckCircle2 },
@@ -282,6 +283,9 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
   const [showHidden, setShowHidden] = useState(false)
   const [busy, setBusy] = useState<number | null>(null)
   const [reqModal, setReqModal] = useState<{ customer_id: number; name: string } | null>(null)
+  const [openId, setOpenId] = useState<number | null>(null)
+  const [repos, setRepos] = useState<Record<number, RepoLite[] | 'loading'>>({})
+  const [repoBusy, setRepoBusy] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setCustomers(null); setErr(null)
@@ -298,6 +302,33 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
     try { await api.put(`/source-docs/customers/${id}/settings`, body); load() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao atualizar.') }
     finally { setBusy(null) }
+  }
+
+  const loadRepos = useCallback((id: number) => {
+    setRepos((r) => ({ ...r, [id]: 'loading' }))
+    // include_hidden=1: traz também os desabilitados (com flag hidden) p/ reativar aqui mesmo.
+    api.get<{ data: RepoLite[] }>(`/source-docs/tree/customers/${id}/repos?include_hidden=1`)
+      .then((r) => setRepos((prev) => ({ ...prev, [id]: r.data })))
+      .catch(() => setRepos((prev) => ({ ...prev, [id]: [] })))
+  }, [])
+
+  const toggleExpand = (id: number) => {
+    setOpenId((cur) => {
+      const next = cur === id ? null : id
+      if (next !== null && repos[next] === undefined) loadRepos(next)
+      return next
+    })
+  }
+
+  const toggleRepoHidden = async (customer_id: number, repository: string, hidden: boolean) => {
+    const key = `${customer_id}:${repository}`
+    setRepoBusy(key)
+    try {
+      await api.put('/source-docs/repos/settings', { customer_id, repository, hidden })
+      toast.success(hidden ? `Repositório "${repository}" desabilitado — some das consultas.` : `Repositório "${repository}" reativado.`)
+      loadRepos(customer_id); load() // atualiza sub-lista e os contadores da empresa
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao atualizar o repositório.') }
+    finally { setRepoBusy(null) }
   }
 
   return (
@@ -325,8 +356,11 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
             <Tbody>
               {customers.map((c) => {
                 const empty = c.fontes === 0
+                const isOpen = openId === c.customer_id
+                const rlist = repos[c.customer_id]
                 return (
-                <Tr key={c.customer_id} onClick={empty ? undefined : () => onOpen(c.customer_id)} className={`${empty ? '' : 'cursor-pointer'} ${c.hidden ? 'opacity-40' : empty ? 'opacity-60' : ''}`}>
+                <Fragment key={c.customer_id}>
+                <Tr onClick={empty ? undefined : () => onOpen(c.customer_id)} className={`${empty ? '' : 'cursor-pointer'} ${c.hidden ? 'opacity-40' : empty ? 'opacity-60' : ''}`}>
                   <Td>
                     <div className="flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
                       <Building2 size={15} style={{ color: 'var(--text-light)' }} /> {c.name}
@@ -345,15 +379,55 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
                   <Td right>{empty ? '—' : c.fontes}</Td>
                   <Td right>{empty ? '—' : c.documentadas}</Td>
                   <Td right>{empty ? '—' : `${pct(c.documentadas, c.fontes)}%`}</Td>
-                  <Td right>{c.repos}</Td>
+                  <Td right>
+                    {empty ? c.repos : (
+                      <button onClick={(e) => { e.stopPropagation(); toggleExpand(c.customer_id) }} title="Ver / desabilitar repositórios" className="inline-flex items-center gap-1 font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+                        {c.repos} {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                    )}
+                  </Td>
                   <Td right>
                     <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1.5">
                       {empty && <button onClick={() => setReqModal({ customer_id: c.customer_id, name: c.name })} className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--primary)' }}><FilePlus2 size={13} /> Solicitar fonte</button>}
-                      {canManage && <button onClick={() => void patchSetting(c.customer_id, { hidden: !c.hidden })} disabled={busy === c.customer_id} title={c.hidden ? 'Reativar' : 'Ocultar da Central'} style={{ color: 'var(--text-light)' }}>{c.hidden ? <Eye size={15} /> : <EyeOff size={15} />}</button>}
-                      {!empty && <ChevronRight size={16} style={{ color: 'var(--text-light)' }} />}
+                      {canManage && <button onClick={() => void patchSetting(c.customer_id, { hidden: !c.hidden })} disabled={busy === c.customer_id} title={c.hidden ? 'Reativar empresa' : 'Ocultar empresa da Central'} style={{ color: 'var(--text-light)' }}>{c.hidden ? <Eye size={15} /> : <EyeOff size={15} />}</button>}
                     </div>
                   </Td>
                 </Tr>
+                {isOpen && (
+                  <Tr>
+                    <Td colSpan={7}>
+                      <div className="px-2 py-1">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Repositórios de {c.name} — desabilitar tira das consultas (mantém a ingestão)</div>
+                        {rlist === 'loading' || rlist === undefined ? <div className="py-2 text-xs" style={{ color: 'var(--text-light)' }}>Carregando…</div>
+                          : rlist.length === 0 ? <div className="py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum repositório.</div>
+                          : (
+                            <div className="flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+                              {rlist.map((rp) => {
+                                const rk = `${c.customer_id}:${rp.repository}`
+                                return (
+                                  <div key={rp.repository} className={`flex items-center gap-3 py-1.5 ${rp.hidden ? 'opacity-50' : ''}`}>
+                                    <FolderGit2 size={14} style={{ color: 'var(--text-light)' }} />
+                                    <span className="font-medium" style={{ color: 'var(--text)' }}>{rp.repository}</span>
+                                    {rp.hidden && <Badge variant="default">inativo</Badge>}
+                                    <span className="text-xs" style={{ color: 'var(--text-light)' }}>{rp.fontes} fontes · {rp.cobertura_semantica}%</span>
+                                    {canManage && (
+                                      <button onClick={() => void toggleRepoHidden(c.customer_id, rp.repository, !rp.hidden)} disabled={repoBusy === rk}
+                                        className="ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-40"
+                                        style={{ color: rp.hidden ? 'var(--primary)' : 'var(--text-light)' }}
+                                        title={rp.hidden ? 'Reativar (volta às consultas)' : 'Desabilitar (some das consultas)'}>
+                                        {rp.hidden ? <><RotateCcw size={13} /> Reativar</> : <><EyeOff size={14} /> Desabilitar</>}
+                                      </button>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                      </div>
+                    </Td>
+                  </Tr>
+                )}
+                </Fragment>
                 )
               })}
             </Tbody>
