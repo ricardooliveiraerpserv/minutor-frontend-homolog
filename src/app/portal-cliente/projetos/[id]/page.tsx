@@ -220,36 +220,8 @@ export default function VisaoClienteProjetoPage() {
               <ClientSchedule projectId={projectId} />
             </section>
 
-            <section>
-              <h2 style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--text)',
-                textTransform: 'uppercase',
-                letterSpacing: '.04em',
-                margin: '0 0 8px',
-              }}>
-                Atualizações recentes
-              </h2>
-              {data.recent_activity.length === 0 ? (
-                <div style={{
-                  padding: '32px 16px',
-                  textAlign: 'center',
-                  color: 'var(--text-muted)',
-                  border: '1px dashed var(--border)',
-                  borderRadius: 8,
-                  fontSize: 13,
-                }}>
-                  Nenhuma atualização recente. Quando a equipe avançar as entregas, elas aparecem aqui.
-                </div>
-              ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {data.recent_activity.map((item, i) => (
-                    <ActivityRow key={`${item.type}-${i}-${item.when}`} item={item} />
-                  ))}
-                </ul>
-              )}
-            </section>
+            {/* "Atualizações recentes" REMOVIDO da visão do cliente: vazava horas
+                (ex.: "Horas registradas · 10h"). Cliente não vê quantidade de horas. */}
           </>
         )}
       </div>

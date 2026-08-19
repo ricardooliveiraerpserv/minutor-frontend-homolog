@@ -755,8 +755,9 @@ function ProjectKanbanCard({
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     {(openMenu === 'primary' ? primaryItems : secondaryItems).map(item => {
                       const Icon = item.icon
-                      const accent = (item as any).accent
-                      const legend = (item as any).legend
+                      // Cliente: "Comentários" só o nome — sem destaque vermelho nem legenda "O cliente participa".
+                      const accent = (item as any).accent && !isCliente
+                      const legend = isCliente ? undefined : (item as any).legend
                       const danger = (item as any).danger
                       // accent = Comentários (cliente participa) → destaque em VERMELHO.
                       const c = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text)'
