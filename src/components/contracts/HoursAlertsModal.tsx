@@ -32,7 +32,7 @@ interface AlertContact {
 }
 
 interface PreviewField { label: string; value: string }
-interface Preview { band: number; fields: PreviewField[] }
+interface Preview { band: number; fields: PreviewField[]; subject?: string; html?: string; recipients?: { to: string[]; cc: string[] } }
 
 interface Payload {
   enabled: boolean
@@ -79,6 +79,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const [savingFlag, setSavingFlag] = useState(false)
   const [savingContacts, setSavingContacts] = useState(false)
   const [sending, setSending] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const apply = (r: Payload) => {
     setEnabled(!!r.enabled); setCurrent(r.current); setPreview(r.preview); setContacts(r.contacts ?? []); setAlerts(r.alerts ?? [])
@@ -115,6 +116,18 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
       toast.success('Destinatários atualizados')
     } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar destinatários')) }
     finally { setSavingContacts(false) }
+  }
+
+  // "Enviar agora" NÃO envia direto: grava os destinatários (sempre), atualiza a prévia
+  // e abre o modal de confirmação com o e-mail real + para quem vai.
+  const openConfirm = async () => {
+    setSending(true)
+    try {
+      await saveContacts()   // grava a seleção (fica gravado sempre)
+      await load()           // prévia + destinatários resolvidos frescos
+      setConfirming(true)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao preparar o envio')) }
+    finally { setSending(false) }
   }
 
   const sendNow = async () => {
@@ -194,20 +207,24 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
             <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Prévia do e-mail</p>
-                <button disabled={sending} onClick={sendNow}
+                <button disabled={sending} onClick={openConfirm}
                   className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
                   style={{ background: '#F97316', color: '#fff' }}>
                   {sending ? <Loader2 className="animate-spin" size={13} /> : <Send size={13} />} Enviar agora
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                {preview.fields.map((f, idx) => (
-                  <div key={idx} className="flex justify-between gap-3 py-0.5 text-[12px]" style={{ borderBottom: '1px dashed var(--border)' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{f.label}</span>
-                    <span className="font-medium text-right" style={{ color: 'var(--text)' }}>{f.value}</span>
-                  </div>
-                ))}
-              </div>
+              {preview.html ? (
+                <iframe title="Prévia do e-mail" srcDoc={preview.html} className="w-full rounded-lg bg-white" style={{ height: 340, border: '1px solid var(--border)' }} />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                  {preview.fields.map((f, idx) => (
+                    <div key={idx} className="flex justify-between gap-3 py-0.5 text-[12px]" style={{ borderBottom: '1px dashed var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{f.label}</span>
+                      <span className="font-medium text-right" style={{ color: 'var(--text)' }}>{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
                 O envio manual dispara agora para os destinatários marcados abaixo + executivo, independente do envio automático estar ligado, e fica registrado no histórico.
               </p>
@@ -289,6 +306,41 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
           </div>
         </div>
       </div>
+
+      {/* Confirmação de envio: prévia do e-mail REAL + para quem vai */}
+      {confirming && (
+        <div className="fixed inset-0 z-[310] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }}
+          onClick={e => { e.stopPropagation(); setConfirming(false) }}>
+          <div className="w-full max-w-2xl max-h-[92vh] overflow-hidden rounded-2xl flex flex-col"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Confirmar envio do alerta</h3>
+              {preview?.subject && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Assunto: {preview.subject}</p>}
+            </div>
+            <div className="overflow-y-auto p-4 space-y-3">
+              <div className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Será enviado para</p>
+                {(preview?.recipients?.to?.length || preview?.recipients?.cc?.length) ? (
+                  <div className="text-xs space-y-0.5">
+                    {(preview?.recipients?.to ?? []).map(em => <div key={em} style={{ color: 'var(--text)' }}>{em}</div>)}
+                    {(preview?.recipients?.cc ?? []).map(em => <div key={em} style={{ color: 'var(--text-muted)' }}>{em} · em cópia</div>)}
+                  </div>
+                ) : (
+                  <p className="text-xs" style={{ color: 'var(--danger-border)' }}>Nenhum destinatário — marque contatos e salve antes de enviar.</p>
+                )}
+              </div>
+              {preview?.html && <iframe title="Prévia do e-mail" srcDoc={preview.html} className="w-full rounded-lg bg-white" style={{ height: 420, border: '1px solid var(--border)' }} />}
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <button onClick={() => setConfirming(false)} className="text-xs px-3 py-2 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Cancelar</button>
+              <button disabled={sending || !preview?.recipients?.to?.length} onClick={async () => { await sendNow(); setConfirming(false) }}
+                className="inline-flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-medium disabled:opacity-50" style={{ background: '#F97316', color: '#fff' }}>
+                {sending ? <Loader2 className="animate-spin" size={13} /> : <Send size={13} />} Confirmar e enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
