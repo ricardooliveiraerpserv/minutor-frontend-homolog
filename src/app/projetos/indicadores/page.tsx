@@ -18,7 +18,7 @@ type Row = {
   customer: string | null; coordinators: string[]
   has_baseline: boolean; using_live_plan?: boolean
   pct_planned: number | null; pct_real: number | null; spi: number | null; cpi: number | null
-  hours_planned: number; hours_ev: number; hours_actual: number
+  hours_planned: number; hours_ev: number; hours_actual: number; hours_appointable: number
   deliveries: number; done: number; overdue: number; overdue_pct: number
   health: Health
 }
@@ -345,15 +345,18 @@ export default function PortfolioIndicadoresPage() {
                 <SortH k="spi" right>SPI</SortH>
                 <SortH k="cpi" right>CPI</SortH>
                 <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Atividades</th>
+                <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Apontáveis</th>
+                <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Apontadas</th>
+                <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Saldo</th>
                 <SortH k="overdue_pct" right>% Atraso</SortH>
                 <SortH k="health">Saúde</SortH>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+                <tr><td colSpan={12} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
+                <tr><td colSpan={12} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="ds-row-hover cursor-pointer" style={{ borderBottom: '1px solid var(--border)' }}
                   onClick={() => router.push(`/projetos/indicadores/${r.id}`)}>
@@ -388,6 +391,9 @@ export default function PortfolioIndicadoresPage() {
                   <td className="px-3 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
                     {r.done}/{r.deliveries} <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {fmtH(r.hours_actual)}</span>
                   </td>
+                  <td className="px-3 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>{fmtH(r.hours_appointable)}</td>
+                  <td className="px-3 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>{fmtH(r.hours_actual)}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold" style={{ color: (r.hours_appointable - r.hours_actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{fmtH(r.hours_appointable - r.hours_actual)}</td>
                   <td className="px-3 py-2.5 text-right font-semibold" style={{ color: r.overdue_pct >= 20 ? 'var(--danger)' : r.overdue_pct > 0 ? 'var(--warning)' : 'var(--success)' }}>{r.overdue_pct}%</td>
                   <td className="px-3 py-2.5"><span className={`ds-status ${HEALTH[r.health].cls} text-[11px]`}>{HEALTH[r.health].label}</span></td>
                 </tr>
