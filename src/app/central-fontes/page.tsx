@@ -14,11 +14,12 @@ import {
 import { toast } from 'sonner'
 import { ImpactoInner } from './impacto/page'
 import {
-  Badge, Button, Card, EmptyState, Modal, PageHeader, Pagination, Select, SkeletonTable,
-  Table, Tbody, Td, Th, Thead, Tr, TextInput,
+  Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable,
+  Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { SolicitarFonteModal } from '@/components/central-fontes/solicitar-fonte-modal'
 
 type Situation = 'ATUALIZADA' | 'DESATUALIZADA' | 'NAO_VALIDADO'
 type Semantic = 'completed' | 'partial' | 'none'
@@ -359,38 +360,8 @@ function EmpresaBlock({ onOpen }: { onOpen: (id: number) => void }) {
           </Table>
         </div>
       )}
-      {reqModal && <SolicitarFonteModal customer={reqModal} onClose={() => setReqModal(null)} />}
+      {reqModal && <SolicitarFonteModal ctx={{ title: `Solicitar fonte — ${reqModal.name}`, customerId: reqModal.customer_id, scopeType: 'repository', items: [] }} onClose={() => setReqModal(null)} />}
     </Card>
   )
 }
 
-function SolicitarFonteModal({ customer, onClose }: { customer: { customer_id: number; name: string }; onClose: () => void }) {
-  const [repository, setRepository] = useState('')
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const submit = async () => {
-    setSaving(true)
-    try {
-      await api.post('/source-docs/source-requests', { customer_id: customer.customer_id, repository: repository.trim() || null, note: note.trim() || null })
-      toast.success('Solicitação registrada.')
-      onClose()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao registrar a solicitação.') }
-    finally { setSaving(false) }
-  }
-  return (
-    <Modal open onClose={onClose} title={`Solicitar fonte — ${customer.name}`}>
-      <div className="space-y-3">
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Registra um pedido para provisionar o(s) repositório(s)/fonte(s) desta empresa na Central.</p>
-        <TextInput label="Repositório desejado (opcional)" value={repository} onChange={(e) => setRepository(e.target.value)} placeholder="ex.: erpserv-clientes/empresa-producao" />
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Observação (opcional)</label>
-          <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="mt-1.5 w-full rounded-xl px-3 py-2 text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} placeholder="Contexto, prioridade, quem pediu…" />
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" variant="primary" icon={FilePlus2} loading={saving} onClick={submit}>Registrar solicitação</Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}

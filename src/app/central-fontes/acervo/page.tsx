@@ -7,7 +7,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Building2, ChevronRight, FileCode2, Folder, FolderGit2, GitBranch, Search } from 'lucide-react'
+import { ArrowLeft, Building2, ChevronRight, FileCode2, FilePlus2, Folder, FolderGit2, GitBranch, Search } from 'lucide-react'
 import {
   Badge, Breadcrumb, Card, EmptyState, PageHeader, SplitPanel, Skeleton, Tree,
   Table, Thead, Tbody, Tr, Th, Td,
@@ -15,6 +15,7 @@ import {
 import type { Crumb, TreeNode } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { SourceDocDetail } from '@/app/central-fontes/[id]/page'
+import { SolicitarFonteModal, type SolicitarCtx } from '@/components/central-fontes/solicitar-fonte-modal'
 
 interface CustomerRow { customer_id: number; name: string; repos: number; fontes: number; documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number }
 interface RepoRow { repository: string; source_repo_id: number | null; branch: string; owner: string; fontes: number; documentadas: number; parciais: number; cobertura_semantica: number; ultima_atualizacao_acervo: string | null }
@@ -399,8 +400,10 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs
   const [data, setData] = useState<{ dirs: DirRow[]; files: FileRow[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
+  const [sel, setSel] = useState<Set<number>>(new Set())
+  const [reqCtx, setReqCtx] = useState<SolicitarCtx | null>(null)
   const { k, failed } = useKnowledge({ customer_id: selected.customer_id, repository: selected.repository, path: selected.path })
-  useEffect(() => { let alive = true; setLoading(true); setFilter(null)
+  useEffect(() => { let alive = true; setLoading(true); setFilter(null); setSel(new Set())
     api.get<{ data: { dirs: DirRow[]; files: FileRow[] } }>(`/source-docs/tree/nodes?customer_id=${selected.customer_id}&repository=${encodeURIComponent(selected.repository)}&path=${encodeURIComponent(selected.path)}`).then((r) => alive && setData(r.data)).catch(() => alive && setData({ dirs: [], files: [] })).finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [selected])
@@ -423,13 +426,18 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs
             </Tr>
           ) })}</Tbody></Table></div>}
       {(data.files.length > 0) && (
-        <div><div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Fontes {filter && <button onClick={() => setFilter(null)} className="text-[color:var(--accent,#2563eb)] normal-case">(limpar filtro: {filter})</button>}</div>
-        <Table><Thead><Tr><Th>Fonte</Th><Th>Conhecimento</Th><Th right>Funções</Th><Th>Análise</Th><Th>Última análise</Th><Th right>Custo IA</Th></Tr></Thead>
-          <Tbody>{files.map((f) => <Tr key={f.id} onClick={() => onOpenFile(f.id, f.filename)} className="cursor-pointer"><Td>{f.filename}</Td><Td>{semBadge(f.semantic)}</Td><Td right>{f.functions_count ?? '—'}</Td><Td>{f.analysis_status}</Td><Td>{dt(f.last_change_at)}</Td><Td right>{money(f.cost_usd)}</Td></Tr>)}</Tbody></Table></div>
+        <div><div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Fontes {filter && <button onClick={() => setFilter(null)} className="text-[color:var(--accent,#2563eb)] normal-case">(limpar filtro: {filter})</button>}
+          <span className="ml-auto flex items-center gap-3 normal-case">
+            {sel.size > 0 && <button onClick={() => setReqCtx({ title: `Solicitar fontes — ${folderName}`, customerId: selected.customer_id, repository: selected.repository, scopeType: 'source', items: files.filter((f) => sel.has(f.id)).map((f) => ({ path: f.path, label: f.filename })) })} className="inline-flex items-center gap-1 text-[color:var(--primary,#157582)]"><FilePlus2 size={13} /> Solicitar {sel.size}</button>}
+            <button onClick={() => setReqCtx({ title: `Solicitar pasta — ${folderName}`, customerId: selected.customer_id, repository: selected.repository, scopeType: 'folder', folderPath: selected.path })} className="inline-flex items-center gap-1 text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]"><FilePlus2 size={13} /> Solicitar pasta</button>
+          </span></div>
+        <Table><Thead><Tr><Th></Th><Th>Fonte</Th><Th>Conhecimento</Th><Th right>Funções</Th><Th>Análise</Th><Th>Última análise</Th><Th right>Custo IA</Th></Tr></Thead>
+          <Tbody>{files.map((f) => <Tr key={f.id} onClick={() => onOpenFile(f.id, f.filename)} className="cursor-pointer"><Td><input type="checkbox" checked={sel.has(f.id)} onClick={(e) => e.stopPropagation()} onChange={(e) => setSel((prev) => { const s = new Set(prev); e.target.checked ? s.add(f.id) : s.delete(f.id); return s })} /></Td><Td>{f.filename}</Td><Td>{semBadge(f.semantic)}</Td><Td right>{f.functions_count ?? '—'}</Td><Td>{f.analysis_status}</Td><Td>{dt(f.last_change_at)}</Td><Td right>{money(f.cost_usd)}</Td></Tr>)}</Tbody></Table></div>
       )}
       {data.files.length === 0 && data.dirs.length === 0 && <EmptyState icon={Folder} title="Pasta vazia" description="Sem fontes neste nível." />}
     </>
     )}
+    {reqCtx && <SolicitarFonteModal ctx={reqCtx} onClose={() => { setReqCtx(null); setSel(new Set()) }} />}
   </div>
 }
 
