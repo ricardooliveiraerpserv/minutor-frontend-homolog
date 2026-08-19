@@ -52,6 +52,9 @@ interface ContractCard {
   parent_contract_code?: string | null
   linked_children?: { id: number; code: string | null }[]
   is_linked?: boolean
+  bh_mensal_item?: boolean
+  has_bh_mensal_items?: boolean
+  combined_billing_value?: number | null
   is_complete: boolean
   created_at: string
   sustentacao_column?: string | null
@@ -93,6 +96,9 @@ interface ProjectCard {
   parent_contract_code?: string | null
   linked_children?: { id: number; code: string | null }[]
   is_linked?: boolean
+  bh_mensal_item?: boolean
+  has_bh_mensal_items?: boolean
+  combined_billing_value?: number | null
 }
 
 interface Coordinator { id: number; name: string; coordinator_type?: string | null }
@@ -790,6 +796,20 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                   title="Subprojeto faturado — gerou um aporte automático no projeto pai">
                   Gerou aporte
                 </span>
+              )}
+              {/* Item BH Mensal: faturamento no contrato principal (Cloud) — fatura única. */}
+              {card.bh_mensal_item && (
+                <div className="mt-1.5 rounded-md px-2 py-1 text-[10px] font-bold leading-snug"
+                  style={{ background: '#f9731622', color: '#c2410c', border: '1px solid #f9731666' }}>
+                  💰 O faturamento será no contrato principal de Cloud nº {card.parent_contract_code ?? '—'} (fatura única).
+                </div>
+              )}
+              {/* Contrato principal com item(ns) BH Mensal: valor cheio dos dois = fatura única. */}
+              {card.has_bh_mensal_items && card.combined_billing_value != null && (
+                <div className="mt-1.5 rounded-md px-2 py-1 text-[10px] font-bold leading-snug"
+                  style={{ background: '#0e749022', color: '#0e7490', border: '1px solid #0e749066' }}>
+                  💰 Fatura única: {Number(card.combined_billing_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} — inclui a mensalidade + o(s) item(ns) de Banco de Horas Mensal.
+                </div>
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
