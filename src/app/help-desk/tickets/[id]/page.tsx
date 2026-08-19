@@ -26,7 +26,8 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, FileCode, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, type LucideIcon } from 'lucide-react'
+import { useTicketPresence } from '@/hooks/use-ticket-presence'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
 const MesclarModal = dynamic(() => import('@/components/help-desk/mesclar-modal').then(m => m.MesclarModal), { ssr: false })
@@ -247,6 +248,8 @@ export default function HelpDeskTicketDetailPage() {
 function TicketDetailInner({ id }: { id: number }) {
   const router = useRouter()
   const { user } = useAuth()
+  // Presença (quem está vendo) + aviso de mudança do chamado (olho + botão Atualizar).
+  const { viewers, hasUpdate, acknowledge: ackPresence } = useTicketPresence(Number.isFinite(id) ? id : null)
   const c0 = detailCache.get(id)   // snapshot do cache no mount (hidrata sem flash)
 
   const [t, setT] = useState<TicketDetail | null>(c0?.t ?? null)
@@ -806,6 +809,25 @@ function TicketDetailInner({ id }: { id: number }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Olho: quem está visualizando o chamado agora (cliente/consultor/agente). Hover mostra os nomes. */}
+            <span
+              title={viewers.length ? `Visualizando agora: ${viewers.map(v => `${v.name} (${v.type === 'cliente' ? 'cliente' : v.type === 'consultor' ? 'consultor' : v.type === 'coordenador' ? 'coordenador' : v.type === 'admin' ? 'admin' : v.type === 'parceiro_admin' ? 'parceiro' : 'agente'})`).join(', ')}` : 'Ninguém mais está visualizando este chamado'}
+              className="inline-flex items-center gap-1 text-sm px-2.5 py-2 rounded-lg"
+              style={{ border: '1px solid var(--border)', cursor: 'default', background: viewers.length ? 'rgba(34,197,94,0.12)' : 'var(--surface-sunken)', color: viewers.length ? 'var(--success)' : 'var(--text-light)' }}
+            >
+              <Eye size={16} />
+              {viewers.length > 0 && <span className="text-xs font-semibold">{viewers.length}</span>}
+            </span>
+            {/* Botão Atualizar — aparece quando o chamado teve alteração/interação nova (não recarrega sozinho). */}
+            {hasUpdate && (
+              <button
+                onClick={() => { loadTicket(); loadComments(); loadEvents(); ackPresence() }}
+                className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg"
+                title="O chamado teve alteração/interação — clique para atualizar"
+              >
+                <RefreshCw size={14} /> Atualizar
+              </button>
+            )}
             {/* Status ÚNICO e EVIDENTE — tom da cor + borda na cor + texto do tema (legível em qualquer cor). */}
             <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
               <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />

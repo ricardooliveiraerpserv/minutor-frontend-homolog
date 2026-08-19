@@ -8,7 +8,8 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, ArrowLeft, ArrowRight, Send, Paperclip, Trash2, CheckCircle2, Search, X, GripVertical, CalendarClock, LayoutGrid, List, MessageSquare, Clock, Download, FileText } from 'lucide-react'
+import { LifeBuoy, Plus, ArrowLeft, ArrowRight, Send, Paperclip, Trash2, CheckCircle2, Search, X, GripVertical, CalendarClock, LayoutGrid, List, MessageSquare, Clock, Download, FileText, RefreshCw } from 'lucide-react'
+import { useTicketPresence } from '@/hooks/use-ticket-presence'
 import { useColumnOrder } from '@/lib/kanban-column-order'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -520,6 +521,8 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
   const [tab, setTab] = useState<'conversa' | 'historico'>('conversa')
   const load = useCallback(() => { api.get<{ data: PortalTicket }>(`/help-desk/portal/tickets/${id}`).then(r => setT(r?.data ?? null)).catch(() => toast.error('Erro')) }, [id])
   useEffect(() => { load() }, [load])
+  // Presença do cliente (o agente enxerga que o cliente está vendo o chamado) + aviso de atualização.
+  const { hasUpdate, acknowledge: ackPresence } = useTicketPresence(id, { portal: true })
   const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
   const removeFile = (i: number) => setFiles(f => f.filter((_, j) => j !== i))
   const accept = async () => { setActing(true); try { await api.post(`/help-desk/portal/tickets/${id}/accept`, {}); toast.success('Chamado encerrado. Obrigado!'); load() } catch { toast.error('Erro ao aceitar') } finally { setActing(false) } }
@@ -583,6 +586,11 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
       <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary" title="Voltar para meus chamados">
         <ArrowLeft size={16} /> Voltar
       </button>
+      {hasUpdate && (
+        <button onClick={() => { load(); ackPresence() }} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-primary" title="O chamado foi atualizado — clique para ver">
+          <RefreshCw size={15} /> Atualizar
+        </button>
+      )}
 
       {/* 1º — HEADER limpo: nº, título, status e metadados essenciais */}
       <div className="space-y-2">
