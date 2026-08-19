@@ -110,6 +110,16 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
   const [reqRepo, setReqRepo] = useState('')
   const [reqNote, setReqNote] = useState('')
   const [reqSaving, setReqSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+
+  const doPublishGit = useCallback(async () => {
+    setPublishing(true)
+    try {
+      const r = await api.post<{ data: { branch: string; url: string } }>(`/source-docs/${id}/publish-git`, {})
+      toast.success(`Publicado na branch ${r.data.branch}.`, { description: r.data.url, duration: 8000 })
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao publicar no git.') }
+    finally { setPublishing(false) }
+  }, [id])
   const [plan, setPlan] = useState<ReprocessPlan | null>(null)
   const [reproLayer, setReproLayer] = useState<'deterministic' | 'semantic' | 'both'>('both')
   const [reproForce, setReproForce] = useState(false)
@@ -282,6 +292,9 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
             </>
           )}
           <Button size="sm" variant="secondary" icon={FilePlus2} onClick={() => { setReqRepo(meta.repository); setReqOpen(true) }}>Solicitar fonte</Button>
+          {hasPermission('source_docs.reprocess') && (
+            <Button size="sm" variant="secondary" icon={GitBranch} loading={publishing} onClick={doPublishGit} title="Publica a documentação (.md) na branch minutor-docs">Publicar no git</Button>
+          )}
           {exec && exec.status !== 'ok' && exec.status !== 'failed' && (
             <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" style={{ background: 'var(--warning-soft, var(--surface))', color: 'var(--warning, var(--text-muted))', border: '1px solid var(--border)' }}>
               <RefreshCw size={12} className="animate-spin" /> reprocessando… ({exec.status})
