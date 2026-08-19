@@ -752,12 +752,13 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           onClick={onClick}
           className="kanban-card rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: card.is_aditivo ? `${ADITIVO_COLOR}12` : 'var(--surface)',
-            border: `1px solid ${card.is_aditivo ? `${ADITIVO_COLOR}73` : 'var(--border)'}`,
+            // Vinculado (principal↔item) ganha fundo/borda teal p/ evidenciar o vínculo.
+            background: card.is_aditivo ? `${ADITIVO_COLOR}12` : (card.is_linked ? `${LINK_COLOR}14` : 'var(--surface)'),
+            border: `1px solid ${card.is_aditivo ? `${ADITIVO_COLOR}73` : (card.is_linked ? `${LINK_COLOR}80` : 'var(--border)')}`,
             // Borda lateral colorida pelo status do contrato (Incompleto/Pronto/Projeto Ativo);
             // aditivo usa roxo pra se distinguir dos contratos comuns.
             borderLeft: `3px solid ${card.is_aditivo ? ADITIVO_COLOR : badge.color}`,
-            // Capa: faixa no topo (teal) quando o card é vinculado (principal com itens OU agregado de um pai).
+            // Faixa no topo (teal) quando o card é vinculado (principal com itens OU agregado de um pai).
             borderTop: card.is_linked ? `3px solid ${LINK_COLOR}` : undefined,
             boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
             opacity: snap.isDragging ? 0.85 : 1,
