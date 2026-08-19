@@ -74,6 +74,17 @@ function fmtDateTime(v: string | null | undefined): string {
   const d = new Date(v); return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR')
 }
 function asArray(v: unknown): unknown[] { return Array.isArray(v) ? v : [] }
+// Campos não existem como chave de topo no determinístico — vêm de tables[].fields/read/write.
+function fieldsFromDet(det: Record<string, unknown> | null | undefined): string[] {
+  const set = new Set<string>()
+  asArray(det?.tables).forEach((t) => {
+    const o = t as Record<string, unknown>
+    const tbl = String(o.table ?? o.alias ?? o.name ?? '')
+    ;[...asArray(o.fields), ...asArray(o.read_fields), ...asArray(o.write_fields), ...asArray(o.where_fields)]
+      .forEach((f) => { const n = String(f || '').trim(); if (n) set.add(tbl ? `${tbl}.${n}` : n) })
+  })
+  return Array.from(set)
+}
 function nameOf(item: unknown): string {
   if (typeof item === 'string') return item
   if (item && typeof item === 'object') {
@@ -336,8 +347,8 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
         {tab === 'dados' && (
           <LazyBlock loading={detLoading}>
             <NameList title="Tabelas" items={asArray(det?.tables)} impactEntity="table" />
-            <NameList title="Campos" items={asArray(det?.fields)} impactEntity="field" />
-            <NameList title="Consultas SQL" items={asArray(det?.sql)} render={(x) => {
+            <NameList title="Campos" items={fieldsFromDet(det)} impactEntity="field" />
+            <NameList title="Consultas SQL" items={asArray(det?.queries)} render={(x) => {
               const o = x as Record<string, unknown>
               return typeof x === 'string' ? x : String(o.summary ?? o.type ?? o.operation ?? nameOf(x))
             }} />
