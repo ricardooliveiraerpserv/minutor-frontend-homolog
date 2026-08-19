@@ -277,15 +277,14 @@ function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledg
   const processos = k.processos_modulos.filter((p) => p.modulo !== '—')
   return (
     <div className="flex flex-col gap-5">
-      {/* Indicadores em tiles */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
-        <StatTile label="Fontes" value={k.fontes} />
-        <StatTile label="Documentadas" value={k.documentadas} />
-        <StatTile label="Cobertura" value={`${k.cobertura_semantica}%`} />
-        <StatTile label="Funções" value={k.funcoes} />
-        <StatTile label="Regras" value={k.regras} />
-        <StatTile label="Dependências" value={k.dependencias} />
-        <StatTile label="Custo IA" value={`US$ ${k.custo_ia_usd.toFixed(2)}`} />
+      {/* Indicadores em tiles (coloridos por métrica; cobertura por faixa) */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <StatTile label="Fontes" value={k.fontes} tone="var(--primary,#157582)" />
+        <StatTile label="Documentadas" value={k.documentadas} tone="#16a34a" />
+        <StatTile label="Cobertura" value={`${k.cobertura_semantica}%`} tone={k.cobertura_semantica >= 70 ? '#16a34a' : k.cobertura_semantica >= 30 ? '#d97706' : '#dc2626'} />
+        <StatTile label="Funções" value={k.funcoes} tone="#2563eb" />
+        <StatTile label="Regras" value={k.regras} tone="#7c3aed" />
+        <StatTile label="Dependências" value={k.dependencias} tone="#0891b2" />
       </div>
 
       <KSection title="Saúde do conhecimento">
@@ -324,11 +323,11 @@ function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledg
   )
 }
 
-function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
+function StatTile({ label, value, tone }: { label: string; value: React.ReactNode; tone: string }) {
   return (
-    <div className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-3 py-2.5">
-      <div className="text-lg font-semibold tabular-nums leading-tight text-[color:var(--fg)]">{value}</div>
-      <div className="mt-0.5 text-[11px] uppercase tracking-wide text-[color:var(--muted-fg)]">{label}</div>
+    <div className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-3 py-2.5" style={{ borderLeft: `3px solid ${tone}` }}>
+      <div className="text-xl font-bold tabular-nums leading-tight" style={{ color: tone }}>{value}</div>
+      <div className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">{label}</div>
     </div>
   )
 }
