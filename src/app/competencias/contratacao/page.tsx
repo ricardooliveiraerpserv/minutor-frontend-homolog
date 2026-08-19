@@ -415,8 +415,16 @@ export default function ContratacaoPage() {
           </ModalBody>
           <ModalFooter className="!justify-between">
             <div className="flex items-center gap-2">
-              {open.bucket !== 'aguardando_assinatura' && <button className="ds-btn-secondary flex items-center gap-1" onClick={() => move(open, 'aguardando_assinatura')}><ArrowRight size={13} /> Aguardando</button>}
-              {open.bucket !== 'em_andamento' && <button className="ds-btn-secondary flex items-center gap-1" onClick={() => move(open, 'em_andamento')}><ArrowRight size={13} /> Em andamento</button>}
+              <select
+                className="ds-input !py-1.5 !w-auto"
+                aria-label="Mover para fase"
+                value={['aguardando_assinatura', 'em_andamento'].includes(open.bucket) ? open.bucket : ''}
+                onChange={e => { if (e.target.value) move(open, e.target.value) }}
+              >
+                {!['aguardando_assinatura', 'em_andamento'].includes(open.bucket) && <option value="">Mover para fase…</option>}
+                <option value="aguardando_assinatura">Aguardando assinatura</option>
+                <option value="em_andamento">Em andamento</option>
+              </select>
               {open.bucket !== 'pausado' && <button className="ds-btn-secondary flex items-center gap-1" onClick={() => move(open, 'pausado')}><Pause size={13} /> Pausar</button>}
             </div>
             {open.bucket !== 'finalizado'
