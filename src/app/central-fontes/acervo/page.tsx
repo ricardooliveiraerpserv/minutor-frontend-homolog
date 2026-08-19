@@ -7,18 +7,20 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Building2, ChevronRight, FileCode2, FilePlus2, Folder, FolderGit2, GitBranch, Search } from 'lucide-react'
+import { ArrowLeft, Building2, ChevronRight, EyeOff, FileCode2, FilePlus2, Folder, FolderGit2, GitBranch, RotateCcw, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   Badge, Breadcrumb, Card, EmptyState, PageHeader, SplitPanel, Skeleton, Tree,
   Table, Thead, Tbody, Tr, Th, Td,
 } from '@/components/ds'
 import type { Crumb, TreeNode } from '@/components/ds'
+import { useAuth } from '@/contexts/auth-context'
 import { api, ApiError } from '@/lib/api'
 import { SourceDocDetail } from '@/app/central-fontes/[id]/page'
 import { SolicitarFonteModal, type SolicitarCtx } from '@/components/central-fontes/solicitar-fonte-modal'
 
 interface CustomerRow { customer_id: number; name: string; repos: number; fontes: number; documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number }
-interface RepoRow { repository: string; source_repo_id: number | null; branch: string; owner: string; fontes: number; documentadas: number; parciais: number; cobertura_semantica: number; ultima_atualizacao_acervo: string | null }
+interface RepoRow { repository: string; source_repo_id: number | null; branch: string; owner: string; fontes: number; documentadas: number; parciais: number; cobertura_semantica: number; ultima_atualizacao_acervo: string | null; hidden?: boolean }
 interface DirRow { name: string; path: string; fontes: number; documentadas: number; parciais: number }
 interface FileRow { id: number; filename: string; name: string; path: string; analysis_status: string; semantic: string; functions_count: number | null; last_change_at: string | null; cost_usd: number | null }
 interface Ident { data: { id: number; filename: string; path: string; repository: string; customer?: { id: number; name: string } | null } }
@@ -352,20 +354,53 @@ function RightPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, onOpenR
 function CustomerPanel({ m, onNavigateSource, onOpenRepo, crumbs, nav }: { m: Extract<Meta, { type: 'customer' }>; onNavigateSource: (id: number) => void; onOpenRepo?: (repository: string) => void; crumbs?: Crumb[]; nav?: NavAbs }) {
   const { k, failed } = useKnowledge({ customer_id: m.customer_id })
   const [repos, setRepos] = useState<RepoRow[] | null>(null)
-  useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)).catch(() => a && setRepos([])); return () => { a = false } }, [m.customer_id])
+  const [showHidden, setShowHidden] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission('source_docs.inventory')
+  const loadRepos = useCallback(() => {
+    setRepos(null)
+    api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos${showHidden ? '?include_hidden=1' : ''}`)
+      .then((r) => setRepos(r.data)).catch(() => setRepos([]))
+  }, [m.customer_id, showHidden])
+  useEffect(() => { loadRepos() }, [loadRepos])
+  const toggleRepo = async (repository: string, hidden: boolean) => {
+    setBusy(repository)
+    try {
+      await api.put('/source-docs/repos/settings', { customer_id: m.customer_id, repository, hidden })
+      toast.success(hidden ? `Repositório "${repository}" desabilitado — não aparece mais nas consultas.` : `Repositório "${repository}" reativado.`)
+      loadRepos()
+    } catch { toast.error('Não foi possível atualizar o repositório.') } finally { setBusy(null) }
+  }
   const search = useScopedSearch({ customer_id: m.customer_id })
+  const hiddenCount = (repos ?? []).filter((r) => r.hidden).length
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs ?? [{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
     {nav && <ScopeSearchBox search={search} label={m.name} />}
     <KnowledgeBlock k={k} failed={failed} onNavigateSource={onNavigateSource} />
     {nav && search.term.trim() ? <ScopeResults search={search} scopeLabel={m.name} repos={repos} nav={nav} /> : (
-    <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
+        {canManage && (
+          <button onClick={() => setShowHidden((v) => !v)} className="inline-flex items-center gap-1 rounded-md border border-[color:var(--border)] px-2 py-1 text-[11px] font-medium text-[color:var(--muted-fg)] hover:bg-[color:var(--muted-bg,#f1f5f9)]">
+            <EyeOff size={12} /> {showHidden ? 'Ocultar desabilitados' : `Mostrar desabilitados${hiddenCount ? ` (${hiddenCount})` : ''}`}
+          </button>
+        )}
+      </div>
       {repos === null ? <Skeleton className="h-16" /> : repos.length === 0 ? <EmptyState icon={FolderGit2} title="Sem repositórios" description="Nenhum repositório de fonte nesta empresa." /> : (
         <Table><Thead><Tr><Th>Repositório</Th><Th>Branch</Th><Th right>Fontes</Th><Th right>Com semântica</Th><Th right>Cobertura</Th><Th></Th></Tr></Thead>
           <Tbody>{repos.map((rp) => (
-            <Tr key={rp.repository} onClick={() => onOpenRepo?.(rp.repository)} className={onOpenRepo ? 'cursor-pointer' : ''}>
-              <Td><div className="flex items-center gap-2 font-medium"><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /> {rp.repository}</div></Td>
+            <Tr key={rp.repository} onClick={() => !rp.hidden && onOpenRepo?.(rp.repository)} className={`${onOpenRepo && !rp.hidden ? 'cursor-pointer' : ''} ${rp.hidden ? 'opacity-50' : ''}`}>
+              <Td><div className="flex items-center gap-2 font-medium"><FolderGit2 size={14} className="text-[color:var(--muted-fg)]" /> {rp.repository}{rp.hidden && <Badge variant="default">desabilitado</Badge>}</div></Td>
               <Td>{rp.branch}</Td><Td right>{rp.fontes}</Td><Td right>{rp.documentadas}</Td><Td right>{rp.cobertura_semantica}%</Td>
-              <Td right>{onOpenRepo && <ChevronRight size={15} className="text-[color:var(--muted-fg)]" />}</Td>
+              <Td right>
+                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  {canManage && (rp.hidden
+                    ? <button disabled={busy === rp.repository} onClick={() => toggleRepo(rp.repository, false)} title="Reativar (volta a aparecer nas consultas)" className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-[color:var(--primary,#157582)] hover:bg-[color:var(--muted-bg,#f1f5f9)] disabled:opacity-40"><RotateCcw size={13} /> Reativar</button>
+                    : <button disabled={busy === rp.repository} onClick={() => toggleRepo(rp.repository, true)} title="Desabilitar (some das consultas; mantém a ingestão)" className="inline-flex items-center rounded-md px-1.5 py-1 text-[color:var(--muted-fg)] hover:bg-[color:var(--danger-bg,#fef2f2)] hover:text-[color:var(--danger-fg,#b91c1c)] disabled:opacity-40"><EyeOff size={14} /></button>)}
+                  {onOpenRepo && !rp.hidden && <ChevronRight size={15} className="text-[color:var(--muted-fg)]" />}
+                </div>
+              </Td>
             </Tr>
           ))}</Tbody></Table>
       )}</div>
