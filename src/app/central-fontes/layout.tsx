@@ -29,7 +29,7 @@ export default function CentralFontesLayout({ children }: { children: ReactNode 
   return (
     <AppLayout>
       {!isFicha && (
-        <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-[var(--border,#e2e8f0)]">
+        <nav className="mb-6 flex flex-wrap gap-x-1 gap-y-0 border-b border-[var(--border,#e2e8f0)]">
           {TABS.map((t) => {
             const active = t.match(pathname)
             return (
