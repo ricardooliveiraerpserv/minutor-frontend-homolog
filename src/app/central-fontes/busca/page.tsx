@@ -1,224 +1,131 @@
 'use client'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Central de Fontes — C2 · Busca Técnica. Pesquisa o read-model (source_doc_entities):
-// função / tabela / campo / query / integração / dependência / risk, com filtro de acesso.
-// Resultados agrupados por fonte, com a evidência (linha + contexto) e link para a ficha.
-// ─────────────────────────────────────────────────────────────────────────────
+// Central de Fontes — F5 · Busca integrada ao Acervo. Não é uma segunda exploração: cada resultado
+// traz Empresa → Repo → Path → Fonte e "Mostrar no Acervo" (abre a fonte no Acervo com a árvore
+// posicionada, ficha F3). Modos: Nome/Path e Conhecimento (catálogo, reusa filtros/escopo) e Símbolo
+// (read-model C2). "Buscar neste escopo" chega por ?customer_id/&repository/&path. Termo/escopo persistem.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Crosshair, FileCode2, FolderGit2, Search, XCircle } from 'lucide-react'
-import { Badge, Card, EmptyState, PageHeader, Pagination, SkeletonTable } from '@/components/ds'
-import { api, ApiError } from '@/lib/api'
+import { ArrowUpRight, Search } from 'lucide-react'
+import { Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, TextInput, Tr } from '@/components/ds'
+import { api } from '@/lib/api'
 
-type EntityType = 'function' | 'table' | 'field' | 'query' | 'integration' | 'dependency' | 'risk'
-const ENTITIES: { key: EntityType; label: string }[] = [
-  { key: 'table', label: 'Tabela' },
-  { key: 'field', label: 'Campo' },
-  { key: 'function', label: 'Função' },
-  { key: 'query', label: 'Query (SQL)' },
-  { key: 'risk', label: 'Risk flag' },
-  { key: 'integration', label: 'Integração' },
-  { key: 'dependency', label: 'Dependência' },
-]
-const ACCESS = ['READ', 'INSERT', 'UPDATE', 'DELETE']
-const HAS_ACCESS: EntityType[] = ['table', 'field', 'query']
+type Mode = 'nome' | 'conhecimento' | 'simbolo'
+type Entity = 'table' | 'field' | 'function' | 'dependency'
+const SS = 'busca-ctx'
 
-interface Occ { name: string; parent: string | null; access: string[] | null; risk_flags: string[] | null; line_start: number | null; line_end: number | null }
-interface Hit { source_doc: { id: number; filename: string; path: string; owner: string; repository: string; customer: { name: string } | null }; match_count: number; occurrences: Occ[] }
-interface SearchResp { data: Hit[]; pagination: { current_page: number; per_page: number; total: number; last_page: number } }
+interface CatalogRow { id: number; filename: string; path: string; repository: string; customer: { name: string } | null; semantic_quality: string; analysis_status: string }
+interface SymbolHit { source_doc: { id: number; filename: string; path: string; repository: string; customer: { name: string } | null }; occurrences: { entity_type: string; name: string; line_start?: number }[] }
 
-export default function BuscaTecnicaPage() {
-  const router = useRouter()
-  const [entity, setEntity] = useState<EntityType>('table')
+const semBadge = (s: string) => s === 'completed' ? <Badge variant="success">Completa</Badge> : s === 'partial' ? <Badge variant="warning">Parcial</Badge> : <Badge variant="default">—</Badge>
+
+export default function BuscaPage() {
+  const [mode, setMode] = useState<Mode>('nome')
+  const [entity, setEntity] = useState<Entity>('function')
   const [q, setQ] = useState('')
-  const [match, setMatch] = useState<'prefix' | 'exact' | 'contains'>('prefix')
-  const [access, setAccess] = useState<string[]>([])
+  const [lang, setLang] = useState('')
+  const [semantic, setSemantic] = useState('')
+  // escopo (Buscar neste escopo)
+  const [customerId, setCustomerId] = useState('')
+  const [repository, setRepository] = useState('')
+  const [path, setPath] = useState('')
+  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
+  const [repos, setRepos] = useState<string[]>([])
+
+  const [rows, setRows] = useState<CatalogRow[] | null>(null)
+  const [hits, setHits] = useState<SymbolHit[] | null>(null)
   const [page, setPage] = useState(1)
-
-  const [resp, setResp] = useState<SearchResp | null>(null)
+  const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [ran, setRan] = useState(false)
+  const inited = useRef(false)
 
-  const [sugs, setSugs] = useState<string[]>([])
-  const [showSugs, setShowSugs] = useState(false)
-  const sugTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // autocomplete
-  useEffect(() => {
-    if (sugTimer.current) clearTimeout(sugTimer.current)
-    if (!q.trim()) { setSugs([]); return }
-    sugTimer.current = setTimeout(async () => {
-      try {
-        const r = await api.get<{ data: string[] }>(`/source-docs/search/suggest?entity=${entity}&q=${encodeURIComponent(q.trim())}`)
-        setSugs(r.data ?? [])
-      } catch { setSugs([]) }
-    }, 250)
-    return () => { if (sugTimer.current) clearTimeout(sugTimer.current) }
-  }, [q, entity])
+  // empresas p/ o filtro
+  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
+  // repos ao escolher empresa
+  useEffect(() => { if (!customerId) { setRepos([]); return } api.get<{ data: { repository: string }[] }>(`/source-docs/tree/customers/${customerId}/repos`).then((r) => setRepos(r.data.map((x) => x.repository))).catch(() => {}) }, [customerId])
 
   const run = useCallback(async (toPage = 1) => {
-    setLoading(true); setError(null); setRan(true); setShowSugs(false)
+    if (!q.trim() && mode !== 'nome') return
+    setLoading(true); setPage(toPage)
     try {
-      const p = new URLSearchParams({ entity, per_page: '30', page: String(toPage) })
-      if (q.trim()) { p.set('q', q.trim()); p.set('match', match) }
-      if (access.length && HAS_ACCESS.includes(entity)) p.set('access', access.join(','))
-      const r = await api.get<SearchResp>(`/source-docs/search?${p.toString()}`)
-      setResp(r); setPage(toPage)
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Erro na busca.')
+      if (mode === 'simbolo') {
+        const p = new URLSearchParams({ entity, q: q.trim(), match: 'contains', per_page: '30', page: String(toPage) })
+        if (customerId) p.set('customer_id', customerId); if (repository) p.set('repository', repository)
+        const r = await api.get<{ data: SymbolHit[]; pagination?: { last_page: number } }>(`/source-docs/search?${p}`)
+        setHits(r.data); setRows(null); setPages(r.pagination?.last_page ?? 1)
+      } else {
+        const p = new URLSearchParams({ per_page: '30', page: String(toPage) })
+        if (q.trim()) p.set('q', q.trim())
+        if (mode === 'conhecimento') p.set('in', 'knowledge')
+        if (customerId) p.set('customer_id', customerId); if (repository) p.set('repository', repository)
+        if (path) p.set('path_prefix', path); if (lang) p.set('lang', lang); if (semantic) p.set('semantic', semantic)
+        p.set('with_situation', 'false')
+        const r = await api.get<{ data: CatalogRow[]; pagination: { last_page: number } }>(`/source-docs?${p}`)
+        setRows(r.data); setHits(null); setPages(r.pagination.last_page)
+      }
+      try { sessionStorage.setItem(SS, JSON.stringify({ mode, entity, q, customerId, repository, path, lang, semantic })) } catch {}
     } finally { setLoading(false) }
-  }, [entity, q, match, access])
+  }, [mode, entity, q, customerId, repository, path, lang, semantic])
 
-  const toggleAccess = (a: string) => setAccess((cur) => cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a])
+  // reconstrução de contexto: ?customer_id/&repository/&path (Buscar neste escopo) OU sessionStorage
+  useEffect(() => {
+    if (inited.current) return; inited.current = true
+    const u = new URLSearchParams(window.location.search)
+    if (u.get('customer_id') || u.get('scope')) {
+      setCustomerId(u.get('customer_id') || ''); setRepository(u.get('repository') || ''); setPath(u.get('path') || '')
+      if (u.get('q')) { setQ(u.get('q') || ''); setTimeout(() => void run(1), 50) }
+      return
+    }
+    try { const s = JSON.parse(sessionStorage.getItem(SS) || '{}'); if (s.q !== undefined) { setMode(s.mode || 'nome'); setEntity(s.entity || 'function'); setQ(s.q || ''); setCustomerId(s.customerId || ''); setRepository(s.repository || ''); setPath(s.path || ''); setLang(s.lang || ''); setSemantic(s.semantic || '') } } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const scopeLabel = [customers.find((c) => String(c.customer_id) === customerId)?.name, repository, path].filter(Boolean).join(' / ')
 
   return (
     <>
-      <PageHeader icon={FolderGit2} title="Busca Técnica"
-        subtitle="Pesquise o acervo por entidade técnica — quem usa uma tabela, escreve num campo, chama uma função, ou tem SQL de risco." />
-
+      <PageHeader icon={Search} title="Busca" subtitle="Encontre fontes por nome/path, conhecimento documentado ou símbolo. Cada resultado leva ao Acervo." />
       <Card className="mb-4">
-        {/* dimensão */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {ENTITIES.map((e) => {
-            const on = entity === e.key
-            return (
-              <button key={e.key} onClick={() => { setEntity(e.key); setAccess([]) }}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={on ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                {e.label}
-              </button>
-            )
-          })}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <Select label="Modo" value={mode} onChange={(e) => setMode(e.target.value as Mode)}>
+              <option value="nome">Nome / Path</option><option value="conhecimento">Conhecimento (objetivo/regras/processo)</option><option value="simbolo">Símbolo (função/tabela/campo/dep)</option>
+            </Select>
+            {mode === 'simbolo' && <Select label="Tipo" value={entity} onChange={(e) => setEntity(e.target.value as Entity)}><option value="function">função</option><option value="table">tabela</option><option value="field">campo</option><option value="dependency">dependência</option></Select>}
+            <div className="min-w-[220px] flex-1"><TextInput label="Termo" icon={Search} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && run(1)} placeholder={mode === 'conhecimento' ? 'ex.: pedido, cnab, aprovação…' : 'nome, path ou símbolo'} /></div>
+            <button onClick={() => run(1)} className="rounded-md bg-[color:var(--accent,#2563eb)] px-4 py-2 text-sm font-medium text-white">Buscar</button>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <Select label="Empresa" value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepository('') }}><option value="">Todas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</Select>
+            <Select label="Repositório" value={repository} onChange={(e) => setRepository(e.target.value)}><option value="">Todos</option>{repos.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
+            {mode !== 'simbolo' && <><Select label="Linguagem" value={lang} onChange={(e) => setLang(e.target.value)}><option value="">Todas</option><option value="advpl">advpl</option><option value="tlpp">tlpp</option></Select>
+            <Select label="Conhecimento" value={semantic} onChange={(e) => setSemantic(e.target.value)}><option value="">Qualquer</option><option value="completed">Completa</option><option value="partial">Parcial</option><option value="none">Sem</option></Select></>}
+          </div>
+          {(customerId || path) && <div className="flex items-center gap-2 text-xs text-[color:var(--muted-fg)]">Escopo: <Badge variant="default">{scopeLabel || 'empresa'}</Badge>
+            {path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setPath(''); run(1) }}>ampliar p/ repo</button>}
+            {repository && !path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setRepository(''); run(1) }}>ampliar p/ empresa</button>}
+            {customerId && !repository && !path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setCustomerId(''); run(1) }}>ampliar p/ todo o acervo</button>}</div>}
         </div>
-
-        {/* busca */}
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-end">
-          <div className="flex-1 relative">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Nome</label>
-            <div className="relative mt-1.5">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
-              <input
-                value={q}
-                onChange={(e) => { setQ(e.target.value); setShowSugs(true) }}
-                onKeyDown={(e) => { if (e.key === 'Enter') run(1) }}
-                onFocus={() => setShowSugs(true)}
-                placeholder={entity === 'field' ? 'ex.: STATUSMAIL' : entity === 'table' ? 'ex.: SC2' : entity === 'risk' ? 'ex.: dynamic_sql_by_concatenation' : 'nome…'}
-                className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-              />
-              {showSugs && sugs.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 mt-1 rounded-xl overflow-hidden max-h-60 overflow-y-auto"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  {sugs.map((s) => (
-                    <button key={s} onClick={() => { setQ(s); setShowSugs(false); setMatch('exact') }}
-                      className="block w-full text-left px-4 py-2 text-sm hover:opacity-80"
-                      style={{ color: 'var(--text)' }}>{s}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-light)' }}>Correspondência</label>
-            <div className="flex gap-1">
-              {(['prefix', 'exact', 'contains'] as const).map((m) => (
-                <button key={m} onClick={() => setMatch(m)}
-                  className="px-2.5 py-2 rounded-lg text-xs font-medium"
-                  style={match === m ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                  {m === 'prefix' ? 'Começa com' : m === 'exact' ? 'Exato' : 'Contém'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => run(1)}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Buscar</button>
-            {/* C4b — Ver impacto da entidade pesquisada (query→table; entidades sem impacto ficam de fora) */}
-            {q.trim() && (() => {
-              const impactEntity = entity === 'query' ? 'table' : entity
-              const supported = ['field', 'table', 'function', 'dependency', 'integration', 'risk'].includes(impactEntity)
-              return supported ? (
-                <button onClick={() => router.push(`/central-fontes/impacto?entity=${impactEntity}&name=${encodeURIComponent(q.trim())}`)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                  <Crosshair size={15} /> Ver impacto
-                </button>
-              ) : null
-            })()}
-          </div>
-        </div>
-
-        {/* acesso (só p/ tabela/campo/query) */}
-        {HAS_ACCESS.includes(entity) && (
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Acesso:</span>
-            {ACCESS.map((a) => (
-              <button key={a} onClick={() => toggleAccess(a)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium"
-                style={access.includes(a) ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                {a}
-              </button>
-            ))}
-          </div>
-        )}
       </Card>
 
-      {/* resultados */}
-      {loading ? (
-        <Card padding="none"><SkeletonTable rows={6} cols={3} /></Card>
-      ) : error ? (
-        <EmptyState icon={XCircle} title="Erro na busca" description={error} />
-      ) : !ran ? (
-        <EmptyState icon={Search} title="Escolha uma dimensão e busque" description="Ex.: Campo → STATUSMAIL → Acesso UPDATE." />
-      ) : !resp || resp.data.length === 0 ? (
-        <EmptyState icon={FileCode2} title="Nenhum fonte encontrado" description="Ajuste o termo, a correspondência ou o acesso." />
-      ) : (
-        <>
-          <div className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-            <b>{resp.pagination.total}</b> fonte(s) encontrada(s)
-          </div>
-          <div className="flex flex-col gap-3">
-            {resp.data.map((hit) => (
-              <Card key={hit.source_doc.id}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-semibold" style={{ color: 'var(--text)' }}>{hit.source_doc.filename}</div>
-                    <div className="text-xs" style={{ color: 'var(--text-light)' }}>
-                      {hit.source_doc.customer?.name ?? '—'} · {hit.source_doc.owner}/{hit.source_doc.repository} · {hit.source_doc.path}
-                    </div>
-                  </div>
-                  <button onClick={() => router.push(`/central-fontes/${hit.source_doc.id}`)}
-                    className="text-sm font-medium shrink-0" style={{ color: 'var(--primary)' }}>Abrir ficha →</button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {hit.occurrences.map((o, i) => (
-                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                      <b style={{ color: 'var(--text)' }}>{o.name}</b>
-                      {o.parent && <span>em {o.parent}</span>}
-                      {o.access?.map((a) => <Badge key={a} variant={a === 'UPDATE' || a === 'DELETE' || a === 'INSERT' ? 'warning' : 'default'}>{a}</Badge>)}
-                      {o.line_start && <span style={{ color: 'var(--text-light)' }}>L{o.line_start}{o.line_end && o.line_end !== o.line_start ? `–${o.line_end}` : ''}</span>}
-                    </span>
-                  ))}
-                  {hit.match_count > hit.occurrences.length && (
-                    <span className="text-xs" style={{ color: 'var(--text-light)' }}>+{hit.match_count - hit.occurrences.length} mais</span>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-          {resp.pagination.total > resp.pagination.per_page && (
-            <Pagination page={resp.pagination.current_page}
-              hasNext={resp.pagination.current_page < resp.pagination.last_page}
-              onPrev={() => run(Math.max(1, page - 1))} onNext={() => run(page + 1)}
-              total={resp.pagination.total} />
-          )}
-        </>
-      )}
+      {loading ? <SkeletonTable /> : hits ? (
+        hits.length === 0 ? <EmptyState icon={Search} title="Sem resultados" description="Nenhum símbolo encontrado." /> : (
+          <Table><Thead><Tr><Th>Fonte</Th><Th>Empresa / Repo</Th><Th>Ocorrências</Th><Th>Acervo</Th></Tr></Thead>
+            <Tbody>{hits.map((h) => <Tr key={h.source_doc.id}><Td><div className="font-medium">{h.source_doc.filename}</div><div className="text-xs text-[color:var(--muted-fg)]">{h.source_doc.path}</div></Td><Td>{h.source_doc.customer?.name} / {h.source_doc.repository}</Td><Td className="text-xs">{h.occurrences.slice(0, 4).map((o) => o.name).join(', ')}{h.occurrences.length > 4 ? '…' : ''}</Td><Td><Acervo id={h.source_doc.id} /></Td></Tr>)}</Tbody></Table>
+        )
+      ) : rows ? (
+        rows.length === 0 ? <EmptyState icon={Search} title="Sem resultados" description="Ajuste o termo ou o escopo." /> : (
+          <>
+            <Table><Thead><Tr><Th>Fonte</Th><Th>Empresa / Repo</Th><Th>Path</Th><Th>Conhecimento</Th><Th>Acervo</Th></Tr></Thead>
+              <Tbody>{rows.map((r) => <Tr key={r.id}><Td className="font-medium">{r.filename}</Td><Td>{r.customer?.name} / {r.repository}</Td><Td className="text-xs text-[color:var(--muted-fg)]">{r.path}</Td><Td>{semBadge(r.semantic_quality)}</Td><Td><Acervo id={r.id} /></Td></Tr>)}</Tbody></Table>
+            {pages > 1 && <div className="mt-3"><Pagination page={page} hasNext={page < pages} onPrev={() => run(page - 1)} onNext={() => run(page + 1)} /></div>}
+          </>
+        )
+      ) : <EmptyState icon={Search} title="Busque no acervo" description="Escolha um modo, digite um termo e (opcional) restrinja por empresa/repo/escopo." />}
     </>
   )
+}
+
+function Acervo({ id }: { id: number }) {
+  return <a href={`/central-fontes/acervo?doc=${id}`} className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[color:var(--accent,#2563eb)] hover:underline">Mostrar no Acervo <ArrowUpRight size={12} /></a>
 }

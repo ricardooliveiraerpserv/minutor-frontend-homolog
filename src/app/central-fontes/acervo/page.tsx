@@ -232,6 +232,7 @@ function CustomerPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { 
   const [repos, setRepos] = useState<RepoRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: RepoRow[] }>(`/source-docs/tree/customers/${m.customer_id}/repos`).then((r) => a && setRepos(r.data)); return () => { a = false } }, [m.customer_id])
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.name }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={18} /> {m.name}</h2>
+    <ScopeSearch customer_id={m.customer_id} />
     <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} />
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Repositórios</div>
       {repos === null ? <Skeleton className="h-16" /> : <div className="flex flex-col gap-1">{repos.map((rp) => (
@@ -244,6 +245,7 @@ function RepoPanel({ m, onOpenDir, onNavigateSource }: { m: Extract<Meta, { type
   const [dirs, setDirs] = useState<DirRow[] | null>(null)
   useEffect(() => { let a = true; api.get<{ data: { dirs: DirRow[] } }>(`/source-docs/tree/nodes?customer_id=${m.customer_id}&repository=${encodeURIComponent(m.repository)}&path=`).then((r) => a && setDirs(r.data.dirs)); return () => { a = false } }, [m.customer_id, m.repository])
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={[{ label: m.customerName }, { label: m.repository }]} /><h2 className="flex items-center gap-2 text-lg font-semibold"><FolderGit2 size={18} /> {m.repository}</h2>
+    <ScopeSearch customer_id={m.customer_id} repository={m.repository} />
     {m.row && <div className="text-xs text-[color:var(--muted-fg)]"><span className="inline-flex items-center gap-1"><GitBranch size={12} /> {m.row.branch}</span> · Última atualização do acervo: {dt(m.row.ultima_atualizacao_acervo)} <span className="opacity-70">(não é sync do GitHub)</span></div>}
     <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} />
     <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Estrutura principal</div>
@@ -264,6 +266,7 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { se
   const crumbs: Crumb[] = [{ label: selected.customerName }, { label: selected.repository }, ...selected.path.split('/').map((s) => ({ label: s }))]
   const files = (data?.files ?? []).filter((f) => !filter || f.semantic === filter)
   return <div className="flex h-full flex-col gap-4 overflow-auto p-5"><Breadcrumb items={crumbs} maxItems={6} />
+    <ScopeSearch customer_id={selected.customer_id} repository={selected.repository} path={selected.path} />
     <KnowledgeBlock k={k} onNavigateSource={onNavigateSource} onHealth={(key) => setFilter(key === 'completed' || key === 'partial' || key === 'none' ? key : (key === 'gaps' ? 'partial' : null))} />
     {loading || !data ? <Skeleton className="h-40" /> : <>
       {data.dirs.length > 0 && <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Subdiretórios</div><div className="flex flex-wrap gap-2">{data.dirs.map((d) => { const cob = d.fontes ? Math.round(d.documentadas / d.fontes * 100) : 0; return <button key={d.path} onClick={() => onOpenDir(`d:${selected.customer_id}:${selected.repository}:${d.path}`)} className="inline-flex items-center gap-1.5 rounded-md border border-[color:var(--border)] px-2.5 py-1.5 text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]"><Folder size={14} className="text-[color:var(--muted-fg)]" /> {d.name} <span className="text-xs text-[color:var(--muted-fg)]">{d.fontes} · {cob}%</span></button> })}</div></div>}
@@ -279,4 +282,11 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource }: { se
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return <div className="flex flex-col"><span className="text-xs text-[color:var(--muted-fg)]">{label}</span><span className="text-base font-semibold tabular-nums">{value}</span></div>
+}
+
+function ScopeSearch({ customer_id, repository, path }: { customer_id: number; repository?: string; path?: string }) {
+  const qs = new URLSearchParams({ scope: '1', customer_id: String(customer_id) })
+  if (repository) qs.set('repository', repository)
+  if (path) qs.set('path', path)
+  return <a href={`/central-fontes/busca?${qs.toString()}`} className="inline-flex w-fit items-center gap-1 text-xs text-[color:var(--accent,#2563eb)] hover:underline">🔍 Buscar neste escopo</a>
 }

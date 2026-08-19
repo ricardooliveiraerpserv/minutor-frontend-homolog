@@ -180,8 +180,10 @@ function ImpactoInner() {
                             <span className="font-medium truncate" style={{ color: 'var(--text)' }}>{sg.source_doc.filename}</span>
                             <span className="text-xs truncate" style={{ color: 'var(--text-light)' }}>{sg.source_doc.path}</span>
                           </div>
-                          <button onClick={() => router.push(`/central-fontes/${sg.source_doc.id}`)}
-                            className="text-xs shrink-0 px-2 py-1 rounded-lg" style={{ color: 'var(--primary)' }}>abrir ficha</button>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <a href={`/central-fontes/acervo?doc=${sg.source_doc.id}`} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--primary)' }}>Mostrar no Acervo →</a>
+                            <button onClick={() => router.push(`/central-fontes/${sg.source_doc.id}`)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-light)' }}>ficha</button>
+                          </div>
                         </div>
                         <div className="flex flex-col gap-1">
                           {sg.occurrences.map((o, i) => (
