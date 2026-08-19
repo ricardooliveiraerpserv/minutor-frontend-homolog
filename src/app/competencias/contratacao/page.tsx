@@ -141,7 +141,7 @@ export default function ContratacaoPage() {
     } catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao mover')) }
   }
   async function complete(card: Card) {
-    if (!(await confirm({ title: 'Concluir contratação', message: 'Concluir a contratação e criar o usuário deste contratado no Minutor? Ele receberá as credenciais por e-mail.', confirmLabel: 'Concluir e criar usuário' }))) return
+    if (!(await confirm({ title: 'Concluir contratação', message: `A contratação de ${card.title} será concluída e o usuário será criado no Minutor (ele receberá as credenciais por e-mail). Deseja continuar?`, confirmLabel: 'Concluir e criar usuário' }))) return
     try {
       const r = await api.post<Card>(`/competencias/contratacao/${card.id}/complete`, {})
       toast.success(r.created_user ? `Usuário criado: ${r.created_user.email}` : 'Concluído')
