@@ -29,7 +29,7 @@ export default function BuscaPage() {
   const [customerId, setCustomerId] = useState('')
   const [repository, setRepository] = useState('')
   const [path, setPath] = useState('')
-  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
+  const [customers, setCustomers] = useState<{ customer_id: number; name: string; fontes: number }[]>([])
   const [repos, setRepos] = useState<string[]>([])
 
   const [rows, setRows] = useState<CatalogRow[] | null>(null)
@@ -41,8 +41,8 @@ export default function BuscaPage() {
   const [autoRun, setAutoRun] = useState(false)
   const inited = useRef(false)
 
-  // empresas p/ o filtro
-  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
+  // empresas p/ o filtro — inclui todos os clientes do git (include_empty), mesmo sem fontes
+  useEffect(() => { api.get<{ data: { customer_id: number; name: string; fontes: number }[] }>('/source-docs/tree/customers?include_empty=1').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
   // repos ao escolher empresa
   useEffect(() => { if (!customerId) { setRepos([]); return } api.get<{ data: { repository: string }[] }>(`/source-docs/tree/customers/${customerId}/repos`).then((r) => setRepos(r.data.map((x) => x.repository))).catch(() => {}) }, [customerId])
 
@@ -104,7 +104,7 @@ export default function BuscaPage() {
             <button onClick={() => run(1)} className="rounded-md bg-[color:var(--accent,#2563eb)] px-4 py-2 text-sm font-medium text-white">Buscar</button>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <Select label="Empresa" value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepository('') }}><option value="">Todas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</Select>
+            <EmpresaCombo value={customerId} customers={customers} onChange={(id) => { setCustomerId(id); setRepository('') }} />
             <Select label="Repositório" value={repository} onChange={(e) => setRepository(e.target.value)}><option value="">Todos</option>{repos.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
             {mode !== 'simbolo' && <><Select label="Linguagem" value={lang} onChange={(e) => setLang(e.target.value)}><option value="">Todas</option><option value="advpl">advpl</option><option value="tlpp">tlpp</option></Select>
             <Select label="Conhecimento" value={semantic} onChange={(e) => setSemantic(e.target.value)}><option value="">Qualquer</option><option value="completed">Completa</option><option value="partial">Parcial</option><option value="none">Sem</option></Select></>}
@@ -132,6 +132,42 @@ export default function BuscaPage() {
         )
       ) : <EmptyState icon={Search} title="Busque no acervo" description="Escolha um modo, digite um termo e (opcional) restrinja por empresa/repo/escopo." />}
     </>
+  )
+}
+
+// Filtro de empresa com busca por texto; clientes do git sem fontes ficam cinza/desabilitados.
+function EmpresaCombo({ value, customers, onChange }: { value: string; customers: { customer_id: number; name: string; fontes: number }[]; onChange: (id: string) => void }) {
+  const selName = customers.find((c) => String(c.customer_id) === value)?.name ?? ''
+  const [q, setQ] = useState(selName)
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setQ(selName) }, [selName])
+  const term = q.trim().toLowerCase()
+  const list = term ? customers.filter((c) => c.name.toLowerCase().includes(term)) : customers
+  return (
+    <div className="relative w-44">
+      <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Empresa</label>
+      <div className="relative mt-1.5">
+        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value && value) onChange('') }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Todas"
+          className="w-full rounded-xl px-3 py-2.5 pr-7 text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+        {value && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(''); setQ('') }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm leading-none" style={{ color: 'var(--text-light)' }}>×</button>}
+      </div>
+      {open && list.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded-xl shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {list.map((c) => {
+            const empty = c.fontes === 0
+            return (
+              <button key={c.customer_id} type="button" disabled={empty} onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { if (empty) return; onChange(String(c.customer_id)); setQ(c.name); setOpen(false) }}
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${empty ? 'cursor-not-allowed' : 'hover:bg-[color:var(--muted-bg,#f1f5f9)]'}`}
+                style={{ color: empty ? 'var(--text-light)' : 'var(--text)', opacity: empty ? 0.55 : 1 }}>
+                <span className="truncate">{c.name}</span>
+                {empty ? <span className="shrink-0 text-[10px] uppercase tracking-wide">sem dados</span> : <span className="shrink-0 text-xs" style={{ color: 'var(--text-light)' }}>{c.fontes}</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
