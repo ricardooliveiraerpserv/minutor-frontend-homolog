@@ -46,6 +46,11 @@ export default function SolicitacoesPage() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
   const [gmudErr, setGmudErr] = useState<string | null>(null)
+  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
+  const [gCustomer, setGCustomer] = useState('')
+  const [gQ, setGQ] = useState('')
+  const [gFrom, setGFrom] = useState('')
+  const [gTo, setGTo] = useState('')
 
   const load = useCallback(() => {
     setRows(null); setError(null)
@@ -55,13 +60,22 @@ export default function SolicitacoesPage() {
   }, [status])
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    if (view !== 'gmud') return
+  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
+
+  const loadGmud = useCallback(() => {
     setGmud(null); setGmudErr(null)
-    api.get<{ data: Gmud[] }>('/source-docs/gmud-commits')
+    const p = new URLSearchParams()
+    if (gCustomer) p.set('customer_id', gCustomer)
+    if (gQ.trim()) p.set('q', gQ.trim())
+    if (gFrom) p.set('from', gFrom)
+    if (gTo) p.set('to', gTo)
+    api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits?${p.toString()}`)
       .then((r) => setGmud(r.data))
       .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
-  }, [view])
+  }, [gCustomer, gQ, gFrom, gTo])
+  useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
+
+  const movidesk = (t: string | null) => t && /^\d+$/.test(t) ? `https://erpserv.movidesk.com/Ticket/Edit/${t}` : null
 
   const on = 'bg-[var(--primary,#157582)] text-white'
   const off = 'text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]'
@@ -127,25 +141,39 @@ export default function SolicitacoesPage() {
       </Card>
       ) : (
       <Card padding="none">
+        <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
+          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <select value={gCustomer} onChange={(e) => setGCustomer(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none"><option value="">Todas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</select>
+          </label>
+          <label className="flex min-w-[180px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar fonte
+            <input value={gQ} onChange={(e) => setGQ(e.target.value)} placeholder="nome do fonte…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          </label>
+          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">De
+            <input type="date" value={gFrom} onChange={(e) => setGFrom(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
+          </label>
+          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Até
+            <input type="date" value={gTo} onChange={(e) => setGTo(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
+          </label>
+        </div>
         {gmudErr ? <EmptyState icon={GitCommitHorizontal} title="Erro" description={gmudErr} />
           : gmud === null ? <SkeletonTable rows={6} cols={7} />
             : gmud.length === 0 ? <EmptyState icon={GitCommitHorizontal} title="Sem commits de GMUD" description="Nenhuma versão de fonte criada via GMUD no seu escopo." />
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>GMUD</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th></Tr></Thead>
+                    <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th></Tr></Thead>
                     <Tbody>
-                      {gmud.map((g) => (
-                        <Tr key={g.id}>
-                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
+                      {gmud.map((g) => { const tkUrl = movidesk(g.ticket_number); return (
+                        <Tr key={g.id} onClick={() => { if (tkUrl) window.open(tkUrl, '_blank', 'noopener') }} className={tkUrl ? 'cursor-pointer' : ''}>
+                          <Td><a href={`/central-fontes/acervo?doc=${g.source_doc_id}`} onClick={(e) => e.stopPropagation()} className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>{g.filename}</a><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
-                          <Td>{g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
-                          <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
+                          <Td>{g.ticket_number ? (tkUrl ? <a href={tkUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>#{g.ticket_number} <ExternalLink size={11} /></a> : <Badge variant="default">{g.ticket_number}</Badge>) : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
+                          <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
                           <Td className="text-xs">{dt(g.created_at)}</Td>
                         </Tr>
-                      ))}
+                      )})}
                     </Tbody>
                   </Table>
                 </div>
