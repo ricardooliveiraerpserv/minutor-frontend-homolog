@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { SectionLoader } from '@/components/ui/loading'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
 import { useConfirm } from '@/components/ui/use-confirm'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { CheckCircle2, UserPlus, ArrowRight, Pause, User as UserIcon, Loader2, Trash2, Plus } from 'lucide-react'
@@ -109,6 +109,16 @@ export default function ContratacaoPage() {
     catch { toast.error('Erro ao carregar contratações') } finally { setLoading(false) }
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Abre o card automaticamente quando chega via ?card=<id> (ex.: da tarefa no Meu Dia).
+  const openedFromUrl = useRef(false)
+  useEffect(() => {
+    if (openedFromUrl.current || !buckets.length) return
+    const id = Number(new URLSearchParams(window.location.search).get('card'))
+    if (!id) return
+    const card = buckets.flatMap(b => b.cards).find(c => c.id === id)
+    if (card) { setOpen(card); openedFromUrl.current = true }
+  }, [buckets])
 
   const patch = (card: Card) => { setOpen(card); setBuckets(bs => bs.map(b => ({ ...b, cards: b.cards.map(c => c.id === card.id ? card : c) }))) }
 

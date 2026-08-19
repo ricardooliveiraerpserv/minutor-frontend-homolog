@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Trash2, Plus, Repeat, X, Link2, Pencil, ChevronRight, RotateCcw, CalendarDays, Eye } from 'lucide-react'
@@ -26,7 +27,9 @@ const TYPE_L: Record<string, string> = { pessoal: 'Pessoal', cliente: 'Cliente',
 const PRIO_L: Record<string, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
 const PRIO_COLOR: Record<string, string> = { baixa: 'var(--text-light)', media: 'var(--warning-border)', alta: 'var(--danger-border)' }
 const RECUR_L: Record<string, string> = { none: 'Não repetir', daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }
-const ENT_L: Record<string, string> = { customer: 'Cliente', project: 'Projeto', contract: 'Contrato', meeting: 'Reunião' }
+const ENT_L: Record<string, string> = { customer: 'Cliente', project: 'Projeto', contract: 'Contrato', meeting: 'Reunião', skill_hire: 'Contratação' }
+// Tarefas vinculadas a um card abrem o card em vez de concluir na lista.
+const ENT_CARD_ROUTE: Record<string, string> = { skill_hire: '/competencias/contratacao' }
 const inputStyle = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none w-full'
 const lbl = 'text-[11px] font-semibold block mb-0.5'
@@ -97,7 +100,14 @@ export function TasksCard({ onChanged }: { onChanged?: () => void } = {}) {
     try { const r = await api.post<{ data: Task }>('/tasks', { title }); setItems(p => [r.data, ...p]); onChanged?.() }
     catch { toast.error('Erro ao criar tarefa'); load() }
   }
+  const router = useRouter()
   const toggle = async (t: Task) => {
+    // Tarefas vinculadas a um card (ex.: contratação): concluir = abrir o card
+    // (a tarefa é concluída lá, quando a contratação é finalizada).
+    if (!t.completed && t.entity_type && ENT_CARD_ROUTE[t.entity_type]) {
+      router.push(t.entity_id ? `${ENT_CARD_ROUTE[t.entity_type]}?card=${t.entity_id}` : ENT_CARD_ROUTE[t.entity_type])
+      return
+    }
     // Concluir pede confirmação; estornar não.
     if (!t.completed && !(await ask(`Concluir a tarefa "${t.title}"?`))) return
     // concluir → some da lista ativa; estornar → some das concluídas (otimista)
