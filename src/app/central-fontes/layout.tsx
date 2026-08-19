@@ -17,6 +17,7 @@ const TABS: { href: string; label: string; match: (p: string) => boolean }[] = [
   { href: '/central-fontes', label: 'Visão Geral', match: (p) => p === '/central-fontes' || p.startsWith('/central-fontes/acervo') },
   { href: '/central-fontes/campanha', label: 'Campanhas', match: (p) => p === '/central-fontes/campanha' || p.startsWith('/central-fontes/campanha/') },
   { href: '/central-fontes/aprovacoes', label: 'Aprovações', match: (p) => p === '/central-fontes/aprovacoes' || p.startsWith('/central-fontes/aprovacoes/') },
+  { href: '/central-fontes/solicitacoes', label: 'Solicitações', match: (p) => p === '/central-fontes/solicitacoes' || p.startsWith('/central-fontes/solicitacoes/') },
   { href: '/central-fontes/configuracoes', label: 'Configurações', match: (p) => p === '/central-fontes/configuracoes' || p.startsWith('/central-fontes/configuracoes/') },
 ]
 
