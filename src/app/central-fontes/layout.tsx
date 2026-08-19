@@ -15,7 +15,6 @@ import { AppLayout } from '@/components/layout/app-layout'
 
 const TABS: { href: string; label: string; match: (p: string) => boolean }[] = [
   { href: '/central-fontes', label: 'Visão Geral', match: (p) => p === '/central-fontes' || p.startsWith('/central-fontes/acervo') },
-  { href: '/central-fontes/busca', label: 'Busca', match: (p) => p === '/central-fontes/busca' || p.startsWith('/central-fontes/busca/') },
   { href: '/central-fontes/impacto', label: 'Impacto', match: (p) => p === '/central-fontes/impacto' || p.startsWith('/central-fontes/impacto/') },
   { href: '/central-fontes/campanha', label: 'Campanhas', match: (p) => p === '/central-fontes/campanha' || p.startsWith('/central-fontes/campanha/') },
   { href: '/central-fontes/aprovacoes', label: 'Aprovações', match: (p) => p === '/central-fontes/aprovacoes' || p.startsWith('/central-fontes/aprovacoes/') },
