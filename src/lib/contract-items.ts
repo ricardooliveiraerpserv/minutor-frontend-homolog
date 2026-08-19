@@ -1,7 +1,7 @@
 // Itens SaaS/Cloud de contrato (Setup / Desenvolvimento) — cada um vira um card de projeto Fechado.
 export interface ContractItemForm {
   id?: number
-  tipo: 'setup' | 'desenvolvimento' | 'setup_dev'
+  tipo: 'setup' | 'desenvolvimento' | 'setup_dev' | 'banco_horas_mensal'
   descricao: string
   horas_contratadas: string
   valor_hora: string
@@ -15,6 +15,7 @@ export const ITEM_TIPO_OPTS: { v: ContractItemForm['tipo']; l: string }[] = [
   { v: 'setup', l: 'Setup' },
   { v: 'desenvolvimento', l: 'Desenvolvimento' },
   { v: 'setup_dev', l: 'Setup + Desenvolvimento' },
+  { v: 'banco_horas_mensal', l: 'Banco de Horas Mensal' },
 ]
 
 export const emptyContractItem = (): ContractItemForm => ({
