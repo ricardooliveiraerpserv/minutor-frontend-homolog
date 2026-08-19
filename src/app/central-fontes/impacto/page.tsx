@@ -41,7 +41,7 @@ interface ImpactResp {
 
 const isWrite = (a: string) => a === 'INSERT' || a === 'UPDATE' || a === 'DELETE'
 
-function ImpactoInner() {
+export function ImpactoInner({ embedded }: { embedded?: boolean } = {}) {
   const router = useRouter()
   const sp = useSearchParams()
 
@@ -100,8 +100,8 @@ function ImpactoInner() {
 
   return (
     <>
-      <PageHeader icon={Crosshair} title="Análise de Impacto"
-        subtitle="Onde uma alteração pode impactar — cliente, fonte, função, acesso e evidência. Sobre o índice técnico, sem IA." />
+      {!embedded && <PageHeader icon={Crosshair} title="Análise de Impacto"
+        subtitle="Onde uma alteração pode impactar — cliente, fonte, função, acesso e evidência. Sobre o índice técnico, sem IA." />}
 
       {/* controles */}
       <Card className="mb-4">
