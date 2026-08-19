@@ -274,15 +274,21 @@ function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledg
       <span className="tabular-nums font-semibold" style={{ color: tone }}>{n}</span> <span className="text-[color:var(--muted-fg)]">{label}</span>
     </button>
   )
+  const processos = k.processos_modulos.filter((p) => p.modulo !== '—')
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <Metric label="Fontes" value={k.fontes} /><Metric label="Documentadas" value={k.documentadas} /><Metric label="Cobertura" value={`${k.cobertura_semantica}%`} />
-        <Metric label="Funções" value={k.funcoes} /><Metric label="Regras" value={k.regras} /><Metric label="Dependências" value={k.dependencias} />
-        <Metric label="Custo IA" value={`US$ ${k.custo_ia_usd.toFixed(2)}`} />
+    <div className="flex flex-col gap-5">
+      {/* Indicadores em tiles */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+        <StatTile label="Fontes" value={k.fontes} />
+        <StatTile label="Documentadas" value={k.documentadas} />
+        <StatTile label="Cobertura" value={`${k.cobertura_semantica}%`} />
+        <StatTile label="Funções" value={k.funcoes} />
+        <StatTile label="Regras" value={k.regras} />
+        <StatTile label="Dependências" value={k.dependencias} />
+        <StatTile label="Custo IA" value={`US$ ${k.custo_ia_usd.toFixed(2)}`} />
       </div>
-      <div>
-        <div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Saúde do conhecimento</div>
+
+      <KSection title="Saúde do conhecimento">
         <div className="flex flex-wrap gap-2">
           {chip('completas', k.saude.completa, 'completed', 'var(--success,#16a34a)')}
           {chip('parciais', k.saude.parcial, 'partial', 'var(--warning,#d97706)')}
@@ -290,21 +296,47 @@ function KnowledgeBlock({ k, failed, onNavigateSource, onHealth }: { k: Knowledg
           {chip('com gaps', k.saude.com_gaps, 'gaps', 'var(--warning,#d97706)')}
           {chip('aguardando IA', k.saude.aguardando, 'await', 'var(--accent,#2563eb)')}
         </div>
-      </div>
-      {k.processos_modulos.filter((p) => p.modulo !== '—').length > 0 && (
-        <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Processos / módulos identificados</div>
-          <div className="flex flex-wrap gap-1.5">{k.processos_modulos.filter((p) => p.modulo !== '—').map((p, i) => <Badge key={i} variant="default">{p.modulo} · {p.fontes}</Badge>)}</div></div>
+      </KSection>
+
+      {processos.length > 0 && (
+        <KSection title="Processos / módulos identificados">
+          <div className="flex flex-wrap gap-1.5">{processos.map((p, i) => <Badge key={i} variant="default">{p.modulo} · {p.fontes}</Badge>)}</div>
+        </KSection>
       )}
-      {k.linguagens.length > 0 && <div className="text-xs text-[color:var(--muted-fg)]">Linguagens: {k.linguagens.map((l) => `${l.lang} (${l.fontes})`).join(' · ')}</div>}
+
+      {k.linguagens.length > 0 && (
+        <KSection title="Linguagens">
+          <div className="flex flex-wrap gap-1.5">{k.linguagens.map((l, i) => <Badge key={i} variant="default">{l.lang} · {l.fontes}</Badge>)}</div>
+        </KSection>
+      )}
+
       {k.cross_source.length > 0 && (
-        <div><div className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-fg)]">Relações com outras fontes ({k.cross_source.length})</div>
-          <div className="flex flex-col gap-1">{k.cross_source.slice(0, 12).map((e, i) => (
-            <button key={i} onClick={() => onNavigateSource?.(e.to_id)} className="flex items-center gap-1.5 rounded px-1 py-0.5 text-left text-sm hover:text-[color:var(--accent,#2563eb)]">
+        <KSection title={`Relações com outras fontes (${k.cross_source.length})`}>
+          <div className="flex flex-col divide-y divide-[color:var(--border)] overflow-hidden rounded-md border border-[color:var(--border)]">{k.cross_source.slice(0, 12).map((e, i) => (
+            <button key={i} onClick={() => onNavigateSource?.(e.to_id)} className="flex items-center gap-1.5 px-3 py-2 text-left text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]">
               <span className="font-medium">{e.from_name}</span><span className="text-[color:var(--muted-fg)]">→ {e.symbol} →</span><span className="font-medium underline decoration-dotted">{e.to_name}</span>
-              <span className="ml-auto text-xs text-[color:var(--muted-fg)]">{e.to_path}</span>
+              <span className="ml-auto truncate text-xs text-[color:var(--muted-fg)]">{e.to_path}</span>
             </button>
-          ))}</div></div>
+          ))}</div>
+        </KSection>
       )}
+    </div>
+  )
+}
+
+function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-3 py-2.5">
+      <div className="text-lg font-semibold tabular-nums leading-tight text-[color:var(--fg)]">{value}</div>
+      <div className="mt-0.5 text-[11px] uppercase tracking-wide text-[color:var(--muted-fg)]">{label}</div>
+    </div>
+  )
+}
+function KSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted-fg)]">{title}</div>
+      {children}
     </div>
   )
 }
@@ -400,10 +432,6 @@ function FolderPanel({ selected, onOpenDir, onOpenFile, onNavigateSource, crumbs
     </>
     )}
   </div>
-}
-
-function Metric({ label, value }: { label: string; value: React.ReactNode }) {
-  return <div className="flex flex-col"><span className="text-xs text-[color:var(--muted-fg)]">{label}</span><span className="text-base font-semibold tabular-nums">{value}</span></div>
 }
 
 // ── Busca contextual instantânea (nível atual do Acervo) — reusa GET /source-docs ──
