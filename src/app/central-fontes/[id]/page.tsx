@@ -56,7 +56,7 @@ const SIT: Record<Situation, { variant: string; label: string; icon: typeof Chec
 const SEM: Record<string, { variant: string; label: string }> = {
   completed: { variant: 'success', label: 'Completa' },
   partial:   { variant: 'warning', label: 'Parcial' },
-  none:      { variant: 'default', label: 'Não processada' },
+  none:      { variant: 'default', label: 'Sem semântica' },
 }
 const TABS = [
   { key: 'resumo', label: 'Resumo', icon: FileCode2 },
