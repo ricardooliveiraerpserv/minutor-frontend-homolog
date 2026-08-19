@@ -741,11 +741,11 @@ export default function FechamentoConsultorPage() {
       <tr>
         <td>${escapeHtml(c.nome)}</td>
         <td>${escapeHtml(c.email) || '—'}</td>
-        <td class="right">${formatBRL(c.total + (c.total_despesas || 0))}</td>
+        <td class="right">${formatBRL(netOf(c as ConsultorBase))}</td>
       </tr>
     `).join('')
 
-    const totalGeral = todos.reduce((s, c) => s + c.total + (c.total_despesas || 0), 0)
+    const totalGeral = todos.reduce((s, c) => s + netOf(c as ConsultorBase), 0)
 
     const html = `
       <div class="page">
@@ -864,6 +864,9 @@ export default function FechamentoConsultorPage() {
   function calcRecebimento(c: ConsultorBase, desconto: number, adiantamento: number, adicional: number): number {
     return c.total + (c.total_despesas || 0) - desconto - adiantamento + adicional + (c.emprestimo_aporte || 0)
   }
+  // Valor REAL a pagar (líquido, com ajustes) e a soma dele — usados no Resumo e no Total Geral.
+  const netOf = (c: ConsultorBase) => calcRecebimento(c, c.desconto || 0, c.adiantamento || 0, c.adicional || 0)
+  const netSum = (arr: ConsultorBase[]) => arr.reduce((s, c) => s + netOf(c), 0)
 
   // 4 colunas (Desconto / Adiantamento / Adicional editáveis + Total/Recebimento ao vivo).
   // Estado local por consultor; salva no onBlur de cada campo via POST /ajustes (otimista).
@@ -1283,9 +1286,9 @@ export default function FechamentoConsultorPage() {
     if (!t) return null
 
     const tipoRows = [
-      { label: 'Horistas',       count: data?.horistas.length ?? 0,    total: t.total_horistas },
-      { label: 'Banco de Horas', count: data?.banco_horas.length ?? 0, total: t.total_banco_horas },
-      { label: 'Fixo',           count: data?.fixos.length ?? 0,       total: t.total_fixos },
+      { label: 'Horistas',       count: data?.horistas.length ?? 0,    total: netSum((data?.horistas ?? []) as ConsultorBase[]) },
+      { label: 'Banco de Horas', count: data?.banco_horas.length ?? 0, total: netSum((data?.banco_horas ?? []) as ConsultorBase[]) },
+      { label: 'Fixo',           count: data?.fixos.length ?? 0,       total: netSum((data?.fixos ?? []) as ConsultorBase[]) },
     ]
 
     const todos = [
@@ -1295,7 +1298,7 @@ export default function FechamentoConsultorPage() {
     ].sort((a, b) => a.nome.localeCompare(b.nome))
     // Lista individual respeita os filtros (busca por nome + "com movimentos").
     const todosFiltrados = applyFilters(todos as ConsultorBase[])
-    const totalFiltrado = todosFiltrados.reduce((s, c) => s + (c.total ?? 0), 0)
+    const totalFiltrado = todosFiltrados.reduce((s, c) => s + netOf(c as ConsultorBase), 0)
 
     // Breakdown por Tipo de Contrato — sempre mostra os 3 tipos (+ "sem tipo" se
     // houver) pra ler como rateio do período. Respeita "com movimentos" + busca
@@ -1309,7 +1312,7 @@ export default function FechamentoConsultorPage() {
     const contratoBuckets: { key: string; label: string; count: number; total: number }[] =
       CONTRACT_ORDER.map(ct => {
         const rows = baseSemFiltroContrato.filter(c => c.contract_type === ct)
-        return { key: ct, label: CONTRACT_LABELS[ct], count: rows.length, total: rows.reduce((s, c) => s + (c.total ?? 0), 0) }
+        return { key: ct, label: CONTRACT_LABELS[ct], count: rows.length, total: rows.reduce((s, c) => s + netOf(c as ConsultorBase), 0) }
       })
     const semTipo = baseSemFiltroContrato.filter(c => c.contract_type == null)
     if (semTipo.length > 0) {
@@ -1317,7 +1320,7 @@ export default function FechamentoConsultorPage() {
         key: 'null',
         label: contractLabel(null),
         count: semTipo.length,
-        total: semTipo.reduce((s, c) => s + (c.total ?? 0), 0),
+        total: semTipo.reduce((s, c) => s + netOf(c as ConsultorBase), 0),
       })
     }
     const contratoTotalCount = contratoBuckets.reduce((s, b) => s + b.count, 0)
@@ -1422,13 +1425,33 @@ export default function FechamentoConsultorPage() {
               </tr>
             </Thead>
             <Tbody>
-              {todosFiltrados.map(c => (
-                <Tr key={c.user_id}>
-                  <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
-                  <Td className="text-[var(--text-muted)]">{c.email ?? '—'}</Td>
-                  <Td right className="font-semibold text-[var(--text)]">{formatBRL(c.total)}</Td>
-                </Tr>
-              ))}
+              {todosFiltrados.map(c => {
+                const cb = c as ConsultorBase
+                const liquido = netOf(cb)
+                const desc = cb.desconto || 0
+                const adto = cb.adiantamento || 0
+                const adic = cb.adicional || 0
+                const empr = cb.emprestimo_aporte || 0
+                const temAjuste = desc !== 0 || adto !== 0 || adic !== 0 || empr !== 0
+                return (
+                  <Tr key={c.user_id}>
+                    <Td className="font-medium text-[var(--text)]">
+                      {c.nome}
+                      {temAjuste && (
+                        <span className="block text-[10px] font-normal mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          Bruto {formatBRL(cb.total + (cb.total_despesas || 0))}
+                          {desc !== 0 && <> · <span style={{ color: '#dc2626' }}>− desconto {formatBRL(desc)}</span></>}
+                          {adto !== 0 && <> · <span style={{ color: '#dc2626' }}>− adiantamento {formatBRL(adto)}</span></>}
+                          {adic !== 0 && <> · <span style={{ color: '#16a34a' }}>+ adicional {formatBRL(adic)}</span></>}
+                          {empr !== 0 && <> · <span style={{ color: '#16a34a' }}>+ empréstimo {formatBRL(empr)}</span></>}
+                        </span>
+                      )}
+                    </Td>
+                    <Td className="text-[var(--text-muted)]">{c.email ?? '—'}</Td>
+                    <Td right className="font-semibold text-[var(--text)]">{formatBRL(liquido)}</Td>
+                  </Tr>
+                )
+              })}
               <Tr className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-hover)]">
                 <td colSpan={2} className="py-2 px-3 text-right font-semibold text-[var(--text)] text-sm">Total</td>
                 <Td right className="font-bold text-[var(--brand-purple)]">{formatBRL(totalFiltrado)}</Td>
@@ -1471,11 +1494,12 @@ export default function FechamentoConsultorPage() {
         {/* Summary cards */}
         {data && !loading && (() => {
           const totalCount = data.horistas.length + data.banco_horas.length + data.fixos.length
-          const totalValor = data.totais.total_geral
+          // Valor REAL (líquido, com desconto/adiantamento/adicional/empréstimo).
+          const totalValor = netSum([...data.horistas, ...data.banco_horas, ...data.fixos] as ConsultorBase[])
           const breakdown = [
-            { key: 'horistas',  label: 'Horistas',      valor: data.totais.total_horistas,    count: data.horistas.length },
-            { key: 'bh',        label: 'Banco de Horas', valor: data.totais.total_banco_horas, count: data.banco_horas.length },
-            { key: 'fixo',      label: 'Fixo',          valor: data.totais.total_fixos,       count: data.fixos.length },
+            { key: 'horistas',  label: 'Horistas',      valor: netSum(data.horistas as ConsultorBase[]),    count: data.horistas.length },
+            { key: 'bh',        label: 'Banco de Horas', valor: netSum(data.banco_horas as ConsultorBase[]), count: data.banco_horas.length },
+            { key: 'fixo',      label: 'Fixo',          valor: netSum(data.fixos as ConsultorBase[]),       count: data.fixos.length },
           ]
           const pct = (v: number) => totalValor > 0 ? Math.round((v / totalValor) * 100) : 0
           const maior = breakdown.reduce((a, b) => b.valor > a.valor ? b : a)
