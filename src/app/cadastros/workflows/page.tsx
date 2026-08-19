@@ -40,8 +40,9 @@ const DOMAIN_LABELS: Record<string, string> = {
   'Apontamento': 'Apontamento',
   'Triagem':     'Triagem',
   'Despesas':    'Despesas',
+  'Contratações': 'Contratações',
 }
-const DOMAIN_ORDER = ['Requisições', 'Contratos', 'Projetos', 'Fechamento', 'Apontamento', 'Triagem', 'Despesas']
+const DOMAIN_ORDER = ['Requisições', 'Contratos', 'Projetos', 'Fechamento', 'Apontamento', 'Triagem', 'Despesas', 'Contratações']
 
 export default function WorkflowsPage() {
   const { user } = useAuth()

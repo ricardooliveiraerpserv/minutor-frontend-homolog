@@ -48,6 +48,8 @@ export default function ContratacaoPage() {
   const [nContato, setNContato] = useState('')
   const [nCargo, setNCargo] = useState('Analista de Sistema')
   const [nModal, setNModal] = useState('')
+  const [nStartDate, setNStartDate] = useState('')       // data de início
+  const [nFirstContact, setNFirstContact] = useState('') // data de primeiro contato
   const [nFixa, setNFixa] = useState('')          // sim | nao
   const [nRemun, setNRemun] = useState('')        // consultant_type: fixo (Fixa) | horista (Por hora)
   const [nValor, setNValor] = useState('')
@@ -61,7 +63,7 @@ export default function ContratacaoPage() {
 
   const toggleNRec = (v: string) => setNRecursos(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])
   const resetNew = () => {
-    setNTitle(''); setNContato(''); setNCargo('Analista de Sistema'); setNModal(''); setNFixa('')
+    setNTitle(''); setNContato(''); setNCargo('Analista de Sistema'); setNModal(''); setNStartDate(''); setNFirstContact(''); setNFixa('')
     setNRemun(''); setNValor(''); setNRecursos([]); setNEmailCriado(''); setNWhats(''); setNWhatsDate(''); setNObs('')
   }
 
@@ -73,6 +75,7 @@ export default function ContratacaoPage() {
         title: nTitle.trim(), cargo: nCargo || null, modalidade: nModal || null,
         form: {
           contato: nContato, contratacao_fixa: nFixa, consultant_type: nRemun, valor: nValor,
+          start_date: nStartDate, data_primeiro_contato: nFirstContact,
           recursos: nRecursos, email_criado: nEmailCriado, incluir_whatsapp: nWhats,
           whatsapp_date: nWhats === 'sim' ? nWhatsDate : '', observacao: nObs,
         },
@@ -422,6 +425,17 @@ export default function ContratacaoPage() {
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>2. Modalidade</label>
                   <Pills options={modalidades.map(m => [m.value, m.label] as [string, string])} value={nModal} onChange={setNModal} />
+                </div>
+                {/* Datas: início + primeiro contato */}
+                <div className="grid grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data de início</label>
+                    <input type="date" value={nStartDate} onChange={e => setNStartDate(e.target.value)} className="ds-input w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data de primeiro contato</label>
+                    <input type="date" value={nFirstContact} onChange={e => setNFirstContact(e.target.value)} className="ds-input w-full" />
+                  </div>
                 </div>
                 {/* 3. Contratação fixa + 4. Cargo */}
                 <div className="grid grid-cols-2 gap-3 items-start">
