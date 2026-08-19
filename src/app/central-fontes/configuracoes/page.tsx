@@ -40,10 +40,14 @@ export default function IaCustosConfigPage() {
     const p = new URLSearchParams()
     if (level !== 'global' && customerId) { p.set('customer_id', customerId); if (customerName) p.set('customer_name', customerName) }
     if (level === 'repo' && repoId) { p.set('source_repo_id', repoId); if (repository) p.set('repository', repository) }
-    const r = await api.get<{ data: Resolved }>(`/source-docs/cost-settings/resolve?${p}`)
-    setRes(r.data)
-    const src = r.data.own ?? r.data.effective
-    setF({ auto: Number(src.automatic_cost_limit_usd).toFixed(2), margin: String(src.safety_margin_percent), step: Number(src.max_semantic_step_usd).toFixed(2), approval: src.approval_required_above_limit ? '1' : '0', maxApproved: Number(src.max_approved_cost_usd).toFixed(2), mand: src.approval_mandatory_above_usd != null ? String(src.approval_mandatory_above_usd) : '' })
+    try {
+      const r = await api.get<{ data: Resolved }>(`/source-docs/cost-settings/resolve?${p}`)
+      setRes(r.data)
+      const src = r.data.own ?? r.data.effective
+      setF({ auto: Number(src.automatic_cost_limit_usd).toFixed(2), margin: String(src.safety_margin_percent), step: Number(src.max_semantic_step_usd).toFixed(2), approval: src.approval_required_above_limit ? '1' : '0', maxApproved: Number(src.max_approved_cost_usd).toFixed(2), mand: src.approval_mandatory_above_usd != null ? String(src.approval_mandatory_above_usd) : '' })
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Falha ao carregar a configuração deste nível.' })
+    }
   }, [level, customerId, repoId, customerName, repository])
 
   useEffect(() => { if (level === 'global' || (level === 'customer' && customerId) || (level === 'repo' && customerId && repoId)) void load(); else setRes(null) }, [level, customerId, repoId, load])
@@ -84,13 +88,13 @@ export default function IaCustosConfigPage() {
             <option value="global">Global</option><option value="customer">Empresa</option><option value="repo">Empresa / Repositório</option>
           </Select>
           {level !== 'global' && <Select label="Empresa" value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRepoId('') }}><option value="">Selecione…</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</Select>}
-          {level === 'repo' && <Select label="Repositório" value={repoId} onChange={(e) => setRepoId(e.target.value)}><option value="">Selecione…</option>{repos.map((r) => <option key={r.source_repo_id ?? r.repository} value={r.source_repo_id ?? ''}>{r.repository}</option>)}</Select>}
+          {level === 'repo' && <Select label="Repositório" value={repoId} onChange={(e) => setRepoId(e.target.value)}><option value="">Selecione…</option>{repos.map((r) => <option key={r.source_repo_id ?? r.repository} value={r.source_repo_id ?? ''} disabled={r.source_repo_id == null}>{r.repository}{r.source_repo_id == null ? ' (sem override)' : ''}</option>)}</Select>}
         </div>
       </Card>
 
       {msg && <div className={`mb-4 rounded-lg px-4 py-3 text-sm ${msg.kind === 'ok' ? 'bg-[var(--success-bg,#ecfdf5)] text-[var(--success-fg,#047857)]' : 'bg-[var(--danger-bg,#fef2f2)] text-[var(--danger-fg,#b91c1c)]'}`}>{msg.text}</div>}
 
-      {!res ? <Skeleton className="h-64" /> : (
+      {!res ? (msg?.kind === 'err' ? null : <Skeleton className="h-64" />) : (
         <div className="flex flex-col gap-4">
           <Card>
             <div className="mb-3 flex items-center gap-2">
