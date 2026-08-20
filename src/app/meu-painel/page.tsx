@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { fetchAndOpenLegacyUrl } from '@/lib/attachments'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
-  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
+  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye, EyeOff,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp, MoreVertical,
   AlertTriangle, AlertCircle, Zap, Users, DollarSign, Target, Activity, Paperclip, Download,
   Building2, FolderOpen, Tag, CreditCard, FileText, User, FileSpreadsheet,
@@ -29,6 +29,20 @@ import {
 } from 'recharts'
 import { TimesheetConflictModal, type ConflictTimesheet } from '@/components/timesheet/TimesheetConflictModal'
 import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
+
+// ─── Máscara de valores (privacidade) ──────────────────────────────────────────
+// Contexto que indica se os valores monetários da tela devem ficar ocultos.
+// Default: oculto (a tela sempre abre com os valores escondidos; o olho revela).
+const MoneyMaskContext = createContext(false)
+
+/** Envolve um valor em R$ e o mascara com ••••• quando o olho está fechado.
+ *  Mantém placeholders vazios ("—") visíveis. */
+function Money({ children }: { children: React.ReactNode }) {
+  const hidden = useContext(MoneyMaskContext)
+  if (!hidden) return <>{children}</>
+  if (children === '—' || children === '' || children == null) return <>{children}</>
+  return <>R$ ••••••</>
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,14 +210,14 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
         {/* Total do fechamento (serviço) */}
         <div className="flex items-center justify-between text-sm">
           <span style={{ color: 'var(--text-muted)' }}>Total do fechamento</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(closing.total_servico)}</span>
+          <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}><Money>{formatBRL(closing.total_servico)}</Money></span>
         </div>
 
         {/* Despesa do mês (entra no recebimento) */}
         {closing.total_despesas > 0 && (
           <div className="flex items-center justify-between text-sm">
             <span style={{ color: 'var(--text-muted)' }}>+ Despesa</span>
-            <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ {formatBRL(closing.total_despesas)}</span>
+            <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ <Money>{formatBRL(closing.total_despesas)}</Money></span>
           </div>
         )}
 
@@ -217,13 +231,13 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
                     <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--text-light)' }}>{closing.desconto_desc}</p>
                   )}
                 </div>
-                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− {formatBRL(closing.desconto)}</span>
+                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− <Money>{formatBRL(closing.desconto)}</Money></span>
               </div>
             )}
             {closing.adiantamento !== 0 && (
               <div className="flex items-start justify-between text-sm">
                 <span style={{ color: 'var(--text-muted)' }}>− Adiantamento</span>
-                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− {formatBRL(closing.adiantamento)}</span>
+                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− <Money>{formatBRL(closing.adiantamento)}</Money></span>
               </div>
             )}
             {closing.adicional !== 0 && (
@@ -234,7 +248,7 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
                     <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--text-light)' }}>{closing.adicional_desc}</p>
                   )}
                 </div>
-                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ {formatBRL(closing.adicional)}</span>
+                <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ <Money>{formatBRL(closing.adicional)}</Money></span>
               </div>
             )}
           </div>
@@ -243,7 +257,7 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
         {/* Recebimento final em destaque */}
         <div className="flex items-center justify-between pt-2.5 mt-1 border-t" style={{ borderColor: 'var(--border)' }}>
           <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Recebimento</span>
-          <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}>{formatBRL(closing.recebimento)}</span>
+          <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}><Money>{formatBRL(closing.recebimento)}</Money></span>
         </div>
       </div>
     </div>
@@ -308,7 +322,7 @@ function HoristaPaymentSection({
       {/* CENTRO — Total a Receber = recebimento do fechamento (com ajustes) quando disponível */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
-          {recebimento != null ? formatBRL(recebimento) : (hourlyRate > 0 ? formatBRL(totalService) : '—')}
+          <Money>{recebimento != null ? formatBRL(recebimento) : (hourlyRate > 0 ? formatBRL(totalService) : '—')}</Money>
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {recebimento != null
@@ -324,18 +338,18 @@ function HoristaPaymentSection({
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
-              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+              <Money>{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</Money>
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
-            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--success)]"><Money>{expPaid > 0 ? formatBRL(expPaid) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]"><Money>{expTotal > 0 ? formatBRL(expTotal) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -376,7 +390,7 @@ function FixoPaymentSection({
       {/* CENTRO — valor fixo */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
-          {fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}
+          <Money>{fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}</Money>
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {proporcional && prorationRatio !== undefined
@@ -392,18 +406,18 @@ function FixoPaymentSection({
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
-              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+              <Money>{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</Money>
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
-            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--success)]"><Money>{expPaid > 0 ? formatBRL(expPaid) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]"><Money>{expTotal > 0 ? formatBRL(expTotal) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -445,18 +459,18 @@ function ParceiroSimplesSection({
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
-              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+              <Money>{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</Money>
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
-            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--success)]"><Money>{expPaid > 0 ? formatBRL(expPaid) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]"><Money>{expTotal > 0 ? formatBRL(expTotal) : '—'}</Money></p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -490,7 +504,7 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
       {/* CENTRO — valor (só serviços) */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
-          {fixedSalary > 0 ? formatBRL(totalSalario) : '—'}
+          <Money>{fixedSalary > 0 ? formatBRL(totalSalario) : '—'}</Money>
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal'}
@@ -504,18 +518,18 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
-              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+              <Money>{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</Money>
             </p>
             <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
-            <p className="text-base font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-base font-bold text-[var(--success)]"><Money>{expPaid > 0 ? formatBRL(expPaid) : '—'}</Money></p>
             <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-base font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-base font-bold text-[var(--warning)]"><Money>{expTotal > 0 ? formatBRL(expTotal) : '—'}</Money></p>
             <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -982,7 +996,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function SummaryCard({
-  label, value, sub, icon: Icon, accent, onClick, featured = false,
+  label, value, sub, icon: Icon, accent, onClick, featured = false, money = false,
 }: {
   label: string
   value: string
@@ -991,6 +1005,7 @@ function SummaryCard({
   accent: string
   onClick?: () => void
   featured?: boolean
+  money?: boolean
 }) {
   return (
     <div
@@ -1007,7 +1022,7 @@ function SummaryCard({
           <Icon size={14} />
         </div>
       </div>
-      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[var(--primary)]' : 'text-lg text-[var(--text)]'}`}>{value}</div>
+      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[var(--primary)]' : 'text-lg text-[var(--text)]'}`}>{money ? <Money>{value}</Money> : value}</div>
       {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[var(--primary-soft)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
     </div>
   )
@@ -1615,6 +1630,8 @@ export default function MeuPainelPage() {
 
   // Tabs
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  // Privacidade: a tela sempre abre com os valores monetários ocultos; o olho revela.
+  const [moneyHidden, setMoneyHidden] = useState(true)
 
   // ── Timesheet state ────────────────────────────────────────────────────────
   const [timesheets, setTimesheets] = useState<TimesheetItem[]>([])
@@ -2402,6 +2419,7 @@ export default function MeuPainelPage() {
 
   return (
     <AppLayout title="Meu Painel">
+     <MoneyMaskContext.Provider value={moneyHidden}>
 
       {user?.id && <MinhasNotasFiscaisCard userId={user.id} />}
 
@@ -2436,6 +2454,18 @@ export default function MeuPainelPage() {
 
           {/* Quick add */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMoneyHidden(v => !v)}
+              title={moneyHidden ? 'Mostrar valores' : 'Ocultar valores'}
+              aria-label={moneyHidden ? 'Mostrar valores' : 'Ocultar valores'}
+              aria-pressed={!moneyHidden}
+              className="h-9 w-9 flex items-center justify-center rounded-lg border transition-colors"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface)')}>
+              {moneyHidden ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
             <Button onClick={openCreateTs}
               className="h-9 px-4 text-xs gap-2"
               style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
@@ -2577,6 +2607,7 @@ export default function MeuPainelPage() {
                   sub="valor do serviço mensal"
                   icon={DollarSign}
                   accent="bg-indigo-500/15 text-indigo-400"
+                  money
                 />
               </>
             ) : isHBConsultant ? (
@@ -2587,6 +2618,7 @@ export default function MeuPainelPage() {
                   sub="valor do serviço mensal"
                   icon={DollarSign}
                   accent="bg-indigo-500/15 text-indigo-400"
+                  money
                 />
                 {['banco_de_horas', 'bh_mensal'].includes((user as any)?.consultant_type ?? '') && (
                   <SummaryCard
@@ -2599,6 +2631,7 @@ export default function MeuPainelPage() {
                         : 'Salário base mensal'}
                     icon={TrendingUp}
                     accent="bg-[var(--success-bg)] text-[var(--success)]"
+                    money
                   />
                 )}
               </>
@@ -2610,6 +2643,7 @@ export default function MeuPainelPage() {
                   sub={rateType === 'monthly' ? 'salário base mensal' : 'por hora trabalhada'}
                   icon={DollarSign}
                   accent="bg-indigo-500/15 text-indigo-400"
+                  money
                 />
                 <SummaryCard
                   label="Valor Total do Serviço"
@@ -2623,6 +2657,7 @@ export default function MeuPainelPage() {
                     : 'Taxa não configurada'}
                   icon={TrendingUp}
                   accent="bg-[var(--success-bg)] text-[var(--success)]"
+                  money
                 />
               </>
             ))}
@@ -2719,7 +2754,7 @@ export default function MeuPainelPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-xs font-semibold text-[var(--text)]">{exp.formatted_amount}</span>
+                            <span className="text-xs font-semibold text-[var(--text)]"><Money>{exp.formatted_amount}</Money></span>
                             <StatusBadge status={exp.status} display={exp.status_display} reason={exp.rejection_reason} />
                             {exp.status === 'approved' && (exp.is_paid
                               ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
@@ -4542,6 +4577,7 @@ export default function MeuPainelPage() {
       )}
 
       <TimesheetHoverTooltip ts={hover.ts} />
+     </MoneyMaskContext.Provider>
     </AppLayout>
   )
 }
