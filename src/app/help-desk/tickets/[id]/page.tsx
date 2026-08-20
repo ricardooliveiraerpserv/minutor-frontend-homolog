@@ -1002,6 +1002,22 @@ function TicketDetailInner({ id }: { id: number }) {
                   const img = el as HTMLImageElement
                   openImg(img.currentSrc || img.src, img.alt || undefined)
                 }}>
+                  {/* MESCLADO — aviso evidente também DENTRO da conversa (topo), não só no banner do chamado. */}
+                  {t.merged_into && (
+                    <div className="rounded-lg px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+                      style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+                      <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--warning)' }}>
+                        <GitMerge size={16} className="shrink-0" />
+                        <span>🔀 Chamado <b>mesclado e encerrado</b> no chamado{' '}
+                          <span className="font-mono font-bold">{t.merged_into.ticket_number ?? `#${t.merged_into.id}`}</span>
+                          {' '}— as interações continuam lá.</span>
+                      </div>
+                      <button onClick={() => router.push(`/help-desk/tickets/${t.merged_into!.id}`)}
+                        className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0">
+                        Abrir {t.merged_into.ticket_number ?? `#${t.merged_into.id}`} <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  )}
                   {/* Card de reunião (Central de Reuniões) — adiado (secondaryReady) p/ não pesar na 1ª carga. */}
                   {secondaryReady && <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => {
                     // Trava de triagem: não abre o "Agendar reunião" sem os campos preenchidos.
