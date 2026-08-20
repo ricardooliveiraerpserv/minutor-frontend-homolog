@@ -57,6 +57,8 @@ interface TicketDetail {
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
+  merged_into_id?: number | null
+  merged_into?: { id: number; ticket_number: string | null; subject: string } | null
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   has_source_code?: boolean
@@ -885,6 +887,23 @@ function TicketDetailInner({ id }: { id: number }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* MESCLADO — banner bem evidente quando ESTE chamado foi mesclado (e encerrado) em outro */}
+        {t.merged_into && (
+          <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg px-4 py-3"
+            style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--warning)' }}>
+              <GitMerge size={16} className="shrink-0" />
+              <span>🔀 Este chamado foi <b>mesclado e encerrado</b> no chamado{' '}
+                <span className="font-mono font-bold">{t.merged_into.ticket_number ?? `#${t.merged_into.id}`}</span>
+                {' '}— o atendimento continua lá.</span>
+            </div>
+            <button onClick={() => router.push(`/help-desk/tickets/${t.merged_into!.id}`)}
+              className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Abrir o chamado de destino">
+              Abrir chamado {t.merged_into.ticket_number ?? `#${t.merged_into.id}`} <ArrowRight size={14} />
+            </button>
           </div>
         )}
 
