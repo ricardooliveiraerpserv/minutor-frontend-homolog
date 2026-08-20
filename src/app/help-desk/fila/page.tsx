@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User } from 'lucide-react'
+import { Search, GripVertical, Plus, ChevronDown, SlidersHorizontal, LayoutGrid, List, Hash, User, RefreshCw } from 'lucide-react'
 import { TicketTabs } from '@/components/help-desk/ticket-tabs'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -259,6 +259,13 @@ export default function HelpDeskFilaPage() {
     const key = `${f.search} ${f.ticket}`
     api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => { const d = r?.data ?? []; setLocal(d); setLoaded(key); cacheFila(qs, d) }).catch(() => toast.error('Erro ao carregar'))
   }, [qs, f.search, f.ticket])
+  // Botão Atualizar: recarrega a lista (chamados novos/atualizados) sem F5.
+  const [refreshing, setRefreshing] = useState(false)
+  const refresh = useCallback(() => {
+    setRefreshing(true)
+    load()
+    window.setTimeout(() => setRefreshing(false), 700)
+  }, [load])
   // 1ª carga: se voltamos pra uma visão já carregada (mesmo qs), hidrata do cache p/ pintar
   // instantâneo — MAS revalida em background (stale-while-revalidate), senão o status muda no
   // detalhe e a fila fica velha até dar refresh manual. Mudanças de filtro recarregam c/ debounce.
@@ -494,6 +501,11 @@ export default function HelpDeskFilaPage() {
             <div className="hidden lg:block flex-1" />
             {/* Ações à direita — visão (Kanban/Lista) + Novo chamado (extremo direito, destaque). */}
             <div className="flex items-center gap-2 shrink-0">
+              <button onClick={refresh} disabled={refreshing} title="Atualizar — buscar chamados novos ou atualizados"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 transition hover:opacity-90 disabled:opacity-60"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> Atualizar
+              </button>
               <div className="inline-flex rounded-lg overflow-hidden shrink-0" style={{ border: '1px solid var(--border)' }} title="Alternar visão">
                 {([['kanban', 'Kanban', LayoutGrid], ['lista', 'Lista', List]] as const).map(([v, lbl, Ic]) => (
                   <button key={v} onClick={() => setView(v)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 transition"
