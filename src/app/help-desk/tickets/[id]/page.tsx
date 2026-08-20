@@ -208,7 +208,7 @@ const EVENT_LABEL: Record<string, string> = {
   priority_changed: '⚡ Prioridade alterada', resolved: '✅ Resolvido', reopened: '↩️ Reaberto', closed: '🔒 Fechado', cancelled: '🚫 Cancelado',
   comment: '💬 Interação', comment_edited: '✏️ Comentário editado', comment_deleted: '🗑️ Comentário removido', email_sent: '📧 E-mail enviado',
   first_response: '⏱️ Primeira resposta', attachment_added: '📎 Anexo adicionado', trigger: '⚙️ Automação executada',
-  scheduled: '📅 Agendado (SLA pausado)', schedule_resumed: '▶️ Agendamento retomado (SLA)', merged: '🔀 Chamado mesclado', merged_into: '🔀 Mesclado em outro chamado',
+  scheduled: '📅 Agendado (SLA pausado)', schedule_resumed: '▶️ Agendamento retomado (SLA)', merged: '🔀 Chamado mesclado', merged_into: '🔀 Mesclado em outro chamado', solution_edited: '🔄 Solução atualizada (reenviada ao cliente)',
   reopen_scheduled: '📅 Reabertura agendada', reopen_schedule_canceled: '🚫 Reabertura agendada cancelada',
   continuacao_aberta: '↩️ Aberto como continuação do chamado', continuacao_gerada: '📨 Cliente respondeu após o encerramento — aberto novo chamado',
 }
