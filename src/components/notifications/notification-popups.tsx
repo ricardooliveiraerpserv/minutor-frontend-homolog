@@ -110,15 +110,27 @@ export function NotificationPopups({ userId }: { userId: number }) {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return
     let es: EventSource | null = null
-    try {
-      es = new EventSource('/api/v1/notifications/stream')
-      es.addEventListener('notify', () => fetchNew())
-      // Chat em tempo real: ao chegar mensagem nova, invalida o cache de conversas —
-      // o ChatBell/ChatNotifier (mesmo queryKey) atualizam e sobem o pop-up na hora.
-      es.addEventListener('inbox', () => qc.invalidateQueries({ queryKey: ['inbox-conversations'] }))
-      // onerror: o próprio EventSource reconecta (respeitando o "retry"); nada a fazer.
-    } catch { /* sem SSE → fica só o polling */ }
-    return () => { es?.close() }
+    const open = () => {
+      if (es || document.hidden) return
+      try {
+        es = new EventSource('/api/v1/notifications/stream')
+        es.addEventListener('notify', () => fetchNew())
+        // Chat em tempo real: ao chegar mensagem nova, invalida o cache de conversas —
+        // o ChatBell/ChatNotifier (mesmo queryKey) atualizam e sobem o pop-up na hora.
+        es.addEventListener('inbox', () => qc.invalidateQueries({ queryKey: ['inbox-conversations'] }))
+        // onerror: o próprio EventSource reconecta (respeitando o "retry"); nada a fazer.
+      } catch { /* sem SSE → fica só o polling */ }
+    }
+    const close = () => { es?.close(); es = null }
+    // ⚠️ SÓ mantém o SSE aberto na aba VISÍVEL. O /notifications/stream do backend PRENDE
+    // 1 worker php-fpm por conexão (loop de 30s + reconexão imediata). Aba em segundo plano
+    // segurando worker → com várias abas abertas os workers esgotam e TODAS as requests
+    // travam/resetam (e a memória sobe → OOM). Ao voltar pra aba, reabre + fetchNew() cobre
+    // o intervalo. O polling de 30s (POLL_MS) segue como rede de segurança sempre.
+    const onVis = () => { if (document.hidden) close(); else { open(); fetchNew() } }
+    document.addEventListener('visibilitychange', onVis)
+    open()
+    return () => { document.removeEventListener('visibilitychange', onVis); close() }
   }, [fetchNew, qc])
 
   const current = queue[0]
