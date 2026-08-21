@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Pencil, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star, ChevronDown, FileSignature } from 'lucide-react'
 import { ProdutosVinculados } from '@/components/crm/produtos-vinculados'
 
-interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; responsavel?: { name: string } | null }
+interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; notas?: string | null; responsavel?: { name: string } | null; responsaveis?: { id: number; name: string }[] }
 interface Evt { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }
 interface Product { id: number; name: string; origem?: string | null; pivot: { quantidade: number | string; valor: number | string; custo?: number | string | null } }
 interface OppFull {
@@ -119,12 +119,12 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   const [detOpen, setDetOpen] = useState(false)
   const patchDet = (k: string, v: string) => { if (v !== ((o?.detalhes?.[k] ?? '') as string)) patch({ detalhes: { [k]: v || null } }) }
 
-  const [nt, setNt] = useState({ tipo: '', titulo: '', data: '', responsavel: '' })
+  const [nt, setNt] = useState<{ tipo: string; titulo: string; data: string; responsaveis: number[]; notas: string }>({ tipo: '', titulo: '', data: '', responsaveis: [], notas: '' })
   const addTask = async () => {
     if (!nt.titulo.trim() && !nt.tipo) { toast.error('Descreva a atividade'); return }
     try {
-      await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.tipo || (cTypes[0]?.slug ?? 'ligacao'), titulo: nt.titulo.trim() || null, data: nt.data ? new Date(nt.data).toISOString() : null, responsavel_id: nt.responsavel ? Number(nt.responsavel) : null })
-      setNt({ tipo: '', titulo: '', data: '', responsavel: '' }); load(); toast.success('Atividade adicionada')
+      await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.tipo || (cTypes[0]?.slug ?? 'ligacao'), titulo: nt.titulo.trim() || null, data: nt.data ? new Date(nt.data).toISOString() : null, responsavel_ids: nt.responsaveis, notas: nt.notas.trim() || null })
+      setNt({ tipo: '', titulo: '', data: '', responsaveis: [], notas: '' }); load(); toast.success('Atividade adicionada')
     } catch { toast.error('Erro ao adicionar atividade') }
   }
   const toggleTask = async (t: Task) => { try { await api.patch(`/crm/tasks/${t.id}/complete`, { done: !t.concluida_at }); load() } catch { toast.error('Erro') } }
@@ -235,30 +235,44 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
           {tab === 'atividades' && (
             <div className="space-y-4">
               <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex gap-2 flex-wrap items-end">
-                  <div className="flex-1 min-w-40">
-                    <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Atividade</label>
-                    <input value={nt.titulo} onChange={e => setNt(f => ({ ...f, titulo: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') addTask() }} placeholder="Ex.: Ligar para alinhar escopo" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                <div className="space-y-2">
+                  <div className="flex gap-2 flex-wrap items-end">
+                    <div className="flex-1 min-w-40">
+                      <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Atividade</label>
+                      <input value={nt.titulo} onChange={e => setNt(f => ({ ...f, titulo: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') addTask() }} placeholder="Ex.: Ligar para alinhar escopo" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Tipo</label>
+                      <select value={nt.tipo} onChange={e => setNt(f => ({ ...f, tipo: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                        <option value="">Tipo…</option>
+                        {cTypes.map(c => <option key={c.id} value={c.slug}>{c.nome}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Prazo</label>
+                      <input type="datetime-local" value={nt.data} onChange={e => setNt(f => ({ ...f, data: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                    </div>
+                    <button onClick={addTask} className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Adicionar</button>
                   </div>
-                  <div>
-                    <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Tipo</label>
-                    <select value={nt.tipo} onChange={e => setNt(f => ({ ...f, tipo: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                      <option value="">Tipo…</option>
-                      {cTypes.map(c => <option key={c.id} value={c.slug}>{c.nome}</option>)}
-                    </select>
+                  <div className="flex gap-2 flex-wrap items-start">
+                    <div className="flex-1 min-w-52">
+                      <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Responsáveis (um ou mais)</label>
+                      <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 rounded-lg" style={inputStyle}>
+                        {nt.responsaveis.map(uid => {
+                          const u = crmUsers.find(x => x.id === uid)
+                          return <span key={uid} className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{u?.name ?? uid}<button onClick={() => setNt(f => ({ ...f, responsaveis: f.responsaveis.filter(i => i !== uid) }))} className="leading-none" style={{ color: 'var(--primary)' }}>×</button></span>
+                        })}
+                        <select value="" onChange={e => { const rid = Number(e.target.value); if (rid && !nt.responsaveis.includes(rid)) setNt(f => ({ ...f, responsaveis: [...f.responsaveis, rid] })) }} className="text-[11px] bg-transparent outline-none" style={{ color: 'var(--text-muted)' }}>
+                          <option value="">+ Responsável…</option>
+                          {crmUsers.filter(u => !nt.responsaveis.includes(u.id)).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-52">
+                      <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Descrição / anotações da tarefa</label>
+                      <textarea value={nt.notas} onChange={e => setNt(f => ({ ...f, notas: e.target.value }))} rows={2} placeholder="Detalhe a tarefa (ex.: follow-up para levantamento…)" className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y" style={inputStyle} />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Responsável</label>
-                    <select value={nt.responsavel} onChange={e => setNt(f => ({ ...f, responsavel: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                      <option value="">Responsável…</option>
-                      {crmUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Prazo</label>
-                    <input type="datetime-local" value={nt.data} onChange={e => setNt(f => ({ ...f, data: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
-                  </div>
-                  <button onClick={addTask} className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}><Plus size={15} /> Adicionar</button>
                 </div>
               </div>
 
@@ -285,8 +299,9 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{t.titulo || tipoNome(t.tipo)}</p>
                           <p className="text-[11px]" style={{ color: atrasada(t) ? 'var(--danger-border)' : 'var(--text-light)' }}>
-                            {tipoNome(t.tipo)}{t.data ? ` · ${fmtDateHora(t.data)}` : ''}{atrasada(t) ? ' · atrasada' : ''}{t.responsavel ? ` · 👤 ${t.responsavel.name}` : ''}
+                            {tipoNome(t.tipo)}{t.data ? ` · ${fmtDateHora(t.data)}` : ''}{atrasada(t) ? ' · atrasada' : ''}{(t.responsaveis && t.responsaveis.length ? ` · 👤 ${t.responsaveis.map(r => r.name).join(', ')}` : (t.responsavel ? ` · 👤 ${t.responsavel.name}` : ''))}
                           </p>
+                          {t.notas && <p className="text-[11px] mt-0.5 whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{t.notas}</p>}
                         </div>
                         {atrasada(t) && <AlertTriangle size={15} style={{ color: 'var(--danger-border)' }} />}
                         <button onClick={() => startEdit(t)} title="Editar" className="p-1.5 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
