@@ -17,6 +17,7 @@ import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
 import { GmudPublicacaoPanel } from '@/components/help-desk/gmud-publicacao-panel'
+import { GmudPublishModal } from '@/components/help-desk/gmud-publish-modal'
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
@@ -568,6 +569,9 @@ function TicketDetailInner({ id }: { id: number }) {
   const [dynForm, setDynForm] = useState<HdForm | null>(null)
   const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance; time?: FormTime | null } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
+  // GMUD — pop-up de publicação de fontes. Abre ao GRAVAR a Solução com GMUD (por ticketId) ou pelo
+  // botão Publicar do painel (por packageId).
+  const [gmudPublish, setGmudPublish] = useState<{ packageId?: number; ticketId?: number } | null>(null)
   const [supplier, setSupplier] = useState<{ statusId: string; justId: number; mode: 'totvs' | 'other' } | null>(null)
   const [supName, setSupName] = useState('') // nome do fornecedor (modo 'other')
   const [supNum, setSupNum] = useState('')   // nº do chamado no fornecedor
@@ -644,6 +648,11 @@ function TicketDetailInner({ id }: { id: number }) {
           : await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Chamado atualizado')
+        // GRAVOU uma Solução com GMUD (status solucao_gmud) → abre o pop-up p/ o consultor definir
+        // pastas/destino e publicar. O modal resolve o pacote recém-criado pelo ticketId.
+        if (statuses.find(s => s.id === Number(resolveStatusId))?.key === 'solucao_gmud') {
+          setGmudPublish({ ticketId: Number(id) })
+        }
       }
       setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
@@ -981,6 +990,7 @@ function TicketDetailInner({ id }: { id: number }) {
               ticketId={t.id}
               customerId={t.customer?.id ?? null}
               gmudActive={t.status?.key === 'solucao_gmud' || !!t.gmud_source_status}
+              onPublish={(pid) => setGmudPublish({ packageId: pid })}
             />
 
             {/* Descrição não é mais bloco fixo no topo: entra como a interação MAIS ANTIGA,
@@ -1630,6 +1640,15 @@ function TicketDetailInner({ id }: { id: number }) {
           onSubmit={submitGmud}
         />
       )}
+
+      {/* GMUD — pop-up de publicação de fontes (abre ao gravar a GMUD / botão Publicar do painel). */}
+      <GmudPublishModal
+        open={gmudPublish != null}
+        ticketId={gmudPublish?.ticketId ?? null}
+        packageId={gmudPublish?.packageId ?? null}
+        onClose={() => setGmudPublish(null)}
+        onPublished={() => { loadComments(); loadEvents() }}
+      />
 
       {dynOpen && dynForm && (
         <DynamicFormModal
