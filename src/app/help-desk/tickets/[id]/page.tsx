@@ -16,6 +16,7 @@ import { InteracaoComposer, type ComposerHandle, type MacroItem } from '@/compon
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
+import { GmudPublicacaoPanel } from '@/components/help-desk/gmud-publicacao-panel'
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
@@ -1345,6 +1346,12 @@ function TicketDetailInner({ id }: { id: number }) {
                 </div>
               )}
             </div>
+
+            {/* GMUD — Publicação Governada de Fontes (wizard). Só faz sentido em chamado GMUD; o
+                painel se auto-oculta se o usuário não tiver a permissão (source_docs.gmud_publish). */}
+            {(t.status?.key === 'solucao_gmud' || t.gmud_source_status || comments.some(c => c.form_kind === 'gmud')) && (
+              <GmudPublicacaoPanel ticketId={t.id} customerId={t.customer?.id ?? null} />
+            )}
           </div>
 
           {/* Sidebar de propriedades */}
