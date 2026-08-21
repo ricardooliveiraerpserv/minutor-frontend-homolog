@@ -208,7 +208,7 @@ export default function HelpDeskFilaPage() {
     // respondeu o termo atual, filtra na hora pelos campos já carregados (assunto/cliente/pessoa/nº).
     // Quando o servidor responde (loaded === termo), sai de cena e a lista passa a ser a do backend
     // (incl. matches por conteúdo, que o client não enxerga). Vale ao digitar E ao apagar.
-    if (`${f.search} ${f.ticket}` !== loaded) {
+    if (`${f.search} ${f.ticket}` !== loaded) {
       if (f.search) {
         const q = f.search.toLowerCase()
         if (![t.subject, t.ticket_number, t.customer?.name, t.solicitante_nome, t.assignee?.name].some(x => (x || '').toLowerCase().includes(q))) return false
@@ -442,8 +442,8 @@ export default function HelpDeskFilaPage() {
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
         <TicketTabs />
-        {/* Barra fixa (sticky): filtros rápidos + ações. */}
-        <div className="sticky top-0 z-20 space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
+        {/* Barra de filtros rápidos + ações — rola junto com o conteúdo (não fixa). */}
+        <div className="space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
           {/* ─── NÍVEL 2 — filtros mais usados (esq.) · Modo isolado + Novo chamado (dir.) */}
           <div className="flex items-start gap-2">
             {/* Mobile: filtros rápidos ficam num painel colapsável ("Filtros"). Desktop (md+): sempre inline. */}
