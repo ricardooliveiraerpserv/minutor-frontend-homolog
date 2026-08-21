@@ -78,7 +78,9 @@ export function NotificationCenter() {
   // Telas cobertas por um card agregado (apontamentos, despesas, aprovações, pagamento de despesas).
   const AGG_SCREENS = ['/timesheets?status=', '/expenses', '/approvals', '/pagamento-despesas']
   const isAggregated = (cta?: string | null) => !!cta && (actionCtas.has(cta) || AGG_SCREENS.some(s => cta.startsWith(s)))
-  const acoes = items.filter(n => n.type === 'action' && !n.requires_ack && !isAggregated(n.cta_url))
+  // "Ação" só é "Para resolver" se tiver de fato o que fazer (um CTA/destino). Uma notificação
+  // tipo 'action' SEM cta_url não tem botão nenhum → é informativo mal-tipado; não polui aqui.
+  const acoes = items.filter(n => n.type === 'action' && !n.requires_ack && !!n.cta_url && !isAggregated(n.cta_url))
 
   // NOTIFICAÇÕES DO DIA — informativos + enquetes criados/recebidos HOJE (inclui os criados por mim).
   // A lista completa de informativos continua no sino da topbar; aqui é só o do dia, com voto na enquete.
@@ -87,7 +89,8 @@ export function NotificationCenter() {
   // "Notificações de hoje" = infos do dia + TODOS os avisos que exigiam aceite e já foram aceitos
   // (independente da data — pra não SUMIR ao aceitar). Não duplica com "Para resolver" (que só tem pendentes).
   const infosHoje = items.filter(n =>
-    (n.type === 'info' || n.type === 'aviso' || n.type === 'formal' || n.type === 'require_ack')
+    (n.type === 'info' || n.type === 'aviso' || n.type === 'formal' || n.type === 'require_ack'
+      || (n.type === 'action' && !n.cta_url))           // "Ação" sem CTA = informativo puro (não é "Para resolver")
     && (!n.requires_ack || n.acked)                     // fora os pendentes de aceite (esses em "Para resolver")
     && (isHoje(n) || (n.requires_ack && n.acked)))      // do dia OU leitura obrigatória já aceita (não some)
   const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n))
