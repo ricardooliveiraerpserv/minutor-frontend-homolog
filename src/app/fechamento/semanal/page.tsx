@@ -13,6 +13,7 @@ interface BlockSettings { timesheet_retroactive_limit_days?: number | null; fech
 interface WeekRow { n: number; week_start: string; week_end: string; deadline: string; status: string; reopen_auto_close_at: string | null }
 interface MonthGroup { ym: string; label: string; status: string; deadline: string; reopen_auto_close_at: string | null; weeks: WeekRow[] }
 interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; auto_close_at: string | null }
+interface ScopedClosure { id: number; period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; closed_by: number | null; closed_by_name: string | null; closed_at: string | null }
 interface LogRow { id: number; event: string; period_kind: string; period_key: string; project: string | null; user: string | null; occurred_at: string; note: string | null }
 interface Opt { id: number; name: string }
 interface ProjOpt extends Opt { customer_id?: number | null }
@@ -51,6 +52,7 @@ const norm = (r: unknown): unknown[] => {
 export default function FechamentoSemanalPage() {
   const [months, setMonths] = useState<MonthGroup[]>([])
   const [activeReopens, setActiveReopens] = useState<ActiveReopen[]>([])
+  const [scopedClosures, setScopedClosures] = useState<ScopedClosure[]>([])
   // Config de bloqueio (vinda de Configurações → agora centralizada aqui).
   const [cfg, setCfg] = useState<BlockSettings>({})
   const [savingCfg, setSavingCfg] = useState(false)
@@ -79,10 +81,10 @@ export default function FechamentoSemanalPage() {
   const load = useCallback(() => {
     setLoading(true)
     Promise.all([
-      api.get<{ months: MonthGroup[]; active_reopens: ActiveReopen[] }>('/weekly-closings'),
+      api.get<{ months: MonthGroup[]; active_reopens: ActiveReopen[]; scoped_closures?: ScopedClosure[] }>('/weekly-closings'),
       api.get<{ data: LogRow[] }>('/weekly-closings/logs'),
     ]).then(([w, l]) => {
-      setMonths(w.months ?? []); setActiveReopens(w.active_reopens ?? []); setLogs(l.data ?? [])
+      setMonths(w.months ?? []); setActiveReopens(w.active_reopens ?? []); setScopedClosures(w.scoped_closures ?? []); setLogs(l.data ?? [])
       setExpanded(prev => prev.size ? prev : new Set((w.months ?? []).slice(0, 1).map(m => m.ym)))
     }).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
   }, [])
@@ -229,6 +231,27 @@ export default function FechamentoSemanalPage() {
               </div>
             </div>
           )}
+          {scopedClosures.length > 0 && (
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-wide mb-1 inline-flex items-center gap-1" style={{ color: 'var(--danger)' }}>
+                <Lock size={11} /> Bloqueios individuais (usuário/projeto) — não aparecem no status global
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {scopedClosures.map((c) => (
+                  <span key={c.id} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
+                    title={c.closed_by_name ? `Encerrado por ${c.closed_by_name}${c.closed_at ? ' em ' + fmtDT(c.closed_at) : ''}` : ''}>
+                    <span>{c.period_kind === 'week' ? 'Semana' : 'Mês'} {c.period_kind === 'week' ? fmtDate(c.period_key) : c.period_key} · {c.user ?? c.project ?? 'escopo'} bloqueado{c.closed_by_name ? ` (por ${c.closed_by_name})` : ''}</span>
+                    <button title="Reabrir para este usuário/projeto" disabled={busy === `sc${c.id}`}
+                      onClick={() => doAction('reopen', { period_kind: c.period_kind, period_key: c.period_key, ...(c.project_id ? { project_id: c.project_id } : {}), ...(c.user_id ? { user_id: c.user_id } : {}) }, `sc${c.id}`)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
+                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                      <RotateCcw size={10} /> Reabrir
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Meses (grupos expansíveis) */}
@@ -241,6 +264,7 @@ export default function FechamentoSemanalPage() {
                 {open ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
                 <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{m.label}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: mst.bg, color: mst.fg }}>{mst.label}</span>
+                {(() => { const n = scopedClosures.filter(c => c.period_key === m.ym || c.period_key.startsWith(m.ym + '-')).length; return n > 0 ? <span className="text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }} title={`${n} usuário(s)/projeto(s) bloqueado(s) individualmente neste mês`}><Lock size={9} /> {n} bloqueio{n > 1 ? 's' : ''}</span> : null })()}
                 {m.deadline && <span className="text-[10px] inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }} title="Prazo de fechamento do mês — 1º dia útil do mês seguinte, 23:59"><CalendarClock size={11} /> Prazo: {fmtDeadline(m.deadline)}</span>}
                 {m.status === 'reaberta' && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>até {fmtDT(m.reopen_auto_close_at)}</span>}
                 <div className="flex-1" />
