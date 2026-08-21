@@ -632,7 +632,7 @@ export default function HelpDeskFilaPage() {
             <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="text-left" style={{ color: 'var(--text-light)' }}>
-                  <th className="px-3 py-2 border-b w-8 sticky top-0 z-10" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <th className="px-3 py-2 border-b w-8 sticky -top-4 md:-top-8 z-20" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                     <input type="checkbox" title="Selecionar todos"
                       checked={listRows.length > 0 && listRows.every(r => sel.has(r.id))}
                       ref={el => { if (el) el.indeterminate = sel.size > 0 && !listRows.every(r => sel.has(r.id)) }}
@@ -643,7 +643,7 @@ export default function HelpDeskFilaPage() {
                     return (
                       <th key={c.key} onClick={() => setListSort(s => s.col === c.key ? { col: c.key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col: c.key, dir: c.num ? 'desc' : 'asc' })}
                         title="Clique para ordenar"
-                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-b cursor-pointer select-none whitespace-nowrap ds-row-hover sticky top-0 z-10" style={{ borderColor: 'var(--border)', color: active ? 'var(--primary)' : undefined, background: 'var(--surface)' }}>
+                        className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-b cursor-pointer select-none whitespace-nowrap ds-row-hover sticky -top-4 md:-top-8 z-20" style={{ borderColor: 'var(--border)', color: active ? 'var(--primary)' : undefined, background: 'var(--surface)' }}>
                         {c.label}{active ? (listSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
                       </th>
                     )
