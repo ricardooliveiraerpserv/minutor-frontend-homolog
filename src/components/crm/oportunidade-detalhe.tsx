@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { ArrowLeft, X, Plus, Check, Clock, AlertTriangle, Trophy, FileDown, Trash2, Pencil, Building2, Package, ListChecks, History as HistoryIcon, FileText, Paperclip, Star, ChevronDown, FileSignature } from 'lucide-react'
+import { ProdutosVinculados } from '@/components/crm/produtos-vinculados'
 
 interface Task { id: number; tipo: string; titulo: string | null; data: string | null; prioridade?: string; concluida_at: string | null; categoria?: string | null; responsavel?: { name: string } | null }
 interface Evt { id: number; event_type: string; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: { name: string } | null }
@@ -74,11 +75,11 @@ function Row({ l, v }: { l: string; v: React.ReactNode }) {
 }
 
 /** Detalhe rico da oportunidade. Reutilizável: página inteira (`onClose` ausente) ou modal grande (`onClose`). */
-export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: { id: number; onClose?: () => void; initialTab?: 'atividades' | 'historico' | 'propostas' | 'anexos' }) {
+export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: { id: number; onClose?: () => void; initialTab?: 'atividades' | 'historico' | 'produtos' | 'propostas' | 'anexos' }) {
   const router = useRouter()
   const [o, setO] = useState<OppFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'atividades' | 'historico' | 'propostas' | 'anexos'>(initialTab)
+  const [tab, setTab] = useState<'atividades' | 'historico' | 'produtos' | 'propostas' | 'anexos'>(initialTab)
   const [cTypes, setCTypes] = useState<ContactType[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [atts, setAtts] = useState<Attachment[]>([])
@@ -169,7 +170,7 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   const rep = (o.detalhes?.qualificacao_report ?? null) as any
   const QK: ['necessidade' | 'decisor' | 'champion' | 'budget_confirmado', string][] = [['necessidade', 'Necessidade'], ['decisor', 'Decisor'], ['champion', 'Champion'], ['budget_confirmado', 'Budget']]
 
-  const TABS: [typeof tab, string, any][] = [['atividades', 'Atividades', ListChecks], ['historico', 'Histórico', HistoryIcon], ['propostas', 'Propostas', FileText], ['anexos', 'Anexos', Paperclip]]
+  const TABS: [typeof tab, string, any][] = [['atividades', 'Atividades', ListChecks], ['historico', 'Histórico', HistoryIcon], ['produtos', 'Produtos', Package], ['propostas', 'Propostas', FileText], ['anexos', 'Anexos', Paperclip]]
 
   return (
     <>
@@ -224,7 +225,7 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
           <div className="flex gap-1 mb-4 flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
             {TABS.map(([k, l, Ic]) => (
               <button key={k} onClick={() => setTab(k)} className="px-3 py-2 text-sm font-semibold -mb-px inline-flex items-center gap-1.5" style={tab === k ? { color: 'var(--primary)', borderBottom: '2px solid var(--primary)' } : { color: 'var(--text-muted)', borderBottom: '2px solid transparent' }}>
-                <Ic size={14} /> {l}{k === 'atividades' && abertas.length > 0 ? ` (${abertas.length})` : ''}
+                <Ic size={14} /> {l}{k === 'atividades' && abertas.length > 0 ? ` (${abertas.length})` : ''}{k === 'produtos' && prods.length > 0 ? ` (${prods.length})` : ''}
               </button>
             ))}
           </div>
@@ -322,6 +323,10 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                 </div>
               )}
             </div>
+          )}
+
+          {tab === 'produtos' && (
+            <ProdutosVinculados oppId={o.id} products={o.products ?? []} onChanged={load} />
           )}
 
           {tab === 'propostas' && (
