@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ExternalLink, FilePlus2, GitCommitHorizontal, Ticket } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, PageHeader, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -46,6 +46,7 @@ export default function SolicitacoesPage() {
   const [rows, setRows] = useState<Req[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sCustomer, setSCustomer] = useState('')
+  const [custText, setCustText] = useState('')
   const [sQ, setSQ] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -115,10 +116,13 @@ export default function SolicitacoesPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (empresa, chamado, assunto, solicitante)…"
               className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
-            <Select value={sCustomer} onChange={(e) => setSCustomer(e.target.value)}>
-              <option value="">Todos os clientes</option>
-              {customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}
-            </Select>
+            <input list="cf-solic-customers" value={custText}
+              onChange={(e) => { const v = e.target.value; setCustText(v); const m = customers.find((c) => c.name.toLowerCase() === v.trim().toLowerCase()); setSCustomer(m ? String(m.customer_id) : '') }}
+              placeholder="Cliente (digite ou escolha)…"
+              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-56 max-w-full" />
+            <datalist id="cf-solic-customers">
+              {customers.map((c) => <option key={c.customer_id} value={c.name} />)}
+            </datalist>
           </div>
         </div>
 
