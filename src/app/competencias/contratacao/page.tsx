@@ -86,7 +86,7 @@ export default function ContratacaoPage() {
           active: pForm.active,
         },
       })
-      toast.success('Parceiro incluído — entrou em “Aguardando assinatura”')
+      toast.success('Parceiro incluído — entrou em “Aguardando contrato”')
       setShowPartner(false); setPForm({ ...EMPTY_PARTNER }); load()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao incluir parceiro') }
     finally { setSavingPartner(false) }
@@ -489,7 +489,7 @@ export default function ContratacaoPage() {
                 onChange={e => { if (e.target.value) move(open, e.target.value) }}
               >
                 {!['aguardando_assinatura', 'em_andamento'].includes(open.bucket) && <option value="">Mover para fase…</option>}
-                <option value="aguardando_assinatura">Aguardando assinatura</option>
+                <option value="aguardando_assinatura">Aguardando contrato</option>
                 <option value="em_andamento">Em andamento</option>
               </select>
               {open.bucket !== 'pausado' && <button className="ds-btn-secondary flex items-center gap-1" onClick={() => move(open, 'pausado')}><Pause size={13} /> Pausar</button>}
@@ -507,7 +507,7 @@ export default function ContratacaoPage() {
           <div className="ds-card w-full max-w-2xl max-h-[88vh] overflow-y-auto" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
             <div className="ds-card-pad">
               <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Nova contratação — script de passagem</h2>
-              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando assinatura”. Todos os campos são obrigatórios.</p>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Incluir direto pela rotina, sem candidato do Banco de Competências. Entra em “Aguardando contrato”. Todos os campos são obrigatórios.</p>
               <div className="space-y-4">
                 {/* 1. Nome + contato */}
                 <div className="grid grid-cols-2 gap-3">
