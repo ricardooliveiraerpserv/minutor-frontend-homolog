@@ -648,14 +648,14 @@ function TicketDetailInner({ id }: { id: number }) {
           : await api.post<{ data?: { id?: number; apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, fd)
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Chamado atualizado')
-        // GRAVOU uma Solução com GMUD (status solucao_gmud) → abre o pop-up p/ o consultor definir
-        // pastas/destino e publicar. O modal resolve o pacote recém-criado pelo ticketId.
-        if (statuses.find(s => s.id === Number(resolveStatusId))?.key === 'solucao_gmud') {
-          setGmudPublish({ ticketId: Number(id) })
-        }
       }
+      // GRAVOU (criou OU editou) uma Solução com GMUD → abre o pop-up p/ o consultor definir pastas
+      // e publicar. Detecta pelo status do formulário (status_id do form OU o status aplicado).
+      const gmudStatusId = Number(resolveStatusId) || dynForm?.status_id || 0
+      const isGmudForm = statuses.some(s => s.id === gmudStatusId && s.key === 'solucao_gmud')
       setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
+      if (isGmudForm) setGmudPublish({ ticketId: Number(id) })
     // Mostra a mensagem REAL (ApiError do proxy OU Error do uploadDirect — que carrega o texto do 422
     // do backend), em vez de engolir tudo num genérico. ApiError estende Error → instanceof Error cobre ambos.
     } catch (e) { toast.error(e instanceof Error && e.message ? e.message : 'Erro ao salvar o formulário') }
