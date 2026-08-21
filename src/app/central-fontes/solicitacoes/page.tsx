@@ -24,6 +24,8 @@ interface Req {
   hd_ticket_id: number | null
   hd_subject: string | null
   created_at: string | null
+  kind?: 'provisioning' | 'ticket'
+  raw_status?: string
 }
 
 interface Gmud {
@@ -128,9 +130,15 @@ export default function SolicitacoesPage() {
                           <Td>{statusBadge(r.status)}</Td>
                           <Td>
                             <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1">
-                              {r.status !== 'provisioned' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'provisioned')}>Atender</Button>}
-                              {r.status === 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'rejected')}>Rejeitar</Button>}
-                              {r.status !== 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'open')}>Reabrir</Button>}
+                              {r.kind === 'ticket' ? (
+                                <span className="text-xs" style={{ color: 'var(--text-light)' }} title="Pedido aberto pelo chamado — atendido no próprio chamado">via chamado</span>
+                              ) : (
+                                <>
+                                  {r.status !== 'provisioned' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'provisioned')}>Atender</Button>}
+                                  {r.status === 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'rejected')}>Rejeitar</Button>}
+                                  {r.status !== 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'open')}>Reabrir</Button>}
+                                </>
+                              )}
                             </div>
                           </Td>
                         </Tr>
