@@ -39,14 +39,14 @@ interface Gmud {
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—')
 const shortSha = (s: string | null) => (s ? s.slice(0, 8) : '—')
 const prioBadge = (p: string) => p === 'alta' ? <Badge variant="danger">Alta</Badge> : p === 'baixa' ? <Badge variant="default">Baixa</Badge> : <Badge variant="warning">Média</Badge>
-const statusBadge = (s: string) => s === 'provisioned' ? <Badge variant="success">Atendida</Badge> : s === 'rejected' ? <Badge variant="default">Rejeitada</Badge> : <Badge variant="warning">Aberta</Badge>
 const scopeLabel = (r: Req) => r.scope_type === 'folder' ? `Pasta${r.paths?.[0] ? ` · ${r.paths[0]}` : ''}` : r.scope_type === 'source' ? `${r.paths?.length ?? 0} fonte${(r.paths?.length ?? 0) === 1 ? '' : 's'}` : 'Repositório'
 
 export default function SolicitacoesPage() {
   const [view, setView] = useState<'solicitacoes' | 'gmud'>('solicitacoes')
   const [rows, setRows] = useState<Req[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState('open')
+  const [sCustomer, setSCustomer] = useState('')
+  const [sQ, setSQ] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
@@ -59,11 +59,20 @@ export default function SolicitacoesPage() {
 
   const load = useCallback(() => {
     setRows(null); setError(null)
-    api.get<{ data: Req[] }>(`/source-docs/source-requests?status=${status}`)
+    const p = new URLSearchParams({ status: 'all' })   // sem mecanismo de aprovação → sempre todas
+    if (sCustomer) p.set('customer_id', sCustomer)
+    api.get<{ data: Req[] }>(`/source-docs/source-requests?${p.toString()}`)
       .then((r) => setRows(r.data))
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Falha ao carregar as solicitações.'))
-  }, [status])
+  }, [sCustomer])
   useEffect(() => { load() }, [load])
+
+  // Busca de texto (client-side) sobre o que já veio.
+  const filtered = (rows ?? []).filter((r) => {
+    const q = sQ.trim().toLowerCase()
+    if (!q) return true
+    return [r.customer_name, r.ticket, r.hd_subject, r.requester_name, r.repository].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
 
   useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
 
@@ -101,25 +110,27 @@ export default function SolicitacoesPage() {
 
       {view === 'solicitacoes' ? (
       <Card padding="none">
-        <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2">
+        <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2 flex-wrap">
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Solicitações</div>
-          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="open">Abertas</option>
-            <option value="provisioned">Atendidas</option>
-            <option value="rejected">Rejeitadas</option>
-            <option value="all">Todas</option>
-          </Select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (empresa, chamado, assunto, solicitante)…"
+              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
+            <Select value={sCustomer} onChange={(e) => setSCustomer(e.target.value)}>
+              <option value="">Todos os clientes</option>
+              {customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}
+            </Select>
+          </div>
         </div>
 
         {error ? <EmptyState icon={FilePlus2} title="Erro" description={error} />
           : rows === null ? <SkeletonTable rows={6} cols={7} />
-            : rows.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description="Não há solicitações neste filtro." />
+            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={sQ || sCustomer ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Empresa</Th><Th>Escopo</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th>Status</Th><Th></Th></Tr></Thead>
+                    <Thead><Tr><Th>Empresa</Th><Th>Escopo</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
                     <Tbody>
-                      {rows.map((r) => (
+                      {filtered.map((r) => (
                         <Tr key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="cursor-pointer">
                           <Td><div className="font-medium">{r.customer_name ?? (r.customer_id ? `#${r.customer_id}` : '—')}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{r.repository ?? '—'}</div></Td>
                           <Td><div className="text-sm">{scopeLabel(r)}</div>{expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}{expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}</Td>
@@ -127,7 +138,6 @@ export default function SolicitacoesPage() {
                           <Td>{prioBadge(r.priority)}</Td>
                           <Td className="text-sm">{r.requester_name ?? '—'}</Td>
                           <Td className="text-xs">{dt(r.created_at)}</Td>
-                          <Td>{statusBadge(r.status)}</Td>
                           <Td>
                             <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1">
                               {r.kind === 'ticket' ? (
