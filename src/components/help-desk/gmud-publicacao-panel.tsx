@@ -72,7 +72,7 @@ function fmt(dt: string | null): string {
   return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-export function GmudPublicacaoPanel({ ticketId, customerId }: { ticketId: number; customerId?: number | null }) {
+export function GmudPublicacaoPanel({ ticketId, customerId, gmudActive = true }: { ticketId: number; customerId?: number | null; gmudActive?: boolean }) {
   const [packages, setPackages] = useState<Manifest[] | null>(null)
   const [forbidden, setForbidden] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -111,6 +111,8 @@ export function GmudPublicacaoPanel({ ticketId, customerId }: { ticketId: number
   }
 
   if (forbidden) return null
+  // Fora de um chamado GMUD e sem nenhum pacote recebido → não polui o chamado.
+  if (!gmudActive && (!packages || packages.length === 0)) return null
 
   return (
     <div className="ds-card p-4 space-y-3">

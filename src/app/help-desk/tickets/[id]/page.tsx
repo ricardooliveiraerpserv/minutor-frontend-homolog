@@ -974,6 +974,15 @@ function TicketDetailInner({ id }: { id: number }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Coluna principal */}
           <div className="lg:col-span-2 space-y-4">
+            {/* GMUD — Publicação Governada de Fontes (wizard). No TOPO da coluna p/ ficar visível
+                logo após submeter a Solução com GMUD (status solucao_gmud). O painel se auto-oculta
+                sem permissão (source_docs.gmud_publish) ou quando não há pacote e não é GMUD. */}
+            <GmudPublicacaoPanel
+              ticketId={t.id}
+              customerId={t.customer?.id ?? null}
+              gmudActive={t.status?.key === 'solucao_gmud' || !!t.gmud_source_status}
+            />
+
             {/* Descrição não é mais bloco fixo no topo: entra como a interação MAIS ANTIGA,
                 no fim da Conversa (lista é sempre mais novo primeiro). */}
 
@@ -1346,12 +1355,6 @@ function TicketDetailInner({ id }: { id: number }) {
                 </div>
               )}
             </div>
-
-            {/* GMUD — Publicação Governada de Fontes (wizard). Só faz sentido em chamado GMUD; o
-                painel se auto-oculta se o usuário não tiver a permissão (source_docs.gmud_publish). */}
-            {(t.status?.key === 'solucao_gmud' || t.gmud_source_status || comments.some(c => c.form_kind === 'gmud')) && (
-              <GmudPublicacaoPanel ticketId={t.id} customerId={t.customer?.id ?? null} />
-            )}
           </div>
 
           {/* Sidebar de propriedades */}
