@@ -59,6 +59,31 @@ export default function ContratacaoPage() {
   const [nWhatsDate, setNWhatsDate] = useState('')
   const [nObs, setNObs] = useState('')
   const [creating, setCreating] = useState(false)
+  // "Novo Parceiro": cria direto no cadastro de parceiros (POST /partners), mesmos campos do Editar Parceiro.
+  const [showPartner, setShowPartner] = useState(false)
+  const [savingPartner, setSavingPartner] = useState(false)
+  const EMPTY_PARTNER = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '', contract_type: '' as '' | 'cooperado' | 'clt' | 'pj' }
+  const [pForm, setPForm] = useState({ ...EMPTY_PARTNER })
+  const createPartner = async () => {
+    if (!pForm.name.trim()) { toast.error('Informe o nome do parceiro'); return }
+    if (pForm.pricing_type === 'fixed' && !pForm.hourly_rate.trim()) { toast.error('Informe o valor hora do parceiro'); return }
+    setSavingPartner(true)
+    try {
+      await api.post('/partners', {
+        name:          pForm.name.trim(),
+        document:      pForm.document || null,
+        email:         pForm.email || null,
+        phone:         pForm.phone || null,
+        active:        pForm.active,
+        pricing_type:  pForm.pricing_type,
+        hourly_rate:   pForm.pricing_type === 'fixed' ? (pForm.hourly_rate || null) : null,
+        contract_type: pForm.contract_type || null,
+      })
+      toast.success('Parceiro criado no cadastro de parceiros')
+      setShowPartner(false); setPForm({ ...EMPTY_PARTNER })
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao criar parceiro') }
+    finally { setSavingPartner(false) }
+  }
   const { confirm, confirmDialog } = useConfirm()
 
   const toggleNRec = (v: string) => setNRecursos(p => p.includes(v) ? p.filter(x => x !== v) : [...p, v])
@@ -180,7 +205,10 @@ export default function ContratacaoPage() {
 
   return (
     <AppLayout title="Contratação / Onboarding">
-      <div className="flex justify-end mb-3">
+      <div className="flex justify-end gap-2 mb-3">
+        <button onClick={() => setShowPartner(true)} className="ds-btn-secondary flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg">
+          <UserPlus size={15} /> Novo Parceiro
+        </button>
         <button onClick={() => setShowNew(true)} className="ds-btn-primary flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg">
           <Plus size={15} /> Nova contratação
         </button>
@@ -547,6 +575,66 @@ export default function ContratacaoPage() {
               <div className="flex justify-end gap-2 mt-5">
                 <button onClick={() => setShowNew(false)} className="text-sm px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
                 <button onClick={createHire} disabled={creating} className="ds-btn-primary text-sm px-4 py-2 rounded-lg disabled:opacity-50">{creating ? 'Incluindo…' : 'Incluir'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPartner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setShowPartner(false)}>
+          <div className="ds-card w-full max-w-md max-h-[88vh] overflow-y-auto" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
+            <div className="ds-card-pad">
+              <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Novo Parceiro</h2>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Cria o parceiro direto no cadastro de parceiros. Os consultores e o “usuário na folha da cooperativa” são definidos depois, em Editar Parceiro.</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Nome <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                  <input autoFocus value={pForm.name} onChange={e => setPForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome do parceiro" className="ds-input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>CNPJ / CPF</label>
+                  <input value={pForm.document} onChange={e => setPForm(f => ({ ...f, document: e.target.value }))} placeholder="00.000.000/0000-00" className="ds-input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>E-mail</label>
+                  <input type="email" value={pForm.email} onChange={e => setPForm(f => ({ ...f, email: e.target.value }))} placeholder="parceiro@empresa.com" className="ds-input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Telefone</label>
+                  <input value={pForm.phone} onChange={e => setPForm(f => ({ ...f, phone: e.target.value }))} placeholder="(00) 00000-0000" className="ds-input w-full" />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Contrato</label>
+                  <Pills options={[['cooperado', 'Cooperado'], ['clt', 'CLT'], ['pj', 'PJ']]} value={pForm.contract_type} onChange={v => setPForm(f => ({ ...f, contract_type: v as '' | 'cooperado' | 'clt' | 'pj' }))} />
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Aplica a todos os consultores do parceiro.</p>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Tipo de precificação <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                  <Pills options={[['fixed', 'Valor único'], ['variable', 'Valores por consultor']]} value={pForm.pricing_type} onChange={v => setPForm(f => ({ ...f, pricing_type: (v || f.pricing_type) as 'fixed' | 'variable', hourly_rate: v === 'variable' ? '' : f.hourly_rate }))} />
+                </div>
+                {pForm.pricing_type === 'fixed' && (
+                  <div>
+                    <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Valor hora do parceiro (R$) <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                    <input type="number" step="0.01" min="0" value={pForm.hourly_rate} onChange={e => setPForm(f => ({ ...f, hourly_rate: e.target.value }))} placeholder="0,00" className="ds-input w-full" />
+                  </div>
+                )}
+                {pForm.pricing_type === 'variable' && (
+                  <p className="text-[10px] rounded-md px-3 py-2 border" style={{ color: 'var(--text-light)', background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
+                    Cada consultor deste parceiro terá seu próprio valor hora definido no cadastro de usuário.
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setPForm(f => ({ ...f, active: !f.active }))}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${pForm.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${pForm.active ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                  <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Ativo</label>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-5">
+                <button onClick={() => setShowPartner(false)} className="text-sm px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                <button onClick={createPartner} disabled={savingPartner || !pForm.name.trim() || (pForm.pricing_type === 'fixed' && !pForm.hourly_rate.trim())} className="ds-btn-primary text-sm px-4 py-2 rounded-lg disabled:opacity-50">{savingPartner ? 'Salvando…' : 'Salvar'}</button>
               </div>
             </div>
           </div>
