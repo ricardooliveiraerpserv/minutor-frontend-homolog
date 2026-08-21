@@ -854,6 +854,18 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     ...horistasData.map(h => ({ user_id: h.user_id, name: h.consultor, tipo: 'Horista', value: h.custo })),
   ].sort((a, b) => b.value - a.value), [fixosData, horistasData])
 
+  // Exporta a visão "Custo por pessoa" (modal) em Excel — nome, tipo e custo + total.
+  const exportCustoExcel = () => {
+    if (custoBreakdown.length === 0) return
+    const rows = custoBreakdown.map(it => ({ Pessoa: it.name, Tipo: it.tipo, Custo: it.value }))
+    rows.push({ Pessoa: `Total · ${custoBreakdown.length} pessoa(s)`, Tipo: '', Custo: totReal.custo })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws['!cols'] = [{ wch: 32 }, { wch: 14 }, { wch: 16 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Custo por pessoa')
+    XLSX.writeFile(wb, `custo_por_pessoa_${periodoLabel}.xlsx`)
+  }
+
   // ── Aba Clientes: filtro/ordenação/total ──
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
     if (soMinutor && !r.no_minutor) return false
@@ -1829,7 +1841,16 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--primary-soft)', borderBottom: '1px solid var(--border)' }}>
               <Wallet size={18} style={{ color: 'var(--primary)' }} />
               <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Custo por pessoa</span>
-              <button onClick={() => setShowCustoDetail(false)} className="ml-auto" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+              <button
+                onClick={exportCustoExcel}
+                disabled={custoBreakdown.length === 0}
+                className="ml-auto flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg disabled:opacity-40"
+                style={{ color: 'var(--primary)', background: 'var(--surface)', border: '1px solid var(--border)' }}
+                title="Exportar em Excel"
+              >
+                <Download size={13} /> Excel
+              </button>
+              <button onClick={() => setShowCustoDetail(false)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
             </div>
             <div className="overflow-y-auto flex-1 px-5">
               {custoBreakdown.map(it => (
