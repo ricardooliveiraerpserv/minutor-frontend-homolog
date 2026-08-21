@@ -89,6 +89,8 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   useEffect(() => { api.get<{ data: ContactType[] }>('/crm/contact-types').then(r => setCTypes(r?.data ?? [])).catch(() => {}) }, [])
   const [campaigns, setCampaigns] = useState<{ id: number; name: string }[]>([])
   useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/campaigns?active=1').then(r => setCampaigns(r?.data ?? [])).catch(() => {}) }, [])
+  const [crmUsers, setCrmUsers] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/crm/users').then(r => setCrmUsers(r?.data ?? [])).catch(() => {}) }, [])
   const loadProps = useCallback(() => api.get<{ data: Proposal[] }>(`/crm/proposals?opportunity_id=${id}`).then(r => setProposals(r?.data ?? [])).catch(() => {}), [id])
   const loadAtts = useCallback(() => api.get<{ data: Attachment[] }>(`/crm/opportunities/${id}/attachments`).then(r => setAtts(r?.data ?? [])).catch(() => {}), [id])
   useEffect(() => { if (tab === 'propostas') loadProps(); if (tab === 'anexos') loadAtts() }, [tab, loadProps, loadAtts])
@@ -117,12 +119,12 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
   const [detOpen, setDetOpen] = useState(false)
   const patchDet = (k: string, v: string) => { if (v !== ((o?.detalhes?.[k] ?? '') as string)) patch({ detalhes: { [k]: v || null } }) }
 
-  const [nt, setNt] = useState({ tipo: '', titulo: '', data: '' })
+  const [nt, setNt] = useState({ tipo: '', titulo: '', data: '', responsavel: '' })
   const addTask = async () => {
     if (!nt.titulo.trim() && !nt.tipo) { toast.error('Descreva a atividade'); return }
     try {
-      await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.tipo || (cTypes[0]?.slug ?? 'ligacao'), titulo: nt.titulo.trim() || null, data: nt.data ? new Date(nt.data).toISOString() : null })
-      setNt({ tipo: '', titulo: '', data: '' }); load(); toast.success('Atividade adicionada')
+      await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.tipo || (cTypes[0]?.slug ?? 'ligacao'), titulo: nt.titulo.trim() || null, data: nt.data ? new Date(nt.data).toISOString() : null, responsavel_id: nt.responsavel ? Number(nt.responsavel) : null })
+      setNt({ tipo: '', titulo: '', data: '', responsavel: '' }); load(); toast.success('Atividade adicionada')
     } catch { toast.error('Erro ao adicionar atividade') }
   }
   const toggleTask = async (t: Task) => { try { await api.patch(`/crm/tasks/${t.id}/complete`, { done: !t.concluida_at }); load() } catch { toast.error('Erro') } }
@@ -243,6 +245,13 @@ export function OportunidadeDetalhe({ id, onClose, initialTab = 'atividades' }: 
                     <select value={nt.tipo} onChange={e => setNt(f => ({ ...f, tipo: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                       <option value="">Tipo…</option>
                       {cTypes.map(c => <option key={c.id} value={c.slug}>{c.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Responsável</label>
+                    <select value={nt.responsavel} onChange={e => setNt(f => ({ ...f, responsavel: e.target.value }))} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                      <option value="">Responsável…</option>
+                      {crmUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                   </div>
                   <div>

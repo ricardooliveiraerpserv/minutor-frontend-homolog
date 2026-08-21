@@ -13,7 +13,7 @@ interface CustomerOpt { id: number; name: string }
 interface Task {
   id: number; tipo: string; titulo: string | null; data: string | null; prioridade: string
   situacao: 'pendente' | 'atrasada' | 'concluida'; concluida: boolean; notas: string | null
-  responsavel: string | null; opportunity: { id: number; title: string } | null; empresa: string | null
+  responsavel: string | null; responsavel_id?: number | null; opportunity: { id: number; title: string } | null; empresa: string | null
 }
 interface Resp { data: Task[]; resumo: { pendentes: number; atrasadas: number; concluidas: number }; page: number; has_more: boolean; total: number }
 
@@ -171,7 +171,7 @@ export default function TarefasPage() {
 
       {modal && <NovaTarefa tipos={tipos} users={users} opps={opps} customers={customers} onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />}
       {detail && <TarefaDetalhe tarefa={detail} tipos={tipos} onClose={() => setDetail(null)} />}
-      {editing && <EditarTarefa task={editing} tipos={tipos} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
+      {editing && <EditarTarefa task={editing} tipos={tipos} users={users} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
     </AppLayout>
   )
 }
@@ -292,16 +292,16 @@ function NovaTarefa({ tipos, users, opps, customers, onClose, onSaved }: { tipos
   )
 }
 
-// Edição de tarefa — o backend permite alterar tipo/título/quando/prioridade/notas.
-// Empresa, oportunidade e responsável ficam fixos após a criação (exibidos como referência).
-function EditarTarefa({ task, tipos, onClose, onSaved }: { task: Task; tipos: ContactType[]; onClose: () => void; onSaved: () => void }) {
-  const [f, setF] = useState({ tipo: task.tipo, titulo: task.titulo ?? '', data: toLocalInput(task.data), prioridade: task.prioridade || 'media', notas: task.notas ?? '' })
+// Edição de tarefa — o backend permite alterar tipo/título/quando/prioridade/notas/RESPONSÁVEL.
+// Empresa e oportunidade ficam fixas após a criação (exibidas como referência).
+function EditarTarefa({ task, tipos, users, onClose, onSaved }: { task: Task; tipos: ContactType[]; users: UserOpt[]; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ tipo: task.tipo, titulo: task.titulo ?? '', data: toLocalInput(task.data), prioridade: task.prioridade || 'media', notas: task.notas ?? '', responsavel_id: task.responsavel_id ? String(task.responsavel_id) : '' })
   const [saving, setSaving] = useState(false)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
   const salvar = async () => {
     setSaving(true)
     try {
-      await api.put(`/crm/tasks/${task.id}`, { tipo: f.tipo, titulo: f.titulo || null, data: f.data || null, prioridade: f.prioridade, notas: f.notas || null })
+      await api.put(`/crm/tasks/${task.id}`, { tipo: f.tipo, titulo: f.titulo || null, data: f.data || null, prioridade: f.prioridade, notas: f.notas || null, responsavel_id: f.responsavel_id ? Number(f.responsavel_id) : null })
       onSaved()
     } catch { alert('Erro ao salvar a tarefa.') } finally { setSaving(false) }
   }
@@ -330,6 +330,13 @@ function EditarTarefa({ task, tipos, onClose, onSaved }: { task: Task; tipos: Co
               </select>
             </label>
           </div>
+          <label className="block">
+            <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Responsável</span>
+            <select value={f.responsavel_id} onChange={e => set('responsavel_id', e.target.value)} className={fieldCls} style={inputStyle}>
+              <option value="">— Sem responsável</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </label>
           <label className="block">
             <span className={lblCls} style={{ color: 'var(--text-muted)' }}>Título</span>
             <input value={f.titulo} onChange={e => set('titulo', e.target.value)} placeholder="Ex.: Ligar para alinhar proposta" className={fieldCls} style={inputStyle} />
