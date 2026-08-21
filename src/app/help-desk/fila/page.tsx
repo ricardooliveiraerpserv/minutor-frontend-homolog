@@ -679,7 +679,7 @@ export default function HelpDeskFilaPage() {
           </div>
         ) : (
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 pb-2">
             {boardStatuses.map(col => {
               const items = (byColumn[col.id] ?? []).filter(pendPass)
               return (
@@ -688,7 +688,7 @@ export default function HelpDeskFilaPage() {
                     <div ref={provided.innerRef} {...provided.droppableProps}
                       className="rounded-lg p-2 flex flex-col shrink-0 w-72"
                       style={{ background: snapshot.isDraggingOver ? 'var(--surface-hover)' : 'var(--surface)', border: '1px solid var(--border)', minHeight: 200, transition: 'background .12s ease' }}>
-                      <div className="flex items-center justify-between mb-2 px-1 rounded" title="Arraste para reordenar a coluna" {...headerProps(String(col.id))}>
+                      <div className="flex items-center justify-between px-1 py-1.5 mb-1 rounded sticky -top-4 md:-top-8 z-20 bg-[var(--surface)] border-b border-[var(--border)]" title="Arraste para reordenar a coluna" {...headerProps(String(col.id))}>
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: col.color ?? 'var(--text-muted)' }}>
                           <GripVertical size={12} style={{ color: 'var(--text-light)', opacity: 0.6 }} />
                           <span className="w-2 h-2 rounded-full" style={{ background: col.color ?? 'var(--text-muted)' }} />{col.label}
