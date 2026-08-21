@@ -3,7 +3,7 @@
 // Central de Fontes — gestão das solicitações de fonte (empresa, escopo, chamado,
 // prioridade, solicitante). Ações: atender / rejeitar / reabrir. Só leitura do acervo.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ExternalLink, FilePlus2, GitCommitHorizontal, Ticket } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
@@ -47,6 +47,8 @@ export default function SolicitacoesPage() {
   const [error, setError] = useState<string | null>(null)
   const [sCustomer, setSCustomer] = useState('')
   const [custText, setCustText] = useState('')
+  const [custOpen, setCustOpen] = useState(false)
+  const custRef = useRef<HTMLDivElement>(null)
   const [sQ, setSQ] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -76,6 +78,13 @@ export default function SolicitacoesPage() {
   })
 
   useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
+
+  // Fecha o combobox de cliente ao clicar fora.
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (custRef.current && !custRef.current.contains(e.target as Node)) setCustOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+  const custMatches = customers.filter((c) => c.name.toLowerCase().includes(custText.trim().toLowerCase()))
 
   const loadGmud = useCallback(() => {
     setGmud(null); setGmudErr(null)
@@ -116,13 +125,22 @@ export default function SolicitacoesPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (empresa, chamado, assunto, solicitante)…"
               className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
-            <input list="cf-solic-customers" value={custText}
-              onChange={(e) => { const v = e.target.value; setCustText(v); const m = customers.find((c) => c.name.toLowerCase() === v.trim().toLowerCase()); setSCustomer(m ? String(m.customer_id) : '') }}
-              placeholder="Cliente (digite ou escolha)…"
-              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-56 max-w-full" />
-            <datalist id="cf-solic-customers">
-              {customers.map((c) => <option key={c.customer_id} value={c.name} />)}
-            </datalist>
+            <div ref={custRef} className="relative">
+              <input value={custText} autoComplete="off"
+                onChange={(e) => { setCustText(e.target.value); setCustOpen(true); if (e.target.value.trim() === '') setSCustomer('') }}
+                onFocus={() => setCustOpen(true)}
+                placeholder="Cliente (do cadastro)…"
+                className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-56 max-w-full" />
+              {custOpen && (
+                <div className="absolute right-0 z-40 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <button type="button" onClick={() => { setSCustomer(''); setCustText(''); setCustOpen(false) }} className="block w-full text-left px-2.5 py-1.5 text-sm hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>Todos os clientes</button>
+                  {custMatches.map((c) => (
+                    <button key={c.customer_id} type="button" onClick={() => { setSCustomer(String(c.customer_id)); setCustText(c.name); setCustOpen(false) }} className="block w-full text-left px-2.5 py-1.5 text-sm hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{c.name}</button>
+                  ))}
+                  {custMatches.length === 0 && <p className="px-2.5 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum cliente encontrado.</p>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
