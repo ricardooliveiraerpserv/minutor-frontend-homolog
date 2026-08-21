@@ -11,6 +11,8 @@ import { CheckCircle2, UserPlus, ArrowRight, Pause, User as UserIcon, Loader2, T
 
 interface ChecklistItem { label: string; done: boolean }
 interface HireForm {
+  kind?: string                                  // 'partner' → card de parceiro
+  document?: string; pricing_type?: string; hourly_rate?: string; active?: boolean; partner_id?: number
   contato: string
   email: string
   perfil: string; coordinator_type: string
@@ -69,19 +71,24 @@ export default function ContratacaoPage() {
     if (pForm.pricing_type === 'fixed' && !pForm.hourly_rate.trim()) { toast.error('Informe o valor hora do parceiro'); return }
     setSavingPartner(true)
     try {
-      await api.post('/partners', {
-        name:          pForm.name.trim(),
-        document:      pForm.document || null,
-        email:         pForm.email || null,
-        phone:         pForm.phone || null,
-        active:        pForm.active,
-        pricing_type:  pForm.pricing_type,
-        hourly_rate:   pForm.pricing_type === 'fixed' ? (pForm.hourly_rate || null) : null,
-        contract_type: pForm.contract_type || null,
+      // Cria um CARD de contratação de parceiro que entra no fluxo (Aguardando assinatura).
+      // Só ao CONCLUIR o card é que o parceiro é gravado no cadastro (POST /partners no BE).
+      await api.post('/competencias/contratacao', {
+        title: pForm.name.trim(),
+        modalidade: pForm.contract_type || null,   // contrato pj/cooperado/clt = modalidade do card
+        form: {
+          kind: 'partner',
+          contato: pForm.phone,
+          email: pForm.email,
+          document: pForm.document,
+          pricing_type: pForm.pricing_type,
+          hourly_rate: pForm.pricing_type === 'fixed' ? pForm.hourly_rate : '',
+          active: pForm.active,
+        },
       })
-      toast.success('Parceiro criado no cadastro de parceiros')
-      setShowPartner(false); setPForm({ ...EMPTY_PARTNER })
-    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao criar parceiro') }
+      toast.success('Parceiro incluído — entrou em “Aguardando assinatura”')
+      setShowPartner(false); setPForm({ ...EMPTY_PARTNER }); load()
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao incluir parceiro') }
     finally { setSavingPartner(false) }
   }
   const { confirm, confirmDialog } = useConfirm()
@@ -224,14 +231,16 @@ export default function ContratacaoPage() {
               {b.cards.length === 0 && <div className="ds-card ds-card-pad" style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>—</div>}
               {b.cards.map(c => (
                 <button key={c.id} onClick={() => setOpen(c)} className="ds-card ds-card-pad w-full text-left ds-row-hover" style={{ cursor: 'pointer' }}>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5 mb-1">
                     <span className={PRI[c.priority]?.cls ?? 'ds-status'} style={{ fontSize: 10 }}>{PRI[c.priority]?.label ?? c.priority}</span>
-                    {c.completed_at && <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />}
+                    {c.form?.kind === 'partner' && <span className="ds-status-info" style={{ fontSize: 10 }}>Parceiro</span>}
+                    {c.completed_at && <CheckCircle2 size={14} style={{ color: 'var(--success)', marginLeft: 'auto' }} />}
                   </div>
                   <div className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>{c.title}</div>
                   <div className="flex items-center justify-between mt-2" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                     <span>✓ {c.checklist_done}/{c.checklist_total}</span>
                     {c.created_user && <span className="flex items-center gap-1" style={{ color: 'var(--success)' }}><UserIcon size={11} /> usuário criado</span>}
+                    {c.form?.kind === 'partner' && c.form?.partner_id && <span className="flex items-center gap-1" style={{ color: 'var(--success)' }}><UserIcon size={11} /> parceiro criado</span>}
                   </div>
                 </button>
               ))}
@@ -244,6 +253,26 @@ export default function ContratacaoPage() {
         <Modal open onClose={() => setOpen(null)} size="lg">
           <ModalHeader title={open.title} subtitle={open.respondent_phone ?? undefined} icon={UserPlus} onClose={() => setOpen(null)} />
           <ModalBody className="space-y-4">
+            {open.form?.kind === 'partner' && (
+              <div className="ds-card ds-card-pad" style={{ background: 'var(--primary-soft)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <UserPlus size={14} style={{ color: 'var(--primary)' }} />
+                  <span className="text-[13px] font-bold" style={{ color: 'var(--primary)' }}>Parceiro</span>
+                  {open.form?.partner_id && <span className="ds-status-success" style={{ fontSize: 10 }}>criado no cadastro</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]" style={{ color: 'var(--text)' }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Nome:</span> {open.title}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>CNPJ/CPF:</span> {open.form?.document || '—'}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>E-mail:</span> {open.form?.email || '—'}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Telefone:</span> {open.form?.contato || '—'}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Contrato:</span> {modalidades.find(m => m.value === open.modalidade)?.label ?? '—'}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Precificação:</span> {open.form?.pricing_type === 'variable' ? 'Valores por consultor' : 'Valor único'}</div>
+                  {open.form?.pricing_type !== 'variable' && <div><span style={{ color: 'var(--text-muted)' }}>Valor hora:</span> {open.form?.hourly_rate ? `R$ ${open.form.hourly_rate}` : '—'}</div>}
+                  <div><span style={{ color: 'var(--text-muted)' }}>Ativo:</span> {open.form?.active === false ? 'Não' : 'Sim'}</div>
+                </div>
+                <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros.</p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</div>
@@ -466,7 +495,7 @@ export default function ContratacaoPage() {
               {open.bucket !== 'pausado' && <button className="ds-btn-secondary flex items-center gap-1" onClick={() => move(open, 'pausado')}><Pause size={13} /> Pausar</button>}
             </div>
             {open.bucket !== 'finalizado'
-              ? <button className="ds-btn-primary flex items-center gap-2" onClick={() => complete(open)}><UserPlus size={15} /> Concluir e criar usuário</button>
+              ? <button className="ds-btn-primary flex items-center gap-2" onClick={() => complete(open)}><UserPlus size={15} /> {open.form?.kind === 'partner' ? 'Concluir e criar parceiro' : 'Concluir e criar usuário'}</button>
               : <span className="ds-status-success">Finalizado</span>}
           </ModalFooter>
         </Modal>
