@@ -8,6 +8,8 @@ import { ExternalLink, FilePlus2, GitCommitHorizontal, Ticket } from 'lucide-rea
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 
 interface Req {
   id: number
@@ -50,6 +52,12 @@ export default function SolicitacoesPage() {
   const [custOpen, setCustOpen] = useState(false)
   const custRef = useRef<HTMLDivElement>(null)
   const [sQ, setSQ] = useState('')
+  // Filtro de data (created_at) — padrão do sistema: Mês/Ano ou Período (de/até).
+  const [dateMode, setDateMode] = useState<'month' | 'period'>('month')
+  const [refMonth, setRefMonth] = useState<number | null>(null)
+  const [refYear, setRefYear] = useState<number | null>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
@@ -70,8 +78,24 @@ export default function SolicitacoesPage() {
   }, [sCustomer])
   useEffect(() => { load() }, [load])
 
-  // Busca de texto (client-side) sobre o que já veio.
+  // Filtro de data (created_at): Mês/Ano ou Período (de/até). Vazio = qualquer.
+  const inDate = (iso: string | null) => {
+    if (dateMode === 'month') {
+      if (refMonth == null || refYear == null) return true
+      if (!iso) return false
+      const d = new Date(iso)
+      return d.getMonth() + 1 === refMonth && d.getFullYear() === refYear
+    }
+    if (!dateFrom && !dateTo) return true
+    if (!iso) return false
+    const t = new Date(iso).getTime()
+    if (dateFrom && t < new Date(`${dateFrom}T00:00:00`).getTime()) return false
+    if (dateTo && t > new Date(`${dateTo}T23:59:59`).getTime()) return false
+    return true
+  }
+  // Busca de texto (client-side) + data sobre o que já veio.
   const filtered = (rows ?? []).filter((r) => {
+    if (!inDate(r.created_at)) return false
     const q = sQ.trim().toLowerCase()
     if (!q) return true
     return [r.customer_name, r.ticket, r.hd_subject, r.requester_name, r.repository].some((x) => (x ?? '').toString().toLowerCase().includes(q))
@@ -125,6 +149,19 @@ export default function SolicitacoesPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (empresa, chamado, assunto, solicitante)…"
               className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
+            <div className="inline-flex items-center gap-1.5">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: dateMode === mode ? 'var(--primary)' : 'transparent', color: dateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {dateMode === 'month'
+                ? <MonthYearPicker month={refMonth} year={refYear} onChange={(m, y) => { if (!m) { setRefMonth(null); setRefYear(null) } else { setRefMonth(m); setRefYear(y) } }} />
+                : <DateRangePicker from={dateFrom} to={dateTo} onChange={(fr, to) => { setDateFrom(fr); setDateTo(to) }} />}
+            </div>
             <div ref={custRef} className="relative">
               <input value={custText} autoComplete="off"
                 onChange={(e) => { setCustText(e.target.value); setCustOpen(true); if (e.target.value.trim() === '') setSCustomer('') }}
