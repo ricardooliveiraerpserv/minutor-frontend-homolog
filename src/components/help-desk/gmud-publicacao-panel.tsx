@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { api, ApiError } from '@/lib/api'
 import { Table, Thead, Tbody, Tr, Th, Td, Badge } from '@/components/ds'
 import { toast } from 'sonner'
-import { UploadCloud, RefreshCw, FileCode, ExternalLink, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react'
+import { UploadCloud, RefreshCw, FileCode, ExternalLink, ShieldCheck, ChevronDown, ChevronRight, GitCommit } from 'lucide-react'
+import { GmudPublishModal } from './gmud-publish-modal'
 
 /**
  * GMUD — Publicação Governada de Fontes (wizard) · G0-G2.
@@ -77,6 +78,8 @@ export function GmudPublicacaoPanel({ ticketId, customerId, gmudActive = true }:
   const [forbidden, setForbidden] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [openId, setOpenId] = useState<number | null>(null)
+  const [modalPkgId, setModalPkgId] = useState<number | null>(null)
+  const autoOpened = useRef<Set<number>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
 
   const loadList = useCallback(async () => {
@@ -114,7 +117,14 @@ export function GmudPublicacaoPanel({ ticketId, customerId, gmudActive = true }:
   // Fora de um chamado GMUD e sem nenhum pacote recebido → não polui o chamado.
   if (!gmudActive && (!packages || packages.length === 0)) return null
 
+  const onReady = (id: number) => {
+    if (autoOpened.current.has(id)) return
+    autoOpened.current.add(id)
+    setModalPkgId(id) // ao terminar a análise (logo após gravar a GMUD), abre o modal de publicação
+  }
+
   return (
+    <>
     <div className="ds-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
@@ -159,6 +169,8 @@ export function GmudPublicacaoPanel({ ticketId, customerId, gmudActive = true }:
               open={openId === p.id}
               onToggle={() => setOpenId(openId === p.id ? null : p.id)}
               customerId={customerId ?? p.customer_id}
+              onPublish={() => setModalPkgId(p.id)}
+              onReady={onReady}
             />
           ))}
         </div>
@@ -166,16 +178,25 @@ export function GmudPublicacaoPanel({ ticketId, customerId, gmudActive = true }:
 
       <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
         <ShieldCheck size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--success)' }} />
-        <span>O envio do ZIP <b>não publica nada</b> no Git — é apenas recebimento e análise. A publicação é uma etapa posterior, governada e com aceite explícito (em construção).</span>
+        <span>O envio do ZIP <b>não publica</b> sozinho no Git. A publicação abre um modal onde você escolhe a pasta e confirma — 1 commit atômico, com aceite explícito.</span>
       </div>
     </div>
+
+    <GmudPublishModal
+      packageId={modalPkgId}
+      open={modalPkgId != null}
+      onClose={() => setModalPkgId(null)}
+      onPublished={() => { void loadList() }}
+    />
+    </>
   )
 }
 
-function PackageRow({ manifest, open, onToggle, customerId }: { manifest: Manifest; open: boolean; onToggle: () => void; customerId: number | null }) {
+function PackageRow({ manifest, open, onToggle, customerId, onPublish, onReady }: { manifest: Manifest; open: boolean; onToggle: () => void; customerId: number | null; onPublish: () => void; onReady: (id: number) => void }) {
   const [detail, setDetail] = useState<PackageDetail | null>(null)
   const [status, setStatus] = useState(manifest.status)
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sawInProgress = useRef(false)
 
   const load = useCallback(async () => {
     try {
@@ -189,19 +210,23 @@ function PackageRow({ manifest, open, onToggle, customerId }: { manifest: Manife
   }, [manifest.id])
 
   // Enquanto aberto e ainda processando, faz polling (o worker source-doc conclui em segundo plano).
+  // Ao transitar de "analisando" → "analisado" (logo após gravar a GMUD), dispara onReady p/ abrir o modal.
   useEffect(() => {
     if (!open) return
     let cancelled = false
     const tick = async () => {
       const st = await load()
-      if (cancelled) return
-      if (st && IN_PROGRESS.has(st)) pollRef.current = setTimeout(tick, 2500)
+      if (cancelled || !st) return
+      if (IN_PROGRESS.has(st)) { sawInProgress.current = true; pollRef.current = setTimeout(tick, 2500); return }
+      if (st === 'analyzed' && sawInProgress.current) onReady(manifest.id)
     }
     void tick()
     return () => { cancelled = true; if (pollRef.current) clearTimeout(pollRef.current) }
-  }, [open, load])
+  }, [open, load, onReady, manifest.id])
 
   const files = detail?.files ?? []
+  const canPublish = status === 'analyzed'
+  const published = status === 'published'
 
   return (
     <div className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
@@ -219,6 +244,19 @@ function PackageRow({ manifest, open, onToggle, customerId }: { manifest: Manife
             <span>Arquivos: <b style={{ color: 'var(--text)' }}>{manifest.files_count}</b></span>
             <span className="col-span-2 font-mono break-all">SHA-256: {manifest.sha256 ?? '—'}</span>
           </div>
+
+          {(canPublish || published) && (
+            <div className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5" style={{ background: published ? 'var(--success-bg)' : 'var(--primary-soft)' }}>
+              <span className="text-[11px] font-semibold" style={{ color: published ? 'var(--success)' : 'var(--primary)' }}>
+                {published ? '✓ Publicado no Git' : 'Analisado — pronto para publicar'}
+              </span>
+              {canPublish && (
+                <button onClick={onPublish} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg">
+                  <GitCommit size={13} /> Publicar no Git
+                </button>
+              )}
+            </div>
+          )}
 
           {status === 'failed' && (
             <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
@@ -289,6 +327,9 @@ function PackageStatusBadge({ status }: { status: string }) {
     analyzing:  { label: 'Analisando', variant: 'primary' },
     analyzed:   { label: 'Analisado',  variant: 'success' },
     failed:     { label: 'Falha',      variant: 'danger' },
+    publishing: { label: 'Publicando', variant: 'primary' },
+    published:  { label: 'Publicado',  variant: 'success' },
+    publish_failed: { label: 'Falha ao publicar', variant: 'danger' },
   }
   const s = m[status] ?? { label: status, variant: 'default' }
   return <Badge variant={s.variant}>{s.label}</Badge>
