@@ -215,6 +215,13 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
         <div className="text-sm py-6" style={{ color: 'var(--text-muted)' }}>Nenhum fonte reconhecido no pacote — nada a publicar.</div>
       ) : (
         <div className="space-y-4">
+          {/* Cabeçalho do pacote */}
+          <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--surface-sunken)' }}>
+            <FileCode size={14} style={{ color: 'var(--primary)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{detail.original_name}</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{sources.length} fonte(s)</span>
+          </div>
+
           {/* Classificação */}
           <div className="flex flex-wrap items-center gap-4">
             <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>Classificação:</span>
