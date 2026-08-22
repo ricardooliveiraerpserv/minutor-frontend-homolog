@@ -85,14 +85,16 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     if (!ticketId) return
     setPkgId(null)
     let tries = 0
+    // "ensure" = garante o pacote do ÚLTIMO zip anexado ao chamado (determinístico) → sempre o certo.
     const find = async () => {
       try {
-        const res = await api.get<{ data: Array<{ id: number }> }>(`/help-desk/tickets/${ticketId}/gmud/packages`)
+        const res = await api.post<{ data: { id: number } | null }>(`/help-desk/tickets/${ticketId}/gmud/packages/ensure`, {})
         if (cancelled) return
-        if (res.data.length) { setPkgId(res.data[0].id); return }
-      } catch { /* ignora */ }
-      if (++tries > 15) { setNoPackage(true); return } // ~30s esperando o pacote nascer
-      pollRef.current = setTimeout(find, 2000)
+        if (res.data?.id) { setPkgId(res.data.id); return }
+        setNoPackage(true)
+      } catch {
+        if (++tries <= 5) pollRef.current = setTimeout(find, 1500); else setNoPackage(true)
+      }
     }
     void find()
     return () => { cancelled = true; if (pollRef.current) clearTimeout(pollRef.current) }
