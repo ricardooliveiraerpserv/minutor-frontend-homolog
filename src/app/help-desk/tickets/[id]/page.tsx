@@ -570,8 +570,12 @@ function TicketDetailInner({ id }: { id: number }) {
   const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance; time?: FormTime | null } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
   // GMUD — pop-up de publicação de fontes. Abre ao GRAVAR a Solução com GMUD (por ticketId) ou pelo
-  // botão Publicar do painel (por packageId).
-  const [gmudPublish, setGmudPublish] = useState<{ packageId?: number; ticketId?: number } | null>(null)
+  // botão Publicar do painel (por packageId). `deferred` = a GMUD ainda NÃO foi gravada (só grava ao publicar).
+  const [gmudPublish, setGmudPublish] = useState<{ packageId?: number; ticketId?: number; deferred?: boolean } | null>(null)
+  // Submissão da GMUD adiada: só é gravada (comentário + status + e-mail) quando o consultor PUBLICA.
+  const [pendingGmud, setPendingGmud] = useState<{ inst: FormInstance; body: string; time: FormTime; files: File[]; statusId: string | null } | null>(null)
+  const pendingGmudRef = useRef(pendingGmud)
+  useEffect(() => { pendingGmudRef.current = pendingGmud }, [pendingGmud])
   const [supplier, setSupplier] = useState<{ statusId: string; justId: number; mode: 'totvs' | 'other' } | null>(null)
   const [supName, setSupName] = useState('') // nome do fornecedor (modo 'other')
   const [supNum, setSupNum] = useState('')   // nº do chamado no fornecedor
@@ -626,6 +630,22 @@ function TicketDetailInner({ id }: { id: number }) {
     // uploadDirect = POST direto no backend (bypassa o proxy da borda, que barra body >~4.5MB com ERR_HTTP2_PROTOCOL_ERROR).
     const uploadFiles = async (cid: number) => { for (const f of files) { const fd = new FormData(); fd.append('file', f); await uploadDirect(`/help-desk/tickets/${id}/comments/${cid}/attachments`, fd) } }
     try {
+      // GMUD: detecta o formulário GMUD (status solucao_gmud) e se há zip anexado.
+      const gmudStatusId = Number(resolveStatusId) || dynForm?.status_id || 0
+      const isGmudForm = statuses.some(s => s.id === gmudStatusId && s.key === 'solucao_gmud')
+      const gmudZip = files.find(f => /\.zip$/i.test(f.name))
+      // CRIAÇÃO de GMUD com zip → ADIA a gravação: analisa o zip e abre o wizard. A GMUD só é
+      // gravada (comentário + status + e-mail) quando o consultor PUBLICA. Cancelar descarta tudo.
+      if (!dynEdit && isGmudForm && gmudZip) {
+        const fd = new FormData(); fd.append('file', gmudZip)
+        const up = await uploadDirect<{ data?: { id?: number } }>(`/help-desk/tickets/${id}/gmud/packages`, fd)
+        if (up?.data?.id) {
+          setPendingGmud({ inst, body, time, files, statusId: resolveStatusId })
+          setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
+          setGmudPublish({ packageId: up.data.id, deferred: true })
+          return
+        }
+      }
       if (dynEdit) {
         const resp = await api.patch<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic', ...timeFields })
         await uploadFiles(dynEdit.commentId)
@@ -649,16 +669,44 @@ function TicketDetailInner({ id }: { id: number }) {
         if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Chamado atualizado')
       }
-      // GRAVOU (criou OU editou) uma Solução com GMUD → abre o pop-up p/ o consultor definir pastas
-      // e publicar. Detecta pelo status do formulário (status_id do form OU o status aplicado).
-      const gmudStatusId = Number(resolveStatusId) || dynForm?.status_id || 0
-      const isGmudForm = statuses.some(s => s.id === gmudStatusId && s.key === 'solucao_gmud')
+      // EDIÇÃO de GMUD (já gravada) → abre o wizard não-adiado (por ticketId) p/ publicar.
       setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
       if (isGmudForm) setGmudPublish({ ticketId: Number(id) })
     // Mostra a mensagem REAL (ApiError do proxy OU Error do uploadDirect — que carrega o texto do 422
     // do backend), em vez de engolir tudo num genérico. ApiError estende Error → instanceof Error cobre ambos.
     } catch (e) { toast.error(e instanceof Error && e.message ? e.message : 'Erro ao salvar o formulário') }
+  }
+
+  // Publicou no wizard → AGORA grava a GMUD (comentário + status + e-mail). skip_gmud_package: o
+  // pacote já foi recebido/publicado no wizard; não recriar aqui.
+  const finalizeGmud = async () => {
+    const p = pendingGmudRef.current
+    if (!p) { loadComments(); loadEvents(); return }
+    try {
+      if (p.statusId) await changeStatus(p.statusId)
+      const fd = new FormData()
+      fd.append('body', p.body); fd.append('visibility', 'customer'); fd.append('form_kind', 'dynamic')
+      fd.append('solution', JSON.stringify(p.inst)); fd.append('skip_gmud_package', '1')
+      const tf: Record<string, unknown> = { worked_date: p.time.worked_date, no_charge: p.time.no_charge }
+      if (p.time.start_time) tf.start_time = p.time.start_time
+      if (p.time.end_time) tf.end_time = p.time.end_time
+      if (p.time.total_hours) tf.total_hours = p.time.total_hours
+      Object.entries(tf).forEach(([k, v]) => { if (v === undefined || v === null || v === '') return; fd.append(k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v)) })
+      p.files.forEach(f => fd.append('files[]', f))
+      await uploadDirect(`/help-desk/tickets/${id}/comments`, fd)
+    } catch (e) { toast.error(e instanceof Error && e.message ? e.message : 'Erro ao gravar a GMUD') }
+    setPendingGmud(null)
+    loadComments(); loadEvents(); loadTicket()
+  }
+
+  // Cancelou/fechou o wizard SEM publicar → descarta: a GMUD NÃO é gravada e NÃO envia e-mail.
+  const discardGmud = async () => {
+    const pkgId = gmudPublish?.packageId
+    setGmudPublish(null)
+    setPendingGmud(null)
+    if (pkgId) { try { await api.delete(`/gmud/packages/${pkgId}`) } catch { /* best-effort */ } }
+    toast.info('GMUD cancelada — nada foi gravado.')
   }
 
   const openFormEdit = (c: Comment) => {
@@ -1646,8 +1694,10 @@ function TicketDetailInner({ id }: { id: number }) {
         open={gmudPublish != null}
         ticketId={gmudPublish?.ticketId ?? null}
         packageId={gmudPublish?.packageId ?? null}
+        deferred={!!gmudPublish?.deferred}
         onClose={() => setGmudPublish(null)}
-        onPublished={() => { loadComments(); loadEvents() }}
+        onDiscard={discardGmud}
+        onPublished={() => { if (pendingGmudRef.current) { void finalizeGmud() } else { loadComments(); loadEvents() } }}
       />
 
       {dynOpen && dynForm && (

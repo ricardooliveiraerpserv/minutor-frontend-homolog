@@ -52,13 +52,16 @@ function buildTree(paths: string[], created: Set<string>): TreeNode[] {
   return toNodes(roots)
 }
 
-export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublished }: {
+export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublished, deferred = false, onDiscard }: {
   packageId?: number | null
   ticketId?: number | null
   open: boolean
   onClose: () => void
   onPublished?: () => void
+  deferred?: boolean       // true = a GMUD ainda NÃO foi gravada; cancelar descarta tudo (sem e-mail)
+  onDiscard?: () => void   // chamado ao confirmar o cancelamento no modo adiado
 }) {
+  const [confirmCancel, setConfirmCancel] = useState(false)
   const [pkgId, setPkgId] = useState<number | null>(null)
   const [detail, setDetail] = useState<Detail | null>(null)
   const [noPackage, setNoPackage] = useState(false)
@@ -79,7 +82,7 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
   // Resolve o pacote: por packageId direto, ou (ao gravar a GMUD) buscando o mais novo do chamado.
   useEffect(() => {
     if (!open) return
-    setResult(null); setResolutions({}); setPerFileFolder({}); setActiveFolder(''); setCreatedDirs([]); setNewFolder(''); setClassification('projeto'); setProjectName(''); setDetail(null); setNoPackage(false)
+    setResult(null); setResolutions({}); setPerFileFolder({}); setActiveFolder(''); setCreatedDirs([]); setNewFolder(''); setClassification('projeto'); setProjectName(''); setDetail(null); setNoPackage(false); setConfirmCancel(false)
     let cancelled = false
     if (packageId) { setPkgId(packageId); return }
     if (!ticketId) return
@@ -171,10 +174,10 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     if (activeFolder === path || activeFolder.startsWith(path + '/')) setActiveFolder('')
   }
 
-  // PROJETO = uma pasta única (a selecionada na árvore) para TODOS os novos.
-  // AVULSO  = vínculo individual por fonte.
+  // PROJETO = o NOME do projeto vira a PASTA (todos os novos vão para ela; sem árvore/criar pasta).
+  // AVULSO  = vínculo individual por fonte, navegando a árvore.
   const projectMode = classification === 'projeto'
-  const globalFolder = activeFolder === ROOT_ID ? '' : activeFolder
+  const projectFolder = projectName.trim().replace(/^\/+|\/+$/g, '').replace(/\.\.+/g, '')
 
   const destOf = (f: PackageFile): { path: string | null; action: 'add' | 'modify' | 'skip' | 'pending' } => {
     if (f.match_status === 'identical') return { path: null, action: 'skip' }
@@ -182,8 +185,8 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     if (f.match_status === 'ambiguous') { const r = resolutions[f.id]; return r ? { path: r, action: 'modify' } : { path: null, action: 'pending' } }
     // NOVO
     if (projectMode) {
-      if (activeFolder === '') return { path: null, action: 'pending' }
-      return { path: globalFolder ? `${globalFolder}/${f.filename}` : f.filename, action: 'add' }
+      if (projectFolder === '') return { path: null, action: 'pending' }
+      return { path: `${projectFolder}/${f.filename}`, action: 'add' }
     }
     if (!(f.id in perFileFolder)) return { path: null, action: 'pending' }
     const folder = perFileFolder[f.id]
@@ -191,7 +194,7 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
   }
 
   const unassignedNews = projectMode
-    ? (activeFolder === '' ? news : [])
+    ? (projectFolder === '' ? news : [])
     : news.filter(f => !(f.id in perFileFolder))
   const unresolved = ambiguous.some(f => !resolutions[f.id])
   const canPublish = !analyzing && !alreadyPublished && sources.some(f => f.match_status !== 'identical') && unassignedNews.length === 0 && !unresolved
@@ -202,8 +205,8 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     try {
       const body: Record<string, unknown> = { classification, project_name: projectMode ? projectName : null }
       if (projectMode) {
-        // pasta única do projeto p/ todos os novos (dest_folder global; folders vazio)
-        body.dest_folder = globalFolder
+        // a pasta do projeto = nome do projeto (todos os novos vão pra ela)
+        body.dest_folder = projectFolder
         body.folders = {}
       } else {
         const folders: Record<number, string> = {}
@@ -221,9 +224,26 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     } finally { setPublishing(false) }
   }
 
+  // Fechar/Cancelar: no modo adiado (GMUD ainda não gravada) e sem ter publicado → confirma antes.
+  const handleClose = () => {
+    if (deferred && !result) { setConfirmCancel(true); return }
+    onClose()
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title="Publicação de Fontes no Git (GMUD)" width="max-w-4xl">
-      {noPackage ? (
+    <Modal open={open} onClose={handleClose} title="Publicação de Fontes no Git (GMUD)" width="max-w-4xl">
+      {confirmCancel ? (
+        <div className="space-y-4 py-2">
+          <div className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <div>Se você cancelar, a <b>GMUD será cancelada</b> — ela <b>não será gravada</b> no chamado e <b>nenhum e-mail</b> será enviado ao cliente. Deseja realmente sair?</div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setConfirmCancel(false)} className="ds-btn-secondary px-3 py-1.5 rounded-lg text-sm">Voltar</button>
+            <button onClick={() => { setConfirmCancel(false); (onDiscard ?? onClose)() }} className="ds-btn-primary px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--danger)' }}>Sim, cancelar a GMUD</button>
+          </div>
+        </div>
+      ) : noPackage ? (
         <div className="text-sm py-6" style={{ color: 'var(--text-muted)' }}>Nenhum pacote de fontes foi anexado nesta GMUD.</div>
       ) : !detail ? (
         <Loading text="Preparando o pacote…" />
@@ -254,14 +274,23 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
               </label>
             ))}
             {classification === 'projeto' && (
-              <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="Nome do projeto (opcional)"
-                className="text-sm rounded-lg px-2.5 py-1.5 outline-none flex-1 min-w-[180px]" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <input value={projectName} onChange={e => setProjectName(e.target.value)} placeholder="Nome do projeto — vira a pasta (ex.: TESTE/meuprojeto)"
+                className="text-sm rounded-lg px-2.5 py-1.5 outline-none flex-1 min-w-[220px]" style={{ background: 'var(--bg)', border: `1px solid ${projectMode && projectFolder === '' ? 'var(--warning)' : 'var(--border)'}`, color: 'var(--text)' }} />
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* ESQUERDA: árvore de diretórios + criar/excluir pasta */}
-            {news.length > 0 && (
+          {/* PROJETO: o nome é a pasta — sem árvore/criar. Mostra o destino resultante. */}
+          {projectMode && news.length > 0 && (
+            <div className="rounded-lg px-2.5 py-1.5 text-[11px]" style={{ background: 'var(--surface-sunken)', color: projectFolder ? 'var(--text-muted)' : 'var(--warning)' }}>
+              {projectFolder
+                ? <>Os {news.length} fonte(s) novo(s) irão para a pasta: <b className="font-mono" style={{ color: 'var(--text)' }}>{projectFolder}/</b></>
+                : <><AlertTriangle size={12} className="inline" /> Informe o nome do projeto — ele será a pasta dos fontes novos.</>}
+            </div>
+          )}
+
+          <div className={projectMode ? '' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
+            {/* ESQUERDA (só AVULSO): árvore de diretórios + criar/excluir pasta */}
+            {!projectMode && news.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text)' }}>
                   <FolderGit2 size={14} /> {projectMode ? 'Pasta do projeto (todos os fontes novos aqui)' : 'Diretórios do repositório'} {basePath && <span style={{ color: 'var(--text-light)' }}>(base: {basePath}/)</span>}
@@ -356,7 +385,7 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
               {unassignedNews.length > 0 ? <span style={{ color: 'var(--warning)' }}><AlertTriangle size={11} className="inline" /> {unassignedNews.length} fonte(s) novo(s) sem pasta</span> : 'Publicar grava tudo num único commit atômico.'}
             </span>
             <div className="flex items-center gap-2">
-              <button onClick={onClose} className="ds-btn-secondary px-3 py-1.5 rounded-lg text-sm">Cancelar</button>
+              <button onClick={handleClose} className="ds-btn-secondary px-3 py-1.5 rounded-lg text-sm">Cancelar</button>
               <button onClick={doPublish} disabled={!canPublish || publishing} className="ds-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm disabled:opacity-50">
                 {publishing ? <Loader2 size={14} className="animate-spin" /> : <GitCommit size={14} />} Publicar no Git
               </button>
