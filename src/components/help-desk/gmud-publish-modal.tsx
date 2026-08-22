@@ -169,16 +169,28 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     if (activeFolder === path || activeFolder.startsWith(path + '/')) setActiveFolder('')
   }
 
+  // PROJETO = uma pasta única (a selecionada na árvore) para TODOS os novos.
+  // AVULSO  = vínculo individual por fonte.
+  const projectMode = classification === 'projeto'
+  const globalFolder = activeFolder === ROOT_ID ? '' : activeFolder
+
   const destOf = (f: PackageFile): { path: string | null; action: 'add' | 'modify' | 'skip' | 'pending' } => {
     if (f.match_status === 'identical') return { path: null, action: 'skip' }
     if (f.match_status === 'existing') return { path: f.matched_git_path, action: 'modify' }
     if (f.match_status === 'ambiguous') { const r = resolutions[f.id]; return r ? { path: r, action: 'modify' } : { path: null, action: 'pending' } }
+    // NOVO
+    if (projectMode) {
+      if (activeFolder === '') return { path: null, action: 'pending' }
+      return { path: globalFolder ? `${globalFolder}/${f.filename}` : f.filename, action: 'add' }
+    }
     if (!(f.id in perFileFolder)) return { path: null, action: 'pending' }
     const folder = perFileFolder[f.id]
     return { path: folder ? `${folder}/${f.filename}` : f.filename, action: 'add' }
   }
 
-  const unassignedNews = news.filter(f => !(f.id in perFileFolder))
+  const unassignedNews = projectMode
+    ? (activeFolder === '' ? news : [])
+    : news.filter(f => !(f.id in perFileFolder))
   const unresolved = ambiguous.some(f => !resolutions[f.id])
   const canPublish = !analyzing && !alreadyPublished && sources.some(f => f.match_status !== 'identical') && unassignedNews.length === 0 && !unresolved
 
@@ -186,9 +198,17 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
     if (!pkgId) return
     setPublishing(true)
     try {
-      const folders: Record<number, string> = {}
-      news.forEach(f => { if (f.id in perFileFolder) folders[f.id] = perFileFolder[f.id] })
-      const body: Record<string, unknown> = { folders, classification, project_name: classification === 'projeto' ? projectName : null }
+      const body: Record<string, unknown> = { classification, project_name: projectMode ? projectName : null }
+      if (projectMode) {
+        // pasta única do projeto p/ todos os novos (dest_folder global; folders vazio)
+        body.dest_folder = globalFolder
+        body.folders = {}
+      } else {
+        const folders: Record<number, string> = {}
+        news.forEach(f => { if (f.id in perFileFolder) folders[f.id] = perFileFolder[f.id] })
+        body.dest_folder = ''
+        body.folders = folders
+      }
       if (Object.keys(resolutions).length) body.resolutions = resolutions
       const res = await api.post<{ data: typeof result }>(`/gmud/packages/${pkgId}/publish`, body)
       setResult(res.data)
@@ -242,7 +262,7 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
             {news.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                  <FolderGit2 size={14} /> Diretórios do repositório {basePath && <span style={{ color: 'var(--text-light)' }}>(base: {basePath}/)</span>}
+                  <FolderGit2 size={14} /> {projectMode ? 'Pasta do projeto (todos os fontes novos aqui)' : 'Diretórios do repositório'} {basePath && <span style={{ color: 'var(--text-light)' }}>(base: {basePath}/)</span>}
                 </div>
                 <div className="rounded-lg border max-h-56 overflow-auto p-1.5" style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}>
                   <button onClick={() => selectFolder(ROOT_ID)} className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-sm text-left"
@@ -277,8 +297,9 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
                   </div>
                 )}
                 <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-                  Selecionada: <b style={{ color: 'var(--text)' }}>{activeFolder === '' ? '— nenhuma —' : folderLabel(activeFolder)}</b>
-                  {news.length > 1 && activeFolder !== '' && <button onClick={assignAll} className="ml-2" style={{ color: 'var(--primary)' }}>vincular a todos os novos</button>}
+                  {projectMode ? 'Todos os novos irão para: ' : 'Selecionada: '}
+                  <b style={{ color: 'var(--text)' }}>{activeFolder === '' ? '— nenhuma —' : folderLabel(activeFolder)}</b>
+                  {!projectMode && news.length > 1 && activeFolder !== '' && <button onClick={assignAll} className="ml-2" style={{ color: 'var(--primary)' }}>vincular a todos os novos</button>}
                 </div>
               </div>
             )}
@@ -307,11 +328,14 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
                       ) : isNew ? (
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-[11px] flex-1 min-w-0 truncate" style={{ color: d.action === 'pending' ? 'var(--warning)' : 'var(--text-muted)' }}>
-                            {d.action === 'pending' ? '— defina a pasta —' : d.path}
+                            {d.action === 'pending' ? (projectMode ? '— defina a pasta do projeto —' : '— defina a pasta —') : d.path}
                           </span>
-                          <button onClick={() => assignActive(f.id)} className="ds-btn-secondary inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg shrink-0" title="Vincular à pasta selecionada na árvore">
-                            <Link2 size={11} /> vincular pasta
-                          </button>
+                          {/* PROJETO: pasta única (sem vínculo individual). AVULSO: vincula cada fonte. */}
+                          {!projectMode && (
+                            <button onClick={() => assignActive(f.id)} className="ds-btn-secondary inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg shrink-0" title="Vincular à pasta selecionada na árvore">
+                              <Link2 size={11} /> vincular pasta
+                            </button>
+                          )}
                         </div>
                       ) : d.action === 'skip' ? (
                         <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ignorado (idêntico ao Git)</span>
