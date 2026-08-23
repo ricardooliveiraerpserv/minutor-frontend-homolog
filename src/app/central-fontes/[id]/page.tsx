@@ -11,13 +11,14 @@ import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle, ArrowLeft, CheckCircle2, Crosshair, Database, Download, ExternalLink, FileCode2, FilePlus2,
-  GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
+  Gauge, GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Card, EmptyState, Modal, Skeleton } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { SolicitarFonteModal } from '@/components/central-fontes/solicitar-fonte-modal'
+import { QualityTab } from '@/components/central-fontes/quality-tab'
 
 type Situation = 'ATUALIZADA' | 'DESATUALIZADA' | 'NAO_VALIDADO'
 
@@ -65,6 +66,7 @@ const TABS = [
   { key: 'dados', label: 'Dados & SQL', icon: Database },
   { key: 'deps', label: 'Dependências', icon: Layers },
   { key: 'riscos', label: 'Riscos', icon: ShieldAlert },
+  { key: 'qualidade', label: 'Qualidade', icon: Gauge },
   { key: 'historico', label: 'Histórico', icon: History },
 ] as const
 type TabKey = typeof TABS[number]['key']
@@ -374,6 +376,15 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
             }} />
             <NameList title="Atenção (semântico)" items={asArray(sm.pontos_atencao ?? sm.riscos)} />
           </Section>
+        )}
+
+        {tab === 'qualidade' && (
+          <QualityTab
+            docId={id}
+            canRun={hasPermission('source_docs.quality.run')}
+            canViewGit={hasPermission('source_docs.view_git')}
+            ghBlobUrl={ghUrl}
+          />
         )}
 
         {tab === 'historico' && (
