@@ -220,10 +220,9 @@ const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
 // Git × RPO, Licenciamento e Configuração. Item de menu no grupo "Sistema" (injetado
 // abaixo). Sem link externo/iframe/flag de URL — é uma tela do próprio Minutor.
 
-// Dashboards — app externo (Operações Protheus: compilação/patch/RPO/serviços). Mesmo padrão do
-// Prosight, feature INDEPENDENTE (flag/URL/item próprios). Default OFF até o D3+D5 validarem no Windows.
-const DASHBOARDS_URL = process.env.NEXT_PUBLIC_DASHBOARDS_URL || ''
-const DASHBOARDS_ENABLED = process.env.NEXT_PUBLIC_DASHBOARDS_ENABLED === 'true' && !!DASHBOARDS_URL
+// Operações Protheus (ex-Dashboards) — funcionalidade NATIVA (rota interna
+// /operacoes-protheus), injetada no grupo "Sistema" abaixo. O antigo item EXTERNO
+// (NEXT_PUBLIC_DASHBOARDS_URL/_ENABLED, link em nova aba) foi removido — superado.
 
 // Itens "home" — Meu Dia agrupa as abas (Notificações/Tarefas/Publicações/Config) internamente.
 // Badge "critical" aparece quando há tarefa atrasada (gatilho de ação sempre visível).
@@ -407,8 +406,6 @@ const NAV: NavEntry[] = [
       { label: 'Prosight', href: '/prosight', icon: GitBranch },
       // Operações Protheus (ex-Dashboards) — NATIVO, rota interna. AppServers/RPO/Compilação/Fontes/Auditoria.
       { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
-      // Dashboards — app externo (nova aba); só quando habilitado por env. Reversível. Default OFF.
-      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
@@ -1035,7 +1032,6 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       { label: 'Prosight', href: '/prosight', icon: GitBranch },
       // Operações Protheus (ex-Dashboards) — INTERNO (rota nativa /operacoes-protheus).
       { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
-      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
     ]
     if (extras.length && selectedModule === 'administrativo') {
       const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href.split('?')[0].startsWith('/central-fontes')))
