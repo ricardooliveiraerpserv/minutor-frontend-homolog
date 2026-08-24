@@ -264,40 +264,76 @@ export default function ContratacaoPage() {
                   <span className="text-[13px] font-bold" style={{ color: 'var(--primary)' }}>Parceiro</span>
                   {open.form?.partner_id && <span className="ds-status-success" style={{ fontSize: 10 }}>criado no cadastro</span>}
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]" style={{ color: 'var(--text)' }}>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Nome:</span> {open.title}</div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>CNPJ/CPF:</span> {open.form?.document || '—'}</div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>E-mail:</span> {open.form?.email || '—'}</div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Telefone:</span> {open.form?.contato || '—'}</div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Contrato:</span> {modalidades.find(m => m.value === open.modalidade)?.label ?? '—'}</div>
-                  <div><span style={{ color: 'var(--text-muted)' }}>Precificação:</span> {open.form?.pricing_type === 'variable' ? 'Valores por consultor' : 'Valor único'}</div>
-                  {open.form?.pricing_type !== 'variable' && <div><span style={{ color: 'var(--text-muted)' }}>Valor hora:</span> {open.form?.hourly_rate ? `R$ ${open.form.hourly_rate}` : '—'}</div>}
-                  <div><span style={{ color: 'var(--text-muted)' }}>Ativo:</span> {open.form?.active === false ? 'Não' : 'Sim'}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Nome</div>
+                    <input key={`pnome-${open.id}`} className="ds-input" defaultValue={open.title} placeholder="Nome do parceiro" onBlur={e => { const v = e.target.value.trim(); if (v && v !== open.title) saveCard(open, { title: v }) }} />
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>CNPJ / CPF</div>
+                    <input key={`pdoc-${open.id}`} className="ds-input" defaultValue={open.form?.document ?? ''} placeholder="00.000.000/0000-00" onBlur={e => setForm(open, { document: e.target.value })} />
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>E-mail</div>
+                    <input key={`pmail-${open.id}`} className="ds-input" type="email" defaultValue={open.form?.email ?? ''} placeholder="parceiro@empresa.com" onBlur={e => setForm(open, { email: e.target.value })} />
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Telefone</div>
+                    <input key={`pfone-${open.id}`} className="ds-input" defaultValue={open.form?.contato ?? ''} placeholder="(00) 00000-0000" onBlur={e => setForm(open, { contato: e.target.value })} />
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Contrato</div>
+                    <Pills options={[['cooperado', 'Cooperado'], ['clt', 'CLT'], ['pj', 'PJ']]} value={['cooperado', 'clt', 'pj'].includes(open.modalidade ?? '') ? (open.modalidade ?? '') : ''} onChange={v => saveCard(open, { modalidade: v })} />
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Precificação</div>
+                    <Pills options={[['fixed', 'Valor único'], ['variable', 'Valores por consultor']]} value={open.form?.pricing_type || 'fixed'} onChange={v => setForm(open, { pricing_type: v || 'fixed', ...(v === 'variable' ? { hourly_rate: '' } : {}) })} />
+                  </div>
+                  {open.form?.pricing_type !== 'variable' && (
+                    <div>
+                      <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Valor hora (R$)</div>
+                      <input key={`prate-${open.id}`} className="ds-input" type="number" step="0.01" min={0} defaultValue={open.form?.hourly_rate ?? ''} placeholder="0,00" onBlur={e => setForm(open, { hourly_rate: e.target.value })} />
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2 pb-1">
+                    <button type="button" onClick={() => setForm(open, { active: !(open.form?.active !== false) })}
+                      className={`w-8 h-4 rounded-full transition-colors relative ${open.form?.active !== false ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${open.form?.active !== false ? 'left-4' : 'left-0.5'}`} />
+                    </button>
+                    <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Ativo</label>
+                  </div>
                 </div>
-                <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros.</p>
+                <p className="text-[10px] mt-3" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros com estes dados.</p>
               </div>
             )}
-            <div className={`grid grid-cols-1 gap-3 ${open.form?.kind === 'partner' ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-              {open.form?.kind !== 'partner' && (
-                <div>
-                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</div>
-                  <input className="ds-input" defaultValue={open.cargo ?? ''} placeholder="Ex.: Analista de Sistema" onBlur={e => saveCard(open, { cargo: e.target.value })} />
-                </div>
-              )}
-              <div>
-                <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Modalidade</div>
-                <select className="ds-input" value={open.modalidade ?? ''} onChange={e => saveCard(open, { modalidade: e.target.value })}>
-                  <option value="">— selecione —</option>
-                  {modalidades.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </div>
-              <div>
+            {open.form?.kind === 'partner' ? (
+              <div className="max-w-[220px]">
                 <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Prioridade</div>
                 <select className="ds-input" value={open.priority} onChange={e => saveCard(open, { priority: e.target.value })}>
                   {Object.entries(PRI).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
                 </select>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</div>
+                  <input className="ds-input" defaultValue={open.cargo ?? ''} placeholder="Ex.: Analista de Sistema" onBlur={e => saveCard(open, { cargo: e.target.value })} />
+                </div>
+                <div>
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Modalidade</div>
+                  <select className="ds-input" value={open.modalidade ?? ''} onChange={e => saveCard(open, { modalidade: e.target.value })}>
+                    <option value="">— selecione —</option>
+                    {modalidades.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Prioridade</div>
+                  <select className="ds-input" value={open.priority} onChange={e => saveCard(open, { priority: e.target.value })}>
+                    {Object.entries(PRI).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {open.form?.kind !== 'partner' && (<>
             <div>
