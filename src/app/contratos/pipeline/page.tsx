@@ -4841,7 +4841,10 @@ function KanbanContent() {
     const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
     const sq = filterSearch.trim().toLowerCase()
     const list = projectCards
-      .filter(p => !isCoord || !isSustType(p.service_type))
+      // Mesmo universo da lista/Indicadores: só tipo "Projeto" e em execução (sem
+      // encerrados/cancelados, salvo filtro de status explícito).
+      .filter(p => (p.service_type ?? '').trim().toLowerCase() === 'projeto')
+      .filter(p => filterStatuses.length > 0 || (p.status !== 'finished' && p.status !== 'cancelled'))
       .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
@@ -5368,7 +5371,12 @@ function KanbanContent() {
               return true
             })
           const allProjects = projectCards
-            .filter(p => !isCoord || !isSustType(p.service_type))
+            // "Projetos em Execução" = MESMO universo dos Indicadores: só tipo "Projeto"
+            // (exclui Sustentação/Cloud/Bizify) e sem encerrados/cancelados por padrão.
+            // Assim a contagem da lista bate com os Indicadores. (Investimento já não vem
+            // do backend.) Se o usuário filtrar status explicitamente, respeita a escolha.
+            .filter(p => (p.service_type ?? '').trim().toLowerCase() === 'projeto')
+            .filter(p => filterStatuses.length > 0 || (p.status !== 'finished' && p.status !== 'cancelled'))
             // Chip "Meus projetos / Todos" — coordenador logado em coordinator_ids
             .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
             .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
