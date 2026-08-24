@@ -27,6 +27,16 @@ interface Ctx {
 
 const OperacoesContext = createContext<Ctx | null>(null)
 
+/** Lê ?env= da URL (deep-link de outra tela do shell, ex.: Visão Geral do Prosight). */
+function urlEnvironmentId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return new URLSearchParams(window.location.search).get('env')
+  } catch {
+    return null
+  }
+}
+
 export function OperacoesProvider({ children, forcedEnvironmentId }: { children: ReactNode; forcedEnvironmentId?: string | null }) {
   const ds = getOperacoesDataSource()
   const [environments, setEnvironments] = useState<OperacoesEnvironment[]>([])
@@ -37,7 +47,11 @@ export function OperacoesProvider({ children, forcedEnvironmentId }: { children:
     void ds.getEnvironments(COMPANY_JNG.id).then((list) => {
       if (cancelled) return
       setEnvironments(list)
-      setEnvironmentId((cur) => cur ?? forcedEnvironmentId ?? list[0]?.id ?? null)
+      // Deep-link ?env= (vindo p.ex. da Visão Geral do Prosight) tem prioridade
+      // sobre o default list[0]; nunca sobrescreve uma escolha já feita (cur).
+      const linked = urlEnvironmentId()
+      const linkedValid = linked && list.some((e) => e.id === linked) ? linked : null
+      setEnvironmentId((cur) => cur ?? forcedEnvironmentId ?? linkedValid ?? list[0]?.id ?? null)
     })
     return () => { cancelled = true }
   }, [ds, forcedEnvironmentId])
