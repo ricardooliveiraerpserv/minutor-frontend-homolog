@@ -158,7 +158,7 @@ export default function EquipeAlocacaoPage() {
                   <th className={th} style={{ color: 'var(--text-light)' }}>Cliente</th>
                   <th className={th} style={{ color: 'var(--text-light)' }}>Consultor</th>
                   <th className={th} style={{ color: 'var(--text-light)' }}>Papel</th>
-                  <th className={thR} style={{ color: 'var(--text-light)' }}>Contratadas</th>
+                  <th className={thR} style={{ color: 'var(--text-light)' }}>Alocadas</th>
                   <th className={thR} style={{ color: 'var(--text-light)' }}>Consumidas</th>
                   <th className={thR} style={{ color: 'var(--text-light)' }}>Saldo</th>
                 </tr>

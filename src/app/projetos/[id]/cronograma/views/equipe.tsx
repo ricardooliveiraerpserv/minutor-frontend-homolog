@@ -57,14 +57,14 @@ export function EquipeView({ projectId, teamLoad }: { projectId: number; teamLoa
         <div className="px-3 pt-3 pb-1 flex items-center gap-2">
           <Users size={15} style={{ color: 'var(--primary)' }} />
           <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Alocação por consultor</span>
-          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· contratadas (planejadas no cronograma) · consumidas · saldo</span>
+          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· alocadas (planejadas no cronograma) · consumidas · saldo</span>
         </div>
         <table className="w-full text-sm" style={{ minWidth: 520 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
               <th className={th} style={{ color: 'var(--text-light)' }}>Consultor</th>
               <th className={th} style={{ color: 'var(--text-light)' }}>Papel</th>
-              <th className={thR} style={{ color: 'var(--text-light)' }}>Contratadas</th>
+              <th className={thR} style={{ color: 'var(--text-light)' }}>Alocadas</th>
               <th className={thR} style={{ color: 'var(--text-light)' }}>Consumidas</th>
               <th className={thR} style={{ color: 'var(--text-light)' }}>Saldo</th>
             </tr>
