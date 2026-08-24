@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
+import { ProsightCompanyProvider, ProsightCompanySelect } from './_components/company-context'
 
 const TABS: { href: string; label: string; match: (p: string) => boolean }[] = [
   { href: '/prosight/inventario', label: 'Inventário', match: (p) => p === '/prosight' || p.startsWith('/prosight/inventario') },
@@ -26,26 +27,33 @@ export default function ProsightLayout({ children }: { children: ReactNode }) {
 
   return (
     <AppLayout>
-      <nav className="mb-6 flex flex-wrap gap-x-1 gap-y-0 border-b" style={{ borderColor: 'var(--border)' }}>
-        {TABS.map((t) => {
-          const active = t.match(pathname)
-          return (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition"
-              style={
-                active
-                  ? { borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 600 }
-                  : { borderColor: 'transparent', color: 'var(--text-muted)', fontWeight: 500 }
-              }
-            >
-              {t.label}
-            </Link>
-          )
-        })}
-      </nav>
-      {children}
+      <ProsightCompanyProvider>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <nav className="flex flex-wrap gap-x-1 gap-y-0">
+            {TABS.map((t) => {
+              const active = t.match(pathname)
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className="-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition"
+                  style={
+                    active
+                      ? { borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 600 }
+                      : { borderColor: 'transparent', color: 'var(--text-muted)', fontWeight: 500 }
+                  }
+                >
+                  {t.label}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className="pb-1.5">
+            <ProsightCompanySelect />
+          </div>
+        </div>
+        {children}
+      </ProsightCompanyProvider>
     </AppLayout>
   )
 }

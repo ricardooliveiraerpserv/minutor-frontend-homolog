@@ -19,7 +19,7 @@ import {
   Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { getProsightDataSource, prosightDataMode } from '@/lib/prosight/datasource'
-import { useActiveCompany } from '@/hooks/use-active-company'
+import { useProsightCompany } from './company-context'
 import type {
   InventoryScanOk, InventoryStatus, InventoryResultRow,
 } from '@/lib/prosight/types'
@@ -58,9 +58,9 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '', previ
   // Empresa ATIVA do Minutor (multi-empresa). O seletor global do header troca a
   // empresa (reload total) → esta view relê no mount. previewCompanyId é só p/ o
   // harness dev-only (sem /my-companies). Configuração NÃO escopa por empresa (F6).
-  const { active } = useActiveCompany()
-  const companyId = active?.id ?? previewCompanyId ?? null
-  const companyName = active?.name ?? active?.slug ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? previewCompanyId ?? null
+  const companyName = company?.companyName ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
 
   const load = useCallback(async (isRescan = false) => {
     if (isRescan) setRescanning(true)

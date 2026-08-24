@@ -20,7 +20,7 @@ import {
   Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { getProsightDataSource, prosightDataMode } from '@/lib/prosight/datasource'
-import { useActiveCompany } from '@/hooks/use-active-company'
+import { useProsightCompany } from './company-context'
 import type { LicensingData, CustomRow, LicensingCustomsOk } from '@/lib/prosight/types'
 import {
   fmtDate, fmtYmd, inputToPt, toInputVal, addDays, CHART_PALETTE, CHART_TOOLTIP_STYLE,
@@ -34,9 +34,9 @@ type State = 'loading' | 'error' | 'empty' | 'ok'
 export function LicenciamentoView({ autoLoadCustoms = false, previewCompanyId = null }: { autoLoadCustoms?: boolean; previewCompanyId?: number | null }) {
   const ds = getProsightDataSource()
   // Empresa ATIVA do Minutor (mesma do Inventário); previewCompanyId só p/ o harness dev.
-  const { active } = useActiveCompany()
-  const companyId = active?.id ?? previewCompanyId ?? null
-  const companyName = active?.name ?? active?.slug ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? previewCompanyId ?? null
+  const companyName = company?.companyName ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
   const [dtIni, setDtIni] = useState('')
   const [dtFim, setDtFim] = useState('')
   const [state, setState] = useState<State>('loading')
