@@ -7,8 +7,11 @@ import { SkeletonTable } from '@/components/ui/loading'
 
 interface Titulo {
   emissao: string | null
-  recebimento: string
+  recebimento: string | null
   valor: number
+  em_aberto?: number
+  parcela?: number
+  multa?: number
   empresa: string
   observacao: string
   cnpj: string
@@ -19,6 +22,7 @@ interface Props {
   cnpjs: string[]
   recebMonths: string[]
   valorInicial?: number  // ajuste inicial do ano (receita inicial) somado ao Valor Recebido
+  modo?: 'recebido' | 'aberto'  // 'aberto' = títulos a receber (Recebido=0)
   onClose: () => void
 }
 
@@ -32,7 +36,8 @@ const fmtYm = (ym: string | null) => {
   return m ? `${m}/${y}` : ym
 }
 
-export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }: Props) {
+export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'recebido', onClose }: Props) {
+  const aberto = modo === 'aberto'
   const [titulos, setTitulos] = useState<Titulo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -43,32 +48,36 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
   const y = now.getFullYear()
   const mm = String(now.getMonth() + 1).padStart(2, '0')
   const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
-  const [from, setFrom] = useState(`${y}-${mm}-01`)
-  const [to, setTo] = useState(`${y}-${mm}-${String(lastDay).padStart(2, '0')}`)
+  // A receber (aberto): sem filtro padrão (mostra todos os títulos em aberto).
+  const [from, setFrom] = useState(aberto ? '' : `${y}-${mm}-01`)
+  const [to, setTo] = useState(aberto ? '' : `${y}-${mm}-${String(lastDay).padStart(2, '0')}`)
 
   useEffect(() => {
     let alive = true
     const qs = new URLSearchParams()
     qs.set('cnpjs', cnpjs.filter(Boolean).join(','))
+    if (aberto) qs.set('mode', 'aberto')
     // Busca TODOS os títulos do cliente; o filtro de data é aplicado aqui no modal.
     api.get<{ data: { titulos: Titulo[] } }>(`/relatorios/rentabilidade/keruak-titulos?${qs}`)
       .then(r => { if (alive) setTitulos(r?.data?.titulos ?? []) })
       .catch(() => { if (alive) setTitulos([]) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [cnpjs])
+  }, [cnpjs, aberto])
 
   const filtered = useMemo(() => {
     const fromYm = from.slice(0, 7) // YYYY-MM
     const toYm = to.slice(0, 7)
     return titulos.filter(t => {
-      if (fromYm && t.recebimento < fromYm) return false
-      if (toYm && t.recebimento > toYm) return false
+      const key = aberto ? t.emissao : t.recebimento // aberto filtra por emissão
+      if (!key) return aberto // aberto sem emissão ainda aparece; recebido sem recebimento não
+      if (fromYm && key < fromYm) return false
+      if (toYm && key > toYm) return false
       return true
     })
-  }, [titulos, from, to])
+  }, [titulos, from, to, aberto])
 
-  const total = useMemo(() => filtered.reduce((s, t) => s + (t.valor || 0), 0) + valorInicial, [filtered, valorInicial])
+  const total = useMemo(() => filtered.reduce((s, t) => s + ((aberto ? t.em_aberto : t.valor) || 0), 0) + (aberto ? 0 : valorInicial), [filtered, valorInicial, aberto])
   const hasContent = filtered.length > 0 || valorInicial > 0
 
   const inputStyle: React.CSSProperties = {
@@ -91,7 +100,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
           <div className="flex items-center gap-2.5">
             <Receipt size={16} style={{ color: 'var(--primary)' }} />
             <div>
-              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Títulos do Keruak — Valor Recebido</p>
+              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Títulos do Keruak — {aberto ? 'Em Aberto (a receber)' : 'Valor Recebido'}</p>
               <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>{cliente}</h3>
             </div>
           </div>
@@ -102,7 +111,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
 
         {/* Filtro de data (recebimento) */}
         <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--border)' }}>
-          <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Recebimento</span>
+          <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{aberto ? 'Emissão' : 'Recebimento'}</span>
           <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
             Início
             <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} />
@@ -136,7 +145,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Emissão', 'Recebimento', 'Empresa', 'Observação', 'Valor'].map((h, i) => (
+                  {['Emissão', 'Recebimento', 'Empresa', 'Observação', aberto ? 'Em Aberto' : 'Valor'].map((h, i) => (
                     <th key={h} className="px-3 py-2 text-xs font-semibold uppercase tracking-wider"
                       style={{ color: 'var(--text-light)', textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
                   ))}
@@ -158,7 +167,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.recebimento)}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t.empresa || '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.observacao || '—'}</td>
-                    <td className="px-3 py-2 tabular-nums font-semibold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(t.valor)}</td>
+                    <td className="px-3 py-2 tabular-nums font-semibold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(aberto ? (t.em_aberto ?? 0) : t.valor)}</td>
                   </tr>
                 ))}
               </tbody>
