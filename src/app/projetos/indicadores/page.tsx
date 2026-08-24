@@ -65,7 +65,7 @@ const fmtPct = (v: number | null) => v == null ? '—' : `${Math.round(v)}%`
 const fmtH = (v: number) => `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}h`
 const deliveryPct = (r: Row) => r.deliveries > 0 ? Math.round(r.done / r.deliveries * 100) : 0
 
-type SortKey = 'name' | 'customer' | 'pct_real' | 'spi' | 'cpi' | 'overdue_pct' | 'health'
+type SortKey = 'name' | 'customer' | 'pct_real' | 'spi' | 'overdue_pct' | 'health'
 
 export default function PortfolioIndicadoresPage() {
   const router = useRouter()
@@ -98,7 +98,7 @@ export default function PortfolioIndicadoresPage() {
   const freezeMissing = async () => {
     const okc = await confirm({
       title: 'Congelar linha de base em lote',
-      message: 'Congelar a linha de base de todos os projetos do filtro atual que têm cronograma e ainda não têm base? Isso habilita o EVM (SPI/CPI) para eles. Projetos já congelados não são alterados.',
+      message: 'Congelar a linha de base de todos os projetos do filtro atual que têm cronograma e ainda não têm base? Isso habilita o EVM (SPI/curva-S) para eles. Projetos já congelados não são alterados.',
       confirmLabel: 'Congelar', cancelLabel: 'Cancelar',
     })
     if (!okc) return
@@ -374,7 +374,6 @@ export default function PortfolioIndicadoresPage() {
                 <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-left" style={{ color: 'var(--text-light)' }}>Status</th>
                 <SortH k="pct_real" right>% Real / Plan.</SortH>
                 <SortH k="spi" right>SPI</SortH>
-                <SortH k="cpi" right>CPI</SortH>
                 <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Atividades</th>
                 <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Apontáveis</th>
                 <th className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right" style={{ color: 'var(--text-light)' }}>Apontadas</th>
@@ -385,9 +384,9 @@ export default function PortfolioIndicadoresPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={12} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+                <tr><td colSpan={11} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={12} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
+                <tr><td colSpan={11} className="px-3 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum projeto no filtro.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="ds-row-hover cursor-pointer" style={{ borderBottom: '1px solid var(--border)' }}
                   onClick={() => router.push(`/projetos/indicadores/${r.id}`)}>
@@ -418,7 +417,6 @@ export default function PortfolioIndicadoresPage() {
                       {r.spi != null && (r.spi >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />)}{fmtIdx(r.spi)}
                     </span>
                   </td>
-                  <td className="px-3 py-2.5 text-right font-semibold" style={{ color: idxTone(r.cpi) }}>{fmtIdx(r.cpi)}</td>
                   <td className="px-3 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>
                     {r.done}/{r.deliveries} <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {fmtH(r.hours_actual)}</span>
                   </td>
