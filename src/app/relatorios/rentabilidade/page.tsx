@@ -46,7 +46,7 @@ interface ConsultorRent { user_id: number; consultor: string; valor_hora: number
 interface ClienteRow {
   customer_id: number | null; cliente: string; cnpj: string; cnpjs?: string[]; executivo: string | null
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
-  recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
+  recebido: number; receita_total: number; em_aberto: number; receita_em_aberto?: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
   consultores: ConsultorRent[]
   despesas?: { custo: number; projetos: DespesaProj[] }
   investimento_mo?: number; investimento_desp?: number
@@ -62,8 +62,8 @@ const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
 
 // Cores das colunas (mesmo conceito do BI): cabeçalho forte + célula tonalizada.
-const COL_HEAD = { recebido: '#38761d', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
-const COL_CELL = { recebido: '#d9ead3', custo: '#fff2cc', custo40: '#fce5cd', total: '#f4cccc', resultado: '#cfe2f3' }
+const COL_HEAD = { receita_total: '#1e6e2e', recebido: '#6aa84f', em_aberto: '#b8860b', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
+const COL_CELL = { receita_total: '#d9ead3', recebido: '#eaf4e6', em_aberto: '#fff2cc', custo: '#fff2cc', custo40: '#fce5cd', total: '#f4cccc', resultado: '#cfe2f3' }
 const margemBg = (pct: number | null) => pct == null ? '#e5e7eb' : pct < 0 ? '#e06666' : pct < 5 ? '#f6b26b' : '#93c47d'
 // Cor da legenda da Margem +40% (% mantido): <=49 vermelho, 50-79 amarelo, >=80 verde.
 const pct40Color = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 80 ? '#2e7d32' : p >= 50 ? '#b8860b' : '#cc0000'
@@ -79,11 +79,15 @@ function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita
   const receitaInicial = init?.receita_inicial ?? 0
   const horas = r2(r.horas), receita = r2(r.receita)
   const custo = r2(r.custo + custoInicial)        // Custo Operação += custo inicial
-  const recebido = r2(r.recebido + receitaInicial) // Valor Recebido += receita inicial
-  const margem = r2(receita - custo), margem_real = r2(recebido - custo)
-  const custo40Full = r2(recebido * 0.40)
+  const recebido = r2(r.recebido)                 // Recebido (informativo — Valor Recebido do Keruak)
+  // Receita Total = Parcela + Multa (base da margem) += receita inicial do ano.
+  // Fallback p/ recebido quando a fonte não separa parcela/multa (ex.: JSON BIZIFY).
+  const receita_total = r2((r.receita_total ?? r.recebido) + receitaInicial)
+  const em_aberto = r2(r.receita_em_aberto ?? 0)  // Parcela+Multa dos títulos ainda não pagos
+  const margem = r2(receita - custo), margem_real = r2(receita_total - custo)
+  const custo40Full = r2(receita_total * 0.40)
   let custo40 = custo40Full
-  let resultado = r2(recebido - custo - custo40)
+  let resultado = r2(receita_total - custo - custo40)
   if (resultado < 0) {
     const absorvido = Math.min(-resultado, custo40)
     custo40 = r2(custo40 - absorvido)
@@ -92,11 +96,11 @@ function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita
   const custo_total = r2(custo + custo40)
   const custo40_pct = custo40Full > 0 ? Math.round(custo40 / custo40Full * 1000) / 10 : null
   return {
-    ...r, horas, receita, custo, recebido, margem,
+    ...r, horas, receita, custo, recebido, receita_total, em_aberto, margem,
     margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
-    margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
+    margem_real, margem_real_pct: receita_total > 0 ? Math.round(margem_real / receita_total * 1000) / 10 : null,
     custo40, custo_total, resultado,
-    resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : (resultado < 0 ? -100 : null),
+    resultado_pct: receita_total > 0 ? Math.round(resultado / receita_total * 1000) / 10 : (resultado < 0 ? -100 : null),
     custo40_pct,
     custo_inicial: custoInicial, receita_inicial: receitaInicial,
   }
@@ -471,6 +475,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         })
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
+          e.receita_total = (e.receita_total ?? 0) + (r.receita_total ?? 0)
+          e.receita_em_aberto = (e.receita_em_aberto ?? 0) + (r.receita_em_aberto ?? 0)
           e.investimento_mo = (e.investimento_mo ?? 0) + (r.investimento_mo ?? 0)
           e.investimento_desp = (e.investimento_desp ?? 0) + (r.investimento_desp ?? 0)
           e.no_minutor = e.no_minutor || r.no_minutor
@@ -906,15 +912,17 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const investimentoDesp = base.reduce((s, r) => s + (r.investimento_desp ?? 0), 0)
     const investimento = investimentoMo + investimentoDesp
     const recebido = base.reduce((s, r) => s + r.recebido, 0)
+    const receitaTotal = base.reduce((s, r) => s + (r.receita_total ?? 0), 0)  // base da margem
+    const emAberto = base.reduce((s, r) => s + (r.em_aberto ?? 0), 0)
     const custo40 = base.reduce((s, r) => s + r.custo40, 0)
     const custoTotal = custo + custo40
-    const resultado = recebido - custoTotal
-    // Margem operacional = resultado SEM os 40% (só custo operação).
-    const margemOpPct = recebido > 0 ? (recebido - custo) / recebido * 100 : null
-    // Margem +40% total = +40% mantido (somado) ÷ +40% cheio (40% do recebido total).
-    const custo40Full = recebido * 0.40
+    const resultado = receitaTotal - custoTotal
+    // Margem operacional = resultado SEM os 40% (só custo operação), sobre a Receita Total.
+    const margemOpPct = receitaTotal > 0 ? (receitaTotal - custo) / receitaTotal * 100 : null
+    // Margem +40% total = +40% mantido (somado) ÷ +40% cheio (40% da Receita Total).
+    const custo40Full = receitaTotal * 0.40
     const custo40Pct = custo40Full > 0 ? custo40 / custo40Full * 100 : null
-    return { receita, custo, despesa, investimento, investimentoMo, investimentoDesp, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct, custo40Pct }
+    return { receita, custo, despesa, investimento, investimentoMo, investimentoDesp, recebido, receitaTotal, emAberto, custo40, custoTotal, resultado, pct: receitaTotal > 0 ? resultado / receitaTotal * 100 : null, margemOpPct, custo40Pct }
   }, [clientesSemErp, erpservRow, considerarErpserv])
   // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
   const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
@@ -941,7 +949,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (visao === 'clientes') {
       const data = clientesExport.map(r => ({
         Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
-        'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
+        'Receita Total': r.receita_total, 'Recebido': r.recebido, 'Em Aberto': r.em_aberto, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
         'Custo Total': r.custo_total, 'Lucro/Prejuízo': r.resultado,
         'Margem Operacional %': r.margem_real_pct, 'Margem +40% %': r.custo40_pct, 'Margem Total %': r.resultado_pct,
       }))
@@ -965,7 +973,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (visao === 'clientes') {
       const linhas = clientesExport.map(r => `
         <tr><td>${escapeHtml(r.cliente)}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
+        <td class="r">${formatBRL(r.receita_total)}</td>
         <td class="r">${formatBRL(r.recebido)}</td>
+        <td class="r">${formatBRL(r.em_aberto)}</td>
         <td class="r">${formatBRL(r.custo)}${r.margem_real_pct == null ? '' : `<br><span style="color:${mgOpColor(r.margem_real_pct)}">Mg op. ${r.margem_real_pct}%</span>`}</td>
         <td class="r">${formatBRL(r.custo40)}${r.custo40_pct == null ? '' : `<br><span style="color:${pct40Color(r.custo40_pct)}">(${r.custo40_pct}%)</span>`}</td><td class="r">${formatBRL(r.custo_total)}</td>
         <td class="r">${formatBRL(r.resultado)}</td>
@@ -978,9 +988,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro/Prejuízo</th><th class="r">Margem Total</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th class="r">Receita Total</th><th class="r">Recebido</th><th class="r">Em Aberto</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro/Prejuízo</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
-        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${mgOpColor(clientesTot.margemOpPct)}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.receitaTotal)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.emAberto)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${mgOpColor(clientesTot.margemOpPct)}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
       const w = window.open('', '_blank')
       if (w) { w.document.write(html); w.document.close() }
@@ -1155,8 +1165,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {/* Cards de total */}
         <div className={`grid gap-3 mb-4 ${visao === 'clientes' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
           {(visao === 'clientes' ? [
-            // Valor Recebido (Keruak M+1) e Custo Total (Operação + Despesa + 40% do recebido).
-            { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--primary)' },
+            // Receita: Total=Parcela+Multa (base da margem) · Recebido (informativo) · Em Aberto. E Custo Total.
+            { label: 'Receita', lines: [
+              { k: 'Receita Total', v: formatBRL(clientesTot.receitaTotal), strong: true },
+              { k: 'Recebido', v: formatBRL(clientesTot.recebido) },
+              { k: 'Em Aberto', v: formatBRL(clientesTot.emAberto), aberto: true },
+            ] },
             { label: 'Custo', lines: [
               { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa - clientesTot.investimentoMo) },
               { k: 'Despesa', v: formatBRL(clientesTot.despesa - clientesTot.investimentoDesp) },
@@ -1177,13 +1191,13 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 <div className="mt-1 space-y-0.5">
                   {c.lines.map(l => (
                     <div key={l.k} className="flex items-baseline justify-between gap-2" style={'strong' in l && l.strong ? { borderTop: '1px solid var(--border)', paddingTop: 2, marginTop: 2 } : undefined}>
-                      <span className="text-[10px]" style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text-light)' }}>{l.k}</span>
-                      <span className={`tabular-nums ${'strong' in l && l.strong ? 'text-sm font-bold' : 'text-xs font-semibold'}`} style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text)' }}>{l.v}</span>
+                      <span className="text-[10px]" style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'aberto' in l && l.aberto ? '#b8860b' : 'var(--text-light)' }}>{l.k}</span>
+                      <span className={`tabular-nums ${'strong' in l && l.strong ? 'text-sm font-bold' : 'text-xs font-semibold'}`} style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'aberto' in l && l.aberto ? '#b8860b' : 'var(--text)' }}>{l.v}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-lg font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: (c as { color?: string }).color }}>{(c as { value?: string }).value}</p>
               )}
             </div>
           ))}
@@ -1418,7 +1432,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   <tr>
                     <th onClick={cliThProps('cliente').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'left', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Cliente</th>
                     <th onClick={cliThProps('executivo').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Executivo</th>
-                    <th onClick={cliThProps('recebido').onClick} style={thCol(COL_HEAD.recebido)}>Valor Recebido</th>
+                    <th onClick={cliThProps('receita_total').onClick} style={thCol(COL_HEAD.receita_total)}>Receita Total</th>
+                    <th onClick={cliThProps('recebido').onClick} style={thCol(COL_HEAD.recebido)}>Recebido</th>
+                    <th onClick={cliThProps('em_aberto').onClick} style={thCol(COL_HEAD.em_aberto)}>Em Aberto</th>
                     <th onClick={cliThProps('custo').onClick} style={thCol(COL_HEAD.custo)}>Custo Operação</th>
                     <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
                     <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
@@ -1442,7 +1458,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                         <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>— interno {considerarErpserv ? '(considerado nos totais)' : '(fora dos totais)'}</span>
                       </td>
                       <td style={{ padding: '8px 10px', color: 'var(--text-muted)', borderBottom: bb, textAlign: 'center' }}>{erpservRow.executivo || '—'}</td>
+                      <td style={{ ...tdCol(COL_CELL.receita_total), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.receita_total)}</td>
                       <td style={{ ...tdCol(COL_CELL.recebido), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.recebido)}</td>
+                      <td style={{ ...tdCol(COL_CELL.em_aberto), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.em_aberto)}</td>
                       <td style={{ ...tdCol(COL_CELL.custo), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo)}{erpservRow.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(erpservRow.margem_real_pct) }}>Mg op. {erpservRow.margem_real_pct}%</div>}</td>
                       <td style={{ ...tdCol(COL_CELL.custo40), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo40)}{erpservRow.custo40_pct != null && <div style={{ color: pct40Color(erpservRow.custo40_pct), fontWeight: 700, fontSize: 10 }}>({erpservRow.custo40_pct}%)</div>}</td>
                       <td style={{ ...tdCol(COL_CELL.total), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo_total)}</td>
@@ -1451,7 +1469,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     </tr>
                     {erpOpen && erpTemCons && (
                       <tr>
-                        <td colSpan={8} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                        <td colSpan={10} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                           <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ color: 'var(--text-light)' }}>
@@ -1556,11 +1574,13 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                         {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
                       </td>
                       <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>{r.executivo || '—'}</td>
+                      <td style={tdCol(COL_CELL.receita_total)}>{formatBRL(r.receita_total)}</td>
                       <td
                         style={{ ...tdCol(COL_CELL.recebido), cursor: r.recebido > 0 ? 'pointer' : undefined, textDecoration: r.recebido > 0 ? 'underline dotted' : undefined }}
                         title={r.recebido > 0 ? 'Ver títulos do Keruak' : undefined}
-                        onClick={r.recebido > 0 ? (e) => { e.stopPropagation(); setKeruakModal({ cliente: r.cliente, cnpjs: (r.cnpjs?.length ? r.cnpjs : [r.cnpj]).filter(Boolean), valorInicial: r.receita_inicial ?? 0 }) } : undefined}
+                        onClick={r.recebido > 0 ? (e) => { e.stopPropagation(); setKeruakModal({ cliente: r.cliente, cnpjs: (r.cnpjs?.length ? r.cnpjs : [r.cnpj]).filter(Boolean), valorInicial: 0 }) } : undefined}
                       >{formatBRL(r.recebido)}</td>
+                      <td style={tdCol(COL_CELL.em_aberto)}>{formatBRL(r.em_aberto)}</td>
                       <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}{r.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(r.margem_real_pct) }}>Mg op. {r.margem_real_pct}%</div>}</td>
                       <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: pct40Color(r.custo40_pct), fontSize: 10, fontWeight: 700 }}>({r.custo40_pct}%)</div>}</td>
                       <td style={tdCol(COL_CELL.total)}>{formatBRL(r.custo_total)}</td>
@@ -1569,7 +1589,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     </tr>
                     {open && canExpand && (
                       <tr>
-                        <td colSpan={8} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                        <td colSpan={10} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                           {r.customer_id != null && (
                             <InitialsEditor
                               key={`init-${r.customer_id}`}
@@ -1686,7 +1706,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   <tr>
                     <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)', borderTop: '2px solid var(--border)' }}>Total</td>
                     <td style={{ borderTop: '2px solid var(--border)' }}></td>
+                    <td style={{ ...tdCol(COL_HEAD.receita_total, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.receitaTotal)}</td>
                     <td style={{ ...tdCol(COL_HEAD.recebido, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.recebido)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.em_aberto, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.emAberto)}</td>
                     <td style={{ ...tdCol(COL_HEAD.custo, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo)}{clientesTot.margemOpPct != null && <div style={{ color: mgOpColor(clientesTot.margemOpPct), fontWeight: 700, fontSize: 10 }}>Mg op. {clientesTot.margemOpPct.toFixed(1)}%</div>}</td>
                     <td style={{ ...tdCol(COL_HEAD.custo40, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo40)}{clientesTot.custo40Pct != null && <div style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontSize: 10 }}>({clientesTot.custo40Pct.toFixed(1)}%)</div>}</td>
                     <td style={{ ...tdCol(COL_HEAD.total, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custoTotal)}</td>
