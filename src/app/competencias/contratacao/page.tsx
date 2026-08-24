@@ -302,8 +302,17 @@ export default function ContratacaoPage() {
                     </button>
                     <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Ativo</label>
                   </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Data de primeiro contato</div>
+                    <input key={`ppc-${open.id}`} className="ds-input" type="date" defaultValue={open.form?.data_primeiro_contato ?? ''} onBlur={e => setForm(open, { data_primeiro_contato: e.target.value })} />
+                    <div className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Fixa o lembrete no Meu Dia do administrativo; atrasa se passar.</div>
+                  </div>
+                  <div>
+                    <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Prazo de contratação</div>
+                    <input key={`psd-${open.id}`} className="ds-input" type="date" defaultValue={open.form?.start_date ?? ''} onBlur={e => setForm(open, { start_date: e.target.value })} />
+                  </div>
                 </div>
-                <p className="text-[10px] mt-3" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros com estes dados.</p>
+                <p className="text-[10px] mt-3" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros com estes dados. As datas acima alimentam o alerta ao administrativo.</p>
               </div>
             )}
             {open.form?.kind === 'partner' ? (
