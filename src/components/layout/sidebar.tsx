@@ -62,7 +62,6 @@ import {
   Eye,
   KeyRound,
   FolderGit2,
-  Server,
   Target,
   Percent,
 } from 'lucide-react'
@@ -396,16 +395,11 @@ const NAV: NavEntry[] = [
       // 🔐 Cofre de Senhas (zero-knowledge) — telas internas do módulo:
       // /cofre/configuracao e /cofre/auditoria são alcançadas de dentro do cofre.
       { label: 'Cofre de Senhas', href: '/cofre', icon: KeyRound },
-      { label: 'Central de Fontes', href: '/central-fontes', icon: FolderGit2 },
-      { label: 'Busca Técnica', href: '/central-fontes/busca', icon: Search },
-      { label: 'Análise de Impacto', href: '/central-fontes/impacto', icon: Target },
-      { label: 'Campanha (Docs)', href: '/central-fontes/campanha', icon: Megaphone },
-      { label: 'Aprovações de IA', href: '/central-fontes/aprovacoes', icon: CheckSquare },
-      { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
-      // Prosight — funcionalidade NATIVA (rota interna). Inventário Git × RPO + Licenciamento + Configuração.
-      { label: 'Prosight', href: '/prosight', icon: GitBranch },
-      // Operações Protheus (ex-Dashboards) — NATIVO, rota interna. AppServers/RPO/Compilação/Fontes/Auditoria.
-      { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
+      // Prosight — shell único "Gestão e Governança Técnica Protheus": converge
+      // Central de Fontes + Prosight + Operações Protheus em UM item de menu. As
+      // rotas antigas (/central-fontes/*, /prosight/*, /operacoes-protheus/*)
+      // seguem servindo suas páginas via deep-link; só o MENU foi unificado.
+      { label: 'Prosight', href: '/prosight', icon: FolderGit2 },
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
@@ -1021,20 +1015,16 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    // Prosight/Dashboards — apps externos (nova aba). A árvore do Configurador só modela rotas
-    // INTERNAS, então os itens do NAV estático não são emitidos por buildModuleNav; injeta-se
-    // aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo), quando habilitados
-    // por env. Reversível: flags OFF → nada injetado. Mantém o padrão/URLs do P4/D4.
-    // Prosight é INTERNO (rota nativa /prosight) — a árvore do Configurador não o modela,
-    // então injeta-se aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo).
-    // Dashboards segue externo (nova aba), controlado por env. Reversível.
+    // Prosight — shell único "Gestão e Governança Técnica Protheus" (rota nativa
+    // /prosight). Converge Central de Fontes + Prosight + Operações Protheus em UM
+    // item de menu; os deep-links antigos seguem servindo suas páginas. A árvore do
+    // Configurador não modela essa rota interna, então injeta-se aqui, no grupo
+    // "Sistema" do administrativo. Reversível.
     const extras: NavLink[] = [
-      { label: 'Prosight', href: '/prosight', icon: GitBranch },
-      // Operações Protheus (ex-Dashboards) — INTERNO (rota nativa /operacoes-protheus).
-      { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
+      { label: 'Prosight', href: '/prosight', icon: FolderGit2 },
     ]
     if (extras.length && selectedModule === 'administrativo') {
-      const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href.split('?')[0].startsWith('/central-fontes')))
+      const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && ['/central-fontes', '/prosight', '/operacoes-protheus', '/cofre'].some(p => it.href.split('?')[0].startsWith(p))))
       const notDup = (items: (NavLink | NavSubGroup)[]) => extras.filter(x => !items.some(it => 'href' in it && it.href.split('?')[0] === x.href))
       if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...notDup(sysGroup.items)]
       else built.push({ type: 'group', label: 'Sistema', icon: Settings, items: extras })
