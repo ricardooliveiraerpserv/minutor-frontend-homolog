@@ -517,30 +517,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                       </div>
                     </div>
 
-                    {/* Observação editável PELO coordenador (só interno). */}
-                    {internalLens && (
-                      <>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 mt-4" style={{ color: 'var(--text-light)' }}>Observação do Coordenador</p>
-                        <div className="rounded-xl p-3" style={{ border: '1px solid var(--border)' }}>
-                          <textarea
-                            value={notaCoord}
-                            onChange={e => setNotaCoord(e.target.value)}
-                            placeholder="Escreva aqui sua observação sobre o projeto…"
-                            rows={3}
-                            className="w-full resize-y rounded-lg px-3 py-2 text-sm outline-none"
-                            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)', minHeight: 64 }}
-                          />
-                          <div className="flex items-center justify-end gap-2 mt-2">
-                            {notaSaved && <span className="text-[11px]" style={{ color: 'var(--success)' }}>Salvo ✓</span>}
-                            <button onClick={saveNota} disabled={notaSaving || notaCoord === ((p as any).nota_coordenador ?? '')}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-                              {notaSaving ? 'Salvando…' : 'Salvar'}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Equipe</p>
@@ -571,6 +547,31 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     </div>
                   </div>
                 </div>
+
+                {/* Observação editável PELO coordenador (só interno) — largura total, destaque. */}
+                {internalLens && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>✍️ Observação do Coordenador</p>
+                    <div className="rounded-xl p-3" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                      <textarea
+                        value={notaCoord}
+                        onChange={e => setNotaCoord(e.target.value)}
+                        placeholder="Escreva aqui sua observação sobre o projeto…"
+                        rows={3}
+                        className="w-full resize-y rounded-lg px-3 py-2 text-sm outline-none"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', minHeight: 72 }}
+                      />
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        {notaSaved && <span className="text-[11px]" style={{ color: 'var(--success)' }}>Salvo ✓</span>}
+                        <button onClick={saveNota} disabled={notaSaving || notaCoord === ((p as any).nota_coordenador ?? '')}
+                          className="text-xs font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                          {notaSaving ? 'Salvando…' : 'Salvar observação'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Contatos do cliente */}
                 <CustomerContactsSection customerId={p.customer?.id} customerName={p.customer?.name} />
