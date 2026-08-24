@@ -476,7 +476,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
           e.receita_total = (e.receita_total ?? 0) + (r.receita_total ?? 0)
-          e.receita_em_aberto = (e.receita_em_aberto ?? 0) + (r.receita_em_aberto ?? 0)
+          // Em Aberto é SALDO ATUAL (mesmo valor repetido em cada mês) → MAX, não soma (senão N× overcount).
+          e.receita_em_aberto = Math.max(e.receita_em_aberto ?? 0, r.receita_em_aberto ?? 0)
           e.investimento_mo = (e.investimento_mo ?? 0) + (r.investimento_mo ?? 0)
           e.investimento_desp = (e.investimento_desp ?? 0) + (r.investimento_desp ?? 0)
           e.no_minutor = e.no_minutor || r.no_minutor
