@@ -144,6 +144,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/central-fontes/campanha', 'administrativo'],
   ['/central-fontes/aprovacoes', 'administrativo'],
   ['/central-fontes/configuracoes', 'administrativo'],
+  ['/prosight', 'administrativo'],
   ['/partners', 'administrativo'],
   ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
@@ -214,11 +215,9 @@ const IS_DEV1 = false  // experimentais desligados (localhost tem APP_ENV=dev s�
 // "Ver como" (impersonation): ferramenta SÓ da Replica (APP_ENV=local). Fora dela nem aparece.
 const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
 
-// Prosight — app externo (Inventário Git × RPO). Entrada de navegação controlável por env,
-// reversível: só aparece com PROSIGHT_ENABLED=true e URL configurada. Abre em nova aba
-// (preserva a sessão do Minutor + a autenticação própria do Prosight). Sem hardcode de host.
-const PROSIGHT_URL = process.env.NEXT_PUBLIC_PROSIGHT_URL || ''
-const PROSIGHT_ENABLED = process.env.NEXT_PUBLIC_PROSIGHT_ENABLED === 'true' && !!PROSIGHT_URL
+// Prosight — funcionalidade NATIVA do Minutor (rota interna /prosight): Inventário
+// Git × RPO, Licenciamento e Configuração. Item de menu no grupo "Sistema" (injetado
+// abaixo). Sem link externo/iframe/flag de URL — é uma tela do próprio Minutor.
 
 // Dashboards — app externo (Operações Protheus: compilação/patch/RPO/serviços). Mesmo padrão do
 // Prosight, feature INDEPENDENTE (flag/URL/item próprios). Default OFF até o D3+D5 validarem no Windows.
@@ -403,8 +402,8 @@ const NAV: NavEntry[] = [
       { label: 'Campanha (Docs)', href: '/central-fontes/campanha', icon: Megaphone },
       { label: 'Aprovações de IA', href: '/central-fontes/aprovacoes', icon: CheckSquare },
       { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
-      // Prosight — app externo (nova aba); só quando habilitado por env. Reversível.
-      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
+      // Prosight — funcionalidade NATIVA (rota interna). Inventário Git × RPO + Licenciamento + Configuração.
+      { label: 'Prosight', href: '/prosight', icon: GitBranch },
       // Dashboards — app externo (nova aba); só quando habilitado por env. Reversível. Default OFF.
       ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
@@ -1026,14 +1025,18 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     // INTERNAS, então os itens do NAV estático não são emitidos por buildModuleNav; injeta-se
     // aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo), quando habilitados
     // por env. Reversível: flags OFF → nada injetado. Mantém o padrão/URLs do P4/D4.
-    const externals: NavLink[] = [
-      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
+    // Prosight é INTERNO (rota nativa /prosight) — a árvore do Configurador não o modela,
+    // então injeta-se aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo).
+    // Dashboards segue externo (nova aba), controlado por env. Reversível.
+    const extras: NavLink[] = [
+      { label: 'Prosight', href: '/prosight', icon: GitBranch },
       ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
     ]
-    if (externals.length) {
+    if (extras.length && selectedModule === 'administrativo') {
       const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href.split('?')[0].startsWith('/central-fontes')))
-      if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...externals]
-      else if (selectedModule === 'administrativo') built.push({ type: 'group', label: 'Sistema', icon: Settings, items: externals })
+      const notDup = (items: (NavLink | NavSubGroup)[]) => extras.filter(x => !items.some(it => 'href' in it && it.href.split('?')[0] === x.href))
+      if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...notDup(sysGroup.items)]
+      else built.push({ type: 'group', label: 'Sistema', icon: Settings, items: extras })
     }
     return [...home, ...built]
   }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
