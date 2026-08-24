@@ -258,6 +258,7 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Demandas e Projetos',  href: '/contratos/pipeline',     icon: Layers },
       { label: 'Indicadores de Projetos', href: '/projetos/indicadores', icon: BarChart2 },
+      { label: 'Equipe · Alocação & Apont.', href: '/projetos/equipe', icon: Users },
       { label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp },
     ],
   },
