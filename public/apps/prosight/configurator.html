@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProSight — Configurador</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    body { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 220px; min-height: 100vh; flex-shrink: 0;
+      background: var(--glass); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 24px 0;
+      position: sticky; top: 0;
+    }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo h2 { font-size: 1.2rem; font-weight: 700; color: var(--cyan); }
+    .sidebar-logo p  { font-size: 0.72rem; color: var(--text-3); margin-top: 2px; }
+    .nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .nav a {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: var(--radius-sm); color: var(--text-2); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500; transition: var(--transition);
+    }
+    .nav a:hover, .nav a.active { background: var(--glass-2); color: var(--text); }
+    .nav a.active { color: var(--cyan); }
+    .sidebar-user {
+      padding: 16px 20px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--purple-dim); border: 1px solid var(--purple);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.875rem; color: var(--purple); flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-info strong { display: block; font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-info span   { font-size: 0.7rem; color: var(--text-3); }
+    .btn-logout { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; border-radius: 4px; }
+    .btn-logout:hover { color: var(--red); }
+    .main { flex: 1; padding: 28px; }
+    .config-section { max-width: 560px; margin-bottom: 32px; }
+    .config-section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
+    .field input {
+      width: 100%; background: var(--glass); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 12px; border-radius: var(--radius-sm); font-size: 0.875rem; outline: none;
+      font-family: var(--font-mono);
+    }
+    .field input:focus { border-color: var(--purple); }
+    .field small { display: block; font-size: 0.75rem; color: var(--text-3); margin-top: 4px; }
+    .input-with-btn { display: flex; gap: 8px; }
+    .input-with-btn input { flex: 1; }
+    /* Browser modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .modal-backdrop.hidden { display: none; }
+    .modal { background: var(--bg-2,#1a1a2e); border: 1px solid var(--border); border-radius: var(--radius-md,8px); padding: 24px; width: 520px; max-width: 95vw; max-height: 80vh; display: flex; flex-direction: column; gap: 12px; }
+    .modal h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+    .browser-path { font-size: 0.78rem; color: var(--text-3); font-family: var(--font-mono); word-break: break-all; }
+    .browser-list { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; max-height: 320px; }
+    .browser-item { padding: 8px 14px; font-size: 0.82rem; cursor: pointer; border-bottom: 1px solid var(--border); font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
+    .browser-item:last-child { border-bottom: none; }
+    .browser-item:hover { background: var(--glass-2,rgba(255,255,255,0.05)); }
+    .browser-item.up { color: var(--text-3); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .alert { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 12px; }
+    .alert.success { background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+    .alert.error   { background: var(--red-dim);   border: 1px solid var(--red);   color: var(--red); }
+    .hidden { display: none; }
+    #loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+    #loading-overlay.visible { display: flex; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text { color: var(--text-2); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Salvando...</p>
+</div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>ProSight</h2>
+    <p>Controle de Fontes</p>
+  </div>
+  <nav class="nav">
+    <a href="dashboard.html">Inventario</a>
+    <a href="licenciamento.html">Licenciamento</a>
+    <a href="configurator.html" class="active" id="nav-configurator">Configurador</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar" id="user-avatar">?</div>
+    <div class="user-info">
+      <strong id="user-name">—</strong>
+      <span id="user-role">—</span>
+    </div>
+    <button class="btn-logout" id="btn-logout" title="Sair">&#x2715;</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="bg-gradient"></div>
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:28px">Configurador</h1>
+
+  <!-- Passo 1: Repositório Git dos fontes -->
+  <div class="config-section glass" style="padding:20px; border-radius:var(--radius-md)">
+    <h2>Repositório Git dos Fontes</h2>
+    <div id="config-alert" class="alert hidden"></div>
+    <div class="field">
+      <label for="git-url">URL do repositório Git</label>
+      <input type="text" id="git-url" placeholder="https://github.com/empresa/fontes-protheus.git" spellcheck="false">
+      <small>Repositório com os fontes .PRW, .PRG, .TLPP, .CH, .APH. A varredura é recursiva sobre o checkout.</small>
+    </div>
+    <div class="field">
+      <label for="git-branch">Branch</label>
+      <input type="text" id="git-branch" placeholder="main" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="git-token">Token de acesso (repositório privado)</label>
+      <input type="password" id="git-token" placeholder="Deixe em branco para manter o token atual" autocomplete="new-password">
+      <small id="git-token-hint" class="hidden" style="color:var(--green)">Token já configurado.</small>
+    </div>
+    <div class="field">
+      <label for="rpo-api-url">URL do endpoint AdvPL</label>
+      <input type="text" id="rpo-api-url" placeholder="https://servidor:4050/rest/PROSIGHTREST/prosight/rpo-inventory" spellcheck="false">
+      <small>O inventário consulta o RPO diretamente via REST AdvPL (PROSIGHTREST).</small>
+    </div>
+    <div class="field">
+      <label for="rpo-api-user">Usuário REST AdvPL</label>
+      <input type="text" id="rpo-api-user" placeholder="acesso.temp" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="rpo-api-password">Senha REST AdvPL</label>
+      <input type="password" id="rpo-api-password" placeholder="Deixe em branco para manter a senha atual" autocomplete="new-password">
+      <small id="rpo-api-password-hint" class="hidden" style="color:var(--green)">Senha já configurada.</small>
+    </div>
+    <div class="field">
+      <label for="rpo-exclusion-patterns">Padrões de exclusão do RPO</label>
+      <input type="text" id="rpo-exclusion-patterns" placeholder="GH*,TEMP*,ZTEST" spellcheck="false">
+      <small>Programas a ignorar na comparação. Separados por vírgula, suporta * como curinga. Ex: <code>GH*,TEMP*</code></small>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn-save-config">Salvar</button>
+      <button class="btn btn-secondary" id="btn-check-api" style="opacity:0.7">Testar API</button>
+      <span id="check-api-result" style="font-size:0.8rem"></span>
+    </div>
+  </div>
+</main>
+
+
+<script src="js/app.js?v=4"></script>
+<script src="js/configurator.js?v=4"></script>
+</body>
+</html>

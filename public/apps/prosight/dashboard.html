@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProSight — Inventário</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    body { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ───────────────────────────────────── */
+    .sidebar {
+      width: 220px; min-height: 100vh; flex-shrink: 0;
+      background: var(--glass); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 24px 0;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .sidebar-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo h2 { font-size: 1.2rem; font-weight: 700; color: var(--cyan); }
+    .sidebar-logo p  { font-size: 0.72rem; color: var(--text-3); margin-top: 2px; }
+    .nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+    .nav a {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: var(--radius-sm); color: var(--text-2); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500; transition: var(--transition);
+    }
+    .nav a:hover, .nav a.active { background: var(--glass-2); color: var(--text); }
+    .nav a.active { color: var(--cyan); }
+    .sidebar-user {
+      padding: 16px 20px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--purple-dim); border: 1px solid var(--purple);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.875rem; color: var(--purple); flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-info strong { display: block; font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-info span   { font-size: 0.7rem; color: var(--text-3); }
+    .btn-logout { background: none; border: none; cursor: pointer; color: var(--text-3); padding: 4px; border-radius: 4px; }
+    .btn-logout:hover { color: var(--red); }
+
+    /* ── Main ──────────────────────────────────────── */
+    .main { flex: 1; padding: 28px; overflow-x: hidden; min-width: 0; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .snapshot-info { font-size: 0.8rem; color: var(--text-3); margin-top: 3px; }
+
+    /* ── Analytics panel ───────────────────────────── */
+    #analytics-panel { margin-bottom: 28px; }
+
+    .analytics-row {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 860px) {
+      .analytics-row { grid-template-columns: 1fr; }
+    }
+
+    /* Gauge card */
+    .gauge-card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; text-align: center;
+    }
+    .gauge-card .chart-title {
+      font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 12px; align-self: flex-start;
+    }
+    .gauge-wrap { position: relative; width: 160px; height: 160px; }
+    .gauge-wrap canvas { position: absolute; inset: 0; }
+    .gauge-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; pointer-events: none;
+    }
+    .gauge-pct { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .gauge-lbl { font-size: 0.75rem; font-weight: 600; margin-top: 3px; }
+    .gauge-desc { font-size: 0.75rem; color: var(--text-3); margin-top: 14px; text-align: center; }
+    .gc-critico  { color: var(--red); }
+    .gc-alerta   { color: var(--amber); }
+    .gc-regular  { color: var(--cyan); }
+    .gc-saudavel { color: var(--green); }
+
+    /* Status donut */
+    .status-card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 20px;
+      display: flex; flex-direction: column;
+    }
+    .status-card .chart-title {
+      font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 16px;
+    }
+    .status-chart-body { display: flex; gap: 20px; align-items: center; flex: 1; }
+    .status-chart-wrap { width: 180px; height: 180px; flex-shrink: 0; position: relative; }
+    .status-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+    .status-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .legend-item {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      padding: 5px 8px; border-radius: var(--radius-sm);
+      transition: var(--transition); border: 1px solid transparent;
+    }
+    .legend-item:hover { background: var(--glass-2); }
+    .legend-item.active { background: var(--glass-2); border-color: var(--border-2); }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-name { flex: 1; font-size: 0.82rem; color: var(--text-2); }
+    .legend-num  { font-size: 0.88rem; font-weight: 700; }
+    .legend-pct  { font-size: 0.72rem; color: var(--text-3); margin-left: 4px; }
+
+    /* KPI cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .kpi-card {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 16px 14px;
+      cursor: pointer; transition: var(--transition);
+      position: relative; overflow: hidden;
+    }
+    .kpi-card::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .kpi-card:hover, .kpi-card.active { background: var(--glass-2); border-color: var(--border-2); }
+    .kpi-card:hover::after, .kpi-card.active::after { opacity: 1; }
+    .kpi-card.kc-all::after          { background: var(--purple); }
+    .kpi-card.kc-sincronizado::after  { background: var(--green); }
+    .kpi-card.kc-recompilar::after    { background: var(--amber); }
+    .kpi-card.kc-verificar_rpo::after { background: var(--purple); }
+    .kpi-card.kc-nao_compilado::after { background: var(--cyan); }
+    .kpi-card.kc-so_rpo::after        { background: var(--red); }
+    .kpi-card.kc-rest_api::after      { background: var(--cyan); }
+    .kpi-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); margin-bottom: 8px; }
+    .kpi-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .kpi-sub   { font-size: 0.7rem; color: var(--text-3); margin-top: 4px; }
+    .kv-all          { color: var(--text); }
+    .kv-sincronizado  { color: var(--green); }
+    .kv-recompilar    { color: var(--amber); }
+    .kv-verificar_rpo { color: var(--purple); }
+    .kv-nao_compilado { color: var(--cyan); }
+    .kv-so_rpo        { color: var(--red); }
+    .kv-rest_api      { color: var(--cyan); }
+
+    /* Drill hint */
+    .drill-hint {
+      text-align: center; font-size: 0.78rem; color: var(--text-3);
+      padding: 8px; margin-top: 4px;
+    }
+    .drill-hint span { color: var(--purple); font-weight: 500; }
+
+    /* ── Table section ─────────────────────────────── */
+    #table-section { animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .table-toolbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .table-toolbar-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .section-title { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex: 1; min-width: 0; }
+    .filter-bar input {
+      background: var(--glass); border: 1px solid var(--border); color: var(--text);
+      padding: 7px 12px; border-radius: var(--radius-sm); font-size: 0.875rem;
+      min-width: 160px; outline: none;
+    }
+    .filter-bar input:focus { border-color: var(--purple); }
+    .filter-btn { padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--glass); color: var(--text-2); font-size: 0.78rem; cursor: pointer; transition: var(--transition); white-space: nowrap; }
+    .filter-btn:hover  { background: var(--glass-2); }
+    .filter-btn.active { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+    .table-wrap { overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      padding: 10px 14px; text-align: left; font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3);
+      background: var(--glass); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--glass-hover); }
+    td { padding: 8px 14px; color: var(--text-2); font-family: var(--font-mono); font-size: 0.78rem; white-space: nowrap; }
+    td.program-col { color: var(--text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+
+    .sortable-result-th { cursor: pointer; user-select: none; }
+    .sortable-result-th:hover { color: var(--text-2); }
+    .sort-icon { font-style: normal; margin-left: 3px; color: var(--purple); }
+
+    .source-dl { color: inherit; text-decoration: none; border-bottom: 1px dashed var(--text-3); }
+    .source-dl:hover { color: var(--purple); border-bottom-color: var(--purple); }
+
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 0.68rem; font-weight: 600; }
+    .badge-sincronizado  { background: var(--green-dim);  color: var(--green); }
+    .badge-recompilar    { background: var(--amber-dim);  color: var(--amber); }
+    .badge-verificar_rpo { background: var(--purple-dim); color: var(--purple); }
+    .badge-nao_compilado { background: var(--cyan-dim);   color: var(--cyan); }
+    .badge-so_rpo        { background: var(--red-dim);    color: var(--red); }
+    .badge-api           { background: var(--cyan-dim);   color: var(--cyan); margin-left: 5px; font-size: 0.62rem; }
+    .badge-custom        { background: var(--purple-dim); color: var(--purple); }
+    .badge-standard      { background: var(--glass-2);    color: var(--text-3); }
+
+    .row-count { margin-top: 8px; font-size: 0.75rem; color: var(--text-3); }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-3); }
+    .empty-state h3 { font-size: 1rem; margin-bottom: 8px; color: var(--text-2); }
+
+    /* ── Loading / Toast ───────────────────────────── */
+    #loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+    #loading-overlay.visible { display: flex; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-text { color: var(--text-2); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Carregando...</p>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>ProSight</h2>
+    <p>Controle de Fontes</p>
+  </div>
+  <nav class="nav">
+    <a href="dashboard.html" class="active">Inventario</a>
+    <a href="licenciamento.html">Licenciamento</a>
+    <a href="configurator.html" id="nav-configurator" style="display:none">Configurador</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar" id="user-avatar">?</div>
+    <div class="user-info">
+      <strong id="user-name">—</strong>
+      <span id="user-role">—</span>
+    </div>
+    <button class="btn-logout" id="btn-logout" title="Sair">&#x2715;</button>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="bg-gradient"></div>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1>Inventário de Fontes</h1>
+      <div class="snapshot-info" id="snapshot-info">Nenhum scan realizado</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btn-scan">Atualizar Scan</button>
+    </div>
+  </div>
+
+  <!-- Analytics panel (visível após scan) -->
+  <div id="analytics-panel" style="display:none">
+
+    <!-- Linha de gráficos -->
+    <div class="analytics-row">
+      <!-- Gauge de Saúde -->
+      <div class="gauge-card glass">
+        <div class="chart-title">Índice de Saúde</div>
+        <div class="gauge-wrap">
+          <canvas id="chart-gauge"></canvas>
+          <div class="gauge-center">
+            <div class="gauge-pct" id="gauge-pct">0%</div>
+            <div class="gauge-lbl" id="gauge-lbl">—</div>
+          </div>
+        </div>
+        <div class="gauge-desc" id="gauge-desc"></div>
+      </div>
+
+      <!-- Donut de status clicável -->
+      <div class="status-card glass">
+        <div class="chart-title">Distribuição por Status</div>
+        <div class="status-chart-body">
+          <div class="status-chart-wrap">
+            <canvas id="chart-status"></canvas>
+          </div>
+          <div class="status-legend" id="status-legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI cards clicáveis -->
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <!-- Dica de drill-down -->
+    <div class="drill-hint">
+      Clique em qualquer <span>status</span> ou <span>card</span> para ver a lista detalhada
+    </div>
+  </div>
+
+  <!-- Table section (oculta até drill-down) -->
+  <div id="table-section" style="display:none">
+    <div class="table-toolbar">
+      <div class="table-toolbar-left">
+        <button class="btn btn-ghost" id="btn-back" style="padding:6px 10px; font-size:0.8rem">&#8592; Voltar</button>
+        <span class="section-title" id="section-title">Todos os arquivos</span>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-search" placeholder="Buscar arquivo...">
+        <button class="filter-btn active" data-filter="all">Todos</button>
+        <button class="filter-btn" data-filter="sincronizado">Sincronizado</button>
+        <button class="filter-btn" data-filter="recompilar">Recompilar</button>
+        <button class="filter-btn" data-filter="verificar_rpo">Verificar RPO</button>
+        <button class="filter-btn" data-filter="nao_compilado">Não compilado</button>
+        <button class="filter-btn" data-filter="so_rpo">Só no RPO</button>
+        <button class="filter-btn" data-filter="rest_api">APIs REST</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable-result-th" data-sort="program">Arquivo<span class="sort-icon"> ↕</span></th>
+            <th class="sortable-result-th" data-sort="diskDate">Data no Disco<span class="sort-icon"> ↕</span></th>
+            <th class="sortable-result-th" data-sort="rpoDate">Data no RPO<span class="sort-icon"> ↕</span></th>
+            <th class="sortable-result-th" data-sort="diff">Diferença<span class="sort-icon"> ↕</span></th>
+            <th class="sortable-result-th" data-sort="rpoType">Tipo RPO<span class="sort-icon"> ↕</span></th>
+            <th class="sortable-result-th" data-sort="status">Status<span class="sort-icon"> ↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+    <div class="row-count" id="row-count"></div>
+  </div>
+
+</main>
+
+<script src="js/app.js?v=4"></script>
+<script src="js/dashboard.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Fontes — ERPServ</title>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+
+<div class="bg-gradient"></div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Carregando...</p>
+</div>
+
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="../sites/assets/erpserv-logo.png" alt="ERPServ" onerror="this.style.display='none'">
+      <span class="sidebar-logo-text">ERPServ</span>
+    </div>
+
+    <span class="nav-section-label">Principal</span>
+    <a href="dashboard.html" class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>Dashboard</span>
+    </a>
+    <a href="configurator.html" class="nav-item" id="nav-configurator" style="display:none">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      </svg>
+      <span>Configurador</span>
+    </a>
+    <a href="users.html" class="nav-item" id="nav-users" style="display:none">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      <span>Usuários</span>
+    </a>
+
+    <span class="nav-section-label">Inventário</span>
+    <a href="fontes.html" class="nav-item active" id="nav-fontes">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/>
+      </svg>
+      <span>Fontes</span>
+    </a>
+
+    <span class="nav-section-label">Histórico</span>
+    <a href="changes.html" class="nav-item">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+      <span>Mudanças</span>
+    </a>
+    <a href="audit.html" class="nav-item" id="nav-audit" style="display:none">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span>Auditoria</span>
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="user-name">—</div>
+          <div class="user-role" id="user-role">—</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full btn-sm" id="btn-logout">Sair</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Controle de Fontes</h1>
+        <p class="page-sub" id="fontes-sub">Inventário RPO × Repositório Local</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-refresh">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>
+        </svg>
+        Atualizar
+      </button>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div id="summary-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      <div class="glass kpi-card" id="card-sincronizado">
+        <div class="kpi-label">Sincronizado</div>
+        <div class="kpi-value" id="cnt-sincronizado">—</div>
+        <div class="kpi-sub" style="color:var(--green)">disco e RPO coerentes</div>
+      </div>
+      <div class="glass kpi-card" id="card-disco-mais-novo">
+        <div class="kpi-label">Disco mais novo</div>
+        <div class="kpi-value" id="cnt-disco-mais-novo">—</div>
+        <div class="kpi-sub" style="color:var(--amber)">recompilar</div>
+      </div>
+      <div class="glass kpi-card" id="card-apenas-disco">
+        <div class="kpi-label">Apenas no disco</div>
+        <div class="kpi-value" id="cnt-apenas-disco">—</div>
+        <div class="kpi-sub" style="color:var(--text-3)">nunca compilado</div>
+      </div>
+      <div class="glass kpi-card" id="card-apenas-rpo">
+        <div class="kpi-label">Apenas no RPO</div>
+        <div class="kpi-value" id="cnt-apenas-rpo">—</div>
+        <div class="kpi-sub" style="color:var(--red)">fonte ausente na pasta</div>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="panel" style="padding:16px 20px;margin-bottom:20px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <div class="field" style="margin:0;flex:1;min-width:200px">
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Buscar</label>
+          <input type="text" id="filter-search" class="search-input" placeholder="Nome do fonte...">
+        </div>
+        <div class="field" style="margin:0;flex:0 0 auto">
+          <label style="font-size:11px;color:var(--text-3);display:block;margin-bottom:4px">Status</label>
+          <select id="filter-status" class="search-input" style="width:190px">
+            <option value="">Todos</option>
+            <option value="sincronizado">Sincronizado</option>
+            <option value="disco_mais_novo">Disco mais novo</option>
+            <option value="apenas_disco">Apenas no disco</option>
+            <option value="apenas_rpo">Apenas no RPO</option>
+          </select>
+        </div>
+        <div style="align-self:flex-end;margin-bottom:1px">
+          <span style="font-size:11px;color:var(--text-3)" id="dir-label">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="panel">
+      <table class="data-table" id="fontes-table">
+        <thead>
+          <tr>
+            <th>Fonte</th>
+            <th style="width:190px">Modificado em Disco</th>
+            <th style="width:190px">Compilado no RPO</th>
+            <th style="width:150px">Status</th>
+          </tr>
+        </thead>
+        <tbody id="fontes-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-3)">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- NOTE -->
+    <div style="margin-top:14px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+      <p style="font-size:11px;color:var(--text-3);margin:0">
+        <strong style="color:var(--text-2)">Nota:</strong>
+        O status de RPO é calculado a partir das compilações registradas nesta instância do dashboard.
+        Fontes compilados por outras ferramentas aparecem como <em>apenas_disco</em>.
+      </p>
+    </div>
+  </main>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/fontes.js"></script>
+</body>
+</html>
