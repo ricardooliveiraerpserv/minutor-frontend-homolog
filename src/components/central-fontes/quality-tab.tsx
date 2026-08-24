@@ -26,7 +26,7 @@ interface Analysis {
   requested_at: string | null; started_at: string | null; completed_at: string | null; failed_at: string | null
   error_code: string | null; error_message: string | null; stale: boolean
 }
-interface QualityView { state: QualityState; source_doc_id: number; current_blob_sha: string | null; analysis: Analysis | null }
+interface QualityView { state: QualityState; source_doc_id: number; current_blob_sha: string | null; analysis: Analysis | null; service_enabled?: boolean }
 interface Finding {
   severity: string; category?: string; rule?: string; title?: string; description?: string
   line?: number | null; start_line?: number | null; snippet?: string; count?: number; recommendation?: string
@@ -66,6 +66,7 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
   const [findings, setFindings] = useState<Finding[] | null>(null)
   const [findingsLoading, setFindingsLoading] = useState(false)
   const [hist, setHist] = useState<HistoryItem[] | null>(null)
+  const [unavailable, setUnavailable] = useState(false) // serviço off/indisponível → painel limpo
 
   const [sevFilter, setSevFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
@@ -119,15 +120,17 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
   // Carga inicial (por fonte). Reinicia ao trocar de docId.
   useEffect(() => {
     aliveRef.current = true
-    setLoading(true); setView(null); setFindings(null); setHist(null)
+    setLoading(true); setView(null); setFindings(null); setHist(null); setUnavailable(false)
     ;(async () => {
       try {
         const r = await api.get<{ data: QualityView }>(`/source-docs/${id}/quality`)
         if (!aliveRef.current) return
+        if (r.data.service_enabled === false) { setUnavailable(true); return } // backend sinaliza off (opcional)
         applyView(r.data)
         if (INFLIGHT.includes(r.data.state)) startPolling()
-      } catch (e) {
-        if (aliveRef.current) toast.error(e instanceof ApiError ? e.message : 'Falha ao carregar a qualidade.')
+      } catch {
+        // Não parecer quebrado: indisponibilidade vira estado limpo (sem stacktrace/toast técnico).
+        if (aliveRef.current) setUnavailable(true)
       } finally { if (aliveRef.current) setLoading(false) }
     })()
     void loadHistory()
@@ -143,11 +146,23 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
       if (INFLIGHT.includes(r.data.state)) startPolling()
       void loadHistory()
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Não foi possível iniciar a análise.')
+      // 503 = serviço desabilitado/indisponível → painel limpo (não toast de erro).
+      if (e instanceof ApiError && e.status === 503) setUnavailable(true)
+      else toast.error(e instanceof ApiError ? e.message : 'Não foi possível iniciar a análise.')
     } finally { if (aliveRef.current) setRunning(false) }
   }, [id, running, view, applyView, startPolling, loadHistory])
 
   if (loading) return <div className="space-y-3"><Skeleton className="h-24" /><Skeleton className="h-40" /></div>
+  if (unavailable) return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
+        <Gauge size={18} style={{ color: 'var(--text-light)' }} /> Análise de qualidade indisponível neste ambiente
+      </div>
+      <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+        O serviço de análise não está habilitado ou disponível. A qualidade aparecerá aqui quando o serviço estiver ativo.
+      </p>
+    </div>
+  )
   if (!view) return <EmptyState icon={Gauge} title="Qualidade indisponível" />
 
   const a = view.analysis

@@ -98,7 +98,7 @@ type NavItem = {
   // que precisam ser alcançáveis independentemente do módulo do perfil.
   alwaysVisible?: boolean
 }
-type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean }
+type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean; external?: boolean }
 type NavSubGroup = {
   kind: 'subgroup'
   label: string
@@ -213,6 +213,17 @@ function filterNavByModule(
 const IS_DEV1 = false  // experimentais desligados (localhost tem APP_ENV=dev só p/ faixa)
 // "Ver como" (impersonation): ferramenta SÓ da Replica (APP_ENV=local). Fora dela nem aparece.
 const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
+
+// Prosight — app externo (Inventário Git × RPO). Entrada de navegação controlável por env,
+// reversível: só aparece com PROSIGHT_ENABLED=true e URL configurada. Abre em nova aba
+// (preserva a sessão do Minutor + a autenticação própria do Prosight). Sem hardcode de host.
+const PROSIGHT_URL = process.env.NEXT_PUBLIC_PROSIGHT_URL || ''
+const PROSIGHT_ENABLED = process.env.NEXT_PUBLIC_PROSIGHT_ENABLED === 'true' && !!PROSIGHT_URL
+
+// Dashboards — app externo (Operações Protheus: compilação/patch/RPO/serviços). Mesmo padrão do
+// Prosight, feature INDEPENDENTE (flag/URL/item próprios). Default OFF até o D3+D5 validarem no Windows.
+const DASHBOARDS_URL = process.env.NEXT_PUBLIC_DASHBOARDS_URL || ''
+const DASHBOARDS_ENABLED = process.env.NEXT_PUBLIC_DASHBOARDS_ENABLED === 'true' && !!DASHBOARDS_URL
 
 // Itens "home" — Meu Dia agrupa as abas (Notificações/Tarefas/Publicações/Config) internamente.
 // Badge "critical" aparece quando há tarefa atrasada (gatilho de ação sempre visível).
@@ -392,6 +403,10 @@ const NAV: NavEntry[] = [
       { label: 'Campanha (Docs)', href: '/central-fontes/campanha', icon: Megaphone },
       { label: 'Aprovações de IA', href: '/central-fontes/aprovacoes', icon: CheckSquare },
       { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
+      // Prosight — app externo (nova aba); só quando habilitado por env. Reversível.
+      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
+      // Dashboards — app externo (nova aba); só quando habilitado por env. Reversível. Default OFF.
+      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
@@ -1290,11 +1305,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               <div key={group.label} className="space-y-0.5">
                 {flatLinks(group.items).map(sub => {
                   const SubIcon = sub.icon
-                  const subActive = isActive(sub.href, undefined, sub.exactMatch)
+                  const subActive = sub.external ? false : isActive(sub.href, undefined, sub.exactMatch)
                   const subItem = (
                     <Link
                       key={sub.href}
                       href={sub.href}
+                      {...(sub.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       className={cn(base, itemClass(subActive))}
                     >
                       <SubIcon size={17} className="shrink-0" />
@@ -1371,11 +1387,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     }
                     // Link folha tradicional
                     const SubIcon = sub.icon
-                    const subActive = isActive(sub.href, undefined, sub.exactMatch)
+                    const subActive = sub.external ? false : isActive(sub.href, undefined, sub.exactMatch)
                     return (
                       <Link
                         key={sub.href}
                         href={sub.href}
+                        {...(sub.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                         className={cn(
                           'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium sidebar-item',
                           subActive && 'sidebar-item-active'
