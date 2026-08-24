@@ -87,14 +87,14 @@ type NavItem = {
   icon: LucideIcon
   matchPaths?: string[]
   exactMatch?: boolean
-  badge?: 'tasks' | 'notifications' | 'critical' | 'comunicados'   // indicador de ação na navegação
+  badge?: 'tasks' | 'notifications' | 'critical' | 'comunicados' | 'atrasos'   // indicador de ação na navegação
   module?: ModuleId
   catalogKey?: string   // key do catálogo (Configurador)
   // Visível em qualquer módulo (ignora o filtro de módulo) — p/ itens de sistema
   // que precisam ser alcançáveis independentemente do módulo do perfil.
   alwaysVisible?: boolean
 }
-type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean }
+type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean; badge?: NavItem['badge'] }
 type NavSubGroup = {
   kind: 'subgroup'
   label: string
@@ -222,7 +222,7 @@ const NAV_COORDINATOR: NavEntry[] = [
       { label: 'Apontamentos', href: '/timesheets', icon: Clock },
       { label: 'Despesas',     href: '/expenses',   icon: Receipt },
       { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
-      { label: 'Atrasos (integração)', href: '/timesheets/atrasos', icon: CalendarClock },
+      { label: 'Atrasos (integração)', href: '/timesheets/atrasos', icon: CalendarClock, badge: 'atrasos' },
       { label: 'Auditoria',    href: '/auditoria/apontamentos', icon: FileText },
     ],
   },
@@ -273,7 +273,7 @@ const NAV: NavEntry[] = [
       { label: 'Despesas',                  href: '/expenses',                icon: Receipt },
       { label: 'Relatório de Apontamentos', href: '/relatorios/apontamentos', icon: FileText },
       { label: 'Aprovações',                href: '/approvals',               icon: CheckSquare },
-      { label: 'Atrasos (integração)',      href: '/timesheets/atrasos',      icon: CalendarClock },
+      { label: 'Atrasos (integração)',      href: '/timesheets/atrasos',      icon: CalendarClock, badge: 'atrasos' },
       { label: 'Auditoria',                 href: '/auditoria/apontamentos',  icon: FileText },
     ],
   },
@@ -496,6 +496,12 @@ function effectiveProfiles(u?: { type?: string | null; coordinator_type?: string
   return type ? [type] : []
 }
 
+// Badge de ação atrelado a uma tela (href), independente de o menu vir do Configurador.
+// A contagem/cor é resolvida no render (badgeInfo, a partir de /me/badges).
+const BADGE_BY_HREF: Record<string, NavItem['badge']> = {
+  '/timesheets/atrasos': 'atrasos',
+}
+
 // Converte a árvore de um módulo (nav_modules.items) em NavEntry[] (grupos/subgrupos/itens),
 // já filtrando por ativo + permissão (perfil OU usuário).
 function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, effProfiles: string[], userId: number): NavEntry[] {
@@ -528,12 +534,12 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   // Item folha respeita o nome POR NÓ do Configurador (n.label) antes de cair no
   // rótulo da tela (lbl = nav_screens.label / catálogo / href cru). Sem isso, renomear
   // uma tela no Configurador não surtia efeito no menu (só grupos usavam n.label).
-  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!) })
+  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!), badge: BADGE_BY_HREF[n.screen!.split('?')[0]] })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen) }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen), badge: BADGE_BY_HREF[n.screen.split('?')[0]] }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
@@ -592,7 +598,16 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const isAdministrativo   = user?.type === 'administrativo'
 
   // Badges de ação na navegação (tarefas atrasadas/pendentes + notificações não lidas) — sempre visíveis.
-  const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, critical: false })
+  const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, atrasos: 0, critical: false })
+  // Conta + cor do badge de um item de nav (usado no topo e nos sub-itens de grupo).
+  const badgeInfo = (b?: NavItem['badge']) => ({
+    count: b === 'tasks' ? (badges.overdue_tasks || badges.pending_tasks)
+      : b === 'notifications' ? badges.unread_notifications
+      : b === 'atrasos' ? badges.atrasos
+      : b === 'comunicados' ? badges.unread_communications : 0,
+    color: (b === 'tasks' || b === 'atrasos') ? 'var(--danger-border)'
+      : b === 'comunicados' ? 'var(--primary)' : 'var(--warning-border)',
+  })
   useEffect(() => {
     if (isCliente) return
     const fetchBadges = () => api.get<{ data: typeof badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
@@ -945,11 +960,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             const active = isActive(entry.href, entry.matchPaths, entry.exactMatch)
             const Icon   = entry.icon
             // Badge de ação: vermelho (tarefas atrasadas/pendentes), amarelo (notificações não lidas).
-            const badgeCount = entry.badge === 'tasks' ? (badges.overdue_tasks || badges.pending_tasks)
-              : entry.badge === 'notifications' ? badges.unread_notifications
-              : entry.badge === 'comunicados' ? badges.unread_communications : 0
-            const badgeColor = entry.badge === 'tasks' ? 'var(--danger-border)'
-              : entry.badge === 'comunicados' ? 'var(--primary)' : 'var(--warning-border)'
+            const { count: badgeCount, color: badgeColor } = badgeInfo(entry.badge)
             const isCriticalDay = entry.badge === 'critical' && badges.critical
             const item = (
               <Link
@@ -1081,6 +1092,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     // Link folha tradicional
                     const SubIcon = sub.icon
                     const subActive = isActive(sub.href, undefined, sub.exactMatch)
+                    const subBadge = badgeInfo(sub.badge)
                     return (
                       <Link
                         key={sub.href}
@@ -1092,6 +1104,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                       >
                         <SubIcon size={14} className="shrink-0" />
                         <span>{sub.label}</span>
+                        {subBadge.count > 0 && (
+                          <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none" style={{ background: subBadge.color, color: '#fff', minWidth: 18, textAlign: 'center' }}>{subBadge.count > 99 ? '99+' : subBadge.count}</span>
+                        )}
                       </Link>
                     )
                   })}
