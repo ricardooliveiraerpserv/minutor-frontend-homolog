@@ -80,10 +80,11 @@ function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita
   const horas = r2(r.horas), receita = r2(r.receita)
   const custo = r2(r.custo + custoInicial)        // Custo Operação += custo inicial
   const recebido = r2(r.recebido)                 // Recebido (informativo — Valor Recebido do Keruak)
-  // Receita Total = Parcela + Multa (base da margem) += receita inicial do ano.
+  const em_aberto = r2(r.receita_em_aberto ?? 0)  // Parcela+Multa dos títulos a receber (não pagos)
+  // Receita Total = Parcela+Multa de TODOS os títulos (recebidos + em aberto) += receita inicial.
+  // r.receita_total (do BE) é só dos recebidos; soma o em_aberto p/ a receita FATURADA (base da margem).
   // Fallback p/ recebido quando a fonte não separa parcela/multa (ex.: JSON BIZIFY).
-  const receita_total = r2((r.receita_total ?? r.recebido) + receitaInicial)
-  const em_aberto = r2(r.receita_em_aberto ?? 0)  // Parcela+Multa dos títulos ainda não pagos
+  const receita_total = r2((r.receita_total ?? r.recebido) + em_aberto + receitaInicial)
   const margem = r2(receita - custo), margem_real = r2(receita_total - custo)
   const custo40Full = r2(receita_total * 0.40)
   let custo40 = custo40Full

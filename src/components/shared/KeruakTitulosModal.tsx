@@ -7,6 +7,7 @@ import { SkeletonTable } from '@/components/ui/loading'
 
 interface Titulo {
   emissao: string | null
+  vencimento?: string | null  // "DD-MM-YYYY" (vencimento do título)
   recebimento: string | null
   valor: number
   em_aberto?: number
@@ -35,6 +36,9 @@ const fmtYm = (ym: string | null) => {
   const [y, m] = ym.split('-')
   return m ? `${m}/${y}` : ym
 }
+
+// "DD-MM-YYYY" -> "DD/MM/YYYY" (data de vencimento do Keruak)
+const fmtDate = (d: string | null | undefined) => (d ? d.replace(/-/g, '/') : '—')
 
 export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'recebido', onClose }: Props) {
   const aberto = modo === 'aberto'
@@ -136,7 +140,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'r
           {loading && titulos.length === 0 ? (
             /* Skeleton contextual: mesma tabela de títulos (5 cols:
                Emissão · Recebimento · Empresa · Observação · Valor). */
-            <SkeletonTable rows={6} cols={5} />
+            <SkeletonTable rows={6} cols={6} />
           ) : !hasContent ? (
             <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Nenhum título do Keruak no período para este cliente.
@@ -145,15 +149,16 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'r
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Emissão', 'Recebimento', 'Empresa', 'Observação', aberto ? 'Em Aberto' : 'Valor'].map((h, i) => (
+                  {['Emissão', 'Vencimento', 'Recebimento', 'Empresa', 'Observação', aberto ? 'Em Aberto' : 'Valor'].map((h, i, arr) => (
                     <th key={h} className="px-3 py-2 text-xs font-semibold uppercase tracking-wider"
-                      style={{ color: 'var(--text-light)', textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
+                      style={{ color: 'var(--text-light)', textAlign: i === arr.length - 1 ? 'right' : 'left' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {valorInicial > 0 && (
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>—</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>—</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>—</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>—</td>
@@ -164,6 +169,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'r
                 {filtered.map((t, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.emissao)}</td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtDate(t.vencimento)}</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.recebimento)}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t.empresa || '—'}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.observacao || '—'}</td>
@@ -173,7 +179,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'r
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: '2px solid var(--border)' }}>
-                  <td className="px-3 py-2.5 font-bold" style={{ color: 'var(--text)' }} colSpan={4}>
+                  <td className="px-3 py-2.5 font-bold" style={{ color: 'var(--text)' }} colSpan={5}>
                     Total ({filtered.length} {filtered.length === 1 ? 'título' : 'títulos'}{valorInicial > 0 ? ' + valor inicial' : ''})
                   </td>
                   <td className="px-3 py-2.5 tabular-nums font-bold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(total)}</td>
