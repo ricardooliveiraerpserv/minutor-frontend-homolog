@@ -26,11 +26,19 @@ type WeeklyRow = {
 }
 
 const fmtH = (v: number) => `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}h`
+// Número da semana ISO-8601 (semana começa na segunda; semana 1 = a que contém a 1ª quinta).
+const isoWeek = (d: Date) => {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = t.getUTCDay() || 7
+  t.setUTCDate(t.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
+  return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}
 const weekLabel = (iso: string) => {
   const d = new Date(iso + 'T00:00:00')
   const end = new Date(d); end.setDate(end.getDate() + 6)
   const dd = (x: Date) => `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`
-  return `${dd(d)} – ${dd(end)}`
+  return `Sem. ${isoWeek(d)} · ${dd(d)} – ${dd(end)}`
 }
 
 export default function EquipeAlocacaoPage() {
