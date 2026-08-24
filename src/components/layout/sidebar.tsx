@@ -1022,6 +1022,19 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
+    // Prosight/Dashboards — apps externos (nova aba). A árvore do Configurador só modela rotas
+    // INTERNAS, então os itens do NAV estático não são emitidos por buildModuleNav; injeta-se
+    // aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo), quando habilitados
+    // por env. Reversível: flags OFF → nada injetado. Mantém o padrão/URLs do P4/D4.
+    const externals: NavLink[] = [
+      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
+      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
+    ]
+    if (externals.length) {
+      const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href.split('?')[0].startsWith('/central-fontes')))
+      if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...externals]
+      else if (selectedModule === 'administrativo') built.push({ type: 'group', label: 'Sistema', icon: Settings, items: externals })
+    }
     return [...home, ...built]
   }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
