@@ -47,7 +47,8 @@ const statusColor = (s: string) => STATUS_META[s]?.color ?? '#94a3b8'
 
 // Chips (ordem prod). Cada chip agrupa 1+ status granulares.
 const CHIPS: { key: string; label: string; match: (s: string) => boolean; color: string }[] = [
-  { key: 'all',                  label: 'Todos',           match: () => true,                                   color: 'var(--primary)' },
+  // "Todos" = em execução: NÃO conta encerrados/cancelados (eles têm chips próprios).
+  { key: 'all',                  label: 'Todos',           match: s => s !== 'finished' && s !== 'cancelled',    color: 'var(--primary)' },
   { key: 'backlog',              label: 'Backlog',         match: s => s === 'backlog' || s === 'awaiting_start', color: '#94a3b8' },
   { key: 'planning',             label: 'Em Planejamento', match: s => s === 'planning',                        color: '#a78bfa' },
   { key: 'started',              label: 'Em Andamento',    match: s => s === 'started',                         color: '#60a5fa' },
@@ -85,7 +86,7 @@ export default function PortfolioIndicadoresPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get<{ projects: Row[] }>(`/projects-portfolio?status=`) // todos (tipo Projeto)
+      const r = await api.get<{ projects: Row[] }>(`/projects-portfolio?status=all`) // TODOS os status (tipo Projeto) — inclui encerrado/cancelado p/ os chips
       setRows(r?.projects ?? [])
     } catch (e) { toast.error(apiMessage(e, 'Erro ao carregar indicadores')) }
     finally { setLoading(false) }
