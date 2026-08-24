@@ -139,6 +139,9 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/relatorios/contratos-sem-vencimento', 'administrativo'],
   ['/clientes', 'administrativo'],
   ['/central-fontes', 'administrativo'],
+  // Prosight / Dashboards — apps externos embutidos em rota INTERNA (iframe), grupo Sistema.
+  ['/prosight', 'administrativo'],
+  ['/dashboards-protheus', 'administrativo'],
   ['/central-fontes/busca', 'administrativo'],
   ['/central-fontes/impacto', 'administrativo'],
   ['/central-fontes/campanha', 'administrativo'],
@@ -403,10 +406,10 @@ const NAV: NavEntry[] = [
       { label: 'Campanha (Docs)', href: '/central-fontes/campanha', icon: Megaphone },
       { label: 'Aprovações de IA', href: '/central-fontes/aprovacoes', icon: CheckSquare },
       { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
-      // Prosight — app externo (nova aba); só quando habilitado por env. Reversível.
-      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
-      // Dashboards — app externo (nova aba); só quando habilitado por env. Reversível. Default OFF.
-      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
+      // Prosight — app externo embutido em rota INTERNA (iframe, mesma página); só com flag+URL. Reversível.
+      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: '/prosight', icon: GitBranch } as NavLink] : []),
+      // Dashboards — app externo embutido em rota INTERNA (iframe, mesma página); só com flag+URL. Reversível.
+      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: '/dashboards-protheus', icon: Server } as NavLink] : []),
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
       {
         kind: 'subgroup', label: 'Configurações', icon: Settings,
@@ -1022,13 +1025,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    // Prosight/Dashboards — apps externos (nova aba). A árvore do Configurador só modela rotas
-    // INTERNAS, então os itens do NAV estático não são emitidos por buildModuleNav; injeta-se
+    // Prosight/Dashboards — apps externos embutidos em rota INTERNA (iframe, mesma página).
+    // A árvore do Configurador só modela rotas internas conhecidas e não emite estas; injeta-se
     // aqui, ao lado da Central de Fontes (grupo "Sistema" do administrativo), quando habilitados
     // por env. Reversível: flags OFF → nada injetado. Mantém o padrão/URLs do P4/D4.
     const externals: NavLink[] = [
-      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: PROSIGHT_URL, icon: GitBranch, external: true } as NavLink] : []),
-      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
+      ...(PROSIGHT_ENABLED ? [{ label: 'Prosight', href: '/prosight', icon: GitBranch } as NavLink] : []),
+      ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: '/dashboards-protheus', icon: Server } as NavLink] : []),
     ]
     if (externals.length) {
       const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href.split('?')[0].startsWith('/central-fontes')))
