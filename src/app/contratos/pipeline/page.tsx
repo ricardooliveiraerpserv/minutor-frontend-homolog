@@ -297,15 +297,25 @@ function ContractKanbanCard({
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const menuPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      if (menuBtnRef.current?.contains(e.target as Node) || menuPanelRef.current?.contains(e.target as Node)) return
+      setMenuOpen(false)
     }
+    const close = () => setMenuOpen(false)
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
   }, [menuOpen])
 
   return (
@@ -357,17 +367,23 @@ function ContractKanbanCard({
                 {card.project_id ? 'Projeto' : isIncomplete ? 'Incompleto' : 'Completo'}
               </span>
               {onAction && (
-                <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
+                <div className="relative" onClick={e => e.stopPropagation()}>
                   <button
-                    onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                    ref={menuBtnRef}
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (!menuOpen && menuBtnRef.current) setMenuPos(anchoredDropdownPos(menuBtnRef.current.getBoundingClientRect(), 176))
+                      setMenuOpen(v => !v)
+                    }}
                     className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
                     style={{ color: 'var(--text-light)' }}
                   >
                     <MoreVertical size={12} />
                   </button>
-                  {menuOpen && (
-                    <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  {menuOpen && menuPos && createPortal(
+                    <div ref={menuPanelRef} className="fixed z-[9999] w-44 rounded-xl shadow-2xl"
+                      style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={e => e.stopPropagation()}>
                       {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
                         const Icon = item.icon
                         return (
@@ -380,7 +396,8 @@ function ContractKanbanCard({
                           </button>
                         )
                       })}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
               )}
@@ -533,29 +550,65 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
   )
 }
 
+// ─── Dropdown ancorado à prova de viewport (flip + scroll) ─────────────────────
+// Antes: menus de linha/card abriam SEMPRE pra baixo, com altura livre e sem scroll.
+// Perto do rodapé (banner "Vendo como…") ou dentro das colunas do Kanban (overflow),
+// as últimas opções ficavam cortadas e inacessíveis. Agora posicionamos via portal
+// (position: fixed, escapa de qualquer overflow): abre pra baixo; se não couber e
+// sobrar mais espaço acima, vira pra cima; e limita a altura habilitando scroll
+// interno quando ainda assim faltar espaço. Alinhado à direita do botão (right-0).
+type MenuPos = { left: number; top?: number; bottom?: number; maxHeight: number }
+function anchoredDropdownPos(anchor: DOMRect, width: number): MenuPos {
+  const MARGIN = 8, GAP = 4, BOTTOM_RESERVED = 72
+  const vw = window.innerWidth, vh = window.innerHeight
+  const left = Math.max(MARGIN, Math.min(anchor.right - width, vw - width - MARGIN))
+  const spaceBelow = vh - anchor.bottom - GAP - BOTTOM_RESERVED
+  const spaceAbove = anchor.top - GAP - MARGIN
+  if (spaceBelow < 220 && spaceAbove > spaceBelow)
+    return { left, bottom: Math.round(vh - anchor.top + GAP), maxHeight: Math.max(180, Math.floor(spaceAbove)) }
+  return { left, top: Math.round(anchor.bottom + GAP), maxHeight: Math.max(180, Math.floor(spaceBelow)) }
+}
+
 // ─── List view action menu ────────────────────────────────────────────────────
 
-function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
+function ListActionMenu({ onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<MenuPos | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => {
+      if (btnRef.current?.contains(e.target as Node) || menuRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    const close = () => setOpen(false)
     document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', h)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
   }, [open])
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) setPos(anchoredDropdownPos(btnRef.current.getBoundingClientRect(), 176))
+    setOpen(v => !v)
+  }
   return (
-    <div ref={ref} className="relative inline-block">
-      <button onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
+    <div className="relative inline-block">
+      <button ref={btnRef} onClick={toggle}
         className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
         style={{ color: 'var(--text-light)' }}>
         <MoreVertical size={14} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-7 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {open && pos && createPortal(
+        <div ref={menuRef} className="fixed z-[9999] w-44 rounded-xl shadow-2xl"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
             const Icon = item.icon
             return (
@@ -568,7 +621,8 @@ function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAc
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -578,7 +632,7 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const [pos, setPos] = useState<MenuPos | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -600,11 +654,8 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
   const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      // Menu w-48 (192px): abre abaixo do botão, alinhado à esquerda, sem estourar a viewport.
-      setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 192 - 8) })
-    }
+    // Menu w-48 (192px): posiciona à prova de viewport (flip pra cima + scroll interno).
+    if (!open && btnRef.current) setPos(anchoredDropdownPos(btnRef.current.getBoundingClientRect(), 192))
     setOpen(v => !v)
   }
   return (
@@ -615,8 +666,8 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
         <MoreVertical size={14} />
       </button>
       {open && pos && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-xl overflow-hidden shadow-2xl"
-          style={{ top: pos.top, left: pos.left, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-xl shadow-2xl"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {items.map(item => {
             const Icon = item.icon
             const isDanger = (item as any).danger
@@ -678,18 +729,35 @@ function ProjectKanbanCard({
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick?: () => void; onAction: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
   const [openMenu, setOpenMenu] = useState<null | 'primary' | 'secondary'>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
+  const menuAnchorRef = useRef<HTMLDivElement>(null)
+  const menuPanelRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
 
   useEffect(() => {
     if (!openMenu) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenu(null)
+      if (menuAnchorRef.current?.contains(e.target as Node) || menuPanelRef.current?.contains(e.target as Node)) return
+      setOpenMenu(null)
     }
+    const close = () => setOpenMenu(null)
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
   }, [openMenu])
+
+  // Posiciona o menu (w-60=240px) à prova de viewport, ancorado ao canto sup. direito
+  // do card — vale tanto pro primário (clique no card) quanto pro ⋮ (secundário).
+  const openProjMenu = (kind: 'primary' | 'secondary') => {
+    if (menuAnchorRef.current) setMenuPos(anchoredDropdownPos(menuAnchorRef.current.getBoundingClientRect(), 240))
+    setOpenMenu(kind)
+  }
 
   const filterMenu = (items: any[]) => items.filter(item =>
     (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)
@@ -711,7 +779,7 @@ function ProjectKanbanCard({
           ref={prov.innerRef}
           {...prov.draggableProps}
           {...prov.dragHandleProps}
-          onClick={() => setOpenMenu('primary')}
+          onClick={() => openProjMenu('primary')}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
             background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'var(--primary-soft)' : 'var(--surface)',
@@ -743,18 +811,19 @@ function ProjectKanbanCard({
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
               {/* Menu: clique no card = primário; ⋮ = demais opções */}
-              <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
+              <div ref={menuAnchorRef} className="relative" onClick={e => e.stopPropagation()}>
                 {secondaryItems.length > 0 && (
                   <button
-                    onClick={e => { e.stopPropagation(); setOpenMenu(v => v === 'secondary' ? null : 'secondary') }}
+                    onClick={e => { e.stopPropagation(); if (openMenu === 'secondary') setOpenMenu(null); else openProjMenu('secondary') }}
                     className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
                     style={{ color: 'var(--text-light)' }}
                     title="Mais opções"
                   ><MoreVertical size={12} /></button>
                 )}
-                {openMenu && (
-                  <div className="absolute right-0 top-6 z-[100] w-60 rounded-xl overflow-hidden shadow-2xl"
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                {openMenu && menuPos && createPortal(
+                  <div ref={menuPanelRef} className="fixed z-[9999] w-60 rounded-xl shadow-2xl"
+                    style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+                    onClick={e => e.stopPropagation()}>
                     {(openMenu === 'primary' ? primaryItems : secondaryItems).map(item => {
                       const Icon = item.icon
                       // Cliente: "Comentários" só o nome — sem destaque vermelho nem legenda "O cliente participa".
@@ -779,7 +848,8 @@ function ProjectKanbanCard({
                         </button>
                       )
                     })}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             </div>
