@@ -23,6 +23,7 @@ import { ActivityGroups, DespesasView } from '../gestao-operacional/page'
 import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
 import { IndicadoresView } from './views/indicadores'
+import { EquipeView } from './views/equipe'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { CronogramaEvmPanel } from '@/components/projects/cronograma-evm-panel'
@@ -34,8 +35,8 @@ import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos
 import { ClientSchedule } from '@/components/projects/client-schedule'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
-type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'conversa' | 'diary' | 'documentos'
-const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'conversa', 'diary', 'documentos']
+type ViewMode = 'operacao' | 'planejamento' | 'timeline' | 'indicadores' | 'equipe' | 'conversa' | 'diary' | 'documentos'
+const ALLOWED_VIEWS: ViewMode[] = ['operacao', 'planejamento', 'timeline', 'indicadores', 'equipe', 'conversa', 'diary', 'documentos']
 /** Compat permanente: bookmarks/links antigos continuam funcionando. */
 const LEGACY_MAP: Record<string, ViewMode> = {
   board: 'operacao',
@@ -562,6 +563,7 @@ function InternalCronogramaPage() {
           planejamento: counts.conflictsCount,
           timeline: counts.overdueCount,
           indicadores: 0,
+          equipe: teamLoad.length,
           conversa: 0,
           diary: 0,
         }} />
@@ -821,6 +823,7 @@ function InternalCronogramaPage() {
             <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
           </div>
         )}
+        {view === 'equipe' && <EquipeView projectId={projectId} teamLoad={teamLoad} />}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
         {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
         {view === 'documentos' && <ProjectDocsPanel projectId={projectId} />}
@@ -895,6 +898,7 @@ function SegmentedControl({
     { value: 'timeline',     label: 'Linha do Tempo', hintBase: 'Atalho: 2', countSuffix: n => `${n} atrasada${n === 1 ? '' : 's'}`, countTone: 'danger' },
     { value: 'operacao',     label: 'Operação',       hintBase: 'Atalho: 3', countSuffix: n => `${n} em execução`,                  countTone: 'primary' },
     { value: 'indicadores',  label: 'Indicadores',    hintBase: 'Atalho: 4', countSuffix: n => `${n}`,                              countTone: 'primary' },
+    { value: 'equipe',       label: 'Equipe',         hintBase: 'Alocação e apontamento por consultor', countSuffix: n => `${n}`,   countTone: 'primary' },
     { value: 'conversa',     label: 'Comentários',    hintBase: 'Comentários com o cliente', countSuffix: n => `${n}`,               countTone: 'danger' },
     { value: 'diary',        label: 'Diário do Projeto', hintBase: 'Diário interno — o cliente NÃO participa', countSuffix: n => `${n}`, countTone: 'primary' },
     { value: 'documentos',   label: 'Documentos',        hintBase: 'Documentos do projeto (coord/admin e relacionados)', countSuffix: n => `${n}`, countTone: 'primary' },
