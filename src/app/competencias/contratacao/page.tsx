@@ -183,10 +183,14 @@ export default function ContratacaoPage() {
     } catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao mover')) }
   }
   async function complete(card: Card) {
-    if (!(await confirm({ title: 'Concluir contratação', message: `A contratação de ${card.title} será concluída e o usuário será criado no Minutor (ele receberá as credenciais por e-mail). Deseja continuar?`, confirmLabel: 'Concluir e criar usuário' }))) return
+    const isPartner = card.form?.kind === 'partner'
+    const message = isPartner
+      ? `A contratação de ${card.title} será concluída e o parceiro será criado no cadastro de parceiros. Deseja continuar?`
+      : `A contratação de ${card.title} será concluída e o usuário será criado no Minutor (ele receberá as credenciais por e-mail). Deseja continuar?`
+    if (!(await confirm({ title: 'Concluir contratação', message, confirmLabel: isPartner ? 'Concluir e criar parceiro' : 'Concluir e criar usuário' }))) return
     try {
       const r = await api.post<Card>(`/competencias/contratacao/${card.id}/complete`, {})
-      toast.success(r.created_user ? `Usuário criado: ${r.created_user.email}` : 'Concluído')
+      toast.success(isPartner ? 'Parceiro criado no cadastro' : r.created_user ? `Usuário criado: ${r.created_user.email}` : 'Concluído')
       setOpen(null); load()
     } catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao concluir')) }
   }
@@ -273,11 +277,13 @@ export default function ContratacaoPage() {
                 <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Ao concluir, o parceiro é criado no cadastro de parceiros.</p>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</div>
-                <input className="ds-input" defaultValue={open.cargo ?? ''} placeholder="Ex.: Analista de Sistema" onBlur={e => saveCard(open, { cargo: e.target.value })} />
-              </div>
+            <div className={`grid grid-cols-1 gap-3 ${open.form?.kind === 'partner' ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+              {open.form?.kind !== 'partner' && (
+                <div>
+                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cargo</div>
+                  <input className="ds-input" defaultValue={open.cargo ?? ''} placeholder="Ex.: Analista de Sistema" onBlur={e => saveCard(open, { cargo: e.target.value })} />
+                </div>
+              )}
               <div>
                 <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Modalidade</div>
                 <select className="ds-input" value={open.modalidade ?? ''} onChange={e => saveCard(open, { modalidade: e.target.value })}>
@@ -293,6 +299,7 @@ export default function ContratacaoPage() {
               </div>
             </div>
 
+            {open.form?.kind !== 'partner' && (<>
             <div>
               <div className="text-sm mb-2" style={{ fontWeight: 600, color: 'var(--text)' }}>Checklist ({open.checklist_done}/{open.checklist_total})</div>
               <div className="space-y-1.5">
@@ -473,6 +480,7 @@ export default function ContratacaoPage() {
                 <textarea key={`obs-${open.id}`} className="ds-input" rows={3} defaultValue={open.form.observacao} onBlur={e => setForm(open, { observacao: e.target.value })} />
               </div>
             </div>
+            </>)}
 
             {open.created_user && (
               <div className="ds-card ds-card-pad ds-card-highlight-success" style={{ fontSize: 13 }}>
