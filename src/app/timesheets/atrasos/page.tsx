@@ -134,7 +134,7 @@ export default function AtrasosIntegracaoPage() {
                   <Td>{r.ticket ?? '—'}</Td>
                   <Td className="text-right tabular-nums">{fmtH(r.horas)}</Td>
                   <Td className="text-right">
-                    <div className="inline-flex gap-1.5 justify-end">
+                    <div className="inline-flex gap-1.5 justify-end" onMouseEnter={() => hover.clear()}>
                       <Button size="sm" variant="secondary" icon={CalendarClock} disabled={busyId === r.id} onClick={() => setDateModal({ row: r, date: '' })}>Mudar data</Button>
                       <Button size="sm" variant="primary" icon={Check} loading={busyId === r.id} onClick={() => aprovar(r.id, 'keep')}>Entrar no período</Button>
                     </div>
