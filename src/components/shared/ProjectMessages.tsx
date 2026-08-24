@@ -305,7 +305,8 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+    // Enter = quebra de linha; envio só por ⌘/Ctrl+Enter (ou botão).
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend() }
   }
 
   // Editar: só a ÚLTIMA interação do próprio usuário e dentro da janela de 3h.
@@ -539,7 +540,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
           </button>
         </div>
         <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-          Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos por mensagem ({MAX_FILE_MB} MB cada)
+          Enter para nova linha · ⌘/Ctrl+Enter para enviar · Máx. 10 arquivos por mensagem ({MAX_FILE_MB} MB cada)
         </p>
       </div>
       )}

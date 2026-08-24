@@ -168,7 +168,8 @@ export function ProjectConversation({ projectId }: { projectId: number; mode?: '
               onChange={e => handleInputChange(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Escape') { setShowMentions(false); return }
-                if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend() }
+                // Enter = quebra de linha; envio só por ⌘/Ctrl+Enter (ou botão).
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !showMentions) { e.preventDefault(); handleSend() }
               }}
               placeholder="Escreva um comentário... Use @ para mencionar"
               rows={2}

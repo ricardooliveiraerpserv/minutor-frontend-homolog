@@ -346,7 +346,8 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
           <textarea ref={textareaRef} value={input} onChange={handleInput}
             onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+              // Enter = quebra de linha; envio só por ⌘/Ctrl+Enter (ou botão).
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend() }
             }}
             placeholder={isCliente ? 'Escreva uma mensagem...' : 'Escreva uma mensagem... Use @ para mencionar'}
             rows={2}
@@ -362,7 +363,7 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
           </button>
         </div>
         <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-          Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos (20 MB cada)
+          Enter para nova linha · ⌘/Ctrl+Enter para enviar · Máx. 10 arquivos (20 MB cada)
         </p>
       </div>
       )}
