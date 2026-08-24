@@ -1,22 +1,18 @@
 'use client'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Operações Protheus · Visão Geral (OPERACIONAL) — tela consolidada legada do F4.
-// PRESERVADA no C2 para zero quebra: reúne, numa página só, tudo que também passa
-// a existir decomposto em Ambientes/AppServers/Compilação/Patches/RPO. Agora
-// consome os MESMOS blocos compartilhados (sections.tsx) + o MESMO runner de
-// operações (operations.tsx) — nada duplicado. 100% via datasource (fixture no F4).
-// A "Visão Geral EXECUTIVA" (consolidando métricas destes componentes) é a C3.
+// Operações Protheus · AppServers (C2) — decomposição da antiga Visão Geral.
+// Concentra a operação de INFRAESTRUTURA do ambiente: saúde → tabela de
+// AppServers (start/stop/restart, start-all/stop-all) → Utilidades (Modo
+// Exclusivo, Debug, Limpeza System/TSK) → Info do ambiente (INI) →
+// Monitoramento (pasta System, donut) → Console. Compilação/Patches/RPO agora
+// vivem em páginas próprias. REUSA os blocos de sections.tsx e o runner
+// simulado (operations.tsx). 100% fixtures; ações NUNCA executam de verdade.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Activity, AlertTriangle, Bug, Hammer, Lock, Package, RefreshCw, RotateCcw,
-  ServerCog, ShieldAlert, Trash2, Upload, XCircle,
-} from 'lucide-react'
-import {
-  Button, Card, EmptyState, PageHeader, Skeleton, SkeletonTable,
-} from '@/components/ds'
+import { useCallback, useEffect, useState } from 'react'
+import { Bug, Lock, RefreshCw, Server, ServerCog, ShieldAlert, Trash2, Wrench, XCircle } from 'lucide-react'
+import { Button, Card, EmptyState, PageHeader, Skeleton, SkeletonTable } from '@/components/ds'
 import { useAuth } from '@/hooks/use-auth'
 import { getOperacoesDataSource, operacoesDataMode } from '@/lib/operacoes/datasource'
 import { canOperacoes } from '@/lib/operacoes/permissions'
@@ -28,7 +24,7 @@ import {
   OpButton, SectionHead, computeHealth,
 } from './sections'
 
-export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false, autoOp = null }: { previewEnvironmentId?: string | null; demoAdmin?: boolean; autoOp?: string | null }) {
+export function AppServersView({ previewEnvironmentId = null, demoAdmin = false }: { previewEnvironmentId?: string | null; demoAdmin?: boolean }) {
   const ds = getOperacoesDataSource()
   const { user } = useAuth()
   const ctx = useOperacoes()
@@ -74,36 +70,15 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
 
   const ops = useOperations(environmentId, () => { void load() })
 
-  // Harness dev-only (/preview?op=): dispara uma operação p/ capturar os modais
-  // (confirmação / progresso / resultado). Nunca ativo fora do preview.
-  const autoFiredRef = useRef(false)
-  useEffect(() => {
-    if (!autoOp || autoFiredRef.current || loading || !environmentId) return
-    autoFiredRef.current = true
-    const clickWhenReady = (labels: string[]) => {
-      const t = setInterval(() => {
-        const btn = Array.from(document.querySelectorAll('button')).find((b) => labels.includes(b.textContent?.trim() ?? ''))
-        if (btn) { (btn as HTMLButtonElement).click(); clearInterval(t) }
-      }, 120)
-      setTimeout(() => clearInterval(t), 4000)
-    }
-    if (autoOp === 'compile' || autoOp === 'compile-run') {
-      void ops.compile()
-      if (autoOp === 'compile-run') clickWhenReady(['Iniciar compilação'])
-    } else if (autoOp === 'exclusive') { ops.exclusive(true) }
-    else if (autoOp === 'promote') { void ops.promote() }
-  }, [autoOp, loading, environmentId, ops])
-
   const notConfigured = !loading && !error && info != null && info.valid === false
   const health = computeHealth(services)
-  const canBuild = (exclusive?.active ?? false) || debugActive
 
   return (
     <>
       <PageHeader
-        icon={Activity}
-        title="Visão Geral"
-        subtitle={`Empresa: ${companyName}${environmentLabel ? ` · Ambiente: ${environmentLabel}` : ''} — appservers, ambiente, monitoramento e operações.`}
+        icon={Server}
+        title="AppServers"
+        subtitle={`Empresa: ${companyName}${environmentLabel ? ` · Ambiente: ${environmentLabel}` : ''} — serviços, utilidades, ambiente, monitoramento e console.`}
         actions={<Button variant="primary" icon={RefreshCw} onClick={() => void load()} disabled={loading || !environmentId}>Atualizar</Button>}
       />
 
@@ -123,7 +98,7 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
       )}
 
       {loading ? (
-        <VisaoGeralLoading />
+        <AppServersLoading />
       ) : error ? (
         <Card>
           <EmptyState icon={XCircle} title="Não foi possível carregar o ambiente" description={error}
@@ -136,10 +111,8 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
         </Card>
       ) : (
         <div className="flex flex-col gap-5">
-          {/* ── SAÚDE ─────────────────────────────────────────────────────────── */}
           <HealthStatCards health={health} />
 
-          {/* ── APPSERVERS ────────────────────────────────────────────────────── */}
           <AppServersCard
             services={services ?? []}
             canControl={can('services.control')}
@@ -147,28 +120,9 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
             onServiceAll={(action) => ops.serviceAll(action)}
           />
 
-          {/* ── INFO + MONITORAMENTO ──────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2">{info && <InfoCard info={info} />}</div>
-            {folder && <FolderMonitorCard folder={folder} />}
-          </div>
-
-          {/* ── OPERAÇÕES ─────────────────────────────────────────────────────── */}
+          {/* ── UTILIDADES ────────────────────────────────────────────────────── */}
           <Card>
-            <SectionHead icon={Hammer} title="Operações" subtitle="Compilação, patches e promoção de RPO" />
-            {!canBuild && (
-              <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                <AlertTriangle size={13} /> Compilar/Patch exigem Modo Debug ou Modo Exclusivo ativo.
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <OpButton icon={Hammer} title="Compilar" desc="Compila os fontes do ambiente" disabled={!canBuild || !can('compile')} onClick={() => void ops.compile()} />
-              <OpButton icon={Package} title="Aplicar Patch" desc="Aplica pacotes .ptm" disabled={!canBuild || !can('patch')} onClick={() => void ops.patch()} />
-              <OpButton icon={Upload} title="Promover RPO" desc="Publica o RPO nos slaves" disabled={!can('rpo.promote')} onClick={() => void ops.promote()} />
-              <OpButton icon={RotateCcw} title="Rollback RPO" desc="Restaura o RPO anterior" danger disabled={!can('rpo.rollback')} onClick={() => ops.rollback()} />
-            </div>
-
-            <div className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Utilidades</div>
+            <SectionHead icon={Wrench} title="Utilidades" subtitle="Modo Exclusivo, Debug e limpezas do ambiente" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <OpButton icon={Lock} title={exclusive?.active ? 'Desativar Exclusivo' : 'Ativar Modo Exclusivo'} desc="Manutenção com appserver exclusivo" danger={!exclusive?.active} disabled={!can('exclusive')} onClick={() => ops.exclusive(!exclusive?.active)} />
               <OpButton icon={Bug} title={debugActive ? 'Desativar Debug' : 'Ativar Modo Debug'} desc="Appserver de compilação/depuração" disabled={!can('debug') || (exclusive?.active && !debugActive)} onClick={() => ops.debug(!debugActive)} />
@@ -176,6 +130,12 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
               <OpButton icon={Trash2} title="Limpeza TSK" desc="Remove arquivos .TSK" disabled={!can('cleanup')} onClick={() => ops.cleanTsk()} />
             </div>
           </Card>
+
+          {/* ── INFO + MONITORAMENTO ──────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2">{info && <InfoCard info={info} />}</div>
+            {folder && <FolderMonitorCard folder={folder} />}
+          </div>
 
           {/* ── CONSOLE ───────────────────────────────────────────────────────── */}
           <ConsoleViewer environmentId={environmentId} />
@@ -187,7 +147,7 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
   )
 }
 
-function VisaoGeralLoading() {
+function AppServersLoading() {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

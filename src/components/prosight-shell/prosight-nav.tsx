@@ -42,6 +42,16 @@ const GOVERNANCA = [
 ]
 const startsAny = (p: string, prefixes: string[]) => prefixes.some((g) => p === g || p.startsWith(g + '/'))
 const GOV_SECTION = GOVERNANCA.filter((g) => g !== '/central-fontes/solicitacoes')
+// Sub-rotas da seção OPERAÇÃO (C2): decomposta em AppServers/Compilação/Patches/RPO.
+// Inclui a Visão Geral operacional (legada, preservada) e o Controle de Fontes do
+// ambiente — ambos seguem acessíveis e realçam a seção Operação. Ambientes é seção
+// PRÓPRIA (fora desta lista). Mudanças/Auditoria/Configuração têm seções próprias.
+const OPERACAO_ROUTES = [
+  '/operacoes-protheus/appservers', '/operacoes-protheus/compilacao',
+  '/operacoes-protheus/patches', '/operacoes-protheus/rpo',
+  '/operacoes-protheus/visao-geral', '/operacoes-protheus/fontes',
+  '/operacoes-protheus/preview',
+]
 const isFontes: Match = (p) =>
   (p.startsWith('/central-fontes') && !startsAny(p, GOVERNANCA)) ||
   p === '/prosight/inventario' || p.startsWith('/prosight/inventario/')
@@ -49,6 +59,8 @@ const isFontes: Match = (p) =>
 const SECTIONS: Section[] = [
   { href: '/prosight/visao-geral', label: 'Visão Geral', can: SHELL,
     match: (p) => p === '/prosight' || p.startsWith('/prosight/visao-geral') },
+  { href: '/operacoes-protheus/ambientes', label: 'Ambientes', can: OPERACAO,
+    match: (p) => p.startsWith('/operacoes-protheus/ambientes') },
   { href: '/central-fontes', label: 'Fontes', can: FONTES, match: isFontes,
     children: [
       { href: '/central-fontes', label: 'Acervo', can: FONTES, match: (p) => p === '/central-fontes' || p.startsWith('/central-fontes/acervo') },
@@ -59,11 +71,15 @@ const SECTIONS: Section[] = [
     ],
   },
   { href: '/prosight/licenciamento', label: 'Licenciamento', can: ADMIN_ONLY, match: (p) => p.startsWith('/prosight/licenciamento') },
-  { href: '/operacoes-protheus/visao-geral', label: 'Operação', can: OPERACAO,
-    match: (p) => p.startsWith('/operacoes-protheus') &&
-      !p.startsWith('/operacoes-protheus/mudancas') &&
-      !p.startsWith('/operacoes-protheus/auditoria') &&
-      !p.startsWith('/operacoes-protheus/configuracao') },
+  { href: '/operacoes-protheus/appservers', label: 'Operação', can: OPERACAO,
+    match: (p) => startsAny(p, OPERACAO_ROUTES),
+    children: [
+      { href: '/operacoes-protheus/appservers', label: 'AppServers', can: OPERACAO, match: (p) => p.startsWith('/operacoes-protheus/appservers') },
+      { href: '/operacoes-protheus/compilacao', label: 'Compilação', can: OPERACAO, match: (p) => p.startsWith('/operacoes-protheus/compilacao') },
+      { href: '/operacoes-protheus/patches', label: 'Patches', can: OPERACAO, match: (p) => p.startsWith('/operacoes-protheus/patches') },
+      { href: '/operacoes-protheus/rpo', label: 'RPO', can: OPERACAO, match: (p) => p.startsWith('/operacoes-protheus/rpo') },
+    ],
+  },
   { href: '/operacoes-protheus/mudancas', label: 'Mudanças', can: ADMIN_ONLY, match: (p) => p.startsWith('/operacoes-protheus/mudancas') },
   { href: '/operacoes-protheus/auditoria', label: 'Auditoria', can: ADMIN_ONLY, match: (p) => p.startsWith('/operacoes-protheus/auditoria') },
   { href: '/prosight/configuracao', label: 'Configuração', can: GOV,
