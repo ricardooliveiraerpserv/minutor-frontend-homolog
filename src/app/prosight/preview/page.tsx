@@ -19,12 +19,15 @@ function PreviewInner() {
   const filter = (sp.get('filter') ?? 'all') as never
   const query = sp.get('q') ?? ''
   const customs = sp.get('customs') === '1'
+  // Dev-only: força a empresa (sem /my-companies no harness) p/ capturar 2 empresas.
+  const companyParam = sp.get('company')
+  const previewCompanyId = companyParam != null ? Number(companyParam) : null
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <div className="max-w-[1200px] mx-auto px-6 py-8">
-        {view === 'licenciamento' ? <LicenciamentoView autoLoadCustoms={customs} />
+        {view === 'licenciamento' ? <LicenciamentoView autoLoadCustoms={customs} previewCompanyId={previewCompanyId} />
           : view === 'configuracao' ? <ConfiguracaoView demoAdmin />
-          : <InventarioView initialFilter={filter} initialQuery={query} />}
+          : <InventarioView initialFilter={filter} initialQuery={query} previewCompanyId={previewCompanyId} />}
       </div>
     </div>
   )

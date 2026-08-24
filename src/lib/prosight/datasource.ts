@@ -55,30 +55,30 @@ function neverResolves<T>(): Promise<T> {
 
 // ── Adapter FIXTURE ───────────────────────────────────────────────────────────
 class FixtureDataSource implements ProsightDataSource {
-  async scanInventory(): Promise<InventoryScanResult> {
+  async scanInventory(companyId: number | null): Promise<InventoryScanResult> {
     const fx = currentFx()
     if (fx === 'loading') return neverResolves<InventoryScanResult>()
     await wait(FX_DELAY)
     if (fx === 'error') return { ok: false, error: 'Falha ao varrer o disco: API AdvPL indisponível (timeout).' }
     if (fx === 'empty') return inventoryScanEmptyFixture()
-    return inventoryScanFixture()
+    return inventoryScanFixture(companyId)
   }
 
-  async getLicensingData(dtIni: string, dtFim: string): Promise<LicensingDataResult> {
+  async getLicensingData(companyId: number | null, dtIni: string, dtFim: string): Promise<LicensingDataResult> {
     const fx = currentFx()
     if (fx === 'loading') return neverResolves<LicensingDataResult>()
     await wait(FX_DELAY)
     if (fx === 'error') return { ok: false, error: 'Erro ao consultar o licenciamento no período informado.' }
     if (fx === 'empty') return { vazio: true }
-    return licensingDataFixture(dtIni, dtFim)
+    return licensingDataFixture(companyId, dtIni, dtFim)
   }
 
-  async getLicensingCustoms(dtIni: string, dtFim: string): Promise<LicensingCustomsResult> {
+  async getLicensingCustoms(companyId: number | null, dtIni: string, dtFim: string): Promise<LicensingCustomsResult> {
     const fx = currentFx()
     if (fx === 'loading') return neverResolves<LicensingCustomsResult>()
     await wait(FX_DELAY)
     if (fx === 'error') return { ok: false, error: 'Erro ao cruzar customizações U_ com as execuções do período.' }
-    return licensingCustomsFixture(dtIni, dtFim)
+    return licensingCustomsFixture(companyId, dtIni, dtFim)
   }
 
   async getConfig(): Promise<ProsightConfig> {

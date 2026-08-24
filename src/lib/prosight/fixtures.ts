@@ -67,14 +67,47 @@ function healthFrom(pct: number): HealthLabel {
   return 'Critico'
 }
 
-export function inventoryScanFixture(): InventoryScanOk {
-  const results = INVENTORY_ROWS
+// ── Variação por EMPRESA (multi-empresa) ──────────────────────────────────────
+// Determinístico por companyId — 4 perfis de "saúde" que reaproveitam os MESMOS
+// fontes reais (cada linha continua internamente consistente; nada inventado, só
+// subconjuntos diferentes por empresa). No F6 o companyId vai pro backend/BFF.
+const STATUS_LIST: InventoryStatus[] = ['sincronizado', 'recompilar', 'verificar_rpo', 'nao_compilado', 'so_rpo']
+
+const COMPANY_PLANS: Record<InventoryStatus, number>[] = [
+  { sincronizado: 10, recompilar: 4, verificar_rpo: 3, nao_compilado: 5, so_rpo: 4 }, // 26 fontes · ~38% (Alerta)
+  { sincronizado: 10, recompilar: 1, verificar_rpo: 1, nao_compilado: 1, so_rpo: 0 }, // 13 fontes · ~77% (Regular)
+  { sincronizado: 3,  recompilar: 4, verificar_rpo: 3, nao_compilado: 5, so_rpo: 4 }, // 19 fontes · ~16% (Crítico)
+  { sincronizado: 8,  recompilar: 2, verificar_rpo: 2, nao_compilado: 2, so_rpo: 1 }, // 15 fontes · ~53% (Regular)
+]
+
+/** Índice de perfil (0..3) determinístico a partir do companyId. */
+export function companySeed(companyId: number | null): number {
+  return ((((companyId ?? 0) % COMPANY_PLANS.length) + COMPANY_PLANS.length) % COMPANY_PLANS.length)
+}
+
+function groupByStatus(rows: InventoryResultRow[]): Record<InventoryStatus, InventoryResultRow[]> {
+  const g: Record<InventoryStatus, InventoryResultRow[]> = {
+    sincronizado: [], recompilar: [], verificar_rpo: [], nao_compilado: [], so_rpo: [],
+  }
+  for (const r of rows) g[r.status].push(r)
+  return g
+}
+
+function gitUrlForCompany(companyId: number | null): string {
+  return `https://git.example.local/protheus/empresa-${companyId ?? 0}.git`
+}
+
+export function inventoryScanFixture(companyId: number | null = null): InventoryScanOk {
+  const plan = COMPANY_PLANS[companySeed(companyId)]
+  const groups = groupByStatus(INVENTORY_ROWS)
+  const results: InventoryResultRow[] = []
+  for (const st of STATUS_LIST) results.push(...groups[st].slice(0, plan[st]))
   const counts = computeCounts(results)
   const total = results.length
   const healthPct = total > 0 ? Math.round((counts.sincronizado / total) * 100) : 0
   return {
     scannedAt: '2026-08-23T22:15:00Z',
-    gitUrl: 'https://git.example.local/protheus/customizacoes.git',
+    gitUrl: gitUrlForCompany(companyId),
     rpoSource: { type: 'advpl_api', url: 'https://rpo.example.local/advpl' },
     summary: {
       counts,
@@ -118,21 +151,32 @@ const LICENSING_MODULES = [
   { sigla: 'CFG', nome: 'Configurador',   eventos: 1210,  usuariosUnicos: 4,  pico15min: 2  },
 ]
 
-export function licensingDataFixture(dtIni: string, dtFim: string): LicensingDataOk {
+const BASE_ATIVIDADE = [
+  1, 0, 0, 0, 1, 2, 6, 18, 44, 58, 61, 55,
+  49, 52, 63, 60, 51, 38, 22, 12, 7, 4, 2, 1,
+]
+
+// Fator de volume por empresa (mesmo perfil determinístico do inventário).
+const COMPANY_FACTOR = [1, 0.62, 1.35, 0.85]
+const companyFactor = (companyId: number | null) => COMPANY_FACTOR[companySeed(companyId)]
+
+export function licensingDataFixture(companyId: number | null, dtIni: string, dtFim: string): LicensingDataOk {
+  const f = companyFactor(companyId)
+  const sc = (n: number) => Math.max(0, Math.round(n * f))
+  const modulos = LICENSING_MODULES.map((m) => ({
+    ...m, eventos: sc(m.eventos), usuariosUnicos: sc(m.usuariosUnicos), pico15min: sc(m.pico15min),
+  }))
   return {
     data: {
       periodo: { inicio: '2026-07-24T00:00:00Z', fim: '2026-08-23T23:59:59Z', dias: 30 },
-      totalEventos: LICENSING_MODULES.reduce((s, m) => s + m.eventos, 0),
-      totalUsuarios: 87,
-      picoGlobal: { valor: 63, horario: '2026-08-12T14:15:00Z' },
-      mediaDia: 71,
+      totalEventos: modulos.reduce((s, m) => s + m.eventos, 0),
+      totalUsuarios: sc(87),
+      picoGlobal: { valor: sc(63), horario: '2026-08-12T14:15:00Z' },
+      mediaDia: sc(71),
       horaPico: 14,
-      modulos: LICENSING_MODULES,
-      perfis: { full: 41, light: 32, cfgOnly: 14 },
-      atividadePorHora: [
-        1, 0, 0, 0, 1, 2, 6, 18, 44, 58, 61, 55,
-        49, 52, 63, 60, 51, 38, 22, 12, 7, 4, 2, 1,
-      ],
+      modulos,
+      perfis: { full: sc(41), light: sc(32), cfgOnly: sc(14) },
+      atividadePorHora: BASE_ATIVIDADE.map(sc),
     },
   }
 }
@@ -153,13 +197,19 @@ const CUSTOM_ROWS = [
   { programa: 'U_LEGACY2',  tipo: 'USER'    as const, execucoes: 0,    usuariosUnicos: 0,  ultimaExecucao: '' },
 ]
 
-export function licensingCustomsFixture(dtIni: string, dtFim: string): LicensingCustomsOk {
-  const comUso = CUSTOM_ROWS.filter((r) => r.execucoes > 0).length
+export function licensingCustomsFixture(companyId: number | null, dtIni: string, dtFim: string): LicensingCustomsOk {
+  const f = companyFactor(companyId)
+  const itens = CUSTOM_ROWS.map((r) => ({
+    ...r,
+    execucoes: Math.round(r.execucoes * f),
+    usuariosUnicos: r.usuariosUnicos > 0 ? Math.max(1, Math.round(r.usuariosUnicos * f)) : 0,
+  }))
+  const comUso = itens.filter((r) => r.execucoes > 0).length
   return {
-    total: CUSTOM_ROWS.length,
+    total: itens.length,
     comUso,
-    semUso: CUSTOM_ROWS.length - comUso,
-    itens: CUSTOM_ROWS,
+    semUso: itens.length - comUso,
+    itens,
   }
 }
 

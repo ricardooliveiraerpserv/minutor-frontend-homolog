@@ -19,6 +19,7 @@ import {
   Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { getProsightDataSource, prosightDataMode } from '@/lib/prosight/datasource'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import type {
   InventoryScanOk, InventoryStatus, InventoryResultRow,
 } from '@/lib/prosight/types'
@@ -42,7 +43,7 @@ const FILTER_TITLES: Record<Filter, string> = {
 // initialFilter/initialQuery são usados SOMENTE pelo harness dev-only /prosight/preview
 // (para capturar os estados de drill-down / busca / filtro-sem-resultado). Em produção
 // as telas começam sempre em 'all' / '' e o usuário interage normalmente.
-export function InventarioView({ initialFilter = 'all', initialQuery = '' }: { initialFilter?: Filter; initialQuery?: string }) {
+export function InventarioView({ initialFilter = 'all', initialQuery = '', previewCompanyId = null }: { initialFilter?: Filter; initialQuery?: string; previewCompanyId?: number | null }) {
   const [scan, setScan] = useState<InventoryScanOk | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,13 +55,19 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '' }: { i
   const tableRef = useRef<HTMLDivElement>(null)
 
   const ds = getProsightDataSource()
+  // Empresa ATIVA do Minutor (multi-empresa). O seletor global do header troca a
+  // empresa (reload total) → esta view relê no mount. previewCompanyId é só p/ o
+  // harness dev-only (sem /my-companies). Configuração NÃO escopa por empresa (F6).
+  const { active } = useActiveCompany()
+  const companyId = active?.id ?? previewCompanyId ?? null
+  const companyName = active?.name ?? active?.slug ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
 
   const load = useCallback(async (isRescan = false) => {
     if (isRescan) setRescanning(true)
     else setLoading(true)
     setError(null)
     try {
-      const res = await ds.scanInventory()
+      const res = await ds.scanInventory(companyId)
       if ('ok' in res && res.ok === false) {
         setError(res.error)
         setScan(null)
@@ -75,7 +82,7 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '' }: { i
       setLoading(false)
       setRescanning(false)
     }
-  }, [ds])
+  }, [ds, companyId])
 
   useEffect(() => { void load(false) }, [load])
 
@@ -153,9 +160,9 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '' }: { i
         icon={GitBranch}
         title="Inventário"
         subtitle={
-          scan
+          `${scan
             ? `Fonte: API AdvPL · Último scan ${fmtDateTime(scan.scannedAt)}`
-            : 'Comparação disco (Git) × RPO — saúde e situação dos fontes.'
+            : 'Comparação disco (Git) × RPO — saúde e situação dos fontes.'}${companyName ? ` · Empresa: ${companyName}` : ''}`
         }
         actions={
           <Button variant="primary" icon={RefreshCw} loading={rescanning} onClick={() => void load(true)} disabled={loading}>

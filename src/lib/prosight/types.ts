@@ -155,10 +155,12 @@ export interface CheckApiResult {
 
 // ── Interface do datasource ──────────────────────────────────────────────────
 // F2 = fixture; F6 troca o adapter (live) SEM tocar nas telas.
+// companyId = empresa ativa do Minutor (multi-empresa). No F2 seleciona o dataset
+// fixture por empresa; no F6 é repassado ao backend/BFF (que mapeará empresa→config).
 export interface ProsightDataSource {
-  scanInventory(): Promise<InventoryScanResult>
-  getLicensingData(dtIni: string, dtFim: string): Promise<LicensingDataResult>
-  getLicensingCustoms(dtIni: string, dtFim: string): Promise<LicensingCustomsResult>
+  scanInventory(companyId: number | null): Promise<InventoryScanResult>
+  getLicensingData(companyId: number | null, dtIni: string, dtFim: string): Promise<LicensingDataResult>
+  getLicensingCustoms(companyId: number | null, dtIni: string, dtFim: string): Promise<LicensingCustomsResult>
   getConfig(): Promise<ProsightConfig>
   saveConfig(payload: SaveConfigPayload): Promise<SaveConfigResult>
   checkApi(payload: CheckApiPayload): Promise<CheckApiResult>
