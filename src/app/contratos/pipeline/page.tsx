@@ -650,6 +650,7 @@ const PROJECT_PRIMARY_ITEMS = [
 ]
 // Menu SECUNDÁRIO (⋮): demais ações de gestão.
 const PROJECT_SECONDARY_ITEMS = [
+  { action: 'card',       label: 'Visualizar',        icon: Eye,     clientVisible: false },
   { action: 'edit',       label: 'Editar',            icon: Pencil,  clientVisible: false, adminOnly: true },
   { action: 'status',     label: 'Alterar Status',    icon: Layers,  clientVisible: false },
   { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,   clientVisible: false },
@@ -6131,7 +6132,7 @@ function KanbanContent() {
       {projectAction && (() => {
         const { card, action } = projectAction
         const close = () => setProjectAction(null)
-        if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="overview" />
+        if (action === 'view' || action === 'card') return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="overview" />
         if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
         if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="consultants" />
