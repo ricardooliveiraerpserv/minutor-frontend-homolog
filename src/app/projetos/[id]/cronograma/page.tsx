@@ -823,7 +823,7 @@ function InternalCronogramaPage() {
             <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
           </div>
         )}
-        {view === 'equipe' && <EquipeView projectId={projectId} teamLoad={teamLoad} />}
+        {view === 'equipe' && <EquipeView projectId={projectId} />}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
         {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
         {view === 'documentos' && <ProjectDocsPanel projectId={projectId} />}

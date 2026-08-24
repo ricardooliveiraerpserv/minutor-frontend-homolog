@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import type { TeamLoadItem } from '@/hooks/use-project-schedule'
 import { Users, Clock } from 'lucide-react'
 
 /**
  * View "Equipe" do cronograma (por projeto):
- *  - Alocação por consultor: contratadas (planejadas) / consumidas / saldo — vem do
- *    team_load do próprio /schedule (já carregado).
- *  - Apontamento semanal: horas apontadas por semana × consultor — GET /weekly-timesheets?project_id.
+ *  - Alocação por consultor: alocadas (planejadas) / consumidas / saldo.
+ *  - Apontamento semanal: horas apontadas por semana × consultor.
+ * Ambas de GET /consultant-allocation e /weekly-timesheets (?project_id) — MESMO
+ * universo de consultores (responsável por atividade OU quem apontou).
  */
 
+type AllocRow = {
+  user_id: number; user_name: string; role: string
+  planned_hours: number; consumed_hours: number; balance_hours: number
+}
 type WeeklyRow = {
   week_start: string; user_id: number; user_name: string
   project_id: number; hours: number
@@ -33,17 +37,21 @@ const weekLabel = (iso: string) => {
   return `Sem. ${isoWeek(d)} · ${dd(d)} – ${dd(end)}`
 }
 
-export function EquipeView({ projectId, teamLoad }: { projectId: number; teamLoad: TeamLoadItem[] }) {
+export function EquipeView({ projectId }: { projectId: number }) {
+  const [alloc, setAlloc] = useState<AllocRow[]>([])
   const [weekly, setWeekly] = useState<WeeklyRow[]>([])
-  const [loadingW, setLoadingW] = useState(true)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let alive = true
-    setLoadingW(true)
-    api.get<{ rows: WeeklyRow[] }>(`/weekly-timesheets?weeks=8&project_id=${projectId}`)
-      .then(r => { if (alive) setWeekly(r?.rows ?? []) })
-      .catch(() => { if (alive) setWeekly([]) })
-      .finally(() => { if (alive) setLoadingW(false) })
+    setLoading(true)
+    Promise.all([
+      api.get<{ rows: AllocRow[] }>(`/consultant-allocation?project_id=${projectId}`),
+      api.get<{ rows: WeeklyRow[] }>(`/weekly-timesheets?weeks=8&project_id=${projectId}`),
+    ])
+      .then(([a, w]) => { if (alive) { setAlloc(a?.rows ?? []); setWeekly(w?.rows ?? []) } })
+      .catch(() => { if (alive) { setAlloc([]); setWeekly([]) } })
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [projectId])
 
@@ -70,15 +78,17 @@ export function EquipeView({ projectId, teamLoad }: { projectId: number; teamLoa
             </tr>
           </thead>
           <tbody>
-            {teamLoad.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Sem consultores alocados.</td></tr>
-            ) : teamLoad.map(t => (
-              <tr key={t.user.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td className="px-3 py-2.5" style={{ color: 'var(--text)' }}>{t.user.name}</td>
-                <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>Consultor</td>
+            {loading ? (
+              <tr><td colSpan={5} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+            ) : alloc.length === 0 ? (
+              <tr><td colSpan={5} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Sem consultores no projeto.</td></tr>
+            ) : alloc.map(t => (
+              <tr key={t.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td className="px-3 py-2.5" style={{ color: 'var(--text)' }}>{t.user_name}</td>
+                <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{t.role}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(t.planned_hours)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(t.actual_hours)}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums font-semibold" style={{ color: t.remaining_hours < 0 ? 'var(--danger)' : 'var(--success)' }}>{fmtH(t.remaining_hours)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(t.consumed_hours)}</td>
+                <td className="px-3 py-2.5 text-right tabular-nums font-semibold" style={{ color: t.balance_hours < 0 ? 'var(--danger)' : 'var(--success)' }}>{fmtH(t.balance_hours)}</td>
               </tr>
             ))}
           </tbody>
@@ -102,7 +112,7 @@ export function EquipeView({ projectId, teamLoad }: { projectId: number; teamLoa
             </tr>
           </thead>
           <tbody>
-            {loadingW ? (
+            {loading ? (
               <tr><td colSpan={4} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
             ) : weekly.length === 0 ? (
               <tr><td colSpan={4} className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</td></tr>
