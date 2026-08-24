@@ -821,7 +821,7 @@ export default function UsersPage() {
                   <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })}
                     className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
                   <Button onClick={confirmReset} disabled={resetting === resetModal.userId}
-                    className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-1.5">
+                    className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] gap-1.5">
                     <KeyRound size={12} />
                     {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
                   </Button>
@@ -842,7 +842,7 @@ export default function UsersPage() {
                   </p>
                 )}
                 <div className="flex items-center gap-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2.5">
-                  <code className="flex-1 text-sm text-[var(--warning)] font-mono tracking-wider">
+                  <code className="flex-1 text-sm text-[var(--text)] font-mono font-bold tracking-wider">
                     {resetModal.tempPassword}
                   </code>
                   <button onClick={copyPassword} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
@@ -850,7 +850,7 @@ export default function UsersPage() {
                   </button>
                 </div>
                 <Button onClick={() => setResetModal({ open: false, confirmed: false })}
-                  className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--primary-fg)]">
+                  className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--text)]">
                   Fechar
                 </Button>
               </>

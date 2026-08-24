@@ -889,7 +889,7 @@ export function UserManagementTab() {
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-                  <Button onClick={confirmReset} disabled={resetting === resetModal.userId} className="h-8 text-xs bg-[var(--warning-border)] hover:bg-[var(--warning)] text-[var(--primary-fg)] gap-1.5">
+                  <Button onClick={confirmReset} disabled={resetting === resetModal.userId} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] gap-1.5">
                     <KeyRound size={12} />
                     {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
                   </Button>
