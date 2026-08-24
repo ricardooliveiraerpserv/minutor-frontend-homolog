@@ -145,6 +145,7 @@ const ROUTE_MODULE: [string, ModuleId][] = [
   ['/central-fontes/aprovacoes', 'administrativo'],
   ['/central-fontes/configuracoes', 'administrativo'],
   ['/prosight', 'administrativo'],
+  ['/operacoes-protheus', 'administrativo'],
   ['/partners', 'administrativo'],
   ['/competencias', 'administrativo'],
   ['/cadastros', 'administrativo'],
@@ -404,6 +405,8 @@ const NAV: NavEntry[] = [
       { label: 'Configurações · IA e Custos', href: '/central-fontes/configuracoes', icon: DollarSign },
       // Prosight — funcionalidade NATIVA (rota interna). Inventário Git × RPO + Licenciamento + Configuração.
       { label: 'Prosight', href: '/prosight', icon: GitBranch },
+      // Operações Protheus (ex-Dashboards) — NATIVO, rota interna. AppServers/RPO/Compilação/Fontes/Auditoria.
+      { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
       // Dashboards — app externo (nova aba); só quando habilitado por env. Reversível. Default OFF.
       ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
       // Cofre de Ambientes fora do menu enquanto validamos o layout (rota /ambientes segue ativa).
@@ -1030,6 +1033,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     // Dashboards segue externo (nova aba), controlado por env. Reversível.
     const extras: NavLink[] = [
       { label: 'Prosight', href: '/prosight', icon: GitBranch },
+      // Operações Protheus (ex-Dashboards) — INTERNO (rota nativa /operacoes-protheus).
+      { label: 'Operações Protheus', href: '/operacoes-protheus', icon: Server },
       ...(DASHBOARDS_ENABLED ? [{ label: 'Dashboards', href: DASHBOARDS_URL, icon: Server, external: true } as NavLink] : []),
     ]
     if (extras.length && selectedModule === 'administrativo') {
