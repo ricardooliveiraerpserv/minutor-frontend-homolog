@@ -628,65 +628,8 @@ function ListActionMenu({ onAction, canWrite }: { card: ContractCard; onAction: 
   )
 }
 
-function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: string) => void; canWrite?: boolean }) {
-  const { user: viewerUser } = useAuth()
-  const { isDenied } = useDeniedActions()
-  const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<MenuPos | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const h = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node) || menuRef.current?.contains(e.target as Node)) return
-      setOpen(false)
-    }
-    const close = () => setOpen(false)
-    document.addEventListener('mousedown', h)
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
-    return () => {
-      document.removeEventListener('mousedown', h)
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
-    }
-  }, [open])
-  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
-  const toggle = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    // Menu w-48 (192px): posiciona à prova de viewport (flip pra cima + scroll interno).
-    if (!open && btnRef.current) setPos(anchoredDropdownPos(btnRef.current.getBoundingClientRect(), 192))
-    setOpen(v => !v)
-  }
-  return (
-    <>
-      <button ref={btnRef} onClick={toggle}
-        className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-        style={{ color: 'var(--text-light)' }}>
-        <MoreVertical size={14} />
-      </button>
-      {open && pos && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-xl shadow-2xl"
-          style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {items.map(item => {
-            const Icon = item.icon
-            const isDanger = (item as any).danger
-            return (
-              <button key={item.action}
-                onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: isDanger ? '#f87171' : 'var(--text)' }}>
-                <Icon size={13} style={{ color: isDanger ? '#f87171' : 'var(--text-light)' }} />
-                {item.label}
-              </button>
-            )
-          })}
-        </div>,
-        document.body
-      )}
-    </>
-  )
-}
+// (ListProjectActionMenu removido: a lista de projetos agora usa o menu duplo
+//  primário/secundário no nível da linha, igual ao card do Kanban — ver rowMenu.)
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
@@ -4471,6 +4414,7 @@ function KanbanContent() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
+  const { isDenied } = useDeniedActions()
 
   const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
   const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
@@ -4501,6 +4445,10 @@ function KanbanContent() {
   const [stagesPanelProject,   setStagesPanelProject]   = useState<ProjectCard | null>(null)
   const [generateTarget,       setGenerateTarget]       = useState<ContractCard | null>(null)
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
+  // Menu da LISTA de projetos igual ao Kanban: clique na linha = primário
+  // (Gestão de Projetos/Diário/Comentários/Documentos); ⋮ = secundário (demais ações).
+  const [rowMenu, setRowMenu] = useState<{ card: ProjectCard; kind: 'primary' | 'secondary'; pos: MenuPos } | null>(null)
+  const rowMenuRef = useRef<HTMLDivElement>(null)
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
@@ -4532,6 +4480,37 @@ function KanbanContent() {
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
   const isCoord     = userRole === 'coordenador'
+
+  // Itens visíveis do menu de projeto pra ESTE viewer (mesma regra do card do Kanban).
+  const filterProjMenu = (items: any[]) => items.filter(item =>
+    (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)
+    && (!item.coordHidden || user?.type !== 'coordenador')
+    && !isDenied('/contratos/pipeline', item.action))
+  // Roteamento das ações do menu de projeto (idêntico ao Kanban): 'view' navega pra
+  // Gestão de Projetos; o resto abre o modal correspondente via projectAction.
+  const runProjectMenuAction = (card: ProjectCard, action: string) => {
+    if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return }
+    setProjectAction({ card, action })
+  }
+  // Fecha o menu da linha em clique externo / scroll / resize.
+  useEffect(() => {
+    if (!rowMenu) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (rowMenuRef.current?.contains(t)) return
+      if (t instanceof Element && t.closest('[data-row-menu-btn]')) return
+      setRowMenu(null)
+    }
+    const close = () => setRowMenu(null)
+    document.addEventListener('mousedown', onDown)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [rowMenu])
 
   const markProjectSeen = (projectId: number) => {
     setSeenProjectIds(prev => {
@@ -5528,11 +5507,26 @@ function KanbanContent() {
                         const saude       = rowHealth(p)
                         const saudeColor  = saude === 'red' ? 'var(--danger-border)' : saude === 'yellow' ? 'var(--warning-border)' : 'var(--success-border)'
                         return (
-                          <tr key={`p-${p.id}`} onClick={() => { if (!isCliente) setSelectedProject(p) }} className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-[var(--surface-hover)] transition-colors group/row`}
+                          <tr key={`p-${p.id}`}
+                            onClick={e => {
+                              if (isCliente) return
+                              const btn = (e.currentTarget.querySelector('[data-row-menu-btn]') as HTMLElement | null)
+                              if (btn) setRowMenu({ card: p, kind: 'primary', pos: anchoredDropdownPos(btn.getBoundingClientRect(), 240) })
+                            }}
+                            className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-[var(--surface-hover)] transition-colors group/row`}
                             style={{ borderTop: '1px solid var(--border)' }}>
                             {!isCliente && (
                               <td className="px-2 py-3 w-10" onClick={e => e.stopPropagation()}>
-                                <ListProjectActionMenu onAction={action => setProjectAction({ card: p, action })} canWrite={canWrite} />
+                                <button data-row-menu-btn
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    const r = e.currentTarget.getBoundingClientRect()
+                                    setRowMenu(prev => prev?.card.id === p.id && prev.kind === 'secondary' ? null : { card: p, kind: 'secondary', pos: anchoredDropdownPos(r, 200) })
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
+                                  style={{ color: 'var(--text-light)' }}>
+                                  <MoreVertical size={14} />
+                                </button>
                               </td>
                             )}
                             <td className="px-4 py-3 text-[var(--text)] font-medium">{p.customer_name}</td>
@@ -6097,6 +6091,35 @@ function KanbanContent() {
       )}
 
       {/* ── Project action modals ── */}
+      {/* Menu da LISTA de projetos (primário = clique na linha; secundário = ⋮) */}
+      {rowMenu && createPortal(
+        <div ref={rowMenuRef} className="fixed z-[9999] rounded-xl shadow-2xl"
+          style={{ width: rowMenu.kind === 'primary' ? 240 : 200, top: rowMenu.pos.top, bottom: rowMenu.pos.bottom, left: rowMenu.pos.left, maxHeight: rowMenu.pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+          onClick={e => e.stopPropagation()}>
+          {filterProjMenu(rowMenu.kind === 'primary' ? PROJECT_PRIMARY_ITEMS : PROJECT_SECONDARY_ITEMS).map(item => {
+            const Icon = item.icon
+            const accent = (item as any).accent && !isCliente
+            const legend = isCliente ? undefined : (item as any).legend
+            const danger = (item as any).danger
+            const c  = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text)'
+            const ic = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text-light)'
+            return (
+              <button key={item.action}
+                onClick={() => { const card = rowMenu.card; setRowMenu(null); runProjectMenuAction(card, item.action) }}
+                className="w-full flex items-start gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: c }}>
+                <Icon size={14} style={{ color: ic, marginTop: 1, flexShrink: 0 }} />
+                <span className="flex flex-col">
+                  <span style={{ fontWeight: accent ? 600 : 500 }}>{item.label}</span>
+                  {legend && <span className="text-[10px]" style={{ color: 'var(--danger)', opacity: 0.95, fontWeight: 600 }}>{legend}</span>}
+                </span>
+              </button>
+            )
+          })}
+        </div>,
+        document.body
+      )}
+
       {projectAction && (() => {
         const { card, action } = projectAction
         const close = () => setProjectAction(null)
