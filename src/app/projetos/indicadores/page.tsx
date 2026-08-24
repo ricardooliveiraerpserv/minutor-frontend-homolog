@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { useConfirm } from '@/components/ui/use-confirm'
 import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
@@ -67,12 +68,16 @@ type SortKey = 'name' | 'customer' | 'pct_real' | 'spi' | 'cpi' | 'overdue_pct' 
 
 export default function PortfolioIndicadoresPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [chip, setChip] = useState('all')
   const [search, setSearch] = useState('')
   const [cliente, setCliente] = useState('')
   const [coord, setCoord] = useState('')
+  // "Meus projetos / Todos" — igual à tela Demandas. 'meus' = projetos onde o
+  // usuário logado é coordenador (casa pelo nome, mesma fonte do filtro Coordenador).
+  const [scope, setScope] = useState<'meus' | 'todos'>('todos')
   const [saude, setSaude] = useState<'' | Health>('')
   const [onlyBaseline, setOnlyBaseline] = useState(false)
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'health', dir: 'asc' })
@@ -107,6 +112,9 @@ export default function PortfolioIndicadoresPage() {
 
   const clientes = useMemo(() => Array.from(new Set(rows.map(r => r.customer).filter(Boolean))).sort() as string[], [rows])
   const coords = useMemo(() => Array.from(new Set(rows.flatMap(r => r.coordinators))).sort(), [rows])
+  // Só mostra o toggle "Meus projetos" quando o usuário logado é coordenador de algum projeto.
+  const myName = (user as { name?: string } | null)?.name ?? ''
+  const isCoordOfAny = useMemo(() => !!myName && rows.some(r => r.coordinators.includes(myName)), [rows, myName])
 
   // base = tudo, exceto o chip (p/ contar os chips dentro dos demais filtros)
   const base = useMemo(() => {
@@ -115,10 +123,11 @@ export default function PortfolioIndicadoresPage() {
       (!q || r.name.toLowerCase().includes(q) || (r.code ?? '').toLowerCase().includes(q) || (r.customer ?? '').toLowerCase().includes(q)) &&
       (!cliente || r.customer === cliente) &&
       (!coord || r.coordinators.includes(coord)) &&
+      (scope === 'todos' || (!!myName && r.coordinators.includes(myName))) &&
       (!saude || r.health === saude) &&
       (!onlyBaseline || r.has_baseline)
     )
-  }, [rows, search, cliente, coord, saude, onlyBaseline])
+  }, [rows, search, cliente, coord, scope, myName, saude, onlyBaseline])
 
   const chipCount = useCallback((key: string) => {
     const c = CHIPS.find(x => x.key === key)!
@@ -211,8 +220,29 @@ export default function PortfolioIndicadoresPage() {
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Indicadores de Projetos</h1>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Visão em dashboards de Demandas e Projetos</p>
           </div>
-          <div className="ml-auto" style={{ minWidth: 220 }}>
-            <SearchSelect value={cliente} onChange={setCliente} options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" fullWidth />
+          <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+            {/* "Meus projetos / Todos" — só p/ quem é coordenador de algum projeto */}
+            {isCoordOfAny && (
+              <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                {(['meus', 'todos'] as const).map(opt => {
+                  const active = scope === opt
+                  return (
+                    <button key={opt} onClick={() => setScope(opt)}
+                      className="px-3 py-1.5 text-xs font-semibold transition-colors"
+                      style={{
+                        background: active ? 'var(--primary)' : 'var(--surface)',
+                        color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                        borderRight: opt === 'meus' ? '1px solid var(--border)' : undefined,
+                      }}>
+                      {opt === 'meus' ? 'Meus projetos' : 'Todos'}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <div style={{ minWidth: 220 }}>
+              <SearchSelect value={cliente} onChange={setCliente} options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" fullWidth />
+            </div>
           </div>
         </div>
 
