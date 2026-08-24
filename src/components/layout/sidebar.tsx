@@ -712,6 +712,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const isParceiroGestor   = isParceiroAdmin && !!user?.is_executive
   const isAdministrativo   = user?.type === 'administrativo'
 
+  // C1.1 — Prosight injetado por PERMISSÃO (não por selectedModule). Só entra p/ quem
+  // JÁ tem acesso a alguma capacidade consolidada (Central/Operações). Não eleva; cliente
+  // NUNCA recebe. O gate interno de cada área fica na <ProsightNav> (backend = autoridade).
+  const _prosightPerms: string[] = (user as { permissions?: string[] } | null | undefined)?.permissions ?? user?.extra_permissions ?? []
+  const hasProsightPerm = (p: string) => user?.type === 'admin' || _prosightPerms.includes('*') || _prosightPerms.includes(p)
+  const canAccessProsight = !isCliente && (user?.type === 'admin'
+    || hasProsightPerm('source_docs.view') || hasProsightPerm('source_docs.quality.view') || hasProsightPerm('operacoes_protheus.view'))
+
   // Badges de ação na navegação (tarefas atrasadas/pendentes + notificações não lidas) — sempre visíveis.
   const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, critical: false })
   useEffect(() => {
@@ -1023,14 +1031,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     const extras: NavLink[] = [
       { label: 'Prosight', href: '/prosight', icon: FolderGit2 },
     ]
-    if (extras.length && selectedModule === 'administrativo') {
+    if (extras.length && canAccessProsight) {
       const sysGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && ['/central-fontes', '/prosight', '/operacoes-protheus', '/cofre'].some(p => it.href.split('?')[0].startsWith(p))))
       const notDup = (items: (NavLink | NavSubGroup)[]) => extras.filter(x => !items.some(it => 'href' in it && it.href.split('?')[0] === x.href))
       if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...notDup(sysGroup.items)]
       else built.push({ type: 'group', label: 'Sistema', icon: Settings, items: extras })
     }
     return [...home, ...built]
-  }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
+  }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo, canAccessProsight])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.
