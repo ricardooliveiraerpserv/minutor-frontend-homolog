@@ -3918,7 +3918,8 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
               onChange={e => handleInputChange(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Escape') { setShowMentions(false); return }
-                if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend() }
+                // Enter pula linha; Ctrl/Cmd+Enter envia. (mantém navegação de menções com Enter)
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !showMentions) { e.preventDefault(); handleSend() }
               }}
               placeholder={visibility === 'internal' ? 'Anotação interna... Use @ para mencionar a equipe' : 'Escreva um comentário... Use @ para mencionar'}
               rows={2}
