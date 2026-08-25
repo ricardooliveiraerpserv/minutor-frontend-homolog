@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X, Check, MessageSquare, Trash2, Search, Download, FileText } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { SustProjectsInline } from '@/components/dashboard/SustProjectsInline'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 import { AporteDetailModal } from '@/components/shared/AporteDetailModal'
@@ -1544,6 +1545,10 @@ function KanbanContent() {
 
   const isSustCoordenador = user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao'
 
+  // Visão Kanban ↔ Lista embutida (coordenador de sustentação) — sem trocar de menu.
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [listTeamProject, setListTeamProject] = useState<{ id: number; name: string } | null>(null)
+
   // Board do coordenador de sustentação também mostra a coluna do Ricardo Oliveira (ao
   // lado da dele). Achado por NOME na lista de coordenadores (o BE já manda) — evita
   // hardcodar id, que difere entre ambientes. Tolera o typo "OIiveira" do cadastro.
@@ -2180,14 +2185,14 @@ function KanbanContent() {
             <p className="ds-text-body-sm mt-1" style={{ color: 'var(--text-muted)' }}>Arraste para o coordenador para gerar o projeto — depois gerencie nos status de execução</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Coordenador de sustentação não acessa /contratos (redireciona p/ dashboard →
-                apontamentos). Manda para a lista de Projetos de Sustentação. */}
-            <button onClick={() => router.push(isSustCoordenador ? '/sustentacao/projetos' : '/contratos')}
+            {/* Coordenador de sustentação: alterna Kanban ↔ Lista EMBUTIDA (mesma página, sem
+                trocar de menu). Admin/outros vão para a lista de contratos como antes. */}
+            <button onClick={() => { if (isSustCoordenador) setViewMode(v => v === 'list' ? 'kanban' : 'list'); else router.push('/contratos') }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--border)' }}>
-              <List size={13} /> Lista
+              {isSustCoordenador && viewMode === 'list' ? <><Layers size={13} /> Kanban</> : <><List size={13} /> Lista</>}
             </button>
 
             {/* Coordenador de sustentação não cria contrato. */}
@@ -2203,7 +2208,8 @@ function KanbanContent() {
           </div>
         </div>
 
-        {/* Legend */}
+        {/* Legenda + Filtros do kanban — ocultos na visão de lista embutida. */}
+        {!(isSustCoordenador && viewMode === 'list') && (<>
         <div className="flex flex-wrap items-center gap-5 px-4 md:px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--danger)' }} />Incompleto</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--warning)' }} />Pronto</span>
@@ -2265,9 +2271,14 @@ function KanbanContent() {
             </button>
           )}
         </div>
+        </>)}
 
-        {/* Board */}
-        {loading ? (
+        {/* Board / Lista embutida (coordenador de sustentação) */}
+        {isSustCoordenador && viewMode === 'list' ? (
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
+            <SustProjectsInline onSelectTeam={p => setListTeamProject(p)} />
+          </div>
+        ) : loading ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</p>
           </div>
@@ -2565,6 +2576,16 @@ function KanbanContent() {
               setShowNewContract(true)
             } catch { toast.error('Erro ao carregar contrato') }
           }}
+        />
+      )}
+
+      {/* Selecionar Equipe a partir da Lista embutida */}
+      {listTeamProject && (
+        <ProjectTeamModal
+          projectId={listTeamProject.id}
+          projectName={listTeamProject.name}
+          onClose={() => setListTeamProject(null)}
+          onSaved={() => setListTeamProject(null)}
         />
       )}
 
