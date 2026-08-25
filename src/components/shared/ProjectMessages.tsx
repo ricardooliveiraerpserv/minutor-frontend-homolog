@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type { ProjectMessage } from '@/types'
-import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users, Pencil, Check } from 'lucide-react'
+import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users, Pencil, Check, Pin } from 'lucide-react'
 import { Skeleton } from '@/components/ui/loading'
 import { toast } from 'sonner'
 
@@ -25,6 +25,7 @@ interface Attachment {
 interface MessageWithAttachments extends ProjectMessage {
   attachments?: Attachment[]
   visibility?: string
+  pinned_at?: string | null
 }
 
 interface Props {
@@ -344,6 +345,16 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     }
   }
 
+  const togglePin = async (msg: MessageWithAttachments) => {
+    try {
+      const r = await api.post<{ pinned: boolean }>(`/projects/${projectId}/messages/${msg.id}/pin`, {})
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, pinned_at: r.pinned ? new Date().toISOString() : null } : m))
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Não foi possível fixar')
+    }
+  }
+  const messagesSorted = [...messages].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
+
   return (
     <div className="flex flex-col h-full min-h-[400px]">
       {/* Feed */}
@@ -355,11 +366,13 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Seja o primeiro a escrever.</span>
           </div>
         )}
-        {messages.map(msg => (
+        {messagesSorted.map(msg => (
           <div
             key={msg.id}
             className="flex gap-2.5 items-start rounded-lg px-3 py-2"
-            style={msg.is_mentioned
+            style={msg.pinned_at
+              ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' }
+              : msg.is_mentioned
               ? { background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)' }
               : {}}
           >
@@ -392,10 +405,20 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     <Lock size={8} /> interno
                   </span>
                 )}
+                {!readOnly && (
+                  <button
+                    onClick={() => togglePin(msg)}
+                    className="ml-auto p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors shrink-0"
+                    title={msg.pinned_at ? 'Desafixar' : 'Fixar'}
+                    style={{ color: msg.pinned_at ? 'var(--primary)' : 'var(--text-light)' }}
+                  >
+                    <Pin size={12} fill={msg.pinned_at ? 'currentColor' : 'none'} />
+                  </button>
+                )}
                 {canEdit(msg) && editingId !== msg.id && (
                   <button
                     onClick={() => startEdit(msg)}
-                    className="ml-auto p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors shrink-0"
+                    className={`${readOnly ? 'ml-auto' : ''} p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors shrink-0`}
                     title={`Editar (até ${EDIT_WINDOW_HOURS}h após o envio)`}
                     style={{ color: 'var(--text-light)' }}
                   >
