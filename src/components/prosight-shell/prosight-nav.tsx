@@ -32,6 +32,9 @@ const GOV: Cap = (has, isAdmin) =>
 // Quem enxerga o shell (Visão Geral): qualquer acesso a capacidade consolidada.
 const SHELL: Cap = (has, isAdmin) =>
   isAdmin || has('source_docs.view') || has('source_docs.quality.view') || has('operacoes_protheus.view')
+// Atividade & Auditoria (C4.2, transversal): quem acessa QUALQUER família de evento.
+const ATIVIDADE: Cap = (has, isAdmin) =>
+  isAdmin || has('source_docs.view') || has('source_docs.quality.view') || has('operacoes_protheus.view') || has('source_docs.gmud_publish')
 
 interface Leaf { href: string; label: string; match: Match; can: Cap }
 interface Section { href: string; label: string; match: Match; can: Cap; children?: Leaf[] }
@@ -59,6 +62,8 @@ const isFontes: Match = (p) =>
 const SECTIONS: Section[] = [
   { href: '/prosight/visao-geral', label: 'Visão Geral', can: SHELL,
     match: (p) => p === '/prosight' || p.startsWith('/prosight/visao-geral') },
+  { href: '/prosight/atividade', label: 'Atividade & Auditoria', can: ATIVIDADE,
+    match: (p) => p.startsWith('/prosight/atividade') },
   { href: '/operacoes-protheus/ambientes', label: 'Ambientes', can: OPERACAO,
     match: (p) => p.startsWith('/operacoes-protheus/ambientes') },
   { href: '/central-fontes', label: 'Fontes', can: FONTES, match: isFontes,

@@ -16,6 +16,7 @@ import { InventarioView } from '../_components/inventario-view'
 import { LicenciamentoView } from '../_components/licenciamento-view'
 import { ConfiguracaoView } from '../_components/configuracao-view'
 import { VisaoGeralExecutivaView } from '../_components/visao-geral-view'
+import { AtividadeView } from '../_components/atividade-view'
 
 function PreviewInner() {
   const sp = useSearchParams()
@@ -31,7 +32,8 @@ function PreviewInner() {
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <div className="max-w-[1200px] mx-auto px-6 py-8">
-        {view === 'visao-geral' ? <VisaoGeralExecutivaView previewRole={role} previewCompanyId={previewCompanyId ?? 1} previewForceError={err} />
+        {view === 'atividade' ? <AtividadeView previewRole={role} />
+          : view === 'visao-geral' ? <VisaoGeralExecutivaView previewRole={role} previewCompanyId={previewCompanyId ?? 1} previewForceError={err} />
           : view === 'licenciamento' ? <LicenciamentoView autoLoadCustoms={customs} previewCompanyId={previewCompanyId} />
           : view === 'configuracao' ? <ConfiguracaoView demoAdmin />
           : <InventarioView initialFilter={filter} initialQuery={query} previewCompanyId={previewCompanyId} />}
