@@ -15,7 +15,7 @@ import {
   AlertTriangle, CheckCircle2, FileText, Loader2, XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, Modal } from '@/components/ds'
+import { Badge, Button, Modal, TextInput } from '@/components/ds'
 import { getOperacoesDataSource } from '@/lib/operacoes/datasource'
 import type { OpItemResult } from '@/lib/operacoes/types'
 
@@ -231,6 +231,35 @@ export function useOperations(environmentId: string | null, onDone: () => void) 
     })
   }, [ds, environmentId, start])
 
+  // A4 (C4.6) — Renomear AppServer. UI/modal/validação prontos; datasource simulado.
+  // No L3 apenas o datasource passa a chamar o endpoint real do Windows.
+  const rename = useCallback((name: string, currentLabel: string) => {
+    if (!environmentId) return
+    let value = currentLabel
+    const RenameBody = () => {
+      const [v, setV] = useState(currentLabel)
+      const trimmed = v.trim()
+      const invalid = trimmed.length === 0 || trimmed.length > 80
+      return (
+        <div className="space-y-2">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Novo nome de exibição para <b style={{ color: 'var(--text)' }}>{currentLabel}</b>:</p>
+          <TextInput value={v} onChange={(e) => { setV(e.target.value); value = e.target.value }} placeholder="Ex.: AppServer Faturamento" />
+          {invalid && <p className="text-xs" style={{ color: 'var(--danger)' }}>{trimmed.length === 0 ? 'Informe um nome.' : 'Máximo de 80 caracteres.'}</p>}
+        </div>
+      )
+    }
+    start({
+      title: 'Renomear serviço',
+      confirmLabel: 'Renomear',
+      progressLabel: `Renomeando ${currentLabel}`,
+      body: <RenameBody />,
+      run: async () => {
+        const r = await ds.renameService(environmentId, name, value)
+        return { title: r.success ? 'Serviço renomeado' : 'Não foi possível renomear', success: !!r.success, message: r.message }
+      },
+    })
+  }, [ds, environmentId, start])
+
   const serviceAll = useCallback((action: 'start' | 'stop') => {
     if (!environmentId) return
     const verb = action === 'start' ? 'Iniciar todos' : 'Parar todos'
@@ -380,7 +409,7 @@ export function useOperations(environmentId: string | null, onDone: () => void) 
     </>
   )
 
-  return { modals, compile, patch, promote, rollback, service, serviceAll, exclusive, debug, cleanSystem, cleanTsk }
+  return { modals, compile, patch, promote, rollback, service, serviceAll, rename, exclusive, debug, cleanSystem, cleanTsk }
 }
 
 function PathList({ paths }: { paths: string[] }) {

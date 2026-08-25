@@ -418,6 +418,8 @@ export interface OperacoesDataSource {
   rollbackRpo(environmentId: string, variant?: OpVariant): Promise<RollbackRpoResult>
   controlService(environmentId: string, name: string, action: 'start' | 'stop' | 'restart'): Promise<SimpleOk>
   controlAllServices(environmentId: string, action: 'start' | 'stop'): Promise<SimpleOk>
+  /** A4 (C4.6): renomear AppServer. Fixture = rótulo custom simulado; L3 = endpoint Windows. */
+  renameService(environmentId: string, name: string, newDisplayName: string): Promise<SimpleOk>
   setExclusive(environmentId: string, active: boolean): Promise<SimpleOk>
   setDebug(environmentId: string, active: boolean): Promise<SimpleOk>
   cleanSystem(environmentId: string): Promise<SimpleOk>

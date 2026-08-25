@@ -61,6 +61,7 @@ export const AUDIT_ACTION_META: Record<string, { label: string; variant: string 
   'service-start': { label: 'Iniciar Serviço', variant: 'success' },
   'service-stop': { label: 'Parar Serviço', variant: 'danger' },
   'service-restart': { label: 'Reiniciar Serviço', variant: 'warning' },
+  'service-rename': { label: 'Renomear Serviço', variant: 'primary' },
   'start-all': { label: 'Iniciar Todos', variant: 'success' },
   'stop-all': { label: 'Parar Todos', variant: 'danger' },
 }

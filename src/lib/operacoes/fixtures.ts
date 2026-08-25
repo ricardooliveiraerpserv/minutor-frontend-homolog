@@ -165,6 +165,8 @@ interface Runtime {
   debug: boolean
   changes: ChangeEntry[]
   audit: AuditEntry[]
+  /** C4.6/A4: rótulos custom de AppServer (nome do serviço → displayName). Fixture; L3 grava no Windows. */
+  customLabels: Record<string, string>
 }
 
 const runtimeStore = new Map<string, Runtime>()
@@ -179,7 +181,14 @@ function seedRuntime(environmentId: string): Runtime {
     debug: m.kind === 'homologacao',
     changes: seedChanges(environmentId),
     audit: seedAudit(environmentId),
+    customLabels: {},
   }
+}
+
+/** Aplica rótulos custom (A4) sobre o displayName dos serviços. Fixture-only. */
+function withCustomLabels(environmentId: string, list: ServiceRow[]): ServiceRow[] {
+  const labels = rt(environmentId).customLabels
+  return list.map((s) => (labels[s.name] ? { ...s, displayName: labels[s.name] } : s))
 }
 
 function rt(environmentId: string): Runtime {
@@ -209,7 +218,7 @@ export function servicesFixture(environmentId: string): ServiceRow[] {
     push(c.compiler.serviceName, `TOTVS App Server Compilador ${suffixOf(environmentId)}`, 'Compilador', 'compiler', c.compiler.port, 'Stopped', 0, 0)
     push(c.exclusive.serviceName, `TOTVS App Server Exclusivo ${suffixOf(environmentId)}`, 'Exclusivo', 'exclusive', c.exclusive.port, 'Running', 3.1, 148_000_000)
     push(c.extraServices[0].name, 'TOTVS DBAccess 64', c.extraServices[0].description, 'extra', null, 'Running', 1.2, 92_000_000)
-    return list
+    return withCustomLabels(environmentId, list)
   }
 
   const m = envMeta(environmentId)
@@ -226,7 +235,7 @@ export function servicesFixture(environmentId: string): ServiceRow[] {
   push(c.compiler.serviceName, `TOTVS App Server Compilador ${suffixOf(environmentId)}`, 'Compilador', 'compiler', c.compiler.port, r.debug ? 'Running' : 'Stopped', r.debug ? 2.6 : 0, r.debug ? 130_000_000 : 0)
   push(c.exclusive.serviceName, `TOTVS App Server Exclusivo ${suffixOf(environmentId)}`, 'Exclusivo', 'exclusive', c.exclusive.port, 'Stopped', 0, 0)
   push(c.extraServices[0].name, 'TOTVS DBAccess 64', c.extraServices[0].description, 'extra', null, 'Running', 1.2, 92_000_000)
-  return list
+  return withCustomLabels(environmentId, list)
 }
 
 function suffixOf(environmentId: string): string {
@@ -638,6 +647,20 @@ export function controlServiceFixture(environmentId: string, name: string, actio
     detail: name, success: true, timestamp: NOW_ISO(),
   })
   return { success: true }
+}
+
+// A4 (C4.6) — Renomear AppServer. Fixture: grava o rótulo custom no runtime + auditoria.
+// No L3 esta função troca para o endpoint real do Windows (o contrato/UI já existem).
+export function renameServiceFixture(environmentId: string, name: string, newDisplayName: string): SimpleOk {
+  const label = newDisplayName.trim()
+  if (!label) return { success: false, message: 'Informe um nome para o serviço.' }
+  if (label.length > 80) return { success: false, message: 'Nome muito longo (máximo 80 caracteres).' }
+  rt(environmentId).customLabels[name] = label
+  pushAudit(environmentId, {
+    id: nextId('a'), username: 'ricardo.oliveira', action: 'service-rename',
+    detail: `"${name}" → "${label}"`, success: true, timestamp: NOW_ISO(),
+  })
+  return { success: true, serviceName: label, message: `Serviço renomeado para "${label}".` }
 }
 
 export function controlAllServicesFixture(environmentId: string, action: 'start' | 'stop'): SimpleOk {

@@ -118,6 +118,7 @@ export function AppServersView({ previewEnvironmentId = null, demoAdmin = false 
             canControl={can('services.control')}
             onService={(name, action, displayName) => ops.service(name, action, displayName)}
             onServiceAll={(action) => ops.serviceAll(action)}
+            onRename={(name, displayName) => ops.rename(name, displayName)}
           />
 
           {/* ── UTILIDADES ────────────────────────────────────────────────────── */}

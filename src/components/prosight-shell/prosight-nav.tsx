@@ -91,7 +91,12 @@ const SECTIONS: Section[] = [
     children: [
       { href: '/prosight/configuracao', label: 'Prosight', can: ADMIN_ONLY, match: (p) => p.startsWith('/prosight/configuracao') },
       { href: '/operacoes-protheus/configuracao', label: 'Ambiente', can: ADMIN_ONLY, match: (p) => p.startsWith('/operacoes-protheus/configuracao') },
-      { href: '/central-fontes/configuracoes', label: 'Governança', can: GOV, match: (p) => startsAny(p, GOV_SECTION) },
+      // Governança (C4.6): IA & Custos + os lares de nav dados a inativos/aprovações/campanha
+      // (antes órfãos — A1/A2/A3). Rotas MANTIDAS; só ganham entrada no nav (reversível).
+      { href: '/central-fontes/configuracoes', label: 'Governança', can: GOV, match: (p) => p.startsWith('/central-fontes/configuracoes') },
+      { href: '/central-fontes/inativos', label: 'Repositórios', can: ADMIN_ONLY, match: (p) => p.startsWith('/central-fontes/inativos') },
+      { href: '/central-fontes/aprovacoes', label: 'Aprovações IA', can: GOV, match: (p) => p.startsWith('/central-fontes/aprovacoes') },
+      { href: '/central-fontes/campanha', label: 'Campanhas', can: GOV, match: (p) => p.startsWith('/central-fontes/campanha') },
     ],
   },
 ]

@@ -24,7 +24,7 @@ import type {
 import {
   ENVIRONMENTS, auditFixture, buildPatchesFixture, buildSourcesFixture, changesFixture,
   cleanSystemFixture, cleanTskFixture, compileFixture, configFixture, consoleLogFixture,
-  consoleSourcesFixture, controlAllServicesFixture, controlServiceFixture, exclusiveStateFixture,
+  consoleSourcesFixture, controlAllServicesFixture, controlServiceFixture, renameServiceFixture, exclusiveStateFixture,
   folderStatusFixture, patchApplyFixture, promoteDestinationsFixture, promoteRpoFixture,
   rollbackRpoFixture, servicesFixture, setDebugFixture, setExclusiveFixture, sourcesInventoryFixture,
   systemInfoFixture,
@@ -164,6 +164,11 @@ class FixtureDataSource implements OperacoesDataSource {
     return controlAllServicesFixture(environmentId, action)
   }
 
+  async renameService(environmentId: string, name: string, newDisplayName: string): Promise<SimpleOk> {
+    await wait(400)
+    return renameServiceFixture(environmentId, name, newDisplayName)
+  }
+
   async setExclusive(environmentId: string, active: boolean): Promise<SimpleOk> {
     await wait(600)
     return setExclusiveFixture(environmentId, active)
@@ -219,6 +224,7 @@ class LiveDataSource implements OperacoesDataSource {
   rollbackRpo(): Promise<RollbackRpoResult> { throw new Error(LIVE_NOT_READY) }
   controlService(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }
   controlAllServices(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }
+  renameService(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }
   setExclusive(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }
   setDebug(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }
   cleanSystem(): Promise<SimpleOk> { throw new Error(LIVE_NOT_READY) }

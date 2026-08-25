@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
 import {
-  Activity, AlertTriangle, Database, FolderCog, PlayCircle, RefreshCw, Search,
+  Activity, AlertTriangle, Database, FolderCog, Pencil, PlayCircle, RefreshCw, Search,
   Server, StopCircle, Terminal,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
@@ -88,11 +88,12 @@ function IconBtn({ children, title, disabled, onClick }: { children: React.React
   )
 }
 
-export function ServiceRowView({ s, canControl, onAction }: { s: ServiceRow; canControl: boolean; onAction: (a: 'start' | 'stop' | 'restart') => void }) {
+export function ServiceRowView({ s, canControl, onAction, onRename }: { s: ServiceRow; canControl: boolean; onAction: (a: 'start' | 'stop' | 'restart') => void; onRename?: () => void }) {
   const meta = STATUS_META[s.status]
   const degraded = isDegraded(s)
   const running = s.status === 'Running'
   const controllable = canControl && s.type !== 'exclusive' && s.type !== 'compiler'
+  const renamable = canControl && !!onRename // A4: renomear vale p/ qualquer serviço (não é destrutivo)
   return (
     <Tr>
       <Td>
@@ -112,11 +113,12 @@ export function ServiceRowView({ s, canControl, onAction }: { s: ServiceRow; can
       <Td right mono style={{ color: degraded ? 'var(--warning)' : undefined }}>{fmtCpu(s.cpu)}</Td>
       <Td right mono muted>{fmtBytes(s.memory)}</Td>
       <Td right>
-        {controllable ? (
+        {controllable || renamable ? (
           <div className="inline-flex items-center gap-1.5 justify-end">
-            <IconBtn title="Iniciar" disabled={running} onClick={() => onAction('start')}><PlayCircle size={15} style={{ color: running ? 'var(--text-light)' : 'var(--success)' }} /></IconBtn>
-            <IconBtn title="Parar" disabled={!running} onClick={() => onAction('stop')}><StopCircle size={15} style={{ color: !running ? 'var(--text-light)' : 'var(--danger)' }} /></IconBtn>
-            <IconBtn title="Reiniciar" disabled={!running} onClick={() => onAction('restart')}><RefreshCw size={14} style={{ color: !running ? 'var(--text-light)' : 'var(--warning)' }} /></IconBtn>
+            {controllable && <IconBtn title="Iniciar" disabled={running} onClick={() => onAction('start')}><PlayCircle size={15} style={{ color: running ? 'var(--text-light)' : 'var(--success)' }} /></IconBtn>}
+            {controllable && <IconBtn title="Parar" disabled={!running} onClick={() => onAction('stop')}><StopCircle size={15} style={{ color: !running ? 'var(--text-light)' : 'var(--danger)' }} /></IconBtn>}
+            {controllable && <IconBtn title="Reiniciar" disabled={!running} onClick={() => onAction('restart')}><RefreshCw size={14} style={{ color: !running ? 'var(--text-light)' : 'var(--warning)' }} /></IconBtn>}
+            {renamable && <IconBtn title="Renomear" onClick={() => onRename?.()}><Pencil size={13} style={{ color: 'var(--text-muted)' }} /></IconBtn>}
           </div>
         ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
       </Td>
@@ -126,12 +128,13 @@ export function ServiceRowView({ s, canControl, onAction }: { s: ServiceRow; can
 
 /** Card completo de AppServers: filtro + start/stop-all + tabela de serviços. */
 export function AppServersCard({
-  services, canControl, onService, onServiceAll,
+  services, canControl, onService, onServiceAll, onRename,
 }: {
   services: ServiceRow[]
   canControl: boolean
   onService: (name: string, action: 'start' | 'stop' | 'restart', displayName: string) => void
   onServiceAll: (action: 'start' | 'stop') => void
+  onRename?: (name: string, displayName: string) => void
 }) {
   const [filter, setFilter] = useState('')
   const filtered = useMemo(() => {
@@ -162,7 +165,7 @@ export function AppServersCard({
           {filtered.length === 0 ? (
             <Tr><Td colSpan={7}><div className="py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhum serviço para o filtro.</div></Td></Tr>
           ) : filtered.map((s) => (
-            <ServiceRowView key={s.name} s={s} canControl={canControl} onAction={(a) => onService(s.name, a, s.displayName)} />
+            <ServiceRowView key={s.name} s={s} canControl={canControl} onAction={(a) => onService(s.name, a, s.displayName)} onRename={onRename ? () => onRename(s.name, s.displayName) : undefined} />
           ))}
         </Tbody>
       </Table>
