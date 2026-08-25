@@ -111,6 +111,12 @@ interface ContractRequestDetail {
 
 type AnyCard = ContractCard | ProjectCard
 
+// Legenda amigável do tipo de anexo (aba Documentos).
+const DOC_TYPE_LABEL: Record<string, string> = {
+  documento: 'Documento', proposta: 'Proposta', contrato: 'Contrato',
+  aprovacao_cliente: 'Aprovação do cliente', logo: 'Logo', evidencia: 'Evidência', imagem: 'Imagem',
+}
+
 interface Coordinator { id: number; name: string }
 
 interface RequestCard {
@@ -2089,7 +2095,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [loading, setLoading] = useState(true)
   // Abas financeiras removidas desta tela: se abrir numa delas (initialTab), cai em Visão Geral.
   const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'comments' | 'chat' | 'documents'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
-  const [docs, setDocs] = useState<{ id: number; original_name: string; mime_type?: string; size?: number; source?: string; created_at?: string }[]>([])
+  const [docs, setDocs] = useState<{ id: number; original_name: string; mime_type?: string; size?: number; source?: string; type?: string; description?: string | null; created_at?: string }[]>([])
   const [docsLoaded, setDocsLoaded] = useState(false)
   const [docsLoading, setDocsLoading] = useState(false)
   const [docUploading, setDocUploading] = useState(false)
@@ -2151,7 +2157,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const loadDocs = () => {
     setDocsLoading(true)
     api.get<any>(`/projects/${projectId}/attachments`)
-      .then(r => { setDocs((Array.isArray(r) ? r : []).filter((a: any) => a.source !== 'contract')); setDocsLoaded(true) })
+      // Anexos do contrato ficam ocultos aqui (geridos na Gestão de Contratos), EXCETO os
+      // marcados como "documento" na criação do contrato — esses são para o coordenador ver.
+      .then(r => { setDocs((Array.isArray(r) ? r : []).filter((a: any) => a.source !== 'contract' || a.type === 'documento')); setDocsLoaded(true) })
       .catch(() => {})
       .finally(() => setDocsLoading(false))
   }
@@ -2793,10 +2801,20 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     {docs.map(d => (
                       <div key={`${d.source}-${d.id}`} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
                         style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
-                        <button type="button" onClick={() => downloadDoc(d)} className="flex items-center gap-2 min-w-0 text-left">
-                          <Paperclip size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
-                          <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{d.original_name}</span>
-                          {d.source === 'contract' && <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>contrato</span>}
+                        <button type="button" onClick={() => downloadDoc(d)} className="flex items-start gap-2 min-w-0 text-left">
+                          <Paperclip size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{d.original_name}</span>
+                              {d.type && d.type !== 'outro' && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                                  {DOC_TYPE_LABEL[d.type] ?? d.type}
+                                </span>
+                              )}
+                              {d.source === 'contract' && <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>contrato</span>}
+                            </span>
+                            {d.description && <span className="block text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.description}</span>}
+                          </span>
                         </button>
                         <div className="flex items-center gap-1 shrink-0">
                           <button type="button" onClick={() => downloadDoc(d)} title="Baixar"

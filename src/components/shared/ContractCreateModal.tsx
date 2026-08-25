@@ -153,7 +153,7 @@ export function ContractCreateModal({
   const [saving, setSaving] = useState(false)
   const [clientApprovalFile, setClientApprovalFile] = useState<File | null>(null)
   // Documentos adicionais anexados ao contrato — aparecem na aba Documentos do projeto (fonte: contrato).
-  const [contractDocs, setContractDocs] = useState<File[]>([])
+  const [contractDocs, setContractDocs] = useState<{ file: File; description: string }[]>([])
 
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -730,12 +730,13 @@ export function ContractCreateModal({
       // Documentos adicionais → anexados ao contrato (aparecem na aba Documentos do projeto).
       for (const doc of contractDocs) {
         const fd = new FormData()
-        fd.append('file', doc)
+        fd.append('file', doc.file)
         fd.append('type', 'documento')
+        if (doc.description.trim()) fd.append('description', doc.description.trim())
         try {
           await uploadDirect(`/contracts/${contract.id}/attachments`, fd)
         } catch (upErr: any) {
-          toast.error(upErr?.message ?? `Falha ao enviar o documento "${doc.name}". Anexe manualmente na edição.`)
+          toast.error(upErr?.message ?? `Falha ao enviar o documento "${doc.file.name}". Anexe manualmente na edição.`)
         }
       }
 
@@ -1337,18 +1338,28 @@ export function ContractCreateModal({
                   type="file"
                   multiple
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
-                  onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) setContractDocs(prev => [...prev, ...fs]); e.target.value = '' }}
+                  onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) setContractDocs(prev => [...prev, ...fs.map(file => ({ file, description: '' }))]); e.target.value = '' }}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:cursor-pointer"
                   style={{ ...inputStyle, ['--tw-ring-color' as any]: 'var(--primary)' }}
                 />
                 <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Anexe documentos do contrato para o coordenador — aparecem na aba <b>Documentos</b> do projeto. Máx 20 MB cada.</p>
                 {contractDocs.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {contractDocs.map((f, i) => (
-                      <div key={i} className="flex items-center justify-between px-2 py-1 rounded-md" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                        <span className="text-[11px] truncate" style={{ color: 'var(--text)' }}>{f.name} ({Math.round(f.size / 1024)} KB)</span>
-                        <button type="button" onClick={() => setContractDocs(prev => prev.filter((_, idx) => idx !== i))}
-                          className="text-[11px] px-1.5" style={{ color: 'var(--danger)' }}>remover</button>
+                  <div className="mt-2 space-y-2">
+                    {contractDocs.map((d, i) => (
+                      <div key={i} className="px-2 py-2 rounded-md space-y-1.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] truncate" style={{ color: 'var(--text)' }}>{d.file.name} ({Math.round(d.file.size / 1024)} KB)</span>
+                          <button type="button" onClick={() => setContractDocs(prev => prev.filter((_, idx) => idx !== i))}
+                            className="text-[11px] px-1.5 shrink-0" style={{ color: 'var(--danger)' }}>remover</button>
+                        </div>
+                        <input
+                          value={d.description}
+                          onChange={e => setContractDocs(prev => prev.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))}
+                          placeholder="Descrição / legenda deste documento (opcional)"
+                          maxLength={500}
+                          className="w-full px-2 py-1 rounded text-[11px] outline-none"
+                          style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                        />
                       </div>
                     ))}
                   </div>
