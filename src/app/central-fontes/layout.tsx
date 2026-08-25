@@ -14,15 +14,16 @@
 import type { ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
-import { FontesCompanyProvider, FontesCompanySelect } from './_components/fontes-company-context'
+import { ProsightCompanyProvider, ProsightCompanySelect } from '@/app/prosight/_components/company-context'
 
 export default function CentralFontesLayout({ children }: { children: ReactNode }) {
   return (
     <AppLayout>
-      <FontesCompanyProvider>
-        <ProsightNav rightSlot={<FontesCompanySelect />} />
+      {/* Mesmo seletor GLOBAL de empresa do Prosight (empresas reais, persistido). */}
+      <ProsightCompanyProvider>
+        <ProsightNav rightSlot={<ProsightCompanySelect />} />
         {children}
-      </FontesCompanyProvider>
+      </ProsightCompanyProvider>
     </AppLayout>
   )
 }

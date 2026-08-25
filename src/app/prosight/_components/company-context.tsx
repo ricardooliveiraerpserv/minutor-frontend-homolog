@@ -1,58 +1,60 @@
 'use client'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prosight — contexto de EMPRESA (escopo do módulo). Fonte da empresa:
-//   • fixture (F2): lista de DEMONSTRAÇÃO (permite validar o escopo sem depender
-//     de conta multi-empresa — o seletor global do Minutor só aparece com 2+).
-//   • live (F6):    empresas reais do Minutor (/my-companies).
-// Padrão = empresa ativa global do Minutor quando existir. O seletor vive na
-// casca do Prosight (ao lado das abas) e escopa Inventário + Licenciamento.
+// Prosight — contexto GLOBAL de EMPRESA (escopo do módulo). UMA chave só, no topo
+// da casca, comum a todos os domínios do Prosight. Fonte da lista = EMPRESAS REAIS
+// (/source-docs/tree/customers) — os mesmos clientes da Central de Fontes.
+//
+// Ao selecionar uma empresa aqui, a Central de Fontes ACATA (abre direto na empresa).
+// Os domínios ainda em fixture (Inventário/Licenciamento) recebem o companyId real e
+// derivam um perfil de demonstração determinístico (companySeed = id % 4) — sem quebrar.
+// Operações mantém o próprio seletor (empresa × ambiente, eixo diferente).
+//
+// "Todas as empresas" = companyId null (Central de Fontes mostra o catálogo; fixtures
+// caem no perfil 0). Seleção PERSISTIDA (localStorage) e compartilhada entre as cascas
+// do Prosight e da Central de Fontes (que são árvores de layout distintas).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { Building2 } from 'lucide-react'
-import { useActiveCompany } from '@/hooks/use-active-company'
-import { prosightDataMode } from '@/lib/prosight/datasource'
+import { api } from '@/lib/api'
 
 export interface ProsightCompany { id: number; name: string }
-
-// Empresas de demonstração — SÓ no modo fixture (dados de exemplo, como todo o F2).
-const DEMO_COMPANIES: ProsightCompany[] = [
-  { id: 1, name: 'Empresa Alfa' },
-  { id: 2, name: 'Empresa Beta' },
-  { id: 3, name: 'Empresa Gama' },
-  { id: 4, name: 'Empresa Delta' },
-]
 
 interface Ctx {
   companyId: number | null
   companyName: string | null
   companies: ProsightCompany[]
-  setCompanyId: (id: number) => void
+  setCompanyId: (id: number | null) => void
 }
 
 const ProsightCompanyContext = createContext<Ctx | null>(null)
+const LS_KEY = 'prosight_company'
+
+function readPersisted(): number | null {
+  if (typeof window === 'undefined') return null
+  const v = window.localStorage.getItem(LS_KEY)
+  return v ? Number(v) : null
+}
 
 export function ProsightCompanyProvider({ children }: { children: ReactNode }) {
-  const { active } = useActiveCompany()
-  const isFixture = prosightDataMode() === 'fixture'
+  const [companies, setCompanies] = useState<ProsightCompany[]>([])
+  // init síncrono da seleção persistida (evita flash antes de escopar/redirecionar).
+  const [companyId, setCompanyIdState] = useState<number | null>(readPersisted)
 
-  // No live, a lista real completa vem do backend/BFF no F6; por ora usamos a
-  // empresa ativa do Minutor. No fixture, a lista de demonstração.
-  const companies: ProsightCompany[] = isFixture
-    ? DEMO_COMPANIES
-    : active
-      ? [{ id: active.id, name: active.name ?? active.slug ?? `Empresa #${active.id}` }]
-      : []
+  const setCompanyId = (id: number | null) => {
+    setCompanyIdState(id)
+    if (typeof window === 'undefined') return
+    if (id != null) window.localStorage.setItem(LS_KEY, String(id))
+    else window.localStorage.removeItem(LS_KEY)
+  }
 
-  const [companyId, setCompanyId] = useState<number | null>(
-    active?.id ?? (isFixture ? DEMO_COMPANIES[0].id : null),
-  )
-
-  // Quando a empresa ativa global chega (async) e ainda não escolhemos, adota-a.
+  // Empresas REAIS (clientes) — a mesma fonte da Central de Fontes.
   useEffect(() => {
-    if (companyId == null && active?.id != null) setCompanyId(active.id)
-  }, [active, companyId])
+    api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers?include_empty=1')
+      .then((r) => setCompanies(r.data.map((c) => ({ id: c.customer_id, name: c.name }))))
+      .catch(() => setCompanies([]))
+  }, [])
 
   const companyName = companies.find((c) => c.id === companyId)?.name ?? null
 
@@ -68,20 +70,21 @@ export function useProsightCompany(): Ctx | null {
   return useContext(ProsightCompanyContext)
 }
 
-/** Seletor de empresa — vive na casca do Prosight (ao lado das abas). */
+/** Seletor GLOBAL de empresa — vive na casca do Prosight (ao lado das abas). */
 export function ProsightCompanySelect() {
   const ctx = useProsightCompany()
-  if (!ctx || ctx.companies.length <= 1) return null
+  if (!ctx || ctx.companies.length === 0) return null
   return (
     <label className="flex items-center gap-2">
       <Building2 size={15} style={{ color: 'var(--text-muted)' }} />
       <span className="sr-only">Empresa</span>
       <select
         value={ctx.companyId ?? ''}
-        onChange={(e) => ctx.setCompanyId(Number(e.target.value))}
+        onChange={(e) => ctx.setCompanyId(e.target.value ? Number(e.target.value) : null)}
         className="rounded-xl px-3 py-1.5 text-sm outline-none"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
       >
+        <option value="">Todas as empresas</option>
         {ctx.companies.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}

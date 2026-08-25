@@ -20,7 +20,7 @@ import {
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { SolicitarFonteModal } from '@/components/central-fontes/solicitar-fonte-modal'
-import { useFontesCompany } from './_components/fontes-company-context'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 type Situation = 'ATUALIZADA' | 'DESATUALIZADA' | 'NAO_VALIDADO'
 type Semantic = 'completed' | 'partial' | 'none'
@@ -96,15 +96,16 @@ export default function CentralFontesPage() {
   // gerencia o próprio fetch (todas as empresas, detentor, ocultar, solicitar fonte).
   const hasFilter = !!(q.trim() || analysis || semantic || situation)
 
-  // C4.x — empresa vinda do seletor da casca: a Central de Fontes abre DIRETO na tela
-  // do cliente (print AUSTER), pulando o passo "Acervo por empresa". "Todas" (selectedId
-  // null) mantém o catálogo. Busca/filtro ou aba ≠ Acervo não redirecionam.
-  const { selectedId } = useFontesCompany()
+  // A Central de Fontes ACATA o seletor GLOBAL de empresa do Prosight: com empresa
+  // selecionada, abre DIRETO na tela do cliente (print AUSTER), pulando "Acervo por
+  // empresa". "Todas as empresas" (companyId null) mantém o catálogo. Busca/filtro ou
+  // aba ≠ Acervo não redirecionam.
+  const companyId = useProsightCompany()?.companyId ?? null
   useEffect(() => {
-    if (selectedId && mainTab === 'acervo' && !hasFilter) {
-      router.replace(`/central-fontes/acervo?customer_id=${selectedId}`)
+    if (companyId && mainTab === 'acervo' && !hasFilter) {
+      router.replace(`/central-fontes/acervo?customer_id=${companyId}`)
     }
-  }, [selectedId, mainTab, hasFilter, router])
+  }, [companyId, mainTab, hasFilter, router])
 
   const load = useCallback(async () => {
     setLoading(true)

@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { api, ApiError } from '@/lib/api'
 import { SourceDocDetail } from '@/app/central-fontes/[id]/page'
 import { SolicitarFonteModal, type SolicitarCtx } from '@/components/central-fontes/solicitar-fonte-modal'
-import { useFontesCompany } from '@/app/central-fontes/_components/fontes-company-context'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 interface CustomerRow { customer_id: number; name: string; repos: number; fontes: number; documentadas: number; completas: number; parciais: number; pendentes: number; aguardando_aprovacao: number }
 interface RepoRow { repository: string; source_repo_id: number | null; branch: string; owner: string; fontes: number; documentadas: number; parciais: number; cobertura_semantica: number; ultima_atualizacao_acervo: string | null; hidden?: boolean }
@@ -95,7 +95,12 @@ function EmpresaEntry({ onOpen }: { onOpen: (id: number) => void }) {
 
 function TreeExplorer({ customerId, initialDoc }: { customerId: number | null; initialDoc: number | null }) {
   const router = useRouter()
-  const { setSelectedId } = useFontesCompany()
+  const company = useProsightCompany()
+  // Mantém o seletor GLOBAL sincronizado com a empresa aberta no Acervo (deep-link/árvore).
+  useEffect(() => {
+    if (customerId && company && company.companyId !== customerId) company.setCompanyId(customerId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId])
   const [nodes, setNodes] = useState<TreeNode[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Meta | null>(null)
@@ -218,7 +223,7 @@ function TreeExplorer({ customerId, initialDoc }: { customerId: number | null; i
   return (
     <>
       <PageHeader icon={Building2} title={custName || 'Acervo'} subtitle="Empresa → Repositório → Diretório → Fonte → Conhecimento."
-        actions={<button onClick={() => { setSelectedId(null); router.push('/central-fontes/acervo') }} className="inline-flex items-center gap-1 text-sm text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]"><ArrowLeft size={14} /> Empresas</button>} />
+        actions={<button onClick={() => { company?.setCompanyId(null); router.push('/central-fontes/acervo') }} className="inline-flex items-center gap-1 text-sm text-[color:var(--muted-fg)] hover:text-[color:var(--fg)]"><ArrowLeft size={14} /> Empresas</button>} />
       {err ? <EmptyState icon={FolderGit2} title="Erro" description={err} /> : (
         <Card padding="none" className="overflow-hidden">
           <div className="h-[calc(100vh-260px)] min-h-[480px]">
