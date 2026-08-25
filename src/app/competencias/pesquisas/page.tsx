@@ -4,11 +4,12 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { CompetenciasConsultaTabs } from '@/components/competencias/consulta-tabs'
 import { SectionLoader } from '@/components/ui/loading'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
-import { Plus, Link2, Users, Send, Copy, ClipboardList } from 'lucide-react'
+import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone } from 'lucide-react'
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{children}</label>
@@ -43,10 +44,12 @@ const STATUS_LABEL: Record<string, string> = { draft: 'Rascunho', open: 'Aberta'
 const STATUS_CLASS: Record<string, string> = { draft: 'ds-status', open: 'ds-status-success', closed: 'ds-status-info' }
 
 export default function PesquisasCompetenciasPage() {
+  const router = useRouter()
   const [surveys, setSurveys] = useState<SurveyCard[]>([])
   const [meta, setMeta] = useState<Meta | null>(null)
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
+  const [showCampaign, setShowCampaign] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,9 +79,14 @@ export default function PesquisasCompetenciasPage() {
               ? <>Matriz v{meta.active_version.number} · {meta.active_version.skills_count} competências</>
               : 'Nenhuma matriz publicada'}
           </p>
-          <button className="ds-btn-primary flex items-center gap-2" onClick={() => setShowNew(true)}>
-            <Plus size={16} /> Nova Pesquisa
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="ds-btn-primary flex items-center gap-2" onClick={() => setShowCampaign(true)}>
+              <Megaphone size={16} /> Nova campanha
+            </button>
+            <button className="ds-btn-secondary flex items-center gap-2" onClick={() => setShowNew(true)}>
+              <Plus size={16} /> Nova Pesquisa
+            </button>
+          </div>
         </div>
 
         {loading && <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div>}
@@ -122,7 +130,77 @@ export default function PesquisasCompetenciasPage() {
           onDone={() => { setShowNew(false); load() }}
         />
       )}
+
+      {showCampaign && (
+        <NewCampaignModal
+          onClose={() => setShowCampaign(false)}
+          onDone={(id) => { setShowCampaign(false); router.push(`/competencias/pesquisas/${id}`) }}
+        />
+      )}
     </AppLayout>
+  )
+}
+
+function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (id: number) => void }) {
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [deadline, setDeadline] = useState('')
+  const [target, setTarget] = useState<'consultores' | 'todos'>('consultores')
+  const [saving, setSaving] = useState(false)
+
+  async function launch() {
+    if (!deadline) { toast.error('Informe o prazo da campanha'); return }
+    setSaving(true)
+    try {
+      const s = await api.post<{ id: number; invited: number; mails_sent: number }>('/competencias/campanhas', {
+        title: title || null, description: description || null, deadline, target,
+      })
+      toast.success(`Campanha aberta — ${s.invited} consultor(es) notificado(s)`)
+      onDone(s.id)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao abrir a campanha')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} size="md">
+      <ModalHeader title="Nova campanha de atualização" icon={Megaphone} onClose={onClose} />
+      <ModalBody className="space-y-3">
+        <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+          Envia a todos os consultores um pedido para <strong>atualizar as competências</strong>, com pop-up e e-mail.
+          Você acompanha quem já atualizou e cobra os pendentes (a recorrência é configurável na Central de Workflows).
+        </p>
+        <div>
+          <Label>Título <span style={{ color: 'var(--text-light)' }}>(opcional)</span></Label>
+          <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex.: Atualização de Competências — 2º semestre" />
+        </div>
+        <div>
+          <Label>Mensagem <span style={{ color: 'var(--text-light)' }}>(opcional)</span></Label>
+          <textarea className="ds-input" rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="Se você evoluiu (novo curso, ferramenta, projeto), reflita no seu perfil." />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Prazo</Label>
+            <input type="date" className="ds-input" value={deadline} onChange={e => setDeadline(e.target.value)} />
+          </div>
+          <div>
+            <Label>Público-alvo</Label>
+            <select className="ds-input" value={target} onChange={e => setTarget(e.target.value as 'consultores')}>
+              <option value="consultores">Consultores e coordenadores</option>
+              <option value="todos">Todos os colaboradores internos</option>
+            </select>
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter className="!justify-between">
+        <button className="ds-btn-secondary" onClick={onClose}>Cancelar</button>
+        <button className="ds-btn-primary flex items-center gap-2" disabled={saving} onClick={launch}>
+          <Send size={15} /> {saving ? 'Enviando…' : 'Abrir e notificar'}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }
 

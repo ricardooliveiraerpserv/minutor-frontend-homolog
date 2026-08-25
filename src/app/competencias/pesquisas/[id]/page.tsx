@@ -70,11 +70,11 @@ export default function AcompanhamentoPage() {
 
   async function remind(inviteId: number) {
     try {
-      const res = await api.post<{ link: string }>(`/competencias/invites/${inviteId}/reminder`, {})
+      const res = await api.post<{ link: string; email_sent: boolean }>(`/competencias/invites/${inviteId}/reminder`, {})
       navigator.clipboard?.writeText(res.link)
-      toast.success('Lembrete registrado — link copiado')
+      toast.success(res.email_sent ? 'Lembrete enviado (e-mail + pop-up)' : 'Lembrete registrado — link copiado')
       load()
-    } catch { toast.error('Erro ao registrar lembrete') }
+    } catch { toast.error('Erro ao enviar lembrete') }
   }
 
   if (loading || !detail) {
