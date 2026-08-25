@@ -14,7 +14,7 @@ import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, Pin } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -1913,7 +1913,7 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
 // ─── Request Detail Modal ─────────────────────────────────────────────────────
 
 interface ReqAttachment { id: number; original_name: string; file_path: string; file_size: number; mime_type?: string }
-interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; attachments?: ReqAttachment[] }
+interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; pinned_at?: string | null; attachments?: ReqAttachment[] }
 interface MentionUser { id: number; name: string; role?: 'admin' | 'executivo' | 'cliente' }
 
 interface KanbanLogEntry {
@@ -2095,7 +2095,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [loading, setLoading] = useState(true)
   // Abas financeiras removidas desta tela: se abrir numa delas (initialTab), cai em Visão Geral.
   const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'comments' | 'chat' | 'documents'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
-  const [docs, setDocs] = useState<{ id: number; original_name: string; mime_type?: string; size?: number; source?: string; type?: string; description?: string | null; created_at?: string }[]>([])
+  const [docs, setDocs] = useState<{ id: number; original_name: string; mime_type?: string; size?: number; source?: string; type?: string; description?: string | null; pinned_at?: string | null; created_at?: string }[]>([])
   const [docsLoaded, setDocsLoaded] = useState(false)
   const [docsLoading, setDocsLoading] = useState(false)
   const [docUploading, setDocUploading] = useState(false)
@@ -2200,6 +2200,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
       setDocsLoaded(false); loadDocs()
     } catch { toast.error('Erro ao remover documento') }
   }
+
+  const togglePinDoc = async (d: { id: number; pinned_at?: string | null }) => {
+    try {
+      const r = await api.post<{ pinned: boolean }>(`/attachments/${d.id}/pin`, {})
+      setDocs(prev => prev.map(x => x.id === d.id ? { ...x, pinned_at: r.pinned ? new Date().toISOString() : null } : x))
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível fixar')
+    }
+  }
+  const docsSorted = [...docs].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
 
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -2798,9 +2808,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {docs.map(d => (
+                    {docsSorted.map(d => (
                       <div key={`${d.source}-${d.id}`} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
-                        style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                        style={{ background: d.pinned_at ? 'var(--primary-soft)' : 'var(--surface-sunken)', border: d.pinned_at ? '1px solid var(--primary)' : '1px solid var(--border)' }}>
                         <button type="button" onClick={() => downloadDoc(d)} className="flex items-start gap-2 min-w-0 text-left">
                           <Paperclip size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--text-muted)' }} />
                           <span className="min-w-0">
@@ -2817,6 +2827,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           </span>
                         </button>
                         <div className="flex items-center gap-1 shrink-0">
+                          <button type="button" onClick={() => togglePinDoc(d)} title={d.pinned_at ? 'Desafixar' : 'Fixar'}
+                            className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: d.pinned_at ? 'var(--primary)' : 'var(--text-muted)' }}><Pin size={14} fill={d.pinned_at ? 'currentColor' : 'none'} /></button>
                           <button type="button" onClick={() => downloadDoc(d)} title="Baixar"
                             className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Download size={14} /></button>
                           {d.source !== 'contract' && (
@@ -3812,6 +3824,16 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
     } catch { toast.error('Erro ao baixar arquivo') }
   }
 
+  const togglePin = async (msg: ReqMsg) => {
+    try {
+      const r = await api.post<{ pinned: boolean }>(`/req-comments/${msg.id}/pin`, {})
+      setMsgs(prev => prev.map(x => x.id === msg.id ? { ...x, pinned_at: r.pinned ? new Date().toISOString() : null } : x))
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível fixar')
+    }
+  }
+  const msgsSorted = [...msgs].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {visibility === 'internal' && (
@@ -3833,8 +3855,9 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
             </p>
           </div>
         )}
-        {msgs.map(msg => (
-          <div key={msg.id} className="flex gap-2.5 items-start">
+        {msgsSorted.map(msg => (
+          <div key={msg.id} className="group flex gap-2.5 items-start rounded-lg -mx-1.5 px-1.5 py-1"
+            style={msg.pinned_at ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' } : undefined}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
               {(msg.author?.name ?? '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
@@ -3845,6 +3868,13 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                   {new Date(msg.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
+                {!readOnly && (
+                  <button type="button" onClick={() => togglePin(msg)} title={msg.pinned_at ? 'Desafixar' : 'Fixar'}
+                    className={`ml-auto p-1 rounded-md hover:bg-[var(--surface-hover)] ${msg.pinned_at ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    style={{ color: msg.pinned_at ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    <Pin size={13} fill={msg.pinned_at ? 'currentColor' : 'none'} />
+                  </button>
+                )}
               </div>
               <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>{msg.message}</p>
               {msg.attachments && msg.attachments.length > 0 && (

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import { Send, Paperclip, X, Download, FileText, Eye, Lock } from 'lucide-react'
+import { Send, Paperclip, X, Download, FileText, Eye, Lock, Pin } from 'lucide-react'
 import { Skeleton } from '@/components/ui/loading'
 import { toast } from 'sonner'
 
@@ -22,6 +22,7 @@ interface ContractMessage {
   visibility?: 'internal' | 'client'
   is_mentioned?: boolean
   created_at: string
+  pinned_at?: string | null
   author?: { id: number; name: string }
   attachments?: Attachment[]
 }
@@ -248,6 +249,16 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
     }
   }
 
+  const togglePin = async (msg: ContractMessage) => {
+    try {
+      const r = await api.post<{ pinned: boolean }>(`/contract-messages/${msg.id}/pin`, {})
+      setMessages(prev => prev.map(x => x.id === msg.id ? { ...x, pinned_at: r.pinned ? new Date().toISOString() : null } : x))
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Não foi possível fixar')
+    }
+  }
+  const messagesSorted = [...messages].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
+
   return (
     <div className="flex flex-col h-full min-h-[380px]">
       {/* Feed */}
@@ -259,9 +270,9 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Seja o primeiro a escrever.</span>
           </div>
         )}
-        {messages.map(msg => (
-          <div key={msg.id} className="flex gap-2.5 items-start rounded-lg px-3 py-2"
-            style={msg.is_mentioned ? { background: 'rgba(234,179,8,0.04)', borderLeft: '2px solid #eab308' } : {}}>
+        {messagesSorted.map(msg => (
+          <div key={msg.id} className="group flex gap-2.5 items-start rounded-lg px-3 py-2"
+            style={msg.pinned_at ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' } : msg.is_mentioned ? { background: 'rgba(234,179,8,0.04)', borderLeft: '2px solid #eab308' } : {}}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
               style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--warning)' }}>
               {getInitials(msg.author?.name ?? '?')}
@@ -277,6 +288,13 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
                   <span className="text-[9px] px-1 py-0.5 rounded font-semibold flex items-center gap-0.5" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)' }}>
                     <Lock size={8} /> interno
                   </span>
+                )}
+                {!readOnly && (
+                  <button type="button" onClick={() => togglePin(msg)} title={msg.pinned_at ? 'Desafixar' : 'Fixar'}
+                    className={`ml-auto p-1 rounded-md hover:bg-[var(--surface-hover)] ${msg.pinned_at ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    style={{ color: msg.pinned_at ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    <Pin size={13} fill={msg.pinned_at ? 'currentColor' : 'none'} />
+                  </button>
                 )}
               </div>
               {msg.message && (
