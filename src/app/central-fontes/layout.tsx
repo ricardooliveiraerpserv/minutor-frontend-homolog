@@ -14,12 +14,15 @@
 import type { ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
+import { FontesCompanyProvider, FontesCompanySelect } from './_components/fontes-company-context'
 
 export default function CentralFontesLayout({ children }: { children: ReactNode }) {
   return (
     <AppLayout>
-      <ProsightNav />
-      {children}
+      <FontesCompanyProvider>
+        <ProsightNav rightSlot={<FontesCompanySelect />} />
+        {children}
+      </FontesCompanyProvider>
     </AppLayout>
   )
 }
