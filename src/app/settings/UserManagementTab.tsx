@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown,
-  Search, KeyRound, Check, Copy, Eye,
+  Search, KeyRound, Check, Copy, Eye, Loader2,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -35,6 +35,14 @@ interface UserItem {
   can_timesheet_sustentacao?: boolean
   type?: string | null
   extra_permissions?: string[] | null
+  phone?: string | null
+  cep?: string | null
+  address_street?: string | null
+  address_number?: string | null
+  address_complement?: string | null
+  neighborhood?: string | null
+  city?: string | null
+  state?: string | null
 }
 
 interface CustomerOption { id: number; name: string }
@@ -264,7 +272,13 @@ const EMPTY_FORM = {
   customer_id: '' as number | '',
   partner_id:  '' as number | '',
   extra_permissions: [] as string[],
+  // Contato + endereço (busca automática por CEP)
+  phone: '', cep: '', address_street: '', address_number: '',
+  address_complement: '', neighborhood: '', city: '', state: '',
 }
+
+// Máscara de CEP 00000-000.
+const formatCep = (raw: string): string => raw.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2')
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -285,6 +299,7 @@ export function UserManagementTab() {
     tempPassword?: string; emailSent?: boolean; confirmed: boolean
   }>({ open: false, confirmed: false })
   const [form,      setForm]      = useState({ ...EMPTY_FORM })
+  const [cepLoading, setCepLoading] = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [deleting,  setDeleting]  = useState<number | null>(null)
   const [resetting, setResetting] = useState<number | null>(null)
@@ -375,8 +390,31 @@ export function UserManagementTab() {
       customer_id: item.customer_id ?? '',
       partner_id:  item.partner_id  ?? '',
       extra_permissions: item.extra_permissions ?? [],
+      phone: item.phone ?? '', cep: item.cep ?? '',
+      address_street: item.address_street ?? '', address_number: item.address_number ?? '',
+      address_complement: item.address_complement ?? '', neighborhood: item.neighborhood ?? '',
+      city: item.city ?? '', state: item.state ?? '',
     })
     setModal({ open: true, item })
+  }
+
+  // Busca automática de endereço (ViaCEP) ao preencher o CEP.
+  const lookupCep = async (cepRaw: string) => {
+    const d = cepRaw.replace(/\D/g, '')
+    if (d.length !== 8) return
+    setCepLoading(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${d}/json/`)
+      const data = await res.json()
+      if (data.erro) { toast.error('CEP não encontrado'); return }
+      setForm(f => ({
+        ...f,
+        address_street: data.logradouro || f.address_street,
+        neighborhood:   data.bairro     || f.neighborhood,
+        city:           data.localidade || f.city,
+        state:          data.uf         || f.state,
+      }))
+    } catch { toast.error('Não foi possível buscar o CEP') } finally { setCepLoading(false) }
   }
 
   const save = async () => {
@@ -405,6 +443,15 @@ export function UserManagementTab() {
       payload.guaranteed_hours = form.profiles.includes('consultor') && form.consultant_type === 'horista' && form.guaranteed_hours
         ? parseFloat(form.guaranteed_hours)
         : null
+      // Contato + endereço — vale para todos os perfis.
+      payload.phone              = form.phone || null
+      payload.cep                = form.cep || null
+      payload.address_street     = form.address_street || null
+      payload.address_number     = form.address_number || null
+      payload.address_complement = form.address_complement || null
+      payload.neighborhood       = form.neighborhood || null
+      payload.city               = form.city || null
+      payload.state              = form.state || null
       if (!modal.item && form.password) payload.password = form.password
       if (modal.item) await api.put(`/users/${modal.item.id}`, payload)
       else            await api.post('/users', payload)
@@ -689,6 +736,63 @@ export function UserManagementTab() {
                       className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                 )}
+
+                {/* ── Contato + Endereço (busca automática por CEP) — todos os perfis ── */}
+                <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-hover)] space-y-3">
+                  <p className="text-xs font-semibold text-[var(--text)]">Contato e endereço</p>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-[var(--text-muted)]">Celular</Label>
+                      <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                        placeholder="(11) 98888-7777"
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                    <div className="w-40 relative">
+                      <Label className="text-xs text-[var(--text-muted)]">CEP</Label>
+                      <Input value={form.cep} inputMode="numeric" placeholder="00000-000"
+                        onChange={e => setForm(f => ({ ...f, cep: formatCep(e.target.value) }))}
+                        onBlur={e => lookupCep(e.target.value)}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                      {cepLoading && <Loader2 size={14} className="animate-spin absolute right-2 top-[30px] text-[var(--text-muted)]" />}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-[var(--text-muted)]">Logradouro</Label>
+                      <Input value={form.address_street} onChange={e => setForm(f => ({ ...f, address_street: e.target.value }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                    <div className="w-24">
+                      <Label className="text-xs text-[var(--text-muted)]">Número</Label>
+                      <Input value={form.address_number} onChange={e => setForm(f => ({ ...f, address_number: e.target.value }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-[var(--text-muted)]">Complemento</Label>
+                      <Input value={form.address_complement} onChange={e => setForm(f => ({ ...f, address_complement: e.target.value }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs text-[var(--text-muted)]">Bairro</Label>
+                      <Input value={form.neighborhood} onChange={e => setForm(f => ({ ...f, neighborhood: e.target.value }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-[var(--text-muted)]">Cidade</Label>
+                      <Input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                    <div className="w-20">
+                      <Label className="text-xs text-[var(--text-muted)]">UF</Label>
+                      <Input value={form.state} maxLength={2} onChange={e => setForm(f => ({ ...f, state: e.target.value.toUpperCase() }))}
+                        className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                    </div>
+                  </div>
+                </div>
                 {hasRate && isParceiroAdm && partnerIsFixed ? (
                   <div className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]/50">
                     Valor hora definido pelo parceiro:{' '}
