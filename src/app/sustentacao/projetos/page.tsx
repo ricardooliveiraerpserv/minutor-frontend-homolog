@@ -358,6 +358,7 @@ export default function SustentacaoProjetosPage() {
   const [saudeFilter, setSaudeFilter] = useState('')
 
   const isAdmin = user?.type === 'admin'
+  const isCoordenadorSust = user?.type === 'coordenador' && (user as { coordinator_type?: string })?.coordinator_type === 'sustentacao'
 
   // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
   const { isDenied } = useDeniedActions()
@@ -509,6 +510,15 @@ export default function SustentacaoProjetosPage() {
           icon={Headphones}
           title="Projetos de Sustentação"
           subtitle="Lista de projetos por tipo de contrato"
+          actions={(isCoordenadorSust || isAdmin) ? (
+            <button onClick={() => router.push('/contratos/kanban')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--border)' }}>
+              <Layers size={13} /> Kanban
+            </button>
+          ) : undefined}
         />
 
         {/* Summary cards */}
