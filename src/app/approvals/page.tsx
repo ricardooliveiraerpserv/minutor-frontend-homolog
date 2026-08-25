@@ -602,7 +602,16 @@ export default function ApprovalsPage() {
     const t   = sp.get('tab')
     if (!cid && !t) { urlParamsApplied.current = true; return }
     if (user?.id == null) return   // espera o user (e a re-hidratação) carregar
-    if (cid) setFilter('coordinatorId', cid)
+    if (cid) {
+      setFilter('coordinatorId', cid)
+      // Vindo do card de aprovação: os pendentes podem ser de meses anteriores. Se
+      // mantivéssemos o filtro Mês/Ano salvo pelo user, a tela abriria no mês atual e
+      // pareceria VAZIA mesmo havendo pendências. Zera o período → mostra TODOS os pendentes.
+      setFilter('refMonth', null)
+      setFilter('refYear', null)
+      setFilter('dateFrom', '')
+      setFilter('dateTo', '')
+    }
     if (t === 'expenses' || t === 'timesheets') setFilter('tab', t)
     urlParamsApplied.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
