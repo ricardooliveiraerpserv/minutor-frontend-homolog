@@ -291,7 +291,7 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
                 )}
                 {!readOnly && (
                   <button type="button" onClick={() => togglePin(msg)} title={msg.pinned_at ? 'Desafixar' : 'Fixar'}
-                    className={`ml-auto p-1 rounded-md hover:bg-[var(--surface-hover)] ${msg.pinned_at ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    className="ml-auto p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors shrink-0"
                     style={{ color: msg.pinned_at ? 'var(--primary)' : 'var(--text-muted)' }}>
                     <Pin size={13} fill={msg.pinned_at ? 'currentColor' : 'none'} />
                   </button>
