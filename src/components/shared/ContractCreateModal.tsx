@@ -152,6 +152,8 @@ export function ContractCreateModal({
   const [activeTab, setActiveTab] = useState(0)
   const [saving, setSaving] = useState(false)
   const [clientApprovalFile, setClientApprovalFile] = useState<File | null>(null)
+  // Documentos adicionais anexados ao contrato — aparecem na aba Documentos do projeto (fonte: contrato).
+  const [contractDocs, setContractDocs] = useState<File[]>([])
 
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -722,6 +724,18 @@ export function ContractCreateModal({
           await uploadDirect(`/contracts/${contract.id}/attachments`, fd)
         } catch (upErr: any) {
           toast.error(upErr?.message ?? 'Contrato criado, mas falha ao enviar aprovação. Anexe manualmente na edição.')
+        }
+      }
+
+      // Documentos adicionais → anexados ao contrato (aparecem na aba Documentos do projeto).
+      for (const doc of contractDocs) {
+        const fd = new FormData()
+        fd.append('file', doc)
+        fd.append('type', 'documento')
+        try {
+          await uploadDirect(`/contracts/${contract.id}/attachments`, fd)
+        } catch (upErr: any) {
+          toast.error(upErr?.message ?? `Falha ao enviar o documento "${doc.name}". Anexe manualmente na edição.`)
         }
       }
 
@@ -1315,6 +1329,30 @@ export function ContractCreateModal({
                   ? <p className="text-[11px] mt-1" style={{ color: 'var(--success)' }}>✓ {clientApprovalFile.name} ({Math.round(clientApprovalFile.size / 1024)} KB)</p>
                   : <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
                 }
+              </div>
+
+              <div>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Documentos <span style={{ color: 'var(--text-light)' }}>(opcional)</span></label>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
+                  onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) setContractDocs(prev => [...prev, ...fs]); e.target.value = '' }}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:cursor-pointer"
+                  style={{ ...inputStyle, ['--tw-ring-color' as any]: 'var(--primary)' }}
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Anexe documentos do contrato para o coordenador — aparecem na aba <b>Documentos</b> do projeto. Máx 20 MB cada.</p>
+                {contractDocs.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {contractDocs.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between px-2 py-1 rounded-md" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <span className="text-[11px] truncate" style={{ color: 'var(--text)' }}>{f.name} ({Math.round(f.size / 1024)} KB)</span>
+                        <button type="button" onClick={() => setContractDocs(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-[11px] px-1.5" style={{ color: 'var(--danger)' }}>remover</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               </>)}
