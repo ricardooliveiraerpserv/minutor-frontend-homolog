@@ -540,8 +540,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
         {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p></div> : (
           <div className="flex flex-col flex-1 overflow-hidden px-5 pt-4">
             {projectConsultants.length > 0 && (
-              <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--text-light)' }}>Apontamento manual — consultores no projeto</p>
+              <div className="mb-3 rounded-xl p-2 shrink-0 overflow-y-auto" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', maxHeight: '26vh' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1 sticky top-0" style={{ color: 'var(--text-light)', background: 'var(--surface-hover)' }}>Apontamento manual — consultores no projeto</p>
                 {projectConsultants.map((c: any) => {
                   const allow = manualIds.has(c.id)
                   return (
