@@ -45,14 +45,12 @@ const GOVERNANCA = [
 ]
 const startsAny = (p: string, prefixes: string[]) => prefixes.some((g) => p === g || p.startsWith(g + '/'))
 const GOV_SECTION = GOVERNANCA.filter((g) => g !== '/central-fontes/solicitacoes')
-// Sub-rotas da seção OPERAÇÃO (C2): decomposta em AppServers/Compilação/Patches/RPO.
-// Inclui a Visão Geral operacional (legada, preservada) e o Controle de Fontes do
-// ambiente — ambos seguem acessíveis e realçam a seção Operação. Ambientes é seção
-// PRÓPRIA (fora desta lista). Mudanças/Auditoria/Configuração têm seções próprias.
+// Sub-rotas da seção OPERAÇÃO: AppServers/Compilação/Patches/RPO. Ambientes é seção
+// PRÓPRIA. C4.4: /operacoes-protheus/visao-geral e /fontes viraram REDIRECT (removidas
+// daqui). Mudanças/Auditoria saíram da hierarquia principal (drill-down por CTA/deep-link).
 const OPERACAO_ROUTES = [
   '/operacoes-protheus/appservers', '/operacoes-protheus/compilacao',
   '/operacoes-protheus/patches', '/operacoes-protheus/rpo',
-  '/operacoes-protheus/visao-geral', '/operacoes-protheus/fontes',
   '/operacoes-protheus/preview',
 ]
 const isFontes: Match = (p) =>
@@ -62,8 +60,6 @@ const isFontes: Match = (p) =>
 const SECTIONS: Section[] = [
   { href: '/prosight/visao-geral', label: 'Visão Geral', can: SHELL,
     match: (p) => p === '/prosight' || p.startsWith('/prosight/visao-geral') },
-  { href: '/prosight/atividade', label: 'Atividade & Auditoria', can: ATIVIDADE,
-    match: (p) => p.startsWith('/prosight/atividade') },
   { href: '/operacoes-protheus/ambientes', label: 'Ambientes', can: OPERACAO,
     match: (p) => p.startsWith('/operacoes-protheus/ambientes') },
   { href: '/central-fontes', label: 'Fontes', can: FONTES, match: isFontes,
@@ -85,8 +81,11 @@ const SECTIONS: Section[] = [
       { href: '/operacoes-protheus/rpo', label: 'RPO', can: OPERACAO, match: (p) => p.startsWith('/operacoes-protheus/rpo') },
     ],
   },
-  { href: '/operacoes-protheus/mudancas', label: 'Mudanças', can: ADMIN_ONLY, match: (p) => p.startsWith('/operacoes-protheus/mudancas') },
-  { href: '/operacoes-protheus/auditoria', label: 'Auditoria', can: ADMIN_ONLY, match: (p) => p.startsWith('/operacoes-protheus/auditoria') },
+  // C4.4: Atividade & Auditoria fica APÓS Operação. Mudanças/Auditoria de Operações
+  // (drill-down especializado) saíram da hierarquia principal — as páginas seguem
+  // existindo (deep-link + CTAs como "Ver mudanças"), fora do nav de topo.
+  { href: '/prosight/atividade', label: 'Atividade & Auditoria', can: ATIVIDADE,
+    match: (p) => p.startsWith('/prosight/atividade') },
   { href: '/prosight/configuracao', label: 'Configuração', can: GOV,
     match: (p) => p.startsWith('/prosight/configuracao') || p.startsWith('/operacoes-protheus/configuracao') || startsAny(p, GOV_SECTION),
     children: [
