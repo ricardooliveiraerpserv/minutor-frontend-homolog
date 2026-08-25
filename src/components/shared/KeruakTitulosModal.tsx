@@ -40,21 +40,19 @@ const fmtYm = (ym: string | null) => {
 // "DD-MM-YYYY" -> "DD/MM/YYYY" (data de vencimento do Keruak)
 const fmtDate = (d: string | null | undefined) => (d ? d.replace(/-/g, '/') : '—')
 
-export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, modo = 'recebido', onClose }: Props) {
+export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, valorInicial = 0, modo = 'recebido', onClose }: Props) {
   const aberto = modo === 'aberto'
   const [titulos, setTitulos] = useState<Titulo[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Filtro de data via calendário (type=date) — por padrão SEMPRE o mês atual
-  // (do 1º ao último dia). A comparação é por mês de recebimento (YYYY-MM).
-  // O usuário pode ampliar o período ou limpar p/ ver todos os títulos.
-  const now = new Date()
-  const y = now.getFullYear()
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
-  // A receber (aberto): sem filtro padrão (mostra todos os títulos em aberto).
-  const [from, setFrom] = useState(aberto ? '' : `${y}-${mm}-01`)
-  const [to, setTo] = useState(aberto ? '' : `${y}-${mm}-${String(lastDay).padStart(2, '0')}`)
+  // Filtro de data (comparação por mês de recebimento YYYY-MM). Recebido: default = TODO o
+  // período de recebimento da apuração (min..max de recebMonths) → o total do modal bate com a
+  // coluna Recebido (que é anual). A receber (aberto): sem filtro (mostra todos os em aberto).
+  const recebSorted = [...(recebMonths ?? [])].filter(Boolean).sort()
+  const defFrom = recebSorted[0] ? `${recebSorted[0]}-01` : ''
+  const defTo = recebSorted.length ? `${recebSorted[recebSorted.length - 1]}-28` : ''
+  const [from, setFrom] = useState(aberto ? '' : defFrom)
+  const [to, setTo] = useState(aberto ? '' : defTo)
 
   useEffect(() => {
     let alive = true
