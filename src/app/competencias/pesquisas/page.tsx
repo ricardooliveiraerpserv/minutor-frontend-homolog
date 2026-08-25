@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
-import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone } from 'lucide-react'
+import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone, ChevronDown, ChevronRight, Eye, Repeat } from 'lucide-react'
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{children}</label>
@@ -141,12 +141,8 @@ export default function PesquisasCompetenciasPage() {
   )
 }
 
-const CAMPAIGN_GROUPS: { key: string; label: string }[] = [
-  { key: 'consultor', label: 'Consultores' },
-  { key: 'coordenador', label: 'Coordenadores' },
-  { key: 'parceiro', label: 'Parceiros' },
-  { key: 'admin', label: 'Administrativo / Admin' },
-]
+interface TargetUser { id: number; name: string; email: string }
+interface TargetGroup { key: string; label: string; count: number; users: TargetUser[] }
 
 function defaultCampaignTitle(): string {
   const now = new Date()
@@ -160,20 +156,64 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
   const [title, setTitle] = useState(defaultCampaignTitle())
   const [description, setDescription] = useState(DEFAULT_CAMPAIGN_MESSAGE)
   const [deadline, setDeadline] = useState('')
-  const [groups, setGroups] = useState<Set<string>>(new Set(['consultor', 'coordenador']))
+  const [recurrenceDays, setRecurrenceDays] = useState('')
+  const [groups, setGroups] = useState<TargetGroup[]>([])
+  const [loadingTargets, setLoadingTargets] = useState(true)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
+  const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [previewing, setPreviewing] = useState(false)
 
-  const toggleGroup = (k: string) => setGroups(prev => {
-    const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n
+  useEffect(() => {
+    api.get<{ groups: TargetGroup[] }>('/competencias/campanhas/destinatarios')
+      .then(r => {
+        const gs = r.groups ?? []
+        setGroups(gs)
+        // pré-seleciona Consultores + Coordenadores por padrão
+        const pre = new Set<number>()
+        gs.filter(g => g.key === 'consultor' || g.key === 'coordenador').forEach(g => g.users.forEach(u => pre.add(u.id)))
+        setSelected(pre)
+      })
+      .catch(() => toast.error('Erro ao carregar destinatários'))
+      .finally(() => setLoadingTargets(false))
+  }, [])
+
+  const toggleUser = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const groupState = (g: TargetGroup): 'all' | 'some' | 'none' => {
+    const sel = g.users.filter(u => selected.has(u.id)).length
+    return sel === 0 ? 'none' : sel === g.users.length ? 'all' : 'some'
+  }
+  const toggleGroupAll = (g: TargetGroup) => setSelected(prev => {
+    const n = new Set(prev)
+    const st = groupState(g)
+    if (st === 'all') g.users.forEach(u => n.delete(u.id))
+    else g.users.forEach(u => n.add(u.id))
+    return n
   })
+
+  async function doPreview() {
+    setPreviewing(true)
+    try {
+      const r = await api.post<{ subject: string; html: string }>('/competencias/campanhas/previa', {
+        title: title.trim() || null, description: description.trim() || null, deadline: deadline || null,
+      })
+      setPreview(r)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar a prévia')
+    } finally { setPreviewing(false) }
+  }
 
   async function launch() {
     if (!deadline) { toast.error('Informe o prazo da campanha'); return }
-    if (groups.size === 0) { toast.error('Selecione ao menos um grupo do público-alvo'); return }
+    if (selected.size === 0) { toast.error('Selecione ao menos um destinatário'); return }
     setSaving(true)
     try {
       const s = await api.post<{ id: number; invited: number; mails_sent: number }>('/competencias/campanhas', {
-        title: title.trim() || null, description: description.trim() || null, deadline, groups: Array.from(groups),
+        title: title.trim() || null, description: description.trim() || null, deadline,
+        user_ids: Array.from(selected),
+        recurrence_days: recurrenceDays === '' ? 0 : Math.max(0, parseInt(recurrenceDays, 10) || 0),
       })
       toast.success(`Campanha aberta — ${s.invited} colaborador(es) notificado(s)`)
       onDone(s.id)
@@ -185,46 +225,103 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
   }
 
   return (
+    <>
     <Modal open onClose={onClose} size="lg">
       <ModalHeader title="Nova campanha de atualização" icon={Megaphone} onClose={onClose} />
       <ModalBody className="space-y-3">
         <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
           Envia aos colaboradores internos selecionados um pedido para <strong>atualizar as competências</strong>, com
-          pop-up e e-mail. Você acompanha quem já atualizou e cobra os pendentes (a recorrência é configurável na
-          Central de Workflows).
+          pop-up e e-mail. Você acompanha quem já atualizou e cobra os pendentes.
         </p>
         <div>
           <Label>Título</Label>
           <input className="ds-input" style={{ width: '100%' }} value={title} onChange={e => setTitle(e.target.value)} placeholder={defaultCampaignTitle()} />
         </div>
         <div>
-          <Label>Mensagem</Label>
+          <Label>Mensagem <span style={{ color: 'var(--text-light)' }}>(vai no e-mail e no pop-up)</span></Label>
           <textarea className="ds-input" rows={7} value={description} onChange={e => setDescription(e.target.value)}
             style={{ width: '100%', resize: 'vertical', minHeight: 180 }} />
         </div>
-        <div>
-          <Label>Prazo</Label>
-          <input type="date" className="ds-input" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ maxWidth: 220 }} />
-        </div>
-        <div>
-          <Label>Público-alvo <span style={{ color: 'var(--text-light)' }}>(colaboradores internos)</span></Label>
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            {CAMPAIGN_GROUPS.map(g => (
-              <label key={g.key} className="flex items-center gap-2 text-sm ds-card ds-card-pad" style={{ padding: '8px 10px', cursor: 'pointer', color: 'var(--text)' }}>
-                <input type="checkbox" checked={groups.has(g.key)} onChange={() => toggleGroup(g.key)} />
-                {g.label}
-              </label>
-            ))}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Prazo</Label>
+            <input type="date" className="ds-input" style={{ width: '100%' }} value={deadline} onChange={e => setDeadline(e.target.value)} />
           </div>
+          <div>
+            <Label><Repeat size={12} style={{ display: 'inline', marginRight: 4 }} />Recorrência (reenviar a cada N dias)</Label>
+            <input type="number" min={0} max={365} className="ds-input" style={{ width: '100%' }}
+              value={recurrenceDays} onChange={e => setRecurrenceDays(e.target.value)} placeholder="0 = não reenviar" />
+          </div>
+        </div>
+
+        <div>
+          <Label>Público-alvo <span style={{ color: 'var(--text-light)' }}>({selected.size} selecionado{selected.size !== 1 ? 's' : ''})</span></Label>
+          {loadingTargets ? (
+            <div className="ds-card ds-card-pad"><SectionLoader label="Carregando destinatários…" /></div>
+          ) : (
+            <div className="space-y-1.5 mt-1">
+              {groups.map(g => {
+                const st = groupState(g)
+                const isOpen = expanded.has(g.key)
+                const selCount = g.users.filter(u => selected.has(u.id)).length
+                return (
+                  <div key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'var(--surface-hover)' }}>
+                      <input type="checkbox" checked={st === 'all'} ref={el => { if (el) el.indeterminate = st === 'some' }}
+                        onChange={() => toggleGroupAll(g)} title="Selecionar todos deste grupo" />
+                      <button type="button" onClick={() => toggleExpand(g.key)} className="flex items-center gap-1.5 flex-1 text-left" style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                        {isOpen ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
+                        <span className="text-sm" style={{ color: 'var(--text)', fontWeight: 600 }}>{g.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{selCount}/{g.count}</span>
+                      </button>
+                    </div>
+                    {isOpen && (
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        {g.users.length === 0 && <div className="px-3 py-2" style={{ fontSize: 12, color: 'var(--text-light)' }}>Ninguém neste grupo.</div>}
+                        {g.users.map(u => (
+                          <label key={u.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 12.5 }}>
+                            <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleUser(u.id)} />
+                            <span style={{ color: 'var(--text)', flex: 1 }}>{u.name}</span>
+                            <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{u.email}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </ModalBody>
       <ModalFooter className="!justify-between">
         <button className="ds-btn-secondary" onClick={onClose}>Cancelar</button>
-        <button className="ds-btn-primary flex items-center gap-2" disabled={saving} onClick={launch}>
-          <Send size={15} /> {saving ? 'Enviando…' : 'Abrir e notificar'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="ds-btn-secondary flex items-center gap-2" disabled={previewing} onClick={doPreview}>
+            <Eye size={15} /> {previewing ? 'Gerando…' : 'Prévia'}
+          </button>
+          <button className="ds-btn-primary flex items-center gap-2" disabled={saving || loadingTargets} onClick={launch}>
+            <Send size={15} /> {saving ? 'Enviando…' : `Abrir e notificar (${selected.size})`}
+          </button>
+        </div>
       </ModalFooter>
     </Modal>
+
+    {preview && (
+      <Modal open onClose={() => setPreview(null)} size="lg">
+        <ModalHeader title="Prévia do e-mail" icon={Eye} onClose={() => setPreview(null)} />
+        <ModalBody>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            <strong>Assunto:</strong> {preview.subject}
+          </div>
+          <iframe title="Prévia" srcDoc={preview.html} style={{ width: '100%', height: 460, border: '1px solid var(--border)', borderRadius: 8, background: '#fff' }} />
+        </ModalBody>
+        <ModalFooter>
+          <button className="ds-btn-primary" onClick={() => setPreview(null)}>Fechar</button>
+        </ModalFooter>
+      </Modal>
+    )}
+    </>
   )
 }
 
