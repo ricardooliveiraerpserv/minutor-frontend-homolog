@@ -2,7 +2,9 @@
 
 > **Natureza deste documento:** auditoria. Não corrige gaps — audita, classifica, documenta e
 > propõe tratamento. `build ✓` **não** fecha o gate; cada capacidade foi verificada no código.
-> Data: 2026-08-24. Branch: `feat/minutor-modules-integration`. Último commit auditado: `ee7bd5ac` (C4.4).
+> Data: 2026-08-24. Branch: `feat/minutor-modules-integration`. Auditoria base: `ee7bd5ac` (C4.4).
+> **Atualizado após C4.6 (`78182a9e`):** as 4 pendências funcionais (A1–A4) foram fechadas no
+> frontend — ver §8. Placar de pendências funcionais: **4 → 0**.
 > Modo de dados: **100% fixture** em todo o Prosight/Operações; adapters de dados live **lançam erro**
 > (nunca fallback silencioso). Central de Fontes é o único domínio **live** (backend Minutor real).
 
@@ -87,9 +89,9 @@ nível de nav).
 | Código | CONSOLIDADA | aba Código (`GET /source-docs/{id}/source`) | — |
 | Versões / histórico | CONSOLIDADA | aba Mudanças (`/versions`) | — |
 | Qualidade | PRESERVADA | aba Qualidade (`QualityTab` 1:1) | **L1** (serviço) |
-| **Inativos** | **PENDÊNCIA FUNCIONAL** | `/central-fontes/inativos` existe (repos hidden + reativar) mas **órfã de nav** | — |
-| **Aprovações (IA)** | **PENDÊNCIA FUNCIONAL** | `/central-fontes/aprovacoes` só via CTA da ficha; sem lar no nav | — |
-| **Campanha (semântica)** | **PENDÊNCIA FUNCIONAL** | `/central-fontes/campanha` só highlight/catálogo; sem leaf | — |
+| Inativos (Repositórios) | CONSOLIDADA | `/central-fontes/inativos` → leaf **Configuração → Governança → Repositórios** (C4.6) | — |
+| Aprovações (IA) | CONSOLIDADA | `/central-fontes/aprovacoes` → leaf **Governança → Aprovações IA** (C4.6) | — |
+| Campanha (semântica) | CONSOLIDADA | `/central-fontes/campanha` → leaf **Governança → Campanhas** (C4.6) | — |
 | Config IA & Custos | PRESERVADA | `/central-fontes/configuracoes` (leaf Governança) | — |
 
 ### 3.2 Prosight original — Git×RPO (Engine L2)
@@ -114,7 +116,7 @@ nível de nav).
 | AppServers | DECOMPOSTA | página própria (`appservers-view`, split do F4) | **L3** |
 | Start/Stop/Restart | PRESERVADA | `operations.tsx` (confirmação→progresso→resultado, simulado) | **L3** |
 | Start/Stop all | PRESERVADA | `serviceAll()` | **L3** |
-| **Renomear serviço** | **PENDÊNCIA FUNCIONAL** | não implementado (grep vazio); decisão pendente (F4) | (L3) |
+| Renomear serviço | PRESERVADA | implementado no FE (C4.6): botão + modal + validação + `renameService` (fixture); execução real no L3 | **L3** |
 | INI (Info do ambiente) | PRESERVADA | `InfoCard` "Informações do Ambiente (INI)" | **L3** |
 | Monitor System | PRESERVADA | `FolderMonitorCard` | **L3** |
 | Console | PRESERVADA | `ConsoleViewer` (reload **manual**) | **L3** |
@@ -243,26 +245,30 @@ Front/contrato prontos; dependem de infra. Adapter live **lança erro** (sem fal
 **Total categoria B (fixture → live): 37 capacidades.** Destas, **3** são hoje meros stubs (estado
 PENDENTE LIVE: download de fonte, teste da API, auto-refresh 30s); as demais funcionam sobre fixtures.
 
-## 8. Pendências funcionais reais (categoria A — produto/frontend incompleto)
+## 8. Pendências funcionais (categoria A) — FECHADAS na C4.6
 
-| # | Item | Situação | Tratamento PROPOSTO (não implementado) |
+| # | Item | Situação na C4.5 | Fechamento na C4.6 (`78182a9e`) |
 |---|---|---|---|
-| A1 | **Repositórios inativos** | capacidade real (repos hidden + reativar) órfã de navegação | `Configuração → Governança → Repositórios desabilitados` (ou sub-aba "Repositórios" se houver mais governança de repo) |
-| A2 | **Aprovações de IA** | só via CTA contextual da ficha; sem lar no nav de Governança | leaf `Configuração → Governança → Aprovações de IA` |
-| A3 | **Campanha semântica** | só highlight/catálogo; sem leaf explícito | leaf `Configuração → Governança → Campanha` |
-| A4 | **Renomear serviço (AppServer)** | não implementado; decisão pendente (label custom) | decidir escopo (label local × rename real no Windows) e implementar como ação de AppServer (D-live) |
+| A1 | Repositórios inativos | órfã de navegação | leaf **Configuração → Governança → Repositórios** (rota mantida) |
+| A2 | Aprovações de IA | só via CTA da ficha | leaf **Configuração → Governança → Aprovações IA** |
+| A3 | Campanha semântica | só highlight/catálogo | leaf **Configuração → Governança → Campanhas** |
+| A4 | Renomear serviço (AppServer) | não implementado | UI + modal + validação + `renameService` (fixture); **execução real no L3** |
 
-**Total categoria A (pendência funcional): 4.**
+**Total categoria A (pendência funcional): 4 → 0.** O frontend está funcionalmente completo; o que
+resta é exclusivamente **fixture → live** (categoria B, §7). A4 permanece com dependência de infra
+(L3) — mas o front/contrato já existem (não é mais pendência de produto).
 
-## 9. Capacidades órfãs (sem lar de navegação hoje)
+## 9. Capacidades órfãs — RESOLVIDAS na C4.6
 
-- `/central-fontes/inativos` — **capacidade real** (gestão de repositórios desabilitados/reativação),
-  só deep-link. **Não redirecionada** na C4.4 (Configurações = IA & Custos ≠ inativos; redirecionar
-  perderia capacidade). → A1.
-- `/central-fontes/aprovacoes` — reachable por CTA da ficha, sem leaf. → A2.
-- `/central-fontes/campanha` — highlight/catálogo, sem leaf. → A3.
-- `/operacoes-protheus/mudancas` e `/auditoria` — **intencionalmente** fora do nav de topo (drill-down
-  por CTA/deep-link + cobertas pela timeline transversal). Não são pendência; registrado como decisão.
+- `/central-fontes/inativos`, `/central-fontes/aprovacoes`, `/central-fontes/campanha` — **deixaram de
+  ser órfãs**: ganharam leaves em `Configuração → Governança` (C4.6). Rotas mantidas; nenhuma
+  capacidade movida/perdida. A decisão da C4.4 de **não** redirecionar `inativos` para Configurações
+  (IA & Custos ≠ gestão de repositórios) fica registrada como o motivo de tê-la tratado como pendência
+  funcional e não como limpeza de rota.
+- `/operacoes-protheus/mudancas` e `/auditoria` — permanecem **intencionalmente** fora do nav de topo
+  (drill-down por CTA/deep-link + cobertas pela timeline transversal). Decisão, não pendência.
+
+**Órfãs remanescentes: 0.**
 
 ## 10. Riscos residuais
 
@@ -314,22 +320,27 @@ marcados pendente-live/decisão).
 - [ ] Edição de configuração de ambiente (D-live).
 - [ ] Mudanças/Auditoria operacionais com fatos reais → alimentam a timeline (com `operationId`).
 
-**Antes de L1/L2/L3:** decidir se haverá uma **C4.6** para fechar as 4 pendências funcionais (A1–A4)
-ou se o frontend é congelado com elas registradas.
+**Roadmap aprovado:** C4.6 (A1–A4, ✅ feito) → **Frontend Freeze** → L1 CodeAnalysis → L2 Prosight
+Engine → L3 Windows/AppServer → **L4 Paridade Live** → **L5 Aceite final / aposentadoria dos legados**.
+**Regra:** nenhum sistema original é aposentado antes do L5.
 
 ---
 
 ## Placar quantitativo
 
+**Após a C4.6 (frontend funcionalmente completo):**
+
 **72 capacidades auditadas** ·
-**65 disponíveis** (47 PRESERVADAS + 13 CONSOLIDADAS + 3 DECOMPOSTAS + 2 SUBSTITUÍDAS) ·
+**69 disponíveis** (48 PRESERVADAS + 16 CONSOLIDADAS + 3 DECOMPOSTAS + 2 SUBSTITUÍDAS) ·
 **3 PENDENTE LIVE** (estado: stubs — download de fonte, teste da API, auto-refresh 30s) ·
-**4 pendências funcionais** (categoria A: inativos, aprovações, campanha, renomear serviço) ·
+**0 pendências funcionais** (as 4 A1–A4 foram fechadas na C4.6) ·
 **0 descartadas**.
 
-**Dependência de infra (categoria B, fixture → live): 37 capacidades** (L1: 8 · L2: 11 · L3: 18) —
-inclui as 3 em estado PENDENTE LIVE.
+**Dependência de infra (categoria B, fixture → live): 38 capacidades** (L1: 8 · L2: 11 · L3: 19 —
+inclui Renomear AppServer) — inclui as 3 em estado PENDENTE LIVE.
 
-> Todas as capacidades pré-consolidação estão **disponíveis**, **conscientemente substituídas** ou
-> **explicitamente pendentes** (live ou funcional). Nenhuma foi descartada. As 4 pendências funcionais
-> (A) e as 37 dependências de infra (B) estão contadas **separadamente**, conforme o gate exige.
+> **Marco:** 72 capacidades originais → **72 com destino funcional no Prosight** → **0 pendências de
+> frontend** → **0 descartadas**. O trabalho restante é exclusivamente **trocar fixtures por
+> autoridades reais** (categoria B, 38), pela trilha L1 → L2 → L3.
+
+**Placar de referência da C4.5 (antes da C4.6):** 65 disponíveis · 4 pendências funcionais.
