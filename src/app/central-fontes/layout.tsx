@@ -2,25 +2,23 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Central de Fontes — casca do domínio de Fontes dentro do shell "Gestão e
-// Governança Técnica Protheus". A sub-navegação por abas foi unificada na
-// <ProsightNav> (dois níveis, comum aos 3 domínios): o Acervo e as telas de
-// Governança (Campanhas/Aprovações/Publicações/Configurações) são alcançadas de
-// lá. A ficha [id] (drill-down antigo) continua SEM navegação, exatamente como
-// antes.
+// Governança Técnica Protheus". A sub-navegação por abas é unificada na
+// <ProsightNav> (dois níveis, comum aos 3 domínios).
+// C4.3: o ProsightNav passa a aparecer TAMBÉM na ficha [id] (o Prontuário Técnico
+// da Fonte é parte do domínio Fontes → Prosight → Fontes → Acervo → Fonte). A
+// seção "Fontes" acende automaticamente (isFontes casa /central-fontes/{id}).
+// O modo `embedded` do split-view do Acervo NÃO passa por este layout (fica dentro
+// de /central-fontes/acervo), então segue intacto.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ReactNode } from 'react'
-import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
 
 export default function CentralFontesLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname() || ''
-  const isFicha = /^\/central-fontes\/\d+/.test(pathname) // ficha [id]: sem abas
-
   return (
     <AppLayout>
-      {!isFicha && <ProsightNav />}
+      <ProsightNav />
       {children}
     </AppLayout>
   )

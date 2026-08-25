@@ -9,12 +9,17 @@
 
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Crosshair, Database, Download, ExternalLink, FileCode2, FilePlus2,
-  Gauge, GitBranch, HelpCircle, History, Layers, ListTree, RefreshCw, ShieldAlert, ShieldCheck,
+  Activity, AlertTriangle, ArrowLeft, ArrowRight, BookOpen, Boxes, CheckCircle2, Code2, Crosshair,
+  Download, ExternalLink, FileCode2, FilePlus2, Gauge, GitBranch, GitCommitHorizontal,
+  HelpCircle, History, Layers, RefreshCw, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, Card, EmptyState, Modal, Skeleton } from '@/components/ds'
+import {
+  Accordion, AccordionItem, Badge, Button, Card, EmptyState, Modal, Skeleton,
+  Table, Tbody, Td, Th, Thead, Tr,
+} from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { SolicitarFonteModal } from '@/components/central-fontes/solicitar-fonte-modal'
@@ -60,16 +65,24 @@ const SEM: Record<string, { variant: string; label: string }> = {
   partial:   { variant: 'warning', label: 'Parcial' },
   none:      { variant: 'default', label: 'Sem semântica' },
 }
+// C4.3 — Prontuário Técnico da Fonte: 7 abas, cada uma responde a UMA pergunta.
 const TABS = [
-  { key: 'resumo', label: 'Resumo', icon: FileCode2 },
-  { key: 'estrutura', label: 'Estrutura', icon: ListTree },
-  { key: 'dados', label: 'Dados & SQL', icon: Database },
-  { key: 'deps', label: 'Dependências', icon: Layers },
-  { key: 'riscos', label: 'Riscos', icon: ShieldAlert },
-  { key: 'qualidade', label: 'Qualidade', icon: Gauge },
-  { key: 'historico', label: 'Histórico', icon: History },
+  { key: 'visao-geral', label: 'Visão Geral', icon: FileCode2 },   // o que é / situação atual
+  { key: 'conhecimento', label: 'Conhecimento', icon: BookOpen },  // o que faz / regras
+  { key: 'dependencias', label: 'Dependências', icon: Layers },    // de que depende / o que impacta
+  { key: 'qualidade', label: 'Qualidade', icon: Gauge },           // qualidade técnica / problemas
+  { key: 'ambientes', label: 'Ambientes', icon: Boxes },           // onde está / Git×RPO (pendente live)
+  { key: 'mudancas', label: 'Mudanças', icon: GitCommitHorizontal }, // o que mudou / quando / quem / GMUD
+  { key: 'codigo', label: 'Código', icon: Code2 },                 // fonte efetivamente versionado
 ] as const
 type TabKey = typeof TABS[number]['key']
+
+// Helpers para o conteúdo semântico portado do antigo SourceDocPanel (aposentado na C4.3).
+type Dict = Record<string, unknown>
+const A = (v: unknown): Dict[] => (Array.isArray(v) ? (v as Dict[]) : [])
+const S = (v: unknown, d = ''): string => (typeof v === 'string' ? v : v == null ? d : String(v))
+const D = (v: unknown): Dict => (v && typeof v === 'object' ? (v as Dict) : {})
+const confBadge = (c: unknown) => { const v = S(c); return v === 'high' ? <Badge variant="success">alta</Badge> : v === 'medium' ? <Badge variant="warning">média</Badge> : v ? <Badge variant="default">baixa</Badge> : null }
 
 function fmtDateTime(v: string | null | undefined): string {
   if (!v) return '—'
@@ -104,19 +117,25 @@ export default function FichaFontePage({ params }: { params: Promise<{ id: strin
 // Conteúdo rico da ficha, reutilizável: página cheia (/central-fontes/[id]) e painel
 // direito do Acervo (embedded, ao lado da árvore). embedded ajusta padding/scroll e
 // esconde o "Voltar ao catálogo".
-export function SourceDocDetail({ docId, embedded }: { docId: string | number; embedded?: boolean }) {
+export function SourceDocDetail({ docId, embedded, onNavigateSource }: { docId: string | number; embedded?: boolean; onNavigateSource?: (targetId: number) => void }) {
   const id = String(docId)
+  const router = useRouter()
   const [meta, setMeta] = useState<Meta | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<TabKey>('resumo')
+  const [tab, setTab] = useState<TabKey>('visao-geral')
 
   const [det, setDet] = useState<Record<string, unknown> | null>(null)
   const [detLoading, setDetLoading] = useState(false)
   const [versions, setVersions] = useState<VersionRow[] | null>(null)
   const [verLoading, setVerLoading] = useState(false)
+  const [code, setCode] = useState<{ content: string; bytes: number } | null>(null)
+  const [codeLoading, setCodeLoading] = useState(false)
 
   const { hasPermission } = useAuth()
+  // Navegação cross-source: no Acervo (embedded) o pai passa o handler; na página cheia,
+  // cai no deep-link do Acervo (?doc=) — sem quebrar rota nenhuma.
+  const navigateSource = onNavigateSource ?? ((tid: number) => router.push(`/central-fontes/acervo?doc=${tid}`))
   const [validating, setValidating] = useState(false)
   const [downloading, setDownloading] = useState<string | null>(null)
   const [reproOpen, setReproOpen] = useState(false)
@@ -229,10 +248,20 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
     } catch { setVersions([]) } finally { setVerLoading(false) }
   }, [id, versions, verLoading])
 
+  const loadCode = useCallback(async () => {
+    if (code || codeLoading) return
+    setCodeLoading(true)
+    try {
+      const r = await api.get<{ data: { content: string; bytes: number } }>(`/source-docs/${id}/source`)
+      setCode(r.data)
+    } catch { setCode({ content: '', bytes: 0 }) } finally { setCodeLoading(false) }
+  }, [id, code, codeLoading])
+
   useEffect(() => {
-    if (['estrutura', 'dados', 'deps'].includes(tab)) loadDet()
-    if (tab === 'historico') loadVersions()
-  }, [tab, loadDet, loadVersions])
+    if (tab === 'conhecimento' || tab === 'dependencias') loadDet()
+    if (tab === 'mudancas') loadVersions()
+    if (tab === 'codigo') loadCode()
+  }, [tab, loadDet, loadVersions, loadCode])
 
   if (loading) {
     return <><div className="space-y-4"><Skeleton className="h-32" /><Skeleton className="h-64" /></div></>
@@ -333,88 +362,112 @@ export function SourceDocDetail({ docId, embedded }: { docId: string | number; e
       </div>
 
       <Card>
-        {tab === 'resumo' && (
+        {/* VISÃO GERAL — o que é esta fonte e qual sua situação atual? */}
+        {tab === 'visao-geral' && (
           <div className="space-y-5">
             <EntendimentoFuncional sm={sm} />
             {sm.fluxo != null && <Section title="Fluxo"><Prose value={sm.fluxo} /></Section>}
           </div>
         )}
 
-        {tab === 'estrutura' && (
-          <LazyBlock loading={detLoading}>
-            <NameList title="Funções / rotinas" items={asArray(det?.functions)} impactEntity="function" />
-          </LazyBlock>
-        )}
-
-        {tab === 'dados' && (
-          <LazyBlock loading={detLoading}>
-            <NameList title="Tabelas" items={asArray(det?.tables)} impactEntity="table" />
-            <NameList title="Campos" items={fieldsFromDet(det)} impactEntity="field" />
-            <NameList title="Consultas SQL" items={asArray(det?.queries)} render={(x) => {
-              const o = x as Record<string, unknown>
-              return typeof x === 'string' ? x : String(o.summary ?? o.type ?? o.operation ?? nameOf(x))
-            }} />
-          </LazyBlock>
-        )}
-
-        {tab === 'deps' && (
-          <LazyBlock loading={detLoading}>
-            <NameList title="Dependências" items={asArray(det?.dependencies)} impactEntity="dependency" />
-            <NameList title="Integrações externas" items={asArray(det?.integrations)} impactEntity="integration" />
-            <NameList title="Chamadas (call graph)" items={asArray(det?.call_graph)} render={(x) => {
-              const o = x as Record<string, unknown>
-              return typeof x === 'string' ? x : `${o.from ?? '?'} → ${o.to ?? o.called_as ?? '?'}`
-            }} />
-          </LazyBlock>
-        )}
-
-        {tab === 'riscos' && (
-          <Section title="Pontos de atenção">
-            <NameList title="Achados de segurança" items={asArray(meta.documentation_meta?.security_findings)} render={(x) => {
-              const o = x as Record<string, unknown>
-              return typeof x === 'string' ? x : `${o.type ?? 'achado'} — ${o.location ?? ''} (${o.severity ?? '?'})`
-            }} />
-            <NameList title="Atenção (semântico)" items={asArray(sm.pontos_atencao ?? sm.riscos)} />
-          </Section>
-        )}
-
-        {tab === 'qualidade' && (
-          <QualityTab
-            docId={id}
-            canRun={hasPermission('source_docs.quality.run')}
-            canViewGit={hasPermission('source_docs.view_git')}
-            ghBlobUrl={ghUrl}
-          />
-        )}
-
-        {tab === 'historico' && (
-          <LazyBlock loading={verLoading}>
-            {!versions || versions.length === 0 ? (
-              <EmptyState icon={History} title="Sem histórico de versões" />
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ color: 'var(--text-light)' }} className="text-xs uppercase tracking-wider text-left">
-                      <th className="py-2 pr-4">Data</th><th className="py-2 pr-4">GMUD</th>
-                      <th className="py-2 pr-4">Responsável</th><th className="py-2 pr-4">Status</th><th className="py-2">Resumo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {versions.map((v) => (
-                      <tr key={v.id} style={{ borderTop: '1px solid var(--border)' }}>
-                        <td className="py-2.5 pr-4" style={{ color: 'var(--text)' }}>{fmtDateTime(v.created_at)}</td>
-                        <td className="py-2.5 pr-4">{v.ticket_number ?? '—'}</td>
-                        <td className="py-2.5 pr-4">{v.responsavel ?? '—'}</td>
-                        <td className="py-2.5 pr-4"><Badge variant={v.analysis_status === 'completed' ? 'success' : 'warning'}>{v.analysis_status}</Badge></td>
-                        <td className="py-2.5" style={{ color: 'var(--text-muted)' }}>{v.diff_summary ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* CONHECIMENTO — o que faz e quais regras implementa? */}
+        {tab === 'conhecimento' && (
+          <div className="space-y-6">
+            <RegrasBlock sm={sm} />
+            <div>
+              <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Funções / rotinas</h3>
+              <FuncoesBlock sm={sm} det={det} detLoading={detLoading} />
+            </div>
+            <LazyBlock loading={detLoading}>
+              <div>
+                <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Estrutura de dados</h3>
+                <NameList title="Tabelas" items={asArray(det?.tables)} impactEntity="table" />
+                <NameList title="Campos" items={fieldsFromDet(det)} impactEntity="field" />
+                <NameList title="Consultas SQL" items={asArray(det?.queries)} render={(x) => {
+                  const o = x as Record<string, unknown>
+                  return typeof x === 'string' ? x : String(o.summary ?? o.type ?? o.operation ?? nameOf(x))
+                }} />
               </div>
-            )}
-          </LazyBlock>
+            </LazyBlock>
+          </div>
+        )}
+
+        {/* DEPENDÊNCIAS — de que depende e o que pode ser impactado? */}
+        {tab === 'dependencias' && (
+          <div className="space-y-6">
+            <LazyBlock loading={detLoading}>
+              <NameList title="Dependências" items={asArray(det?.dependencies)} impactEntity="dependency" />
+              <NameList title="Integrações externas" items={asArray(det?.integrations)} impactEntity="integration" />
+              <NameList title="Chamadas (call graph)" items={asArray(det?.call_graph)} render={(x) => {
+                const o = x as Record<string, unknown>
+                return typeof x === 'string' ? x : `${o.from ?? '?'} → ${o.to ?? o.called_as ?? '?'}`
+              }} />
+            </LazyBlock>
+            <DependenciasSemBlock sm={sm} navigateSource={navigateSource} />
+            <EvidenciasBlock sm={sm} navigateSource={navigateSource} />
+          </div>
+        )}
+
+        {/* QUALIDADE — qual é a qualidade técnica e quais problemas foram encontrados? */}
+        {tab === 'qualidade' && (
+          <div className="space-y-6">
+            <RiscosBlock sm={sm} meta={meta} />
+            <QualityTab
+              docId={id}
+              canRun={hasPermission('source_docs.quality.run')}
+              canViewGit={hasPermission('source_docs.view_git')}
+              ghBlobUrl={ghUrl}
+            />
+          </div>
+        )}
+
+        {/* AMBIENTES — onde está implantada e qual sua situação Git × RPO? */}
+        {tab === 'ambientes' && <AmbientesBlock />}
+
+        {/* MUDANÇAS — o que mudou, quando, por quem e por qual GMUD? */}
+        {tab === 'mudancas' && (
+          <div className="space-y-4">
+            <LazyBlock loading={verLoading}>
+              {!versions || versions.length === 0 ? (
+                <EmptyState icon={History} title="Sem histórico de versões" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ color: 'var(--text-light)' }} className="text-xs uppercase tracking-wider text-left">
+                        <th className="py-2 pr-4">Data</th><th className="py-2 pr-4">GMUD</th>
+                        <th className="py-2 pr-4">Responsável</th><th className="py-2 pr-4">Status</th><th className="py-2">Resumo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versions.map((v) => (
+                        <tr key={v.id} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td className="py-2.5 pr-4" style={{ color: 'var(--text)' }}>{fmtDateTime(v.created_at)}</td>
+                          <td className="py-2.5 pr-4">{v.ticket_number ?? '—'}</td>
+                          <td className="py-2.5 pr-4">{v.responsavel ?? '—'}</td>
+                          <td className="py-2.5 pr-4"><Badge variant={v.analysis_status === 'completed' ? 'success' : 'warning'}>{v.analysis_status}</Badge></td>
+                          <td className="py-2.5" style={{ color: 'var(--text-muted)' }}>{v.diff_summary ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </LazyBlock>
+            {/* Referência (não duplica o motor da C4.2): abre a timeline transversal já filtrada por Fontes. */}
+            <Link href="/prosight/atividade?family=fontes" className="inline-flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--primary)' }}>
+              <Activity size={14} /> Ver na Atividade &amp; Auditoria
+            </Link>
+          </div>
+        )}
+
+        {/* CÓDIGO — qual é o fonte efetivamente versionado? (respeita permissão de código/Git) */}
+        {tab === 'codigo' && (
+          !hasPermission('source_docs.view_git') ? (
+            <EmptyState icon={Code2} title="Sem permissão para ver o código" description="A visualização do fonte versionado exige a permissão de código/Git." />
+          ) : (
+            <CodigoBlock code={code} loading={codeLoading} ghUrl={ghUrl} />
+          )
         )}
       </Card>
 
@@ -587,6 +640,193 @@ function NameList({ title, items, render, impactEntity }: { title: string; items
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C4.3 — Blocos PORTADOS do antigo SourceDocPanel (aposentado). Só capacidades
+// reais suportadas pelos contratos existentes; nada fabricado.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// CONHECIMENTO · Regras de negócio (semântico).
+function RegrasBlock({ sm }: { sm: Record<string, unknown> }) {
+  const rules = A(sm.regras_negocio).length ? A(sm.regras_negocio) : A(sm.business_rules)
+  const ni = A(D(sm.funcoes_trace).not_identified)
+  return (
+    <div>
+      <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Regras de negócio</h3>
+      {!rules.length ? (
+        <p className="text-sm" style={{ color: 'var(--text-light)' }}>Sem regras de negócio documentadas.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rules.map((r, i) => (
+            <div key={i} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="font-semibold" style={{ color: 'var(--text)' }}>{S(r.id) || `RN${i + 1}`}</span>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{S(r.titulo) || S(r.descricao)}</span>
+                <span className="ml-auto">{confBadge(r.confidence)}</span>
+              </div>
+              {r.condicao != null && <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Condição: <code className="text-xs">{S(r.condicao)}</code></div>}
+              {r.efeito != null && <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Efeito: <code className="text-xs">{S(r.efeito)}</code></div>}
+              {A(r.evidence).length > 0 && <div className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>Evidência: {A(r.evidence).map((e, j) => <code key={j} className="mr-1">{S(e.type)}:{S(e.table)}{S(e.field) ? '.' + S(e.field) : S(e.name)}</code>)}</div>}
+            </div>
+          ))}
+          {ni.length > 0 && (
+            <div className="rounded-xl p-3 text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+              <AlertTriangle size={14} className="mr-1 inline" style={{ color: 'var(--warning)' }} /> Não identificadas ({ni.length}): {ni.map((x) => S(x.name) || S(x.reason)).join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// CONHECIMENTO · Funções com trace (semântico × determinístico).
+function FuncoesBlock({ sm, det, detLoading }: { sm: Record<string, unknown>; det: Record<string, unknown> | null; detLoading: boolean }) {
+  const sems = A(sm.funcoes)
+  const dets = det ? A(det.functions) : []
+  const detByName = new Map(dets.map((f) => [S(f.name).toLowerCase(), f]))
+  const trace = D(sm.funcoes_trace)
+  const list = sems.length ? sems : dets
+  if (list.length === 0) return <p className="text-sm" style={{ color: 'var(--text-light)' }}>Sem funções.</p>
+  return (
+    <div className="flex flex-col gap-2">
+      <Accordion>
+        {list.map((f, i) => {
+          const d = detByName.get(S(f.name).toLowerCase()) ?? (det ? {} : null)
+          return (
+            <AccordionItem key={i} title={S(f.name)} badge={confBadge(f.confidence)} defaultOpen={i === 0}>
+              {S(f.finalidade) && <p className="mb-2 text-sm" style={{ color: 'var(--text-muted)' }}>{S(f.finalidade)}</p>}
+              {detLoading && det === null ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>Carregando detalhes…</span> : d && (
+                <div className="text-xs" style={{ color: 'var(--text-light)' }}>
+                  {A(d.params).length > 0 && <div>Parâmetros: {A(d.params).map((p) => S(p.name) || S(p)).join(', ')}</div>}
+                  {A(d.tables).length > 0 && <div>Tabelas: {A(d.tables).map((t) => S(t.name) || S(t)).join(', ')}</div>}
+                  {A(d.calls).length > 0 && <div>Chamadas: {A(d.calls).map((c) => S(c.name) || S(c)).join(', ')}</div>}
+                </div>
+              )}
+            </AccordionItem>
+          )
+        })}
+      </Accordion>
+      <div className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>Trace: {A(trace.completed).length} documentadas · {A(trace.not_identified).length} não identificadas · {A(trace.requested).length} solicitadas</div>
+    </div>
+  )
+}
+
+// DEPENDÊNCIAS · locais + cross-source clicável (semântico).
+function DependenciasSemBlock({ sm, navigateSource }: { sm: Record<string, unknown>; navigateSource: (id: number) => void }) {
+  const deps = A(sm.dependencias_criticas)
+  const targets = new Map<string, Record<string, unknown>>()
+  for (const s of A(D(sm.cross_source).sources)) targets.set(S(s.symbol).toLowerCase(), s)
+  const cross = deps.filter((d) => A(d.evidence).some((e) => S(e.level) === 'C' && e.source_doc_id != null))
+  const local = deps.filter((d) => !cross.includes(d))
+  if (deps.length === 0) return null
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Dependências críticas (semântico)</h3>
+        {local.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>—</p> : (
+          <div className="flex flex-col gap-1.5">{local.map((d, i) => (
+            <div key={i} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2"><span className="font-medium" style={{ color: 'var(--text)' }}>{S(d.nome)}</span>{d.kind ? <Badge variant="default">{S(d.kind)}</Badge> : null}<span className="ml-auto">{confBadge(d.confidence)}</span></div>
+              {S(d.como_participa) && <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{S(d.como_participa)}</p>}
+            </div>
+          ))}</div>
+        )}
+      </div>
+      <div>
+        <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Cross-source (evidência C)</h3>
+        {cross.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma dependência entre fontes.</p> : (
+          <div className="flex flex-col gap-1.5">{cross.map((d, i) => {
+            const ev = A(d.evidence).find((e) => S(e.level) === 'C' && e.source_doc_id != null) ?? {}
+            const tgt = targets.get(S(ev.symbol).toLowerCase())
+            const targetPath = S(tgt?.path)
+            const targetName = targetPath ? targetPath.split('/').pop() : `#${S(ev.source_doc_id)}`
+            const tid = Number(ev.source_doc_id)
+            return (
+              <div key={i} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <button onClick={() => navigateSource(tid)} className="flex w-full items-center gap-2 text-left" style={{ color: 'var(--text)' }}>
+                  <span className="font-medium">{S(d.nome)}</span><ArrowRight size={14} style={{ color: 'var(--text-light)' }} /><span className="font-medium underline decoration-dotted" style={{ color: 'var(--primary)' }}>{targetName}</span>
+                  <span className="ml-auto text-xs" style={{ color: 'var(--text-light)' }}>Mostrar no Acervo →</span>
+                </button>
+                <div className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>símbolo {S(ev.symbol)} · relação {S(ev.relation)} · blob {S(ev.blob_sha).slice(0, 10)} · nível {S(ev.level)}{targetPath ? ' · ' + targetPath : ''}</div>
+              </div>
+            )
+          })}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// DEPENDÊNCIAS · evidências cross-source ACCEPT/REJECT (semântico).
+function EvidenciasBlock({ sm, navigateSource }: { sm: Record<string, unknown>; navigateSource: (id: number) => void }) {
+  const cs = D(sm.cross_source)
+  const acc = A(cs.evidence_accepted), rej = A(cs.evidence_rejected)
+  if (!acc.length && !rej.length) return null
+  const row = (e: Record<string, unknown>, verdict: string) => (
+    <Tr key={S(e.symbol) + verdict + S(e.blob_sha)}>
+      <Td>{verdict === 'ACCEPT' ? <Badge variant="success">ACCEPT</Badge> : <Badge variant="default">REJECT</Badge>}</Td>
+      <Td>{S(e.level)}</Td><Td>{S(e.evidence_type) || S(e.relation)}</Td><Td>{S(e.symbol)}</Td>
+      <Td>{e.source_doc_id != null ? <button className="underline decoration-dotted" style={{ color: 'var(--primary)' }} onClick={() => navigateSource(Number(e.source_doc_id))}>#{S(e.source_doc_id)}</button> : '—'}</Td>
+      <Td><code className="text-xs">{S(e.blob_sha).slice(0, 12)}</code></Td>
+    </Tr>
+  )
+  return (
+    <div>
+      <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Evidências cross-source</h3>
+      <Table>
+        <Thead><Tr><Th>Veredito</Th><Th>Level</Th><Th>Tipo</Th><Th>Símbolo</Th><Th>source_doc</Th><Th>blob</Th></Tr></Thead>
+        <Tbody>{acc.map((e) => row(e, 'ACCEPT'))}{rej.map((e) => row(e, 'REJECT'))}</Tbody>
+      </Table>
+    </div>
+  )
+}
+
+// QUALIDADE · Riscos e pontos de atenção (doc determinístico + semântico). NÃO é
+// CodeAnalysis — o QualityTab (reusado 1:1) vem logo abaixo deste bloco.
+function RiscosBlock({ sm, meta }: { sm: Record<string, unknown>; meta: Meta }) {
+  const risco = D(sm.risco_alteracao)
+  return (
+    <div>
+      <h3 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>Riscos e pontos de atenção</h3>
+      {risco.resumo != null && (
+        <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>{S(risco.resumo)} {risco.nivel ? <Badge variant="warning">{S(risco.nivel)}</Badge> : null}</p>
+      )}
+      <NameList title="Achados de segurança" items={asArray(meta.documentation_meta?.security_findings)} render={(x) => {
+        const o = x as Record<string, unknown>
+        return typeof x === 'string' ? x : `${o.type ?? 'achado'} — ${o.location ?? ''} (${o.severity ?? '?'})`
+      }} />
+      <NameList title="Atenção (semântico)" items={asArray(sm.pontos_atencao ?? sm.riscos)} render={(x) => {
+        const o = x as Record<string, unknown>
+        return typeof x === 'string' ? x : S(o.ponto ?? o.descricao ?? nameOf(x))
+      }} />
+    </div>
+  )
+}
+
+// AMBIENTES · estado EXPLÍCITO de pendência live (Git×RPO por fonte ainda não tem
+// autoridade real — não derivar de empresa/ambiente nem fabricar sincronização).
+function AmbientesBlock() {
+  return (
+    <EmptyState icon={Boxes} title="Disponível após a conexão live"
+      description="A situação Git × RPO por fonte (onde está implantada, versão do RPO, sincronização) depende da conexão com a infraestrutura real (L2). Não derivamos esse status de empresa/ambiente nem exibimos sincronização fabricada. Enquanto isso, o inventário Git × RPO consolidado por empresa está em Prosight → Fontes → Inventário."
+      action={<Link href="/prosight/inventario" className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--primary)' }}><Layers size={14} /> Ver Inventário (por empresa)</Link>} />
+  )
+}
+
+// CÓDIGO · fonte efetivamente versionado (GET /source-docs/{id}/source).
+function CodigoBlock({ code, loading, ghUrl }: { code: { content: string; bytes: number } | null; loading: boolean; ghUrl: string }) {
+  if (loading || code === null) return <Skeleton className="h-64" />
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs" style={{ color: 'var(--text-light)' }}>{code.bytes ? `${code.bytes.toLocaleString('pt-BR')} bytes` : '—'}</span>
+        <a href={ghUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--primary)' }}>Ver no GitHub <ExternalLink size={12} /></a>
+      </div>
+      <pre className="max-h-[70vh] overflow-auto rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}><code>{code.content || '// código indisponível'}</code></pre>
     </div>
   )
 }

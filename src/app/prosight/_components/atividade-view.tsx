@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Activity, AlertTriangle, Boxes, ChevronDown, ChevronRight, Database, FileCode2,
   GitCommitHorizontal, Layers, Link2, RefreshCw, Search, ServerCog, ShieldCheck, XCircle,
@@ -52,9 +53,14 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
   const isAdmin = sim ? sim.isAdmin : auth.user?.type === 'admin'
   const has = useCallback((p: string) => (sim ? sim.has(p) : auth.hasPermission(p)), [sim, auth])
 
+  // Deep-link opcional: ?family=fontes (ex.: CTA do Prontuário → Mudanças).
+  const sp = useSearchParams()
+  const spFamily = sp?.get('family')
+  const initialFamily = spFamily && spFamily in FAMILY_META ? (spFamily as TimelineFamily) : 'todos'
+
   const [events, setEvents] = useState<TimelineEvent[] | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [family, setFamily] = useState<'todos' | TimelineFamily>('todos')
+  const [family, setFamily] = useState<'todos' | TimelineFamily>(initialFamily)
   const [outcome, setOutcome] = useState('')
   const [scope, setScope] = useState('')
   const [q, setQ] = useState('')
