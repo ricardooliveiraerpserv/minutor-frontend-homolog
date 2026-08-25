@@ -2180,7 +2180,9 @@ function KanbanContent() {
             <p className="ds-text-body-sm mt-1" style={{ color: 'var(--text-muted)' }}>Arraste para o coordenador para gerar o projeto — depois gerencie nos status de execução</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => router.push('/contratos')}
+            {/* Coordenador de sustentação não acessa /contratos (redireciona p/ dashboard →
+                apontamentos). Manda para a lista de Projetos de Sustentação. */}
+            <button onClick={() => router.push(isSustCoordenador ? '/sustentacao/projetos' : '/contratos')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
