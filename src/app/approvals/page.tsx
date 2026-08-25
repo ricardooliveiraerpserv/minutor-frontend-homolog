@@ -558,6 +558,7 @@ function ExpApproveModal({
 export default function ApprovalsPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
+  const isAdmin = user?.type === 'admin'
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
     'approvals',
@@ -980,6 +981,32 @@ export default function ApprovalsPage() {
           )
         })}
       </div>
+
+      {/* ── Escopo Meus / Todos (coordenador/admin) ── */}
+      {(isAdmin || isCoordenador) && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+            {(['meus', 'todos'] as const).map(opt => {
+              const active = opt === 'meus' ? coordinatorId === String(user?.id) : !coordinatorId
+              return (
+                <button key={opt}
+                  onClick={() => setFilter('coordinatorId', opt === 'meus' ? String(user?.id ?? '') : '')}
+                  className="px-3 py-1.5 text-xs font-semibold transition-colors"
+                  style={{
+                    background: active ? 'var(--primary)' : 'var(--surface)',
+                    color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                    borderRight: opt === 'meus' ? '1px solid var(--border)' : undefined,
+                  }}>
+                  {opt === 'meus' ? 'Meus' : 'Todos'}
+                </button>
+              )
+            })}
+          </div>
+          <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
+            {coordinatorId === String(user?.id) ? 'Só o que você coordena/aprova' : 'Todos os coordenadores'}
+          </span>
+        </div>
+      )}
 
       {/* ── Filters ── */}
       <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">

@@ -842,7 +842,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
   const canActAsUser   = isAdmin || isCoordenador
   // Chip "Meus projetos / Todos" pra coordenador.
   // Quando 'meus': injeta coordinator_id[]=user.id no fetch (filtro server-side).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' || isAdmin ? 'todos' : 'meus')
   const isCliente      = user?.type === 'cliente'
   const searchParams = useSearchParams()
   const spProjectId  = searchParams.get('project_id') ?? ''
@@ -1127,9 +1127,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
     if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
     else customerIds.forEach(v => p.append('customer_id[]', v))
     coordinatorIds.forEach(v => p.append('coordinator_id[]', v))
-    // Chip "Meus projetos" do coordenador: força coordinator_id = user.id quando ativo
-    // (evita duplicar se o coord já adicionou a si mesmo no filtro de coordenadores).
-    if (isCoordenador && coordScope === 'meus' && user?.id && !coordinatorIds.includes(String(user.id))) {
+    // Chip "Meus projetos" do coordenador/admin: força coordinator_id = user.id quando ativo
+    // (evita duplicar se já adicionou a si mesmo no filtro de coordenadores).
+    if (canActAsUser && coordScope === 'meus' && user?.id && !coordinatorIds.includes(String(user.id))) {
       p.append('coordinator_id[]', String(user.id))
     }
     executiveIds.forEach(v => p.append('executive_id[]', v))
@@ -1570,8 +1570,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
           ))}
         </div>}
 
-        {/* Chip "Meus projetos / Todos" — coordenador, perto da tabela */}
-        {isCoordenador && (
+        {/* Chip "Meus projetos / Todos" — coordenador/admin, perto da tabela */}
+        {canActAsUser && (
           <div className="mb-3 inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             {(['meus', 'todos'] as const).map(opt => {
               const active = coordScope === opt
