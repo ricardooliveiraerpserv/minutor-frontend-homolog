@@ -726,8 +726,12 @@ export default function ApprovalsPage() {
 
   const filterParams = useMemo(() => {
     const p = new URLSearchParams()
-    if (dateFrom)      p.set('date_from',      dateFrom)
-    if (dateTo)        p.set('date_to',        dateTo)
+    // Modo "Mês/Ano" SEM mês selecionado (refMonth null) = todos os períodos: não envia
+    // datas. Evita filtrar por datas obsoletas que ficaram persistidas (o seletor aparece
+    // vazio, mas date_from/date_to salvos de um mês antigo escondiam pendências reais).
+    const sendDates = filterMode === 'period' || refMonth != null
+    if (sendDates && dateFrom) p.set('date_from', dateFrom)
+    if (sendDates && dateTo)   p.set('date_to',   dateTo)
     if (userId)        p.set('user_id',        userId)
     if (coordinatorId) p.set('coordinator_id', coordinatorId)
     if (executiveId)   p.set('executive_id',   executiveId)
@@ -736,7 +740,7 @@ export default function ApprovalsPage() {
     if (categoriaServico) p.set('categoria_servico', categoriaServico)
     if (sortField)     p.set('order', (sortDir === 'desc' ? '-' : '') + sortField)
     return p.toString()
-  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, categoriaServico, sortField, sortDir])
+  }, [dateFrom, dateTo, filterMode, refMonth, userId, coordinatorId, executiveId, projectId, customerId, categoriaServico, sortField, sortDir])
 
   const loadTs = useCallback(async () => {
     setTsLoading(true)
