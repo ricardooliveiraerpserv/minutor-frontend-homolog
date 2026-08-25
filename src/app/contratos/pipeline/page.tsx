@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen, Pin } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -2023,7 +2023,7 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
 // ─── Request Detail Modal ─────────────────────────────────────────────────────
 
 interface ReqAttachment { id: number; original_name: string; file_path: string; file_size: number; mime_type?: string }
-interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; attachments?: ReqAttachment[] }
+interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; pinned_at?: string | null; attachments?: ReqAttachment[] }
 interface MentionUser { id: number; name: string; role?: 'admin' | 'executivo' | 'cliente' }
 
 interface KanbanLogEntry {
@@ -3923,6 +3923,16 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
     } catch { toast.error('Erro ao baixar arquivo') }
   }
 
+  const togglePin = async (msg: ReqMsg) => {
+    try {
+      const r = await api.post<{ pinned: boolean }>(`/req-comments/${msg.id}/pin`, {})
+      setMsgs(prev => prev.map(x => x.id === msg.id ? { ...x, pinned_at: r.pinned ? new Date().toISOString() : null } : x))
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível fixar')
+    }
+  }
+  const msgsSorted = [...msgs].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {visibility === 'internal' && (
@@ -3944,8 +3954,9 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
             </p>
           </div>
         )}
-        {msgs.map(msg => (
-          <div key={msg.id} className="flex gap-2.5 items-start">
+        {msgsSorted.map(msg => (
+          <div key={msg.id} className="group flex gap-2.5 items-start rounded-lg -mx-1.5 px-1.5 py-1"
+            style={msg.pinned_at ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' } : undefined}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
               {(msg.author?.name ?? '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
@@ -3956,6 +3967,13 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
                 <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                   {new Date(msg.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
+                {!readOnly && (
+                  <button type="button" onClick={() => togglePin(msg)} title={msg.pinned_at ? 'Desafixar' : 'Fixar'}
+                    className={`ml-auto p-1 rounded-md hover:bg-[var(--surface-hover)] ${msg.pinned_at ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
+                    style={{ color: msg.pinned_at ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    <Pin size={13} fill={msg.pinned_at ? 'currentColor' : 'none'} />
+                  </button>
+                )}
               </div>
               <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>{msg.message}</p>
               {msg.attachments && msg.attachments.length > 0 && (
