@@ -8,12 +8,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
-import { ArrowLeft, User as UserIcon, Mail, Phone, Link2, Building2, MapPin, Calendar, DollarSign, Filter, AlertTriangle, UserPlus } from 'lucide-react'
+import { ArrowLeft, User as UserIcon, Mail, Phone, Link2, Building2, MapPin, Calendar, DollarSign, Filter, AlertTriangle, UserPlus, ArrowUp, ArrowDown, Plus, Minus, ChevronDown, ChevronRight, History } from 'lucide-react'
 
 interface RadarPoint { category: string; avg_weight: number }
 interface CatRow { category: string; avg_weight: number; total: number; with_knowledge: number }
 interface SkillRow { category: string; name: string; level: string; weight: number }
 interface HistoryRow { id: number; survey: string; matrix_version: string | null; submitted_at: string; answers_count: number }
+type DiffDirection = 'added' | 'up' | 'down' | 'removed'
+interface DiffChange { category: string | null; name: string | null; from_level: string | null; from_weight: number; to_level: string | null; to_weight: number; direction: DiffDirection }
+interface DiffTransition { submission_id: number; submitted_at: string; previous_submitted_at: string; survey: string | null; matrix_version: string | null; total_changes: number; added: number; upgraded: number; downgraded: number; removed: number; changes: DiffChange[] }
+interface DiffResponse { baseline: { submission_id: number; submitted_at: string; skills_count: number } | null; evaluations: number; transitions: DiffTransition[] }
 interface Level { id: number; name: string; weight: number }
 interface Profile {
   respondent: { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; partner_id: string; partner_name: string | null; email: string | null; phone: string | null; valor: string | null; empresa: string | null; cargo: string | null; cidade: string | null; estado: string | null; linkedin: string | null; idiomas: string | null; cadastral: Record<string, unknown> }
@@ -47,6 +51,8 @@ export default function PerfilProfissionalPage() {
   const [error, setError] = useState<string | null>(null)
   const [category, setCategory] = useState('')
   const [levelWeights, setLevelWeights] = useState<string[]>([])
+  const [diff, setDiff] = useState<DiffResponse | null>(null)
+  const [openDiff, setOpenDiff] = useState<Set<number>>(new Set())
 
   const load = useCallback(() => {
     if (!id) return
@@ -58,6 +64,15 @@ export default function PerfilProfissionalPage() {
       .then(setP).catch(() => setError('Profissional não encontrado (o link pode ser antigo). Abra pelo Dashboard.')).finally(() => setLoading(false))
   }, [id, category, levelWeights])
   useEffect(() => { load() }, [load])
+
+  // Evolução (diff entre avaliações) — independente dos filtros de área/nível.
+  useEffect(() => {
+    if (!id) return
+    api.get<DiffResponse>(`/competencias/profissionais/${id}/historico-diff`)
+      .then(d => { setDiff(d); setOpenDiff(new Set(d.transitions.slice(0, 1).map(t => t.submission_id))) })
+      .catch(() => setDiff(null))
+  }, [id])
+  const toggleDiff = (sid: number) => setOpenDiff(prev => { const n = new Set(prev); n.has(sid) ? n.delete(sid) : n.add(sid); return n })
 
   const toggleLevel = (w: string) => setLevelWeights(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w])
 
@@ -231,6 +246,66 @@ export default function PerfilProfissionalPage() {
           </div>
         </div>
 
+        {/* Evolução das competências (diff entre avaliações) — só admin */}
+        {diff && diff.transitions.length > 0 && (
+          <div className="ds-card ds-card-pad">
+            <h3 className="text-sm mb-1 flex items-center gap-2" style={{ fontWeight: 600, color: 'var(--text)' }}>
+              <History size={15} style={{ color: 'var(--primary)' }} /> Evolução das competências
+            </h3>
+            <p style={{ fontSize: 11.5, color: 'var(--text-light)', marginBottom: 12 }}>
+              O que mudou de uma atualização para a anterior ({diff.evaluations} avaliações registradas).
+            </p>
+            <div className="space-y-2">
+              {diff.transitions.map(t => {
+                const open = openDiff.has(t.submission_id)
+                return (
+                  <div key={t.submission_id} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <button onClick={() => toggleDiff(t.submission_id)} className="w-full flex items-center justify-between gap-3 px-3 py-2 ds-row-hover" style={{ background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                      <span className="flex items-center gap-2 min-w-0">
+                        {open ? <ChevronDown size={15} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={15} style={{ color: 'var(--text-muted)' }} />}
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{fmt(t.submitted_at)}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-light)' }}>← {fmt(t.previous_submitted_at)}</span>
+                      </span>
+                      <span className="flex items-center gap-2" style={{ fontSize: 11, flexShrink: 0 }}>
+                        {t.added > 0 && <span style={{ color: 'var(--success)' }}>+{t.added} nova{t.added > 1 ? 's' : ''}</span>}
+                        {t.upgraded > 0 && <span style={{ color: 'var(--primary)' }}>↑{t.upgraded}</span>}
+                        {t.downgraded > 0 && <span style={{ color: 'var(--warning)' }}>↓{t.downgraded}</span>}
+                        {t.removed > 0 && <span style={{ color: 'var(--text-muted)' }}>−{t.removed}</span>}
+                        {t.total_changes === 0 && <span style={{ color: 'var(--text-light)' }}>sem mudanças</span>}
+                      </span>
+                    </button>
+                    {open && t.changes.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--border)' }}>
+                        {t.changes.map((c, i) => (
+                          <div key={i} className="flex items-center justify-between gap-3 px-3 py-1.5" style={{ borderTop: i ? '1px solid var(--border)' : 'none', fontSize: 12.5 }}>
+                            <span className="flex items-center gap-2 min-w-0">
+                              <DiffIcon dir={c.direction} />
+                              <span style={{ color: 'var(--text)' }}>{c.name}</span>
+                              <span style={{ color: 'var(--text-light)', fontSize: 11 }}>· {c.category}</span>
+                            </span>
+                            <span style={{ fontSize: 11.5, color: 'var(--text-muted)', flexShrink: 0 }}>
+                              {c.direction === 'added'
+                                ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>{c.to_level}</span>
+                                : c.direction === 'removed'
+                                  ? <><span style={{ textDecoration: 'line-through' }}>{c.from_level}</span> → Nenhum</>
+                                  : <><span>{c.from_level}</span> → <span style={{ color: c.direction === 'up' ? 'var(--primary)' : 'var(--warning)', fontWeight: 600 }}>{c.to_level}</span></>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {diff.baseline && (
+                <div className="px-3 py-2" style={{ fontSize: 11.5, color: 'var(--text-light)' }}>
+                  1ª avaliação em {fmt(diff.baseline.submitted_at)} — {diff.baseline.skills_count} competências declaradas.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Histórico (imutável) */}
         <div className="ds-card ds-card-pad">
           <h3 className="text-sm mb-3" style={{ fontWeight: 600, color: 'var(--text)' }}>Histórico de avaliações</h3>
@@ -266,6 +341,13 @@ export default function PerfilProfissionalPage() {
       )}
     </AppLayout>
   )
+}
+
+function DiffIcon({ dir }: { dir: DiffDirection }) {
+  if (dir === 'added') return <Plus size={13} style={{ color: 'var(--success)', flexShrink: 0 }} />
+  if (dir === 'removed') return <Minus size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+  if (dir === 'up') return <ArrowUp size={13} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+  return <ArrowDown size={13} style={{ color: 'var(--warning)', flexShrink: 0 }} />
 }
 
 /** Radar SVG dependency-free, theme-aware (0..4 por eixo). */
