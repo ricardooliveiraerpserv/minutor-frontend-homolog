@@ -27,30 +27,14 @@ import {
   SERVICE_TYPE_LABELS, STATUS_META, fmtBytes, fmtCpu, fmtDateTime, fmtInt, isDegraded,
 } from './shared'
 
-// ── Saúde do ambiente (mesma heurística do F4) ────────────────────────────────
-export interface HealthSummary {
-  running: number
-  stopped: number
-  degraded: number
-  total: number
-  label: string
-  color: string
-  variant: string
-}
-
-/** Deriva a saúde do ambiente a partir dos serviços (exclui o appserver Exclusivo). */
-export function computeHealth(services: ServiceRow[] | null): HealthSummary {
-  const nonExclusive = (services ?? []).filter((s) => s.type !== 'exclusive')
-  const running = nonExclusive.filter((s) => s.status === 'Running').length
-  const stopped = nonExclusive.filter((s) => s.status !== 'Running').length
-  const degraded = nonExclusive.filter(isDegraded).length
-  const base =
-    stopped > 0 ? { label: 'Crítico', color: 'var(--danger)', variant: 'danger' }
-    : degraded > 0 ? { label: 'Atenção', color: 'var(--warning)', variant: 'warning' }
-    : (services?.length ?? 0) === 0 ? { label: 'Indefinido', color: 'var(--text-light)', variant: 'default' }
-    : { label: 'Saudável', color: 'var(--success)', variant: 'success' }
-  return { running, stopped, degraded, total: nonExclusive.length, ...base }
-}
+// ── Saúde do ambiente ─────────────────────────────────────────────────────────
+// A REGRA agora vive em `@/lib/operacoes/health` (pura, sem React, testável).
+// Reexportado aqui p/ compat: consumidores seguem importando de './sections'.
+import type { HealthSummary } from '@/lib/operacoes/health'
+export {
+  computeHealth, HEALTH_META,
+  type HealthState, type HealthSeverity, type HealthReason, type HealthSummary,
+} from '@/lib/operacoes/health'
 
 // ── Cartão de indicador ───────────────────────────────────────────────────────
 export function StatCard({ label, value, color, icon: Icon }: { label: string; value: string; color: string; icon: typeof Activity }) {

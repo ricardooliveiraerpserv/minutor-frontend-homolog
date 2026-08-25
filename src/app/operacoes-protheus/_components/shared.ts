@@ -15,12 +15,8 @@ export const STATUS_META: Record<ServiceStatus, { label: string; variant: string
   Unknown: { label: 'Desconhecido', variant: 'default', dot: 'var(--text-light)' },
 }
 
-/** Serviço "degradado": Running porém com CPU alta (heurística de saúde no F4). */
-export const DEGRADED_CPU = 80
-
-export function isDegraded(s: ServiceRow): boolean {
-  return s.status === 'Running' && s.cpu >= DEGRADED_CPU
-}
+/** Serviço "degradado": Running com CPU alta. Fonte única = lib/operacoes/health. */
+export { DEGRADED_CPU, isDegraded } from '@/lib/operacoes/health'
 
 // ── Pasta System ────────────────────────────────────────────────────────────
 export const FOLDER_LEVEL_META: Record<FolderLevel, { label: string; color: string }> = {

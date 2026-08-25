@@ -68,9 +68,10 @@ export function AmbientesView({ previewEnvironmentId = null }: { previewEnvironm
           .filter((m): m is string => !!m)
           .sort((a, b) => b.localeCompare(a))[0] ?? null
         const alerts: string[] = []
-        if (health.stopped > 0) alerts.push(`${health.stopped} serviço(s) parado(s)`)
-        if (health.degraded > 0) alerts.push(`${health.degraded} serviço(s) degradado(s)`)
-        if (exc.active) alerts.push('Modo Exclusivo ativo')
+        // Alertas derivam da saúde JÁ classificada (compilador on-demand não alarma;
+        // base derrubada em modo exclusivo não vira "parado").
+        for (const r of health.reasons) alerts.push(r.text)
+        if (exc.active) alerts.push('Modo exclusivo ativo')
         if (folder.level === 'red') alerts.push('Pasta System crítica')
         else if (folder.level === 'yellow') alerts.push('Pasta System em atenção')
         return {

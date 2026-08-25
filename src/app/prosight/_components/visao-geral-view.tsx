@@ -27,7 +27,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Activity, AlertTriangle, Bug, ChevronRight, Clock, FolderGit2, Gauge,
-  LayoutDashboard, Layers, Lock, RefreshCw, ScanSearch, Server, ServerCog,
+  HelpCircle, LayoutDashboard, Layers, Lock, RefreshCw, ScanSearch, Server, ServerCog,
   ShieldCheck, Sparkles, Users, XCircle,
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
@@ -291,10 +291,13 @@ function buildAttention(snapshots: EnvSnapshot[] | null, scan: InventoryScanOk |
 
   for (const s of snapshots ?? []) {
     const appserversHref = `/operacoes-protheus/appservers?env=${s.env.id}`
-    if (s.health.stopped > 0) items.push({ id: `${s.env.id}-stopped`, domain: 'Operação', env: s.env.label, desc: `${s.health.stopped} AppServer(s) parado(s)`, severity: 'danger', cta: { label: 'Ver AppServers', href: appserversHref } })
-    if (s.health.degraded > 0) items.push({ id: `${s.env.id}-degraded`, domain: 'Operação', env: s.env.label, desc: `${s.health.degraded} AppServer(s) degradado(s) (CPU alta)`, severity: 'warning', cta: { label: 'Ver AppServers', href: appserversHref } })
-    if (s.exclusive) items.push({ id: `${s.env.id}-exclusive`, domain: 'Operação', env: s.env.label, desc: `Modo Exclusivo ativo${s.exclusiveBy ? ` (por ${s.exclusiveBy})` : ''}`, severity: 'warning', cta: { label: 'Ver AppServers', href: appserversHref } })
-    if (s.debug) items.push({ id: `${s.env.id}-debug`, domain: 'Operação', env: s.env.label, desc: 'Modo Debug ativo (compilador em execução)', severity: 'warning', cta: { label: 'Ver AppServers', href: appserversHref } })
+    // Sinais de saúde JÁ classificados (compilador on-demand não alarma; base derrubada
+    // em modo exclusivo não vira "parado"). critical→danger; warning/info preservados.
+    s.health.reasons.forEach((r, i) => {
+      items.push({ id: `${s.env.id}-svc-${i}`, domain: 'Operação', env: s.env.label, desc: r.text, severity: r.severity === 'critical' ? 'danger' : r.severity, cta: { label: 'Ver AppServers', href: appserversHref } })
+    })
+    if (s.exclusive) items.push({ id: `${s.env.id}-exclusive`, domain: 'Operação', env: s.env.label, desc: `Modo exclusivo ativo${s.exclusiveBy ? ` (por ${s.exclusiveBy})` : ''}`, severity: 'info', cta: { label: 'Ver AppServers', href: appserversHref } })
+    if (s.debug) items.push({ id: `${s.env.id}-debug`, domain: 'Operação', env: s.env.label, desc: 'Modo Debug ativo (compilador em execução)', severity: 'info', cta: { label: 'Ver AppServers', href: appserversHref } })
     if (s.folderLevel === 'red') items.push({ id: `${s.env.id}-folder`, domain: 'Operação', env: s.env.label, desc: 'Pasta System crítica', severity: 'danger', cta: { label: 'Ver AppServers', href: appserversHref } })
     else if (s.folderLevel === 'yellow') items.push({ id: `${s.env.id}-folder`, domain: 'Operação', env: s.env.label, desc: 'Pasta System em atenção', severity: 'warning', cta: { label: 'Ver AppServers', href: appserversHref } })
     // Falha recente (compile/patch/rpo) — pega a mais recente sem sucesso.
@@ -355,18 +358,19 @@ function BlockError({ onRetry, message }: { onRetry?: () => void; message?: stri
 function SaudeGeralBlock({ state, snapshots, onRetry }: { state: BlockState; snapshots: EnvSnapshot[] | null; onRetry: () => void }) {
   const roll = useMemo(() => {
     const s = snapshots ?? []
-    const saudavel = s.filter((x) => x.health.label === 'Saudável').length
-    const atencao = s.filter((x) => x.health.label === 'Atenção').length
-    const critico = s.filter((x) => x.health.label === 'Crítico').length
+    // Contagem pela AUTORIDADE (state), não por texto de label.
+    const by = (st: string) => s.filter((x) => x.health.state === st).length
     const lastChange = s.flatMap((x) => x.changes).map((c) => c.timestamp).sort((a, b) => b.localeCompare(a))[0] ?? null
-    return { total: s.length, saudavel, atencao, critico, lastChange }
+    return { total: s.length, saudavel: by('healthy'), atencao: by('warning'), critico: by('critical'), exclusivo: by('exclusive'), indefinido: by('undefined'), lastChange }
   }, [snapshots])
 
   const overall = roll.critico > 0
     ? { label: 'Atenção crítica', color: 'var(--danger)' }
     : roll.atencao > 0
       ? { label: 'Requer atenção', color: 'var(--warning)' }
-      : { label: 'Tudo saudável', color: 'var(--success)' }
+      : roll.exclusivo > 0
+        ? { label: 'Manutenção em andamento', color: 'var(--info)' }
+        : { label: 'Tudo saudável', color: 'var(--success)' }
 
   return (
     <BlockShell
@@ -392,6 +396,8 @@ function SaudeGeralBlock({ state, snapshots, onRetry }: { state: BlockState; sna
           <RollStat label="Saudáveis" value={roll.saudavel} color="var(--success)" icon={ShieldCheck} />
           <RollStat label="Em atenção" value={roll.atencao} color={roll.atencao ? 'var(--warning)' : 'var(--text)'} icon={AlertTriangle} />
           <RollStat label="Críticos" value={roll.critico} color={roll.critico ? 'var(--danger)' : 'var(--text)'} icon={XCircle} />
+          {roll.exclusivo > 0 && <RollStat label="Modo exclusivo" value={roll.exclusivo} color="var(--info)" icon={Lock} />}
+          {roll.indefinido > 0 && <RollStat label="Indefinido" value={roll.indefinido} color="var(--text-light)" icon={HelpCircle} />}
           <div className="col-span-2 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:col-span-4" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
             <Clock size={13} /> Última atividade registrada: <b style={{ color: 'var(--text)' }}>{fmtDateTime(roll.lastChange)}</b>
           </div>
@@ -441,7 +447,7 @@ function AmbientesBlock({ state, snapshots, onRetry }: { state: BlockState; snap
 
 function EnvMiniCard({ s, onOpen }: { s: EnvSnapshot; onOpen: () => void }) {
   const activeFlags: { icon: typeof Lock; label: string; color: string }[] = []
-  if (s.exclusive) activeFlags.push({ icon: Lock, label: 'Exclusivo', color: 'var(--danger)' })
+  if (s.exclusive) activeFlags.push({ icon: Lock, label: 'Exclusivo', color: 'var(--info)' })
   if (s.debug) activeFlags.push({ icon: Bug, label: 'Debug', color: 'var(--warning)' })
   return (
     <button onClick={onOpen}
@@ -458,7 +464,7 @@ function EnvMiniCard({ s, onOpen }: { s: EnvSnapshot; onOpen: () => void }) {
         </span>
       </div>
       <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <span className="inline-flex items-center gap-1"><Server size={12} style={{ color: 'var(--text-light)' }} /> AppServers <b style={{ color: s.health.stopped ? 'var(--danger)' : 'var(--text)' }}>{s.health.running}/{s.health.total}</b></span>
+        <span className="inline-flex items-center gap-1"><Server size={12} style={{ color: 'var(--text-light)' }} /> AppServers <b style={{ color: s.health.state === 'critical' ? 'var(--danger)' : s.health.state === 'warning' ? 'var(--warning)' : 'var(--text)' }}>{s.health.running}/{s.health.total}</b></span>
         <span className="inline-flex items-center gap-1 font-mono">RPO {s.rpoVersion || '—'}</span>
       </div>
       <div className="flex items-center justify-between gap-2">
@@ -560,14 +566,14 @@ function OperacaoBlock({ state, snapshots, onRetry }: { state: BlockState; snaps
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <OpStat label="AppServers online" value={`${focus.health.running}/${focus.health.total}`} color="var(--success)" />
-            <OpStat label="Parados" value={String(focus.health.stopped)} color={focus.health.stopped ? 'var(--danger)' : 'var(--text)'} />
+            <OpStat label="Parados" value={String(focus.health.stopped)} color={focus.health.state === 'critical' ? 'var(--danger)' : focus.health.state === 'warning' ? 'var(--warning)' : 'var(--text)'} />
             <OpStat label="Pasta System" value={FOLDER_LEVEL_META[focus.folderLevel].label} color={FOLDER_LEVEL_META[focus.folderLevel].color} />
-            <OpStat label="Modos" value={focus.exclusive ? 'Exclusivo' : focus.debug ? 'Debug' : 'Normal'} color={focus.exclusive ? 'var(--danger)' : focus.debug ? 'var(--warning)' : 'var(--text)'} />
+            <OpStat label="Modos" value={focus.exclusive ? 'Exclusivo' : focus.debug ? 'Debug' : 'Normal'} color={focus.exclusive ? 'var(--info)' : focus.debug ? 'var(--warning)' : 'var(--text)'} />
           </div>
           {(focus.exclusive || focus.debug) && (
-            <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs" style={focus.exclusive ? { background: 'var(--info-bg)', color: 'var(--info)' } : { background: 'var(--warning-bg)', color: 'var(--warning)' }}>
               {focus.exclusive ? <Lock size={13} /> : <Bug size={13} />}
-              {focus.exclusive ? `Modo Exclusivo ativo${focus.exclusiveBy ? ` (por ${focus.exclusiveBy})` : ''}` : 'Modo Debug ativo'}
+              {focus.exclusive ? `Modo exclusivo ativo${focus.exclusiveBy ? ` (por ${focus.exclusiveBy})` : ''}` : 'Modo Debug ativo'}
             </div>
           )}
         </div>
