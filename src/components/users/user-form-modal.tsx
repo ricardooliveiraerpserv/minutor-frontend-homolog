@@ -546,6 +546,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const save = async (hourlyRateEffectiveFrom?: string) => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
 
+    // Empresa base OBRIGATÓRIA para consultor/parceiro — sem ela os apontamentos
+    // que a pessoa lançar nascem sem empresa e somem das telas.
+    if ((isConsultor || isParceiroAdm) && !form.home_company_id) {
+      toast.error('Selecione a Empresa base'); return
+    }
+
     const needsPartnerField = form.profiles.includes('parceiro_adm')
 
     setSaving(true)
@@ -1169,7 +1175,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {(isConsultor || isParceiroAdm) && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
-                  Empresa base
+                  Empresa base *
                 </label>
                 <select
                   value={form.home_company_id ?? ''}
