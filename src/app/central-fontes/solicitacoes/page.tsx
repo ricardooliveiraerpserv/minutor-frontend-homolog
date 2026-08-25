@@ -1,10 +1,14 @@
 'use client'
 
-// Central de Fontes — gestão das solicitações de fonte (empresa, escopo, chamado,
-// prioridade, solicitante). Ações: atender / rejeitar / reabrir. Só leitura do acervo.
+// Prosight → Fontes → "Publicações" (C4.1). Rota mantida em /central-fontes/solicitacoes
+// (zero quebra de deep-link; o shell ProsightNav já a apresenta como "Publicações").
+// Escopo desta tela = CONSULTA e RASTREABILIDADE: solicitações de fonte + commits de
+// GMUD + status. INICIAR uma publicação de fonte continua originado no chamado do Help
+// Desk (solução "GMUD em Produção") — regra de negócio existente preservada.
+// Ações locais: atender / rejeitar / reabrir solicitação. Só leitura do acervo.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ExternalLink, FilePlus2, GitCommitHorizontal, Ticket } from 'lucide-react'
+import { ExternalLink, FilePlus2, GitCommitHorizontal, Info, Ticket } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -135,7 +139,15 @@ export default function SolicitacoesPage() {
 
   return (
     <>
-      <PageHeader icon={FilePlus2} title="Solicitações e GMUDs" subtitle="Pedidos de provisionamento de fontes e os commits de mudança (GMUD) do acervo." />
+      <PageHeader icon={FilePlus2} title="Publicações" subtitle="Consulta e rastreabilidade — solicitações de fonte, commits de GMUD e status do acervo." />
+
+      <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info)' }}>
+        <Info size={14} className="mt-px shrink-0" />
+        <span>
+          Esta é a visão de <b>consulta e rastreabilidade</b> das publicações (solicitações · commits GMUD · status).
+          Para <b>iniciar</b> uma publicação de fonte, use a solução <b>“GMUD em Produção”</b> no chamado do Help Desk — o fluxo de publicação segue originado no chamado.
+        </span>
+      </div>
 
       <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
         <button onClick={() => setView('solicitacoes')} className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'solicitacoes' ? on : off}`}><FilePlus2 size={14} /> Solicitações</button>
