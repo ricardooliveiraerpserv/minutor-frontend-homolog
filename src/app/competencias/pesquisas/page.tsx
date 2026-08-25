@@ -141,21 +141,41 @@ export default function PesquisasCompetenciasPage() {
   )
 }
 
+const CAMPAIGN_GROUPS: { key: string; label: string }[] = [
+  { key: 'consultor', label: 'Consultores' },
+  { key: 'coordenador', label: 'Coordenadores' },
+  { key: 'parceiro', label: 'Parceiros' },
+  { key: 'admin', label: 'Administrativo / Admin' },
+]
+
+function defaultCampaignTitle(): string {
+  const now = new Date()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  return `Atualização de Competências — ${mm}/${now.getFullYear()}`
+}
+const DEFAULT_CAMPAIGN_MESSAGE =
+  'Chegou o momento de revisar e atualizar suas competências. Se você evoluiu — um novo curso, uma nova ferramenta ou um projeto relevante — reflita isso no seu perfil para mantê-lo sempre atualizado. Leva poucos minutos: suas respostas anteriores já vêm preenchidas, basta ajustar o que mudou.'
+
 function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (id: number) => void }) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [title, setTitle] = useState(defaultCampaignTitle())
+  const [description, setDescription] = useState(DEFAULT_CAMPAIGN_MESSAGE)
   const [deadline, setDeadline] = useState('')
-  const [target, setTarget] = useState<'consultores' | 'todos'>('consultores')
+  const [groups, setGroups] = useState<Set<string>>(new Set(['consultor', 'coordenador']))
   const [saving, setSaving] = useState(false)
+
+  const toggleGroup = (k: string) => setGroups(prev => {
+    const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n
+  })
 
   async function launch() {
     if (!deadline) { toast.error('Informe o prazo da campanha'); return }
+    if (groups.size === 0) { toast.error('Selecione ao menos um grupo do público-alvo'); return }
     setSaving(true)
     try {
       const s = await api.post<{ id: number; invited: number; mails_sent: number }>('/competencias/campanhas', {
-        title: title || null, description: description || null, deadline, target,
+        title: title.trim() || null, description: description.trim() || null, deadline, groups: Array.from(groups),
       })
-      toast.success(`Campanha aberta — ${s.invited} consultor(es) notificado(s)`)
+      toast.success(`Campanha aberta — ${s.invited} colaborador(es) notificado(s)`)
       onDone(s.id)
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Erro ao abrir a campanha')
@@ -169,28 +189,32 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
       <ModalHeader title="Nova campanha de atualização" icon={Megaphone} onClose={onClose} />
       <ModalBody className="space-y-3">
         <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-          Envia a todos os consultores um pedido para <strong>atualizar as competências</strong>, com pop-up e e-mail.
-          Você acompanha quem já atualizou e cobra os pendentes (a recorrência é configurável na Central de Workflows).
+          Envia aos colaboradores internos selecionados um pedido para <strong>atualizar as competências</strong>, com
+          pop-up e e-mail. Você acompanha quem já atualizou e cobra os pendentes (a recorrência é configurável na
+          Central de Workflows).
         </p>
         <div>
-          <Label>Título <span style={{ color: 'var(--text-light)' }}>(opcional)</span></Label>
-          <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex.: Atualização de Competências — 2º semestre" />
+          <Label>Título</Label>
+          <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder={defaultCampaignTitle()} />
         </div>
         <div>
-          <Label>Mensagem <span style={{ color: 'var(--text-light)' }}>(opcional)</span></Label>
-          <textarea className="ds-input" rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="Se você evoluiu (novo curso, ferramenta, projeto), reflita no seu perfil." />
+          <Label>Mensagem</Label>
+          <textarea className="ds-input" rows={5} value={description} onChange={e => setDescription(e.target.value)}
+            style={{ resize: 'vertical', minHeight: 120 }} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Prazo</Label>
-            <input type="date" className="ds-input" value={deadline} onChange={e => setDeadline(e.target.value)} />
-          </div>
-          <div>
-            <Label>Público-alvo</Label>
-            <select className="ds-input" value={target} onChange={e => setTarget(e.target.value as 'consultores')}>
-              <option value="consultores">Consultores e coordenadores</option>
-              <option value="todos">Todos os colaboradores internos</option>
-            </select>
+        <div>
+          <Label>Prazo</Label>
+          <input type="date" className="ds-input" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ maxWidth: 220 }} />
+        </div>
+        <div>
+          <Label>Público-alvo <span style={{ color: 'var(--text-light)' }}>(colaboradores internos)</span></Label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {CAMPAIGN_GROUPS.map(g => (
+              <label key={g.key} className="flex items-center gap-2 text-sm ds-card ds-card-pad" style={{ padding: '8px 10px', cursor: 'pointer', color: 'var(--text)' }}>
+                <input type="checkbox" checked={groups.has(g.key)} onChange={() => toggleGroup(g.key)} />
+                {g.label}
+              </label>
+            ))}
           </div>
         </div>
       </ModalBody>

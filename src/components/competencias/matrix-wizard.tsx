@@ -131,6 +131,38 @@ export function SkillMatrixWizard({ data, onAutosave, onSubmit, onDone, hideCada
     schedule()
   }
 
+  // CEP → preenche endereço automaticamente (ViaCEP). Só toca campos que existem no schema.
+  async function lookupCep(cepDigits: string) {
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`)
+      if (!r.ok) return
+      const d = await r.json()
+      if (!d || d.erro) return
+      const fill: Record<string, string> = {}
+      if (d.logradouro) fill.logradouro = d.logradouro
+      if (d.bairro) fill.bairro = d.bairro
+      if (d.localidade) fill.cidade = d.localidade
+      if (d.uf) fill.estado = d.uf
+      const keys = new Set(data.cadastralSchema.map(f => f.key))
+      setCadastral(prev => {
+        const next = { ...prev }
+        Object.entries(fill).forEach(([k, v]) => { if (keys.has(k)) next[k] = v })
+        return next
+      })
+      cadastralDirtyRef.current = true
+      schedule()
+    } catch { /* CEP externo pode falhar — silencioso, campos ficam editáveis */ }
+  }
+
+  function handleCadastral(key: string, value: unknown) {
+    setCadastralField(key, value)
+    const f = data.cadastralSchema.find(x => x.key === key)
+    if ((key === 'cep' || f?.type === 'cep') && typeof value === 'string') {
+      const digits = value.replace(/\D/g, '')
+      if (digits.length === 8) lookupCep(digits)
+    }
+  }
+
   async function goTo(next: number) {
     const clamped = Math.max(0, Math.min(next, steps.length - 1))
     await flush({ current_step: clamped })
@@ -186,7 +218,7 @@ export function SkillMatrixWizard({ data, onAutosave, onSubmit, onDone, hideCada
         <div className="ds-card ds-card-pad space-y-3">
           {data.description && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{data.description}</p>}
           {data.cadastralSchema.map(f => (
-            <CadastralInput key={f.key} field={f} value={cadastral[f.key]} onChange={v => setCadastralField(f.key, v)} />
+            <CadastralInput key={f.key} field={f} value={cadastral[f.key]} onChange={v => handleCadastral(f.key, v)} />
           ))}
         </div>
       )}
@@ -279,7 +311,8 @@ function CadastralInput({ field: f, value, onChange }: { field: CadastralField; 
           <input type="checkbox" checked={!!value} disabled={f.readonly} onChange={e => onChange(e.target.checked)} /> Sim
         </label>
       ) : (
-        <input className="ds-input" type={f.type === 'email' ? 'email' : 'text'} disabled={f.readonly}
+        <input className="ds-input" type={f.type === 'email' ? 'email' : f.type === 'date' ? 'date' : 'text'}
+          disabled={f.readonly} inputMode={f.type === 'cep' ? 'numeric' : undefined}
           value={String(value ?? '')} onChange={e => onChange(e.target.value)} />
       )}
     </div>
