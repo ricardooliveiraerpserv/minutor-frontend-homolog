@@ -6,10 +6,13 @@
 // NÃO maquiar fixtures):
 //   • compiler parado = estado NORMAL (on-demand) → NÃO impacta a saúde (só informativo).
 //   • modo exclusivo ativo = estado próprio 'exclusive' (base derrubada de propósito).
+//     PORÉM uma falha crítica INDEPENDENTE (não causada pela manutenção — ex.: DBAccess/banco
+//     parado) SUPERA o exclusive → critical, sem esconder o problema atrás da manutenção.
+//     Broker + slaves parados durante exclusivo = consequência esperada → IGNORADOS.
 //   • broker parado / DBAccess (banco) parado / TODOS os slaves parados → critical.
 //   • slave parcial / schedule parado / REST parado / CPU alta / Unknown → warning.
 //   • sem serviços → undefined. Unknown NUNCA vira stopped/critical automaticamente.
-// Precedência determinística: exclusive → critical → warning → undefined → healthy.
+// Precedência determinística: critical (independente) → exclusive → warning → undefined → healthy.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ServiceRow } from './types'
@@ -32,7 +35,9 @@ export interface HealthSummary {
   total: number
   /** Compilador em execução (informativo — não afeta a saúde). */
   compilerRunning: boolean
-  /** Sinais de saúde já classificados = fonte dos alertas nas telas. Vazio quando healthy/exclusive. */
+  /** Manutenção (modo exclusivo) ativa — preserva a informação mesmo quando `state` escala p/ critical. */
+  underMaintenance: boolean
+  /** Sinais de saúde já classificados = fonte dos alertas nas telas. Vazio quando healthy. */
   reasons: HealthReason[]
   // Conveniência de UI (derivada de `state`) — mantém compat com consumidores atuais.
   label: string
@@ -75,12 +80,19 @@ export function computeHealth(services: ServiceRow[] | null): HealthSummary {
 
   const reasons: HealthReason[] = []
   if (exclusiveActive) {
-    // Manutenção: base derrubada de propósito NÃO é falha. Só falhas INDEPENDENTES
-    // (banco/DBAccess essencial, fora da base) são registradas — sem decidir silenciosamente.
-    // (Nenhuma fixture exercita este caso hoje; escalonamento de estado = decisão explícita.)
+    // Manutenção: broker + slaves parados = consequência ESPERADA do exclusivo → ignorados
+    // (e o compilador nem entra na base). Os demais serviços são avaliados normalmente:
+    // uma falha crítica INDEPENDENTE (DBAccess/banco) escala p/ critical; REST/Schedule/CPU/
+    // Unknown continuam como warning SEM escalar. Assim manutenção não mascara indisponibilidade.
     for (const s of healthBase) {
-      if (isDbAccess(s) && isStopped(s)) reasons.push({ severity: 'critical', text: `${nameOf(s)} (banco) parado` })
+      if (s.type === 'broker' || s.type === 'slave' || isRunning(s)) continue
+      if (s.status === 'Unknown') { reasons.push({ severity: 'warning', text: `${nameOf(s)} em estado desconhecido` }); continue }
+      if (isDbAccess(s)) reasons.push({ severity: 'critical', text: `${nameOf(s)} (banco) parado` })
+      else if (s.type === 'rest') reasons.push({ severity: 'warning', text: 'REST parado' })
+      else if (s.type === 'schedule') reasons.push({ severity: 'warning', text: 'Schedule parado' })
+      else reasons.push({ severity: 'warning', text: `${nameOf(s)} parado` })
     }
+    if (degraded > 0) reasons.push({ severity: 'warning', text: `${degraded} serviço(s) em CPU alta` })
   } else {
     // Slaves: agregado (parcial = warning, todos = critical).
     const slaves = healthBase.filter((s) => s.type === 'slave')
@@ -101,12 +113,17 @@ export function computeHealth(services: ServiceRow[] | null): HealthSummary {
     if (degraded > 0) reasons.push({ severity: 'warning', text: `${degraded} serviço(s) em CPU alta` })
   }
 
+  const hasIndependentCritical = reasons.some((r) => r.severity === 'critical')
+  // Precedência: critical INDEPENDENTE supera exclusive (não esconder falha real na manutenção).
   let state: HealthState
-  if (exclusiveActive) state = 'exclusive'
-  else if (reasons.some((r) => r.severity === 'critical')) state = 'critical'
+  if (hasIndependentCritical) state = 'critical'
+  else if (exclusiveActive) state = 'exclusive'
   else if (reasons.some((r) => r.severity === 'warning')) state = 'warning'
   else if (healthBase.length === 0) state = 'undefined'
   else state = 'healthy'
 
-  return { state, running, stopped, degraded, total: healthBase.length, compilerRunning, reasons, ...HEALTH_META[state] }
+  // Preserva a informação de manutenção mesmo quando escalou p/ critical (motivo adicional).
+  if (exclusiveActive && state === 'critical') reasons.push({ severity: 'info', text: 'Modo exclusivo ativo' })
+
+  return { state, running, stopped, degraded, total: healthBase.length, compilerRunning, underMaintenance: exclusiveActive, reasons, ...HEALTH_META[state] }
 }

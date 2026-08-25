@@ -294,6 +294,8 @@ function buildAttention(snapshots: EnvSnapshot[] | null, scan: InventoryScanOk |
     // Sinais de saúde JÁ classificados (compilador on-demand não alarma; base derrubada
     // em modo exclusivo não vira "parado"). critical→danger; warning/info preservados.
     s.health.reasons.forEach((r, i) => {
+      // O item dedicado de "Modo exclusivo ativo" (abaixo) é mais rico → evita duplicar.
+      if (r.severity === 'info' && r.text === 'Modo exclusivo ativo') return
       items.push({ id: `${s.env.id}-svc-${i}`, domain: 'Operação', env: s.env.label, desc: r.text, severity: r.severity === 'critical' ? 'danger' : r.severity, cta: { label: 'Ver AppServers', href: appserversHref } })
     })
     if (s.exclusive) items.push({ id: `${s.env.id}-exclusive`, domain: 'Operação', env: s.env.label, desc: `Modo exclusivo ativo${s.exclusiveBy ? ` (por ${s.exclusiveBy})` : ''}`, severity: 'info', cta: { label: 'Ver AppServers', href: appserversHref } })

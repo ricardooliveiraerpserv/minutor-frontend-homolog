@@ -272,7 +272,8 @@ export function systemInfoFixture(environmentId: string): SystemInfo {
 export function folderStatusFixture(environmentId: string): FolderStatus {
   const m = envMeta(environmentId)
   const c = baseConfig(environmentId)
-  // Homologação com pasta System pesada (atenção); produção normal.
+  // Homologação com pasta System em nível CRÍTICO (6120 ≥ limiar red 5500); produção normal
+  // (3280 < 4000 = green). Severidade da pasta System é domínio à PARTE da saúde de serviços.
   const systemTotal = m.kind === 'homologacao' ? 6120 : m.kind === 'producao' ? 3280 : 1450
   const level: FolderStatus['level'] = systemTotal < 0 ? 'error' : systemTotal < 4000 ? 'green' : systemTotal < 5500 ? 'yellow' : 'red'
   return {
