@@ -1163,9 +1163,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               />
             )}
 
-            {/* ── Empresa da FOLHA (unifica o legado "Funcionário Bizify"): define em qual
-                   empresa entra a folha/fechamento deste funcionário. O is_bizify deriva daqui. ── */}
-            {isConsultor && (
+            {/* ── Empresa base (multi-empresa): p/ CONSULTOR é a empresa da FOLHA; p/ PARCEIRO
+                   define a empresa a que ele pertence — sem isso os apontamentos que ele lança
+                   nascem SEM empresa e somem das telas. O is_bizify deriva daqui. ── */}
+            {(isConsultor || isParceiroAdm) && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
                   Empresa base
@@ -1179,7 +1180,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  Empresa base do funcionário. <b>Fixos/administrativos</b> apuram por ela; <b>horistas/banco de horas</b> apuram pela empresa do <b>projeto</b> em que atuaram. Vincula automaticamente.
+                  Empresa base do colaborador. <b>Fixos/administrativos</b> apuram por ela; <b>horistas/banco de horas e parceiros</b> apuram pela empresa do <b>projeto</b> em que atuaram — mas ela é obrigatória para os registros nascerem com empresa. Vincula automaticamente.
                 </p>
               </div>
             )}
