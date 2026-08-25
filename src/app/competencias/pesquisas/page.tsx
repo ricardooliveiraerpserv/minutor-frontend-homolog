@@ -185,7 +185,7 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
   }
 
   return (
-    <Modal open onClose={onClose} size="md">
+    <Modal open onClose={onClose} size="lg">
       <ModalHeader title="Nova campanha de atualização" icon={Megaphone} onClose={onClose} />
       <ModalBody className="space-y-3">
         <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
@@ -195,12 +195,12 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
         </p>
         <div>
           <Label>Título</Label>
-          <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder={defaultCampaignTitle()} />
+          <input className="ds-input" style={{ width: '100%' }} value={title} onChange={e => setTitle(e.target.value)} placeholder={defaultCampaignTitle()} />
         </div>
         <div>
           <Label>Mensagem</Label>
-          <textarea className="ds-input" rows={5} value={description} onChange={e => setDescription(e.target.value)}
-            style={{ resize: 'vertical', minHeight: 120 }} />
+          <textarea className="ds-input" rows={7} value={description} onChange={e => setDescription(e.target.value)}
+            style={{ width: '100%', resize: 'vertical', minHeight: 180 }} />
         </div>
         <div>
           <Label>Prazo</Label>
