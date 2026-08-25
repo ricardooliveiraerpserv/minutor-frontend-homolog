@@ -7,7 +7,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import { Zap, Clock, DollarSign, Download, Undo2, Eye } from 'lucide-react'
+import { Zap, Clock, DollarSign, Download, Undo2, Eye, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { KpiCard } from '@/components/ui/kpi-card'
 import { Skeleton, SkeletonTable } from '@/components/ui/loading'
@@ -164,6 +164,8 @@ export default function OnDemandPage() {
   // Sustentação: range de DIGITAÇÃO opcional (created_at) — filtra SÓ a lista de apontamentos.
   const [digFrom, setDigFrom] = useState('')
   const [digTo,   setDigTo]   = useState('')
+  // Sustentação: filtro por ticket (número ou título) — client-side sobre os dados já carregados.
+  const [ticketFilter, setTicketFilter] = useState('')
 
   const [summary,       setSummary]       = useState<SummaryData | null>(null)
   const [loadingSummary, setLoadingSummary] = useState(false)
@@ -516,13 +518,34 @@ export default function OnDemandPage() {
             )}
 
             {/* ── SUSTENTAÇÃO ── */}
-            {activeTab === 'maintenance' && isSustentacaoContract && (
+            {activeTab === 'maintenance' && isSustentacaoContract && (() => {
+              const q = ticketFilter.trim().toLowerCase()
+              const matchTk = (n: unknown, t: unknown) =>
+                !q || String(n ?? '').toLowerCase().includes(q) || String(t ?? '').toLowerCase().includes(q)
+              const rowsF    = q ? mxRows.filter(r => matchTk(r.ticket, r.ticket_subject)) : mxRows
+              const summaryF = q ? mxTicketSummary.filter(tk => matchTk(tk.ticket, tk.title)) : mxTicketSummary
+              return (
               <div className="space-y-4">
-                <MxExportButton onClick={() => exportMaintenanceToXLSX('maintenance', mxRows, showDigitacao)} disabled={mxRows.length === 0} />
-                <MxTimesheets rows={mxRows} loading={mxLoading} variant="maintenance" onRowClick={setMxDetail} onReverseApproved={canReverseApproval} onReverseSuccess={reloadMx} clientView={isCliente} showDigitacao={showDigitacao} />
-                <MxTicketSummary rows={mxTicketSummary} loading={mxTicketLoading} />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <MxExportButton onClick={() => exportMaintenanceToXLSX('maintenance', rowsF, showDigitacao)} disabled={rowsF.length === 0} />
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                    <input value={ticketFilter} onChange={e => setTicketFilter(e.target.value)}
+                      placeholder="Filtrar por ticket (nº ou título)…"
+                      className="ds-input" style={{ paddingLeft: 30, width: 260, height: 34 }} />
+                    {ticketFilter && (
+                      <button onClick={() => setTicketFilter('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} aria-label="Limpar">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  {q && <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{summaryF.length} ticket(s)</span>}
+                </div>
+                <MxTimesheets rows={rowsF} loading={mxLoading} variant="maintenance" onRowClick={setMxDetail} onReverseApproved={canReverseApproval} onReverseSuccess={reloadMx} clientView={isCliente} showDigitacao={showDigitacao} />
+                <MxTicketSummary rows={summaryF} loading={mxTicketLoading} />
               </div>
-            )}
+              )
+            })()}
 
             {/* ── DESPESAS ── */}
             {activeTab === 'expenses' && (() => {
