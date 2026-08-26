@@ -16,7 +16,7 @@ import {
 } from 'recharts'
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, Users, DollarSign,
-  Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw, Wrench,
+  Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw, Wrench, Gauge,
   ChevronDown, Check, CheckSquare, X as CloseIcon, Eye, FileText,
 } from 'lucide-react'
 import { TimesheetsScreen }            from '@/components/screens/TimesheetsScreen'
@@ -25,6 +25,7 @@ import { ApprovalsScreen }             from '@/components/screens/ApprovalsScree
 import { AuditoriaApontamentosScreen } from '@/components/screens/AuditoriaApontamentosScreen'
 import RentabilidadePage              from '@/app/relatorios/rentabilidade/page'
 import { SkeletonTable, CardsSkeleton, InlineLoader } from '@/components/ui/loading'
+import { KpiAA, AgingBars, HBarTopN, DonutTipo, VariationBadge } from '@/components/sustentacao/status-widgets'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,34 @@ interface ExecutiveData {
   period: { from: string; to: string }
 }
 
+// Bloco canônico do "Status de Suporte" (vem dentro de /executive?compare=yoy → r.status)
+interface StatusWindow {
+  created: number
+  resolved: number
+  sla: { rate: number | null; num: number; den: number }
+  resolution_median_hours: number | null
+  hours: number
+}
+interface StatusData {
+  current: StatusWindow
+  previous: StatusWindow | null
+  variation: {
+    created_pct: number | null; resolved_pct: number | null; sla_pp: number | null
+    resolution_hours_abs: number | null; resolution_pct: number | null; hours_pct: number | null
+  } | null
+  state: {
+    new_in_attendance: number; stopped_internal: number; open_operational: number; waiting_client: number
+    sla_breached_now: number; aging: { d0_3: number; d4_7: number; d8_15: number; d15_plus: number }
+  }
+  distribution: {
+    by_categoria: { label: string; count: number }[]
+    by_servico: { top: { label: string; count: number }[]; others: number; others_count: number; total: number }
+    sla_by_priority: { urgencia: string; den: number; num: number; rate: number | null }[]
+  }
+  effort_per_resolved_hours: number | null
+  hours_by_dimension_available: boolean
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CYAN   = 'var(--primary)'
@@ -168,6 +197,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const TABS = [
+  { id: 'status',       label: 'Status de Suporte', icon: Gauge },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
   { id: 'indicadores',  label: 'Indicadores',       icon: BarChart2 },
@@ -761,7 +791,7 @@ export default function SustentacaoPage() {
     if (!isAdmin && !isSustentacaoCoord) router.replace('/dashboard')
   }, [user, router])
 
-  const [tab, setTab]         = useState('kpis')
+  const [tab, setTab]         = useState('status')
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -825,6 +855,7 @@ export default function SustentacaoPage() {
   const [loadError, setLoadError]         = useState<string | null>(null)
   const [contextStats, setContextStats]   = useState<ContextStats | null>(null)
   const [indicadores, setIndicadores]     = useState<ExecutiveData | null>(null)
+  const [status, setStatus]               = useState<StatusData | null>(null)
   const [queueStatusOptions, setQueueStatusOptions] = useState<{ value: string; label: string; base_status: string }[]>([])
   const [drillDown, setDrillDown]       = useState<{ type: 'consultor' | 'cliente'; key: string; label: string } | null>(null)
   const [drillTickets, setDrillTickets] = useState<QueueTicket[] | null>(null)
@@ -863,6 +894,14 @@ export default function SustentacaoPage() {
       } else if (t === 'indicadores' && !indicadores) {
         const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
+      } else if (t === 'status') {
+        // compare=yoy: backend calcula current+previous+variation com a MESMA regra.
+        const r = await api.get<{ status: StatusData }>(`/sustentacao/executive?${params}&compare=yoy`)
+        setStatus(r.status)
+        // REUSO dos endpoints existentes para Top-5 e tendência (nada duplicado).
+        if (!productivity) api.get<ProductivityData>(`/sustentacao/productivity?${params}`).then(setProductivity).catch(() => {})
+        if (!clients)      api.get<ClientData>(`/sustentacao/clients?${params}`).then(setClients).catch(() => {})
+        if (!evolution)    api.get<EvolutionData>(`/sustentacao/evolution`).then(setEvolution).catch(() => {})
       } else if (t === 'debug') {
         if (!debugClientes) {
           const r = await api.get<{ rows: DebugClienteRow[] }>(`/sustentacao/debug-clientes`)
@@ -944,15 +983,23 @@ export default function SustentacaoPage() {
     fetchContextStats(queueFilterResp, queueFilterCliente, from, to)
   }, [queueFilterResp, queueFilterCliente, from, to])
 
+  // Recarrega o Status de Suporte quando o período muda (é unguarded no load).
+  useEffect(() => {
+    if (tab === 'status') { setStatus(null); load('status') }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to])
+
   const invalidateAll = () => {
     setKpis(null); setSlaData(null); setProductivity(null)
     setFinancial(null); setClients(null); setDistribution(null)
+    setStatus(null)
   }
 
   const refresh = () => {
     setKpis(null); setQueue(null); setSlaData(null)
     setProductivity(null); setFinancial(null); setClients(null)
     setDistribution(null); setEvolution(null); setDebugClientes(null)
+    setStatus(null)
     setTimeout(() => load(tab), 50)
   }
 
@@ -1079,6 +1126,203 @@ export default function SustentacaoPage() {
             <InlineLoader />
           </div>
         )}
+
+        {/* STATUS DE SUPORTE — resumo executivo (regra canônica; drill-down p/ abas) */}
+        {!routineTab && tab === 'status' && status && (() => {
+          const s = status
+          const cur = s.current, v = s.variation, st = s.state
+          const fmtH = (h: number | null) => h == null ? '—' : `${h.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h`
+          const slaRate = cur.sla.rate
+          const inside = slaRate ?? 0
+          const outside = slaRate != null ? +(100 - slaRate).toFixed(1) : 0
+          const servico = s.distribution.by_servico
+          const priorityColor = (u: string) => u === 'Urgente' ? RED : u === 'Alta' ? ORANGE : u === 'Média' ? CYAN : 'var(--text-light)'
+          const compRows = [
+            { label: 'Tickets Criados',    cur: cur.created,  prev: s.previous?.created,  var: v?.created_pct,  unit: '%' as const },
+            { label: 'Tickets Resolvidos', cur: cur.resolved, prev: s.previous?.resolved, var: v?.resolved_pct, unit: '%' as const },
+            { label: 'SLA de Solução',     cur: slaRate != null ? `${slaRate}%` : '—', prev: s.previous?.sla.rate != null ? `${s.previous?.sla.rate}%` : '—', var: v?.sla_pp, unit: 'pp' as const },
+            { label: 'Tempo de Resolução', cur: fmtH(cur.resolution_median_hours), prev: fmtH(s.previous?.resolution_median_hours ?? null), var: v?.resolution_hours_abs, unit: 'h' as const },
+          ]
+          return (
+            <div className="space-y-5">
+              {/* LINHA KPI-A — fluxo COM comparação AA */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <KpiAA label="SLA de Solução" value={slaRate != null ? `${slaRate}%` : '—'}
+                  sub={`${cur.sla.num}/${cur.sla.den} no prazo`} variation={v?.sla_pp} unit="pp" good="up"
+                  valueColor={slaRate == null ? undefined : slaRate >= 90 ? GREEN : slaRate >= 70 ? YELLOW : RED} />
+                <KpiAA label="Tickets Criados" value={cur.created} variation={v?.created_pct} unit="%" good="neutral" />
+                <KpiAA label="Tickets Resolvidos" value={cur.resolved} valueColor={GREEN} variation={v?.resolved_pct} unit="%" good="up" />
+                <KpiAA label="Tempo de Resolução" value={fmtH(cur.resolution_median_hours)} sub="mediana"
+                  variation={v?.resolution_hours_abs} unit="h" good="down" />
+              </div>
+              {/* LINHA KPI-B — estado SEM AA (mostra "sem histórico", nunca 0) */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <KpiAA label="Abertos (operação)" value={st.open_operational}
+                  sub={`${st.new_in_attendance} ativos · ${st.stopped_internal} parados internos`} variation={null} />
+                <KpiAA label="Aguardando cliente" value={st.waiting_client} sub="fora da operação ativa" variation={null} />
+                <KpiAA label="SLA vencidos agora" value={st.sla_breached_now}
+                  valueColor={st.sla_breached_now > 0 ? RED : GREEN} sub="backlog operacional" variation={null} />
+                <KpiAA label="Horas de Suporte" value={fmtH(cur.hours)} sub="no período" variation={null} />
+              </div>
+
+              {/* ROW — SLA geral + Módulo */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[var(--text)]">SLA de Solução</p>
+                    <button onClick={() => setTab('sla')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Detalhar SLA →</button>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] w-16 text-[var(--text-muted)]">Dentro</span>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                        <div className="h-full rounded-full" style={{ width: `${inside}%`, background: GREEN }} />
+                      </div>
+                      <span className="text-[11px] font-semibold w-12 text-right" style={{ color: GREEN }}>{inside}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] w-16 text-[var(--text-muted)]">Fora</span>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                        <div className="h-full rounded-full" style={{ width: `${outside}%`, background: RED }} />
+                      </div>
+                      <span className="text-[11px] font-semibold w-12 text-right" style={{ color: RED }}>{outside}%</span>
+                    </div>
+                  </div>
+                  <table className="w-full text-[11px]">
+                    <thead><tr className="text-[var(--text-light)] uppercase tracking-wide">
+                      <th className="text-left font-medium pb-1">Prioridade</th><th className="text-right font-medium pb-1">Tickets</th>
+                      <th className="text-right font-medium pb-1">No prazo</th><th className="text-right font-medium pb-1">% SLA</th>
+                    </tr></thead>
+                    <tbody>
+                      {s.distribution.sla_by_priority.map(p => (
+                        <tr key={p.urgencia} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                          <td className="py-1.5" style={{ color: priorityColor(p.urgencia) }}>{p.urgencia}</td>
+                          <td className="py-1.5 text-right text-[var(--text)]">{p.den}</td>
+                          <td className="py-1.5 text-right text-[var(--text-muted)]">{p.num}</td>
+                          <td className="py-1.5 text-right font-semibold" style={{ color: p.rate != null && p.rate >= 90 ? GREEN : p.rate != null && p.rate >= 70 ? YELLOW : RED }}>
+                            {p.rate != null ? `${p.rate}%` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Tickets por Módulo <span className="text-[10px] text-[var(--text-light)] font-normal">(serviço)</span></p>
+                  <HBarTopN items={servico.top} others={servico.others} othersCount={servico.others_count}
+                    barColor={BLUE} onSeeAll={() => setTab('distribution')} />
+                </div>
+              </div>
+
+              {/* ROW — Backlog/Aging + Tipo de Atendimento */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[var(--text)]">Backlog / Aging <span className="text-[10px] text-[var(--text-light)] font-normal">(operação interna)</span></p>
+                    <button onClick={() => setTab('queue')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver fila →</button>
+                  </div>
+                  <AgingBars aging={st.aging} colors={{ ok: GREEN, warn: YELLOW, high: ORANGE, crit: RED }} />
+                  <p className="text-[10px] text-[var(--text-light)] mt-3">
+                    Não inclui os {st.waiting_client} tickets <strong>aguardando cliente</strong> (fora da operação ativa).
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Tipos de Atendimento <span className="text-[10px] text-[var(--text-light)] font-normal">(categoria)</span></p>
+                  <DonutTipo items={s.distribution.by_categoria} palette={PIE_COLORS} />
+                </div>
+              </div>
+
+              {/* ROW — Top 5 consultores + Top 5 clientes (reuso /productivity e /clients) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[var(--text)]">Top 5 Consultores</p>
+                    <button onClick={() => setTab('productivity')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver equipe →</button>
+                  </div>
+                  {productivity ? (
+                    <div className="space-y-1.5">
+                      {productivity.by_consultant.slice(0, 5).map((c, i) => (
+                        <div key={c.owner_email} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-4 text-[var(--text-light)]">{i + 1}</span>
+                          <span className="flex-1 text-[var(--text)] truncate">{(c.owner_name ?? c.owner_email).split(' ').slice(0, 2).join(' ')}</span>
+                          <span className="text-[var(--text-muted)] w-16 text-right">{c.tickets_resolved} tk</span>
+                          <span className="text-[var(--text-light)] w-16 text-right">{fmtH(c.total_minutes_worked / 60)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <InlineLoader />}
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[var(--text)]">Top 5 Clientes</p>
+                    <button onClick={() => setTab('clients')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver clientes →</button>
+                  </div>
+                  {clients ? (
+                    <div className="space-y-1.5">
+                      {clients.by_client.slice(0, 5).map((c, i) => (
+                        <div key={c.customer_id} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-4 text-[var(--text-light)]">{i + 1}</span>
+                          <span className="flex-1 text-[var(--text)] truncate">{c.customer?.name ?? `#${c.customer_id}`}</span>
+                          <span className="text-[var(--text-muted)] w-16 text-right">{c.total_period} tk</span>
+                          <span className="text-[var(--text-light)] w-16 text-right">{c.open_now} abertos</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <InlineLoader />}
+                </div>
+              </div>
+
+              {/* COMPARAÇÃO ANUAL */}
+              <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <p className="text-xs font-semibold text-[var(--text)] mb-3">
+                  Comparação Anual <span className="text-[10px] text-[var(--text-light)] font-normal">— {s.previous ? 'período atual × mesmo período do ano anterior' : 'sem histórico comparável'}</span>
+                </p>
+                <table className="w-full text-[11px]">
+                  <thead><tr className="text-[var(--text-light)] uppercase tracking-wide">
+                    <th className="text-left font-medium pb-1">Indicador</th>
+                    <th className="text-right font-medium pb-1">Atual</th>
+                    <th className="text-right font-medium pb-1">Ano anterior</th>
+                    <th className="text-right font-medium pb-1">Variação</th>
+                  </tr></thead>
+                  <tbody>
+                    {compRows.map(r => (
+                      <tr key={r.label} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                        <td className="py-1.5 text-[var(--text)]">{r.label}</td>
+                        <td className="py-1.5 text-right font-semibold text-[var(--text)]">{r.cur}</td>
+                        <td className="py-1.5 text-right text-[var(--text-muted)]">{s.previous ? r.prev : '—'}</td>
+                        <td className="py-1.5 text-right">
+                          <VariationBadge value={r.var ?? null} unit={r.unit}
+                            good={r.label === 'Tempo de Resolução' ? 'down' : r.label === 'Tickets Criados' ? 'neutral' : 'up'} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* EVOLUÇÃO 12 MESES (reuso /evolution) */}
+              <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-[var(--text)]">Evolução — 12 meses</p>
+                  <button onClick={() => setTab('evolution')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Detalhar →</button>
+                </div>
+                {evolution && evolution.monthly.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={evolution.monthly}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="total" name="Criados" fill={BLUE} radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="resolved" name="Resolvidos" fill={GREEN} radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="sla_ok" name="SLA OK" fill={CYAN} radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <InlineLoader />}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* VISÃO EXECUTIVA */}
         {!routineTab && tab === 'kpis' && kpis && (
