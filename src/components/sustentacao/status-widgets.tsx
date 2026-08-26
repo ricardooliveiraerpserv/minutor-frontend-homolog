@@ -165,9 +165,10 @@ export function DonutTipo({ items, palette }: {
   )
 }
 
-/** Gauge semicircular do SLA geral: % no centro + dentro/fora. Cores por prop. */
-export function SlaGauge({ rate, num, den, good, bad }: {
-  rate: number | null; num: number; den: number; good: string; bad: string
+/** Gauge semicircular do SLA geral: % no centro + dentro/fora.
+ *  `color` = cor da MESMA faixa semântica usada pelo número/estado (arco e valor coerentes). */
+export function SlaGauge({ rate, num, den, color }: {
+  rate: number | null; num: number; den: number; color: string
 }) {
   const inside = rate ?? 0
   const data = [{ v: inside }, { v: Math.max(0, 100 - inside) }]
@@ -177,13 +178,13 @@ export function SlaGauge({ rate, num, den, good, bad }: {
         <PieChart>
           <Pie data={data} dataKey="v" cx="50%" cy="88%" startAngle={180} endAngle={0}
             innerRadius={62} outerRadius={92} stroke="none" isAnimationActive={false}>
-            <Cell fill={good} />
+            <Cell fill={color} />
             <Cell fill="var(--surface-sunken)" />
           </Pie>
         </PieChart>
       </ResponsiveContainer>
       <div className="absolute inset-x-0 flex flex-col items-center" style={{ bottom: 6 }}>
-        <span className="text-3xl font-bold leading-none" style={{ color: rate == null ? 'var(--text-light)' : rate >= 90 ? good : rate >= 70 ? 'var(--warning)' : bad }}>
+        <span className="text-3xl font-bold leading-none" style={{ color }}>
           {rate != null ? `${rate}%` : '—'}
         </span>
         <span className="text-[10px] uppercase tracking-wide text-[var(--text-light)] mt-0.5">SLA Solução</span>
