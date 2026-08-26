@@ -6,11 +6,12 @@
 // ocorrências, sobre o read-model C2, sem IA. Escopo/cross e sanitização vêm do backend.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Crosshair, FileCode2, FolderGit2, Search, ShieldAlert } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Pagination, SkeletonTable, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 type EntityType = 'field' | 'table' | 'function' | 'dependency' | 'integration' | 'risk'
 const ENTITIES: { key: EntityType; label: string }[] = [
@@ -50,14 +51,16 @@ export function ImpactoInner({ embedded }: { embedded?: boolean } = {}) {
   const [table, setTable] = useState(sp.get('table') || '')
   const [access, setAccess] = useState<'any' | 'read' | 'write'>((sp.get('access') as 'read' | 'write') || 'any')
   const [cross, setCross] = useState(sp.get('cross') === 'true')
-  const [customerId, setCustomerId] = useState(sp.get('customer_id') || '')
-  const [customerName, setCustomerName] = useState('')
-  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
-
+  // Empresa = CONTEXTO GLOBAL do Prosight (fonte única — sem seletor local). "Todas" = null → impacto em todo o escopo do usuário (BE escopa).
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const customerId = companyId != null ? String(companyId) : ''
+  // deep-link ?customer_id sincroniza o contexto global (uma vez), sem criar segunda fonte de verdade.
+  const dlSynced = useRef(false)
   useEffect(() => {
-    api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers')
-      .then((r) => { setCustomers(r.data); const c = r.data.find((x) => String(x.customer_id) === (sp.get('customer_id') || '')); if (c) setCustomerName(c.name) })
-      .catch(() => {})
+    if (dlSynced.current) return; dlSynced.current = true
+    const dl = sp.get('customer_id')
+    if (dl) company?.setCompanyId(Number(dl))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -83,13 +86,11 @@ export function ImpactoInner({ embedded }: { embedded?: boolean } = {}) {
     } finally { setLoading(false) }
   }, [entity, name, table, access, cross, customerId])
 
-  const pickCustomer = useCallback((id: string, nm: string) => {
-    setCustomerId(id); setCustomerName(nm)
-  }, [])
-
-  // re-executa ao trocar o cliente, se já houver um resultado (run já traz o customerId novo)
+  // troca de EMPRESA (contexto global) → re-executa se houver termo; senão limpa o resultado (evita stale da empresa anterior).
+  const firstScope = useRef(true)
   useEffect(() => {
-    if (resp && name.trim()) run(1)
+    if (firstScope.current) { firstScope.current = false; return }
+    if (name.trim()) run(1); else setResp(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId])
 
@@ -128,7 +129,7 @@ export function ImpactoInner({ embedded }: { embedded?: boolean } = {}) {
               <TextInput label="Tabela (opcional)" value={table} onChange={(ev) => setTable(ev.target.value)} placeholder="ex.: SPED050" />
             </div>
           )}
-          <ClienteFilter value={customerId} name={customerName} customers={customers} onChange={pickCustomer} />
+          {/* Empresa vem do seletor GLOBAL no topo do Prosight — sem seletor local aqui. */}
           <Button variant="primary" icon={Crosshair} loading={loading} onClick={() => run(1)}>Analisar</Button>
         </div>
         <div className="flex flex-wrap items-center gap-3 mt-3">
@@ -253,44 +254,6 @@ function IntegrationChip({ p }: { p: IntegrationProj }) {
       {p.has_path && <Badge variant="default">tem path</Badge>}
       {p.has_credential && <Badge variant="warning">credencial</Badge>}
     </span>
-  )
-}
-
-// Filtro de cliente com busca por texto (combobox): digita p/ filtrar, clica p/ selecionar, × limpa.
-function ClienteFilter({ value, name, customers, onChange }: { value: string; name: string; customers: { customer_id: number; name: string }[]; onChange: (id: string, name: string) => void }) {
-  const [q, setQ] = useState(name)
-  const [open, setOpen] = useState(false)
-  useEffect(() => { setQ(name) }, [name])
-  const term = q.trim().toLowerCase()
-  const filtered = (term ? customers.filter((c) => c.name.toLowerCase().includes(term)) : customers).slice(0, 12)
-  return (
-    <div className="relative w-56">
-      <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Cliente</label>
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
-        <input
-          value={q}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value && value) onChange('', '') }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Todos os clientes"
-          className="w-full rounded-xl pl-9 pr-8 py-2.5 text-sm outline-none"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-        />
-        {value && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange('', ''); setQ('') }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm leading-none" style={{ color: 'var(--text-light)' }}>×</button>}
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-xl shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {filtered.map((c) => (
-            <button key={c.customer_id} type="button" onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onChange(String(c.customer_id), c.name); setQ(c.name); setOpen(false) }}
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-[color:var(--muted-bg,#f1f5f9)]" style={{ color: 'var(--text)' }}>
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 

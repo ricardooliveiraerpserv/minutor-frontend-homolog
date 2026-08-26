@@ -3,17 +3,18 @@
 // Prosight → Fontes → "Publicações" (C4.1). Rota mantida em /central-fontes/solicitacoes
 // (zero quebra de deep-link; o shell ProsightNav já a apresenta como "Publicações").
 // Escopo desta tela = CONSULTA e RASTREABILIDADE: solicitações de fonte + commits de
-// GMUD + status. INICIAR uma publicação de fonte continua originado no chamado do Help
-// Desk (solução "GMUD em Produção") — regra de negócio existente preservada.
-// Ações locais: atender / rejeitar / reabrir solicitação. Só leitura do acervo.
+// GMUD + status. A EMPRESA vem do seletor GLOBAL do Prosight (fonte única — sem seletor local).
+// INICIAR uma publicação continua originado no chamado do Help Desk. Ações locais
+// (atender/rejeitar/reabrir) exigem empresa selecionada; em "Todas" as listas ficam em leitura.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ExternalLink, FilePlus2, GitCommitHorizontal, Info, Ticket } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 interface Req {
   id: number
@@ -48,13 +49,15 @@ const prioBadge = (p: string) => p === 'alta' ? <Badge variant="danger">Alta</Ba
 const scopeLabel = (r: Req) => r.scope_type === 'folder' ? `Pasta${r.paths?.[0] ? ` · ${r.paths[0]}` : ''}` : r.scope_type === 'source' ? `${r.paths?.length ?? 0} fonte${(r.paths?.length ?? 0) === 1 ? '' : 's'}` : 'Repositório'
 
 export default function SolicitacoesPage() {
+  // Empresa = CONTEXTO GLOBAL do Prosight (fonte única). "Todas" = null → leitura consolidada; ações exigem empresa.
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const customerId = companyId != null ? String(companyId) : ''
+  const canAct = !!companyId
+
   const [view, setView] = useState<'solicitacoes' | 'gmud'>('solicitacoes')
   const [rows, setRows] = useState<Req[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [sCustomer, setSCustomer] = useState('')
-  const [custText, setCustText] = useState('')
-  const [custOpen, setCustOpen] = useState(false)
-  const custRef = useRef<HTMLDivElement>(null)
   const [sQ, setSQ] = useState('')
   // Filtro de data (created_at) — padrão do sistema: Mês/Ano ou Período (de/até).
   const [dateMode, setDateMode] = useState<'month' | 'period'>('month')
@@ -66,8 +69,6 @@ export default function SolicitacoesPage() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
   const [gmudErr, setGmudErr] = useState<string | null>(null)
-  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
-  const [gCustomer, setGCustomer] = useState('')
   const [gQ, setGQ] = useState('')
   const [gFrom, setGFrom] = useState('')
   const [gTo, setGTo] = useState('')
@@ -75,11 +76,11 @@ export default function SolicitacoesPage() {
   const load = useCallback(() => {
     setRows(null); setError(null)
     const p = new URLSearchParams({ status: 'all' })   // sem mecanismo de aprovação → sempre todas
-    if (sCustomer) p.set('customer_id', sCustomer)
+    if (customerId) p.set('customer_id', customerId)   // empresa do CONTEXTO GLOBAL
     api.get<{ data: Req[] }>(`/source-docs/source-requests?${p.toString()}`)
       .then((r) => setRows(r.data))
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Falha ao carregar as solicitações.'))
-  }, [sCustomer])
+  }, [customerId])
   useEffect(() => { load() }, [load])
 
   // Filtro de data (created_at): Mês/Ano ou Período (de/até). Vazio = qualquer.
@@ -105,26 +106,17 @@ export default function SolicitacoesPage() {
     return [r.customer_name, r.ticket, r.hd_subject, r.requester_name, r.repository].some((x) => (x ?? '').toString().toLowerCase().includes(q))
   })
 
-  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
-
-  // Fecha o combobox de cliente ao clicar fora.
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (custRef.current && !custRef.current.contains(e.target as Node)) setCustOpen(false) }
-    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
-  }, [])
-  const custMatches = customers.filter((c) => c.name.toLowerCase().includes(custText.trim().toLowerCase()))
-
   const loadGmud = useCallback(() => {
     setGmud(null); setGmudErr(null)
     const p = new URLSearchParams()
-    if (gCustomer) p.set('customer_id', gCustomer)
+    if (customerId) p.set('customer_id', customerId)   // empresa do CONTEXTO GLOBAL
     if (gQ.trim()) p.set('q', gQ.trim())
     if (gFrom) p.set('from', gFrom)
     if (gTo) p.set('to', gTo)
     api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits?${p.toString()}`)
       .then((r) => setGmud(r.data))
       .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
-  }, [gCustomer, gQ, gFrom, gTo])
+  }, [customerId, gQ, gFrom, gTo])
   useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
 
   const on = 'bg-[var(--primary,#157582)] text-white'
@@ -139,7 +131,7 @@ export default function SolicitacoesPage() {
 
   return (
     <>
-      <PageHeader icon={FilePlus2} title="Publicações" subtitle="Consulta e rastreabilidade — solicitações de fonte, commits de GMUD e status do acervo." />
+      <PageHeader icon={FilePlus2} title="Publicações" subtitle="Consulta e rastreabilidade — solicitações de fonte, commits de GMUD e status do acervo. Empresa pelo seletor no topo." />
 
       <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info)' }}>
         <Info size={14} className="mt-px shrink-0" />
@@ -148,6 +140,12 @@ export default function SolicitacoesPage() {
           Para <b>iniciar</b> uma publicação de fonte, use a solução <b>“GMUD em Produção”</b> no chamado do Help Desk — o fluxo de publicação segue originado no chamado.
         </span>
       </div>
+
+      {!canAct && (
+        <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-[var(--warning-bg)] text-[var(--warning)]">
+          Selecione uma empresa no topo para <strong>atender/rejeitar/reabrir</strong> solicitações. Em “Todas as empresas”, as listas ficam em somente leitura.
+        </div>
+      )}
 
       <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
         <button onClick={() => setView('solicitacoes')} className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'solicitacoes' ? on : off}`}><FilePlus2 size={14} /> Solicitações</button>
@@ -174,28 +172,12 @@ export default function SolicitacoesPage() {
                 ? <MonthYearPicker month={refMonth} year={refYear} onChange={(m, y) => { if (!m) { setRefMonth(null); setRefYear(null) } else { setRefMonth(m); setRefYear(y) } }} />
                 : <DateRangePicker from={dateFrom} to={dateTo} onChange={(fr, to) => { setDateFrom(fr); setDateTo(to) }} />}
             </div>
-            <div ref={custRef} className="relative">
-              <input value={custText} autoComplete="off"
-                onChange={(e) => { setCustText(e.target.value); setCustOpen(true); if (e.target.value.trim() === '') setSCustomer('') }}
-                onFocus={() => setCustOpen(true)}
-                placeholder="Cliente (do cadastro)…"
-                className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-56 max-w-full" />
-              {custOpen && (
-                <div className="absolute right-0 z-40 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <button type="button" onClick={() => { setSCustomer(''); setCustText(''); setCustOpen(false) }} className="block w-full text-left px-2.5 py-1.5 text-sm hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>Todos os clientes</button>
-                  {custMatches.map((c) => (
-                    <button key={c.customer_id} type="button" onClick={() => { setSCustomer(String(c.customer_id)); setCustText(c.name); setCustOpen(false) }} className="block w-full text-left px-2.5 py-1.5 text-sm hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{c.name}</button>
-                  ))}
-                  {custMatches.length === 0 && <p className="px-2.5 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum cliente encontrado.</p>}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
         {error ? <EmptyState icon={FilePlus2} title="Erro" description={error} />
           : rows === null ? <SkeletonTable rows={6} cols={7} />
-            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={sQ || sCustomer ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
+            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={sQ || customerId ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
               : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -213,12 +195,14 @@ export default function SolicitacoesPage() {
                             <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1">
                               {r.kind === 'ticket' ? (
                                 <span className="text-xs" style={{ color: 'var(--text-light)' }} title="Pedido aberto pelo chamado — atendido no próprio chamado">via chamado</span>
-                              ) : (
+                              ) : canAct ? (
                                 <>
                                   {r.status !== 'provisioned' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'provisioned')}>Atender</Button>}
                                   {r.status === 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'rejected')}>Rejeitar</Button>}
                                   {r.status !== 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'open')}>Reabrir</Button>}
                                 </>
+                              ) : (
+                                <span className="text-xs" style={{ color: 'var(--text-light)' }}>selecione a empresa</span>
                               )}
                             </div>
                           </Td>
@@ -232,9 +216,6 @@ export default function SolicitacoesPage() {
       ) : (
       <Card padding="none">
         <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
-          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
-            <select value={gCustomer} onChange={(e) => setGCustomer(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none"><option value="">Todas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</select>
-          </label>
           <label className="flex min-w-[180px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar fonte
             <input value={gQ} onChange={(e) => setGQ(e.target.value)} placeholder="nome do fonte…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
           </label>

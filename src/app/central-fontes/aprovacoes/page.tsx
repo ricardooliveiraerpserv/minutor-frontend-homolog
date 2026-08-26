@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { BadgeCheck, ChevronDown, Coins, FileCode2, Gauge, XCircle } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 interface Approval {
   id: number; source_doc_id: number; status: string
@@ -42,11 +43,13 @@ export default function AprovacoesIaPage() {
   const [newLimit, setNewLimit] = useState('')
   const [confirm, setConfirm] = useState<{ a: Approval; action: string; title: string; lines: string[]; note: string; confirmLabel: string; variant: 'primary' | 'danger' } | null>(null)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [customerId, setCustomerId] = useState('')
   const [nextStep, setNextStep] = useState('')
-  const [customers, setCustomers] = useState<{ customer_id: number; name: string }[]>([])
-
-  useEffect(() => { api.get<{ data: { customer_id: number; name: string }[] }>('/source-docs/tree/customers').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
+  // Empresa = CONTEXTO GLOBAL do Prosight (fonte única — sem seletor local). "Todas" = null → fila em LEITURA;
+  // decisões (aprovar/rejeitar) exigem empresa selecionada. O BE também revalida o escopo pela entidade real.
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const customerId = companyId != null ? String(companyId) : ''
+  const canAct = !!companyId
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -100,7 +103,7 @@ export default function AprovacoesIaPage() {
         subtitle="Solicitações abertas quando o próximo passo ultrapassaria o limite operacional por fonte. Nenhuma IA é chamada até a decisão."
         actions={
           <div className="flex flex-wrap items-end gap-2">
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">Todas empresas</option>{customers.map((c) => <option key={c.customer_id} value={c.customer_id}>{c.name}</option>)}</Select>
+          {/* Empresa vem do seletor GLOBAL no topo do Prosight. */}
           <Select value={nextStep} onChange={(e) => setNextStep(e.target.value)}><option value="">Todo passo</option><option value="reprocess">Reprocessamento</option><option value="top_up">Top-up</option><option value="critical_rules">Regras críticas</option><option value="deepen">Aprofundamento</option></Select>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="pending">Pendentes</option>
@@ -117,6 +120,12 @@ export default function AprovacoesIaPage() {
       {msg && (
         <div className={`mb-4 rounded-lg px-4 py-3 text-sm ${msg.kind === 'ok' ? 'bg-[var(--success-bg,#ecfdf5)] text-[var(--success-fg,#047857)]' : 'bg-[var(--danger-bg,#fef2f2)] text-[var(--danger-fg,#b91c1c)]'}`}>
           {msg.text}
+        </div>
+      )}
+
+      {!canAct && !loading && (
+        <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-[var(--warning-bg)] text-[var(--warning)]">
+          Selecione uma empresa no topo para <strong>decidir</strong>. Em “Todas as empresas”, a fila é somente leitura.
         </div>
       )}
 
@@ -186,8 +195,8 @@ export default function AprovacoesIaPage() {
                     </div>
                   )}
 
-                  {/* ações (só para pendentes) — toda ação financeira/irreversível passa por confirmação */}
-                  {isOpen && (
+                  {/* ações (só pendentes E com empresa selecionada) — toda ação financeira/irreversível passa por confirmação */}
+                  {isOpen && canAct && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button size="sm" variant="primary" icon={BadgeCheck} disabled={busy === a.id} onClick={() => setConfirm({
                         a, action: 'approve-step', title: 'Aprovar próximo passo?', variant: 'primary', confirmLabel: 'Aprovar passo',

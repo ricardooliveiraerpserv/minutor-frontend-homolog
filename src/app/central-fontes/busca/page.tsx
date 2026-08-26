@@ -3,12 +3,14 @@
 // Central de Fontes — F5 · Busca integrada ao Acervo. Não é uma segunda exploração: cada resultado
 // traz Empresa → Repo → Path → Fonte e "Mostrar no Acervo" (abre a fonte no Acervo com a árvore
 // posicionada, ficha F3). Modos: Nome/Path e Conhecimento (catálogo, reusa filtros/escopo) e Símbolo
-// (read-model C2). "Buscar neste escopo" chega por ?customer_id/&repository/&path. Termo/escopo persistem.
+// (read-model C2). A EMPRESA vem do CONTEXTO GLOBAL do Prosight (fonte única — sem seletor local);
+// repo/path continuam sub-escopo local. Deep-link ?customer_id sincroniza o contexto global.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Search } from 'lucide-react'
 import { Badge, Card, EmptyState, PageHeader, Pagination, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, TextInput, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 type Mode = 'nome' | 'conhecimento' | 'simbolo'
 type Entity = 'table' | 'field' | 'function' | 'dependency'
@@ -25,11 +27,14 @@ export default function BuscaPage() {
   const [q, setQ] = useState('')
   const [lang, setLang] = useState('')
   const [semantic, setSemantic] = useState('')
-  // escopo (Buscar neste escopo)
-  const [customerId, setCustomerId] = useState('')
+  // Empresa = CONTEXTO GLOBAL (customer_id). "Todas as empresas" = null → busca em todo o escopo do usuário (BE escopa).
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const customerId = companyId != null ? String(companyId) : ''
+  const setCustomerId = useCallback((v: string) => company?.setCompanyId(v ? Number(v) : null), [company])
+  // sub-escopo local (dentro da empresa selecionada)
   const [repository, setRepository] = useState('')
   const [path, setPath] = useState('')
-  const [customers, setCustomers] = useState<{ customer_id: number; name: string; fontes: number }[]>([])
   const [repos, setRepos] = useState<string[]>([])
 
   const [rows, setRows] = useState<CatalogRow[] | null>(null)
@@ -41,10 +46,14 @@ export default function BuscaPage() {
   const [autoRun, setAutoRun] = useState(false)
   const inited = useRef(false)
 
-  // empresas p/ o filtro — inclui todos os clientes do git (include_empty), mesmo sem fontes
-  useEffect(() => { api.get<{ data: { customer_id: number; name: string; fontes: number }[] }>('/source-docs/tree/customers?include_empty=1').then((r) => setCustomers(r.data)).catch(() => {}) }, [])
-  // repos ao escolher empresa
-  useEffect(() => { if (!customerId) { setRepos([]); return } api.get<{ data: { repository: string }[] }>(`/source-docs/tree/customers/${customerId}/repos`).then((r) => setRepos(r.data.map((x) => x.repository))).catch(() => {}) }, [customerId])
+  // repos ao escolher empresa (do contexto). Muda de empresa → recarrega repos.
+  useEffect(() => { if (!customerId) { setRepos([]); return } api.get<{ data: { repository: string }[] }>(`/source-docs/tree/customers/${customerId}/repos`).then((r) => setRepos(r.data.map((x) => x.repository))).catch(() => setRepos([])) }, [customerId])
+
+  // Troca de empresa (contexto global) → limpa sub-escopo e resultados (evita dados stale da empresa anterior).
+  useEffect(() => {
+    if (!inited.current) return // não limpar na hidratação inicial (deep-link/sessionStorage)
+    setRepository(''); setPath(''); setRows(null); setHits(null); setError(null)
+  }, [companyId])
 
   const run = useCallback(async (toPage = 1) => {
     if (!q.trim() && mode !== 'nome') return
@@ -65,7 +74,8 @@ export default function BuscaPage() {
         const r = await api.get<{ data: CatalogRow[]; pagination: { last_page: number } }>(`/source-docs?${p}`)
         setRows(r.data); setHits(null); setPages(r.pagination.last_page)
       }
-      try { sessionStorage.setItem(SS, JSON.stringify({ mode, entity, q, customerId, repository, path, lang, semantic })) } catch {}
+      // NÃO persiste customerId aqui: a empresa é do contexto global (fonte única), não do sessionStorage da Busca.
+      try { sessionStorage.setItem(SS, JSON.stringify({ mode, entity, q, repository, path, lang, semantic })) } catch {}
     } catch (e) {
       setRows(null); setHits(null)
       setError(e instanceof ApiError ? e.message : 'Falha ao buscar. Tente novamente.')
@@ -75,20 +85,21 @@ export default function BuscaPage() {
   // deep-link ?q= dispara a busca só depois que termo/escopo entraram no estado (evita closure obsoleta)
   useEffect(() => { if (autoRun) { setAutoRun(false); void run(1) } }, [autoRun, run])
 
-  // reconstrução de contexto: ?customer_id/&repository/&path (Buscar neste escopo) OU sessionStorage
+  // reconstrução de contexto: ?customer_id/&repository/&path (Buscar neste escopo) → SINCRONIZA o contexto global.
   useEffect(() => {
     if (inited.current) return; inited.current = true
     const u = new URLSearchParams(window.location.search)
     if (u.get('customer_id') || u.get('scope')) {
-      setCustomerId(u.get('customer_id') || ''); setRepository(u.get('repository') || ''); setPath(u.get('path') || '')
+      if (u.get('customer_id')) setCustomerId(u.get('customer_id') || '') // sincroniza contexto GLOBAL
+      setRepository(u.get('repository') || ''); setPath(u.get('path') || '')
       if (u.get('q')) { setQ(u.get('q') || ''); setAutoRun(true) }
       return
     }
-    try { const s = JSON.parse(sessionStorage.getItem(SS) || '{}'); if (s.q !== undefined) { setMode(s.mode || 'nome'); setEntity(s.entity || 'function'); setQ(s.q || ''); setCustomerId(s.customerId || ''); setRepository(s.repository || ''); setPath(s.path || ''); setLang(s.lang || ''); setSemantic(s.semantic || '') } } catch {}
+    try { const s = JSON.parse(sessionStorage.getItem(SS) || '{}'); if (s.q !== undefined) { setMode(s.mode || 'nome'); setEntity(s.entity || 'function'); setQ(s.q || ''); setRepository(s.repository || ''); setPath(s.path || ''); setLang(s.lang || ''); setSemantic(s.semantic || '') } } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const scopeLabel = [customers.find((c) => String(c.customer_id) === customerId)?.name, repository, path].filter(Boolean).join(' / ')
+  const scopeLabel = [company?.companyName, repository, path].filter(Boolean).join(' / ')
 
   return (
     <>
@@ -104,15 +115,14 @@ export default function BuscaPage() {
             <button onClick={() => run(1)} className="rounded-md bg-[color:var(--accent,#2563eb)] px-4 py-2 text-sm font-medium text-white">Buscar</button>
           </div>
           <div className="flex flex-wrap items-end gap-2">
-            <EmpresaCombo value={customerId} customers={customers} onChange={(id) => { setCustomerId(id); setRepository('') }} />
-            <Select label="Repositório" value={repository} onChange={(e) => setRepository(e.target.value)}><option value="">Todos</option>{repos.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
+            <Select label="Repositório" value={repository} onChange={(e) => setRepository(e.target.value)} disabled={!customerId}><option value="">{customerId ? 'Todos' : 'Selecione uma empresa'}</option>{repos.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
             {mode !== 'simbolo' && <><Select label="Linguagem" value={lang} onChange={(e) => setLang(e.target.value)}><option value="">Todas</option><option value="advpl">advpl</option><option value="tlpp">tlpp</option></Select>
             <Select label="Conhecimento" value={semantic} onChange={(e) => setSemantic(e.target.value)}><option value="">Qualquer</option><option value="completed">Completa</option><option value="partial">Parcial</option><option value="none">Sem</option></Select></>}
           </div>
-          {(customerId || path) && <div className="flex items-center gap-2 text-xs text-[color:var(--muted-fg)]">Escopo: <Badge variant="default">{scopeLabel || 'empresa'}</Badge>
+          <div className="flex items-center gap-2 text-xs text-[color:var(--muted-fg)]">Escopo: <Badge variant="default">{scopeLabel || 'Todas as empresas'}</Badge>
             {path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setPath(''); run(1) }}>ampliar p/ repo</button>}
             {repository && !path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setRepository(''); run(1) }}>ampliar p/ empresa</button>}
-            {customerId && !repository && !path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setCustomerId(''); run(1) }}>ampliar p/ todo o acervo</button>}</div>}
+            {customerId && !repository && !path && <button className="text-[color:var(--accent,#2563eb)]" onClick={() => { setCustomerId(''); run(1) }}>ampliar p/ todo o acervo</button>}</div>
         </div>
       </Card>
 
@@ -130,44 +140,8 @@ export default function BuscaPage() {
             {pages > 1 && <div className="mt-3"><Pagination page={page} hasNext={page < pages} onPrev={() => run(page - 1)} onNext={() => run(page + 1)} /></div>}
           </>
         )
-      ) : <EmptyState icon={Search} title="Busque no acervo" description="Escolha um modo, digite um termo e (opcional) restrinja por empresa/repo/escopo." />}
+      ) : <EmptyState icon={Search} title="Busque no acervo" description="Escolha um modo, digite um termo e (opcional) restrinja por repositório/escopo. A empresa vem do seletor no topo." />}
     </>
-  )
-}
-
-// Filtro de empresa com busca por texto; clientes do git sem fontes ficam cinza/desabilitados.
-function EmpresaCombo({ value, customers, onChange }: { value: string; customers: { customer_id: number; name: string; fontes: number }[]; onChange: (id: string) => void }) {
-  const selName = customers.find((c) => String(c.customer_id) === value)?.name ?? ''
-  const [q, setQ] = useState(selName)
-  const [open, setOpen] = useState(false)
-  useEffect(() => { setQ(selName) }, [selName])
-  const term = q.trim().toLowerCase()
-  const list = term ? customers.filter((c) => c.name.toLowerCase().includes(term)) : customers
-  return (
-    <div className="relative w-44">
-      <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Empresa</label>
-      <div className="relative mt-1.5">
-        <input value={q} onChange={(e) => { setQ(e.target.value); setOpen(true); if (!e.target.value && value) onChange('') }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder="Todas"
-          className="w-full rounded-xl px-3 py-2.5 pr-7 text-sm outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-        {value && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(''); setQ('') }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm leading-none" style={{ color: 'var(--text-light)' }}>×</button>}
-      </div>
-      {open && list.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-64 w-56 overflow-auto rounded-xl shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {list.map((c) => {
-            const empty = c.fontes === 0
-            return (
-              <button key={c.customer_id} type="button" disabled={empty} onMouseDown={(e) => e.preventDefault()}
-                onClick={() => { if (empty) return; onChange(String(c.customer_id)); setQ(c.name); setOpen(false) }}
-                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm ${empty ? 'cursor-not-allowed' : 'hover:bg-[color:var(--muted-bg,#f1f5f9)]'}`}
-                style={{ color: empty ? 'var(--text-light)' : 'var(--text)', opacity: empty ? 0.55 : 1 }}>
-                <span className="truncate">{c.name}</span>
-                {empty ? <span className="shrink-0 text-[10px] uppercase tracking-wide">sem dados</span> : <span className="shrink-0 text-xs" style={{ color: 'var(--text-light)' }}>{c.fontes}</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
   )
 }
 

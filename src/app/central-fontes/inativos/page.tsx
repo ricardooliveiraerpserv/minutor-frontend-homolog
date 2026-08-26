@@ -7,9 +7,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { EyeOff, FolderGit2, RotateCcw, ExternalLink } from 'lucide-react'
-import { Badge, Card, EmptyState, PageHeader, Select, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
+import { Badge, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
 interface HiddenRepo {
   customer_id: number
@@ -29,8 +30,12 @@ function fmtDate(s: string | null): string {
 export default function InativosPage() {
   const [rows, setRows] = useState<HiddenRepo[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [customer, setCustomer] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
+  // Empresa = CONTEXTO GLOBAL do Prosight (fonte única). "Todas" = null → lista consolidada em leitura; reativar exige empresa.
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const customer = companyId != null ? String(companyId) : ''
+  const canAct = !!companyId
 
   const load = useCallback(() => {
     setRows(null); setError(null)
@@ -39,12 +44,6 @@ export default function InativosPage() {
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Falha ao carregar repositórios inativos.'))
   }, [])
   useEffect(() => { load() }, [load])
-
-  const empresas = useMemo(() => {
-    const map = new Map<number, string>()
-    ;(rows ?? []).forEach((r) => map.set(r.customer_id, r.customer_name ?? `#${r.customer_id}`))
-    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [rows])
 
   const filtered = useMemo(
     () => (rows ?? []).filter((r) => !customer || String(r.customer_id) === customer),
@@ -64,17 +63,20 @@ export default function InativosPage() {
 
   return (
     <>
-      <PageHeader icon={EyeOff} title="Repositórios inativos" subtitle="Repositórios desabilitados na Central — não aparecem nas consultas, mas seguem sendo ingeridos. Consulte aqui e reative quando precisar." />
+      <PageHeader icon={EyeOff} title="Repositórios inativos" subtitle="Repositórios desabilitados na Central — não aparecem nas consultas, mas seguem sendo ingeridos. Empresa pelo seletor no topo; reative quando precisar." />
+
+      {!canAct && (
+        <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-[var(--warning-bg)] text-[var(--warning)]">
+          Selecione uma empresa no topo para <strong>reativar</strong> repositórios. Em “Todas as empresas”, a lista é somente leitura.
+        </div>
+      )}
 
       <Card padding="none">
         <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2">
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
             {filtered.length} {filtered.length === 1 ? 'repositório' : 'repositórios'}
           </div>
-          <Select value={customer} onChange={(e) => setCustomer(e.target.value)}>
-            <option value="">Todas as empresas</option>
-            {empresas.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </Select>
+          <Badge variant={canAct ? 'default' : 'warning'}>{company?.companyName ?? 'Todas as empresas'}</Badge>
         </div>
 
         {error ? <EmptyState icon={FolderGit2} title="Erro" description={error} />
@@ -99,9 +101,9 @@ export default function InativosPage() {
                                 <Link href={`/central-fontes/acervo?customer_id=${r.customer_id}`} className="inline-flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--primary)' }}>
                                   Ver empresa <ExternalLink size={11} />
                                 </Link>
-                                <button disabled={busy === key} onClick={() => reactivate(r)} title="Reativar (volta a aparecer nas consultas)" className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-[color:var(--primary,#157582)] hover:bg-[color:var(--muted-bg,#f1f5f9)] disabled:opacity-40">
+                                {canAct && <button disabled={busy === key} onClick={() => reactivate(r)} title="Reativar (volta a aparecer nas consultas)" className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-[color:var(--primary,#157582)] hover:bg-[color:var(--muted-bg,#f1f5f9)] disabled:opacity-40">
                                   <RotateCcw size={13} /> Reativar
-                                </button>
+                                </button>}
                               </div>
                             </Td>
                           </Tr>
