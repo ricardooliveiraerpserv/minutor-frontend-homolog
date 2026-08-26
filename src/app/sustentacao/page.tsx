@@ -1133,6 +1133,8 @@ export default function SustentacaoPage() {
           const cur = s.current, v = s.variation, st = s.state
           const fmtH = (h: number | null) => h == null ? '—' : `${h.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h`
           const slaRate = cur.sla.rate
+          // Faixa semântica única do SLA (mesma usada no KPI): governa nº, arco do gauge e legenda.
+          const slaColor = slaRate == null ? 'var(--text-light)' : slaRate >= 90 ? GREEN : slaRate >= 70 ? YELLOW : RED
           // Baseline degenerado: previous nulo OU <= 0 → SEM histórico (não pintar variação).
           const prevMed = s.previous?.resolution_median_hours
           const tempoHasHist = prevMed != null && prevMed > 0
@@ -1194,9 +1196,9 @@ export default function SustentacaoPage() {
                     <p className="text-xs font-semibold text-[var(--text)]">SLA de Solução</p>
                     <button onClick={() => setTab('sla')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Detalhar SLA →</button>
                   </div>
-                  <SlaGauge rate={slaRate} num={cur.sla.num} den={cur.sla.den} good={GREEN} bad={RED} />
+                  <SlaGauge rate={slaRate} num={cur.sla.num} den={cur.sla.den} color={slaColor} />
                   <div className="flex items-center justify-center gap-4 mt-2 text-[11px]">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: GREEN }} /> Dentro {slaRate ?? 0}%</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: slaColor }} /> Dentro {slaRate ?? 0}%</span>
                     <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }} /> Fora {slaRate != null ? +(100 - slaRate).toFixed(1) : 0}%</span>
                   </div>
                 </div>
