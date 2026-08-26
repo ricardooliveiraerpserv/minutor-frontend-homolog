@@ -102,8 +102,16 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
     if (v.analysis && (v.state === 'completed' || v.state === 'outdated')) {
       void loadFindings(v.analysis.id)
     }
-    if (!INFLIGHT.includes(v.state)) stopPolling()
-  }, [loadFindings, stopPolling])
+    if (!INFLIGHT.includes(v.state)) {
+      // R1: se o polling ESTAVA ativo e agora chegou a um estado terminal (completed/failed/
+      // outdated), a linha do Histórico ainda mostra o snapshot queued/running. Refetch do
+      // histórico para refletir status/score finais SEM F5. (Na carga inicial pollRef é null,
+      // então não refaz — o histórico já foi carregado no mount.)
+      const wasPolling = pollRef.current !== null
+      stopPolling()
+      if (wasPolling) void loadHistory()
+    }
+  }, [loadFindings, stopPolling, loadHistory])
 
   const poll = useCallback(async () => {
     try {
