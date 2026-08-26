@@ -465,14 +465,20 @@ export default function BankHoursFixedPage() {
   const fetchSummary = useCallback(() => {
     if (!hasFilters) return
     const p = baseParams()
-    const [toM, toY] = resolveMonthYear()
-    p.set('month', String(toM)); p.set('year', String(toY))
+    // Modo Período → manda o intervalo inteiro (o card "Consumo do Período" soma tudo).
+    // Antes só ia month/year do fim do período → trazia um único mês (ou zerado).
+    if (dateFrom && dateTo) {
+      p.set('start_date', dateFrom); p.set('end_date', dateTo)
+    } else {
+      const [toM, toY] = resolveMonthYear()
+      p.set('month', String(toM)); p.set('year', String(toY))
+    }
     setLoadingSummary(true)
     api.get<any>(`/dashboards/bank-hours-fixed?${p}`)
       .then(r => setSummary(r?.data ?? r ?? null))
       .catch(() => setSummary(null))
       .finally(() => setLoadingSummary(false))
-  }, [baseParams, resolveMonthYear, hasFilters])
+  }, [baseParams, resolveMonthYear, hasFilters, dateFrom, dateTo])
 
   // Indica se o usuário limpou o filtro de data (ambos os modos vazios) — nesse caso
   // omitimos month/year/date_from/date_to do request pra trazer projetos de qualquer período.
@@ -489,6 +495,8 @@ export default function BankHoursFixedPage() {
     const now = new Date()
     return `Mês vigente — ${MONTH_NAMES_PT[now.getMonth()]} ${now.getFullYear()}`
   })()
+  // Em modo Período o card deixa de ser "do Mês" e passa a somar o intervalo inteiro.
+  const monthConsumptionLabel = (dateFrom && dateTo) ? 'Consumo do Período' : 'Consumo do Mês'
 
   // Projects tab data
   const fetchProjects = useCallback(() => {
@@ -852,7 +860,7 @@ export default function BankHoursFixedPage() {
                         />
                       )}
                       <KpiCard
-                        label="Consumo do Mês"
+                        label={monthConsumptionLabel}
                         value={fmtH(summary.month_consumed_hours)}
                         hint={monthConsumptionHint}
                         icon={Clock}
@@ -975,7 +983,7 @@ export default function BankHoursFixedPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <KpiCard label="Consumo Acumulado" value={fmtH(summary?.architecture_consumed_hours ?? 0)} icon={Clock} accent="primary" />
-                  <KpiCard label="Consumo do Mês"    value={fmtH(summary?.architecture_month_consumed_hours ?? 0)} icon={Clock} hint={monthConsumptionHint} />
+                  <KpiCard label={monthConsumptionLabel}    value={fmtH(summary?.architecture_month_consumed_hours ?? 0)} icon={Clock} hint={monthConsumptionHint} />
                 </div>
                 <ExportButton onClick={exportInlineToXLSX} disabled={inlineRows.length === 0} />
                 <InlineTimesheetsTable rows={inlineRows} loading={inlineLoading} variant="architecture" onRowClick={setInlineDetail} onReverseApproved={canReverseApproval} onReverseSuccess={reloadInline} />
@@ -987,7 +995,7 @@ export default function BankHoursFixedPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <KpiCard label="Consumo Acumulado" value={fmtH(summary?.maintenance_consumed_hours ?? 0)} icon={Clock} accent="primary" />
-                  <KpiCard label="Consumo do Mês"    value={fmtH(summary?.maintenance_month_consumed_hours ?? summary?.month_consumed_hours ?? 0)} icon={Clock} hint={monthConsumptionHint} />
+                  <KpiCard label={monthConsumptionLabel}    value={fmtH(summary?.maintenance_month_consumed_hours ?? summary?.month_consumed_hours ?? 0)} icon={Clock} hint={monthConsumptionHint} />
                 </div>
                 <ExportButton onClick={exportInlineToXLSX} disabled={inlineRows.length === 0} />
                 <InlineTimesheetsTable rows={inlineRows} loading={inlineLoading} variant="maintenance" onRowClick={setInlineDetail} onReverseApproved={canReverseApproval} onReverseSuccess={reloadInline} />
