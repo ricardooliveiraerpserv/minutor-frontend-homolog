@@ -11,7 +11,7 @@ import type { PortalDate } from '@/lib/portal-date'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
 import {
@@ -25,7 +25,7 @@ import { ApprovalsScreen }             from '@/components/screens/ApprovalsScree
 import { AuditoriaApontamentosScreen } from '@/components/screens/AuditoriaApontamentosScreen'
 import RentabilidadePage              from '@/app/relatorios/rentabilidade/page'
 import { SkeletonTable, CardsSkeleton, InlineLoader } from '@/components/ui/loading'
-import { KpiAA, AgingBars, HBarTopN, DonutTipo, VariationBadge } from '@/components/sustentacao/status-widgets'
+import { KpiAA, AgingBars, HBarTopN, DonutTipo, VariationBadge, SectionLabel, SlaGauge, RankBars, CompareRow } from '@/components/sustentacao/status-widgets'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1127,67 +1127,81 @@ export default function SustentacaoPage() {
           </div>
         )}
 
-        {/* STATUS DE SUPORTE — resumo executivo (regra canônica; drill-down p/ abas) */}
+        {/* STATUS DE SUPORTE — cockpit executivo (regra canônica; drill-down p/ abas) */}
         {!routineTab && tab === 'status' && status && (() => {
           const s = status
           const cur = s.current, v = s.variation, st = s.state
           const fmtH = (h: number | null) => h == null ? '—' : `${h.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h`
           const slaRate = cur.sla.rate
-          const inside = slaRate ?? 0
-          const outside = slaRate != null ? +(100 - slaRate).toFixed(1) : 0
+          // Baseline degenerado: previous nulo OU <= 0 → SEM histórico (não pintar variação).
+          const prevMed = s.previous?.resolution_median_hours
+          const tempoHasHist = prevMed != null && prevMed > 0
+          const tempoVar = tempoHasHist ? (v?.resolution_hours_abs ?? null) : null
           const servico = s.distribution.by_servico
           const priorityColor = (u: string) => u === 'Urgente' ? RED : u === 'Alta' ? ORANGE : u === 'Média' ? CYAN : 'var(--text-light)'
-          const compRows = [
-            { label: 'Tickets Criados',    cur: cur.created,  prev: s.previous?.created,  var: v?.created_pct,  unit: '%' as const },
-            { label: 'Tickets Resolvidos', cur: cur.resolved, prev: s.previous?.resolved, var: v?.resolved_pct, unit: '%' as const },
-            { label: 'SLA de Solução',     cur: slaRate != null ? `${slaRate}%` : '—', prev: s.previous?.sla.rate != null ? `${s.previous?.sla.rate}%` : '—', var: v?.sla_pp, unit: 'pp' as const },
-            { label: 'Tempo de Resolução', cur: fmtH(cur.resolution_median_hours), prev: fmtH(s.previous?.resolution_median_hours ?? null), var: v?.resolution_hours_abs, unit: 'h' as const },
-          ]
+          const evoData = (evolution?.monthly ?? []).map(m => ({
+            month: m.month, total: m.total, resolved: m.resolved,
+            sla_pct: m.resolved > 0 ? Math.round((m.sla_ok / m.resolved) * 100) : null,
+          }))
           return (
             <div className="space-y-5">
-              {/* LINHA KPI-A — fluxo COM comparação AA */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KpiAA label="SLA de Solução" value={slaRate != null ? `${slaRate}%` : '—'}
-                  sub={`${cur.sla.num}/${cur.sla.den} no prazo`} variation={v?.sla_pp} unit="pp" good="up"
-                  valueColor={slaRate == null ? undefined : slaRate >= 90 ? GREEN : slaRate >= 70 ? YELLOW : RED} />
-                <KpiAA label="Tickets Criados" value={cur.created} variation={v?.created_pct} unit="%" good="neutral" />
-                <KpiAA label="Tickets Resolvidos" value={cur.resolved} valueColor={GREEN} variation={v?.resolved_pct} unit="%" good="up" />
-                <KpiAA label="Tempo de Resolução" value={fmtH(cur.resolution_median_hours)} sub="mediana"
-                  variation={v?.resolution_hours_abs} unit="h" good="down" />
-              </div>
-              {/* LINHA KPI-B — estado SEM AA (mostra "sem histórico", nunca 0) */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <KpiAA label="Abertos (operação)" value={st.open_operational}
-                  sub={`${st.new_in_attendance} ativos · ${st.stopped_internal} parados internos`} variation={null} />
-                <KpiAA label="Aguardando cliente" value={st.waiting_client} sub="fora da operação ativa" variation={null} />
-                <KpiAA label="SLA vencidos agora" value={st.sla_breached_now}
-                  valueColor={st.sla_breached_now > 0 ? RED : GREEN} sub="backlog operacional" variation={null} />
-                <KpiAA label="Horas de Suporte" value={fmtH(cur.hours)} sub="no período" variation={null} />
+              {/* Situação da operação — espaço reservado (sem classificação até haver regra objetiva) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'var(--text-light)' }} title="Classificação de saúde pendente de regra objetiva" />
+                <span className="text-[11px] uppercase tracking-widest font-semibold text-[var(--text-light)]">Situação da operação</span>
+                <span className="text-[11px] text-[var(--text-muted)]">
+                  SLA {slaRate != null ? `${slaRate}%` : '—'} · {st.sla_breached_now} vencidos · {st.open_operational} abertos
+                </span>
               </div>
 
-              {/* ROW — SLA geral + Módulo */}
+              {/* DESEMPENHO DO PERÍODO — fluxo com AA */}
+              <div>
+                <SectionLabel>Desempenho do período</SectionLabel>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiAA label="SLA de Solução" value={slaRate != null ? `${slaRate}%` : '—'}
+                    sub={`${cur.sla.num}/${cur.sla.den} no prazo`} variation={v?.sla_pp} unit="pp" good="up"
+                    valueColor={slaRate == null ? undefined : slaRate >= 90 ? GREEN : slaRate >= 70 ? YELLOW : RED} />
+                  <KpiAA label="Tickets Criados" value={cur.created} variation={v?.created_pct} unit="%" good="neutral" />
+                  <KpiAA label="Tickets Resolvidos" value={cur.resolved} valueColor={GREEN} variation={v?.resolved_pct} unit="%" good="up" />
+                  <KpiAA label="Tempo de Resolução" value={fmtH(cur.resolution_median_hours)} sub="mediana"
+                    variation={tempoVar} unit="h" good="down" />
+                </div>
+              </div>
+
+              {/* SITUAÇÃO ATUAL — estado (compacto, sem AA) */}
+              <div>
+                <SectionLabel>Situação atual</SectionLabel>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Abertos (operação)', value: st.open_operational, sub: `${st.new_in_attendance} ativos · ${st.stopped_internal} parados internos`, color: undefined as string | undefined },
+                    { label: 'Aguardando cliente', value: st.waiting_client, sub: 'fora da operação ativa', color: undefined },
+                    { label: 'SLA vencidos agora', value: st.sla_breached_now, sub: 'backlog operacional', color: st.sla_breached_now > 0 ? RED : GREEN },
+                    { label: 'Horas de Suporte', value: fmtH(cur.hours), sub: 'no período', color: undefined },
+                  ].map(c => (
+                    <div key={c.label} className="rounded-lg border px-3 py-2.5 flex flex-col gap-0.5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <span className="text-[10px] text-[var(--text-muted)]">{c.label}</span>
+                      <span className="text-xl font-bold tabular-nums" style={{ color: c.color ?? 'var(--text)' }}>{c.value}</span>
+                      <span className="text-[9px] text-[var(--text-light)]">{c.sub}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SLA geral (gauge) + SLA por prioridade */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-[var(--text)]">SLA de Solução</p>
                     <button onClick={() => setTab('sla')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Detalhar SLA →</button>
                   </div>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] w-16 text-[var(--text-muted)]">Dentro</span>
-                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
-                        <div className="h-full rounded-full" style={{ width: `${inside}%`, background: GREEN }} />
-                      </div>
-                      <span className="text-[11px] font-semibold w-12 text-right" style={{ color: GREEN }}>{inside}%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] w-16 text-[var(--text-muted)]">Fora</span>
-                      <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
-                        <div className="h-full rounded-full" style={{ width: `${outside}%`, background: RED }} />
-                      </div>
-                      <span className="text-[11px] font-semibold w-12 text-right" style={{ color: RED }}>{outside}%</span>
-                    </div>
+                  <SlaGauge rate={slaRate} num={cur.sla.num} den={cur.sla.den} good={GREEN} bad={RED} />
+                  <div className="flex items-center justify-center gap-4 mt-2 text-[11px]">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: GREEN }} /> Dentro {slaRate ?? 0}%</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }} /> Fora {slaRate != null ? +(100 - slaRate).toFixed(1) : 0}%</span>
                   </div>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">SLA por prioridade</p>
                   <table className="w-full text-[11px]">
                     <thead><tr className="text-[var(--text-light)] uppercase tracking-wide">
                       <th className="text-left font-medium pb-1">Prioridade</th><th className="text-right font-medium pb-1">Tickets</th>
@@ -1197,9 +1211,9 @@ export default function SustentacaoPage() {
                       {s.distribution.sla_by_priority.map(p => (
                         <tr key={p.urgencia} className="border-t" style={{ borderColor: 'var(--border)' }}>
                           <td className="py-1.5" style={{ color: priorityColor(p.urgencia) }}>{p.urgencia}</td>
-                          <td className="py-1.5 text-right text-[var(--text)]">{p.den}</td>
-                          <td className="py-1.5 text-right text-[var(--text-muted)]">{p.num}</td>
-                          <td className="py-1.5 text-right font-semibold" style={{ color: p.rate != null && p.rate >= 90 ? GREEN : p.rate != null && p.rate >= 70 ? YELLOW : RED }}>
+                          <td className="py-1.5 text-right text-[var(--text)] tabular-nums">{p.den}</td>
+                          <td className="py-1.5 text-right text-[var(--text-muted)] tabular-nums">{p.num}</td>
+                          <td className="py-1.5 text-right font-semibold tabular-nums" style={{ color: p.rate != null && p.rate >= 90 ? GREEN : p.rate != null && p.rate >= 70 ? YELLOW : RED }}>
                             {p.rate != null ? `${p.rate}%` : '—'}
                           </td>
                         </tr>
@@ -1207,24 +1221,14 @@ export default function SustentacaoPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* MÓDULOS + TIPOS */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                   <p className="text-xs font-semibold text-[var(--text)] mb-3">Tickets por Módulo <span className="text-[10px] text-[var(--text-light)] font-normal">(serviço)</span></p>
                   <HBarTopN items={servico.top} others={servico.others} othersCount={servico.others_count}
                     barColor={BLUE} onSeeAll={() => setTab('distribution')} />
-                </div>
-              </div>
-
-              {/* ROW — Backlog/Aging + Tipo de Atendimento */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-[var(--text)]">Backlog / Aging <span className="text-[10px] text-[var(--text-light)] font-normal">(operação interna)</span></p>
-                    <button onClick={() => setTab('queue')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver fila →</button>
-                  </div>
-                  <AgingBars aging={st.aging} colors={{ ok: GREEN, warn: YELLOW, high: ORANGE, crit: RED }} />
-                  <p className="text-[10px] text-[var(--text-light)] mt-3">
-                    Não inclui os {st.waiting_client} tickets <strong>aguardando cliente</strong> (fora da operação ativa).
-                  </p>
                 </div>
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                   <p className="text-xs font-semibold text-[var(--text)] mb-3">Tipos de Atendimento <span className="text-[10px] text-[var(--text-light)] font-normal">(categoria)</span></p>
@@ -1232,7 +1236,36 @@ export default function SustentacaoPage() {
                 </div>
               </div>
 
-              {/* ROW — Top 5 consultores + Top 5 clientes (reuso /productivity e /clients) */}
+              {/* AGING + composição do aberto */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-[var(--text)]">Backlog por idade <span className="text-[10px] text-[var(--text-light)] font-normal">(operação interna)</span></p>
+                    <button onClick={() => setTab('queue')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver fila →</button>
+                  </div>
+                  <AgingBars aging={st.aging} colors={{ ok: GREEN, warn: YELLOW, high: ORANGE, crit: RED }} />
+                  <p className="text-[10px] text-[var(--text-light)] mt-3">
+                    {st.waiting_client} aguardando cliente — não incluídos no backlog operacional.
+                  </p>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Composição do aberto</p>
+                  <div className="space-y-2.5 text-[11px]">
+                    {[
+                      { l: 'Novos / em atendimento', val: st.new_in_attendance, c: 'var(--primary)' },
+                      { l: 'Parado interno', val: st.stopped_internal, c: ORANGE },
+                      { l: 'Aguardando cliente', val: st.waiting_client, c: 'var(--text-light)' },
+                    ].map(r => (
+                      <div key={r.l} className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-[var(--text-muted)]"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: r.c }} />{r.l}</span>
+                        <span className="font-semibold text-[var(--text)] tabular-nums">{r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* TOP CONSULTORES + TOP CLIENTES (rankings em barra) */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                   <div className="flex items-center justify-between mb-3">
@@ -1240,16 +1273,12 @@ export default function SustentacaoPage() {
                     <button onClick={() => setTab('productivity')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver equipe →</button>
                   </div>
                   {productivity ? (
-                    <div className="space-y-1.5">
-                      {productivity.by_consultant.slice(0, 5).map((c, i) => (
-                        <div key={c.owner_email} className="flex items-center gap-2 text-[11px]">
-                          <span className="w-4 text-[var(--text-light)]">{i + 1}</span>
-                          <span className="flex-1 text-[var(--text)] truncate">{(c.owner_name ?? c.owner_email).split(' ').slice(0, 2).join(' ')}</span>
-                          <span className="text-[var(--text-muted)] w-16 text-right">{c.tickets_resolved} tk</span>
-                          <span className="text-[var(--text-light)] w-16 text-right">{fmtH(c.total_minutes_worked / 60)}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <RankBars barColor={CYAN}
+                      items={productivity.by_consultant.slice(0, 5).map(c => ({
+                        label: (c.owner_name ?? c.owner_email).split(' ').slice(0, 2).join(' '),
+                        value: c.tickets_resolved, valueLabel: `${c.tickets_resolved}`,
+                        right: fmtH(c.total_minutes_worked / 60),
+                      }))} />
                   ) : <InlineLoader />}
                 </div>
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
@@ -1258,65 +1287,56 @@ export default function SustentacaoPage() {
                     <button onClick={() => setTab('clients')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Ver clientes →</button>
                   </div>
                   {clients ? (
-                    <div className="space-y-1.5">
-                      {clients.by_client.slice(0, 5).map((c, i) => (
-                        <div key={c.customer_id} className="flex items-center gap-2 text-[11px]">
-                          <span className="w-4 text-[var(--text-light)]">{i + 1}</span>
-                          <span className="flex-1 text-[var(--text)] truncate">{c.customer?.name ?? `#${c.customer_id}`}</span>
-                          <span className="text-[var(--text-muted)] w-16 text-right">{c.total_period} tk</span>
-                          <span className="text-[var(--text-light)] w-16 text-right">{c.open_now} abertos</span>
-                        </div>
-                      ))}
-                    </div>
+                    <RankBars barColor={BLUE}
+                      items={clients.by_client.slice(0, 5).map(c => ({
+                        label: c.customer?.name ?? `#${c.customer_id}`,
+                        value: c.total_period, valueLabel: `${c.total_period}`,
+                        right: `${c.open_now} ab.`,
+                      }))} />
                   ) : <InlineLoader />}
                 </div>
               </div>
 
-              {/* COMPARAÇÃO ANUAL */}
+              {/* COMPARAÇÃO ANUAL — mini-barras comparativas */}
               <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                <p className="text-xs font-semibold text-[var(--text)] mb-3">
-                  Comparação Anual <span className="text-[10px] text-[var(--text-light)] font-normal">— {s.previous ? 'período atual × mesmo período do ano anterior' : 'sem histórico comparável'}</span>
+                <p className="text-xs font-semibold text-[var(--text)] mb-2">
+                  Comparação com {s.previous ? 'o mesmo período do ano anterior' : 'ano anterior'} <span className="text-[10px] text-[var(--text-light)] font-normal">{s.previous ? '' : '— sem histórico'}</span>
                 </p>
-                <table className="w-full text-[11px]">
-                  <thead><tr className="text-[var(--text-light)] uppercase tracking-wide">
-                    <th className="text-left font-medium pb-1">Indicador</th>
-                    <th className="text-right font-medium pb-1">Atual</th>
-                    <th className="text-right font-medium pb-1">Ano anterior</th>
-                    <th className="text-right font-medium pb-1">Variação</th>
-                  </tr></thead>
-                  <tbody>
-                    {compRows.map(r => (
-                      <tr key={r.label} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                        <td className="py-1.5 text-[var(--text)]">{r.label}</td>
-                        <td className="py-1.5 text-right font-semibold text-[var(--text)]">{r.cur}</td>
-                        <td className="py-1.5 text-right text-[var(--text-muted)]">{s.previous ? r.prev : '—'}</td>
-                        <td className="py-1.5 text-right">
-                          <VariationBadge value={r.var ?? null} unit={r.unit}
-                            good={r.label === 'Tempo de Resolução' ? 'down' : r.label === 'Tickets Criados' ? 'neutral' : 'up'} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                  <CompareRow label="Tickets Criados" prev={s.previous?.created ?? null} cur={cur.created}
+                    prevLabel={`${s.previous?.created ?? '—'}`} curLabel={`${cur.created}`}
+                    variation={v?.created_pct ?? null} unit="%" good="neutral" noHistory={!s.previous} />
+                  <CompareRow label="Tickets Resolvidos" prev={s.previous?.resolved ?? null} cur={cur.resolved}
+                    prevLabel={`${s.previous?.resolved ?? '—'}`} curLabel={`${cur.resolved}`}
+                    variation={v?.resolved_pct ?? null} unit="%" good="up" noHistory={!s.previous} />
+                  <CompareRow label="SLA de Solução" prev={s.previous?.sla.rate ?? null} cur={slaRate ?? 0}
+                    prevLabel={s.previous?.sla.rate != null ? `${s.previous.sla.rate}%` : '—'} curLabel={slaRate != null ? `${slaRate}%` : '—'}
+                    variation={v?.sla_pp ?? null} unit="pp" good="up" noHistory={!s.previous || s.previous.sla.rate == null} />
+                  <CompareRow label="Tempo de Resolução" prev={tempoHasHist ? prevMed! : null} cur={cur.resolution_median_hours ?? 0}
+                    prevLabel={tempoHasHist ? fmtH(prevMed!) : '—'} curLabel={fmtH(cur.resolution_median_hours)}
+                    variation={tempoVar} unit="h" good="down" noHistory={!tempoHasHist} />
+                </div>
               </div>
 
-              {/* EVOLUÇÃO 12 MESES (reuso /evolution) */}
+              {/* EVOLUÇÃO 12 MESES — Criados+Resolvidos (barras) + SLA% (linha, eixo 2) */}
               <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-[var(--text)]">Evolução — 12 meses</p>
                   <button onClick={() => setTab('evolution')} className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Detalhar →</button>
                 </div>
-                {evolution && evolution.monthly.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={evolution.monthly}>
+                {evoData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <ComposedChart data={evoData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                       <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
-                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis yAxisId="left" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis yAxisId="right" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
                       <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="total" name="Criados" fill={BLUE} radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="resolved" name="Resolvidos" fill={GREEN} radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="sla_ok" name="SLA OK" fill={CYAN} radius={[2, 2, 0, 0]} />
-                    </BarChart>
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar yAxisId="left" dataKey="total" name="Criados" fill={BLUE} radius={[2, 2, 0, 0]} />
+                      <Bar yAxisId="left" dataKey="resolved" name="Resolvidos" fill={GREEN} radius={[2, 2, 0, 0]} />
+                      <Line yAxisId="right" type="monotone" dataKey="sla_pct" name="SLA %" stroke={CYAN} strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                    </ComposedChart>
                   </ResponsiveContainer>
                 ) : <InlineLoader />}
               </div>

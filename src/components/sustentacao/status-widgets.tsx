@@ -15,6 +15,15 @@ const SUCCESS = 'var(--success)'
 const DANGER  = 'var(--danger)'
 const MUTED   = 'var(--text-muted)'
 
+/** Rótulo de seção (uppercase, tracking). Encoda o agrupamento Desempenho × Situação. */
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-light)] mb-2 mt-1">
+      {children}
+    </p>
+  )
+}
+
 export type GoodDirection = 'up' | 'down' | 'neutral'
 
 /** Badge de variação Ano-Anterior. `unit`: '%' | 'pp' | 'h'. null → "sem histórico". */
@@ -151,6 +160,87 @@ export function DonutTipo({ items, palette }: {
             <span className="text-[var(--text-light)] w-9 text-right">{((it.count / total) * 100).toFixed(0)}%</span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/** Gauge semicircular do SLA geral: % no centro + dentro/fora. Cores por prop. */
+export function SlaGauge({ rate, num, den, good, bad }: {
+  rate: number | null; num: number; den: number; good: string; bad: string
+}) {
+  const inside = rate ?? 0
+  const data = [{ v: inside }, { v: Math.max(0, 100 - inside) }]
+  return (
+    <div className="relative" style={{ width: '100%', maxWidth: 240, margin: '0 auto' }}>
+      <ResponsiveContainer width="100%" height={140}>
+        <PieChart>
+          <Pie data={data} dataKey="v" cx="50%" cy="88%" startAngle={180} endAngle={0}
+            innerRadius={62} outerRadius={92} stroke="none" isAnimationActive={false}>
+            <Cell fill={good} />
+            <Cell fill="var(--surface-sunken)" />
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="absolute inset-x-0 flex flex-col items-center" style={{ bottom: 6 }}>
+        <span className="text-3xl font-bold leading-none" style={{ color: rate == null ? 'var(--text-light)' : rate >= 90 ? good : rate >= 70 ? 'var(--warning)' : bad }}>
+          {rate != null ? `${rate}%` : '—'}
+        </span>
+        <span className="text-[10px] uppercase tracking-wide text-[var(--text-light)] mt-0.5">SLA Solução</span>
+        <span className="text-[11px] text-[var(--text-muted)] font-medium">{num} / {den} no prazo</span>
+      </div>
+    </div>
+  )
+}
+
+/** Ranking em barras horizontais (consultores/clientes). `right` = meta na extremidade. */
+export function RankBars({ items, barColor }: {
+  items: { label: string; value: number; valueLabel?: string; right?: string }[]
+  barColor: string
+}) {
+  const max = Math.max(...items.map(i => i.value), 1)
+  return (
+    <div className="space-y-2">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-center gap-2 text-[11px]">
+          <span className="w-4 text-[var(--text-light)] shrink-0">{i + 1}</span>
+          <span className="w-28 shrink-0 truncate text-[var(--text)]" title={it.label}>{it.label}</span>
+          <div className="flex-1 rounded overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 14 }}>
+            <div className="h-full rounded transition-all" style={{ width: `${(it.value / max) * 100}%`, background: barColor }} />
+          </div>
+          <span className="w-10 text-right font-semibold text-[var(--text)] tabular-nums">{it.valueLabel ?? it.value}</span>
+          {it.right && <span className="w-16 text-right text-[var(--text-light)] tabular-nums">{it.right}</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Linha de comparação anual com mini-barras (anterior × atual) + variação. */
+export function CompareRow({ label, prev, cur, prevLabel, curLabel, variation, unit, good, noHistory }: {
+  label: string; prev: number | null; cur: number
+  prevLabel: string; curLabel: string
+  variation: number | null; unit: '%' | 'pp' | 'h'; good: GoodDirection; noHistory?: boolean
+}) {
+  const max = Math.max(prev ?? 0, cur, 1)
+  return (
+    <div className="py-2.5 border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-medium text-[var(--text)]">{label}</span>
+        {noHistory ? <span className="text-[10px] text-[var(--text-muted)]">sem histórico</span>
+                   : <VariationBadge value={variation} unit={unit} good={good} />}
+      </div>
+      <div className="flex items-center gap-2 text-[10px]">
+        <span className="w-24 shrink-0 text-[var(--text-light)]">ant. {noHistory ? '—' : prevLabel}</span>
+        <div className="flex-1 flex flex-col gap-1">
+          <div className="rounded overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 8 }}>
+            <div className="h-full rounded" style={{ width: `${noHistory ? 0 : ((prev ?? 0) / max) * 100}%`, background: 'var(--text-light)' }} />
+          </div>
+          <div className="rounded overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 8 }}>
+            <div className="h-full rounded" style={{ width: `${(cur / max) * 100}%`, background: 'var(--primary)' }} />
+          </div>
+        </div>
+        <span className="w-24 shrink-0 text-right text-[var(--text)] font-medium">atual {curLabel}</span>
       </div>
     </div>
   )
