@@ -145,11 +145,12 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
     return () => { aliveRef.current = false; stopPolling() } // para o polling no unmount/troca de fonte
   }, [id, applyView, startPolling, loadHistory, stopPolling])
 
-  const doRun = useCallback(async () => {
+  const doRun = useCallback(async (force = false) => {
     if (running || (view && INFLIGHT.includes(view.state))) return // anti-duplo-clique (o A2 também é atômico)
     setRunning(true)
     try {
-      const r = await api.post<{ data: QualityView }>(`/source-docs/${id}/quality`, {})
+      // GAP-FE-001: "Analisar novamente" (estado completed) envia force=true → NOVA execução (o BE já suporta force).
+      const r = await api.post<{ data: QualityView }>(`/source-docs/${id}/quality`, force ? { force: true } : {})
       applyView(r.data)
       if (INFLIGHT.includes(r.data.state)) startPolling()
       void loadHistory()
@@ -175,8 +176,8 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
 
   const a = view.analysis
   const inflight = INFLIGHT.includes(view.state)
-  const runBtn = (label: string) => canRun
-    ? <Button size="sm" variant="primary" icon={RefreshCw} loading={running} disabled={inflight} onClick={doRun}>{label}</Button>
+  const runBtn = (label: string, force = false) => canRun
+    ? <Button size="sm" variant="primary" icon={RefreshCw} loading={running} disabled={inflight} onClick={() => doRun(force)}>{label}</Button>
     : null
 
   return (
@@ -186,7 +187,7 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
         <EmptyState icon={Gauge}
           title="Sem análise de qualidade para a versão atual"
           action={canRun
-            ? <Button size="sm" variant="primary" icon={Gauge} loading={running} onClick={doRun}>Analisar fonte</Button>
+            ? <Button size="sm" variant="primary" icon={Gauge} loading={running} onClick={() => doRun()}>Analisar fonte</Button>
             : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Você não tem permissão para disparar a análise.</span>} />
       )}
 
@@ -238,7 +239,7 @@ export function QualityTab({ docId, canRun, canViewGit, ghBlobUrl }: {
               <Gauge size={16} style={{ color: 'var(--primary)' }} />
               {view.state === 'outdated' ? 'Qualidade (versão anterior)' : 'Qualidade do código'}
             </h3>
-            {view.state === 'completed' && runBtn('Analisar novamente')}
+            {view.state === 'completed' && runBtn('Analisar novamente', true)}
           </div>
           <div className="text-xs mb-3 flex flex-wrap gap-x-3 gap-y-0.5" style={{ color: 'var(--text-light)' }}>
             <span>Última análise: {fmtDateTime(a.completed_at || a.requested_at)}</span>
