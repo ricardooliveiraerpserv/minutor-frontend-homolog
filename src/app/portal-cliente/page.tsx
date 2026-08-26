@@ -448,13 +448,9 @@ export default function PortalClientePage() {
               <PortalHeroCard   icon={Clock}      label="Horas Contratadas" value={fmtH(summary.total_sold_hours)} accent="purple" />
             </div>
 
-            {/* Evolução até mai/26 — meses anteriores aparecem zerados (real começa em mai/26) */}
-            <MonthlyEvolution
-              series={summary.monthly_series
-                .filter(p => (p.month ?? '') <= '2026-05')
-                .map(p => (p.month ?? '') < '2026-05' ? { ...p, tickets: 0, consumed_hours: 0 } : p)
-              }
-            />
+            {/* Janela rolante de 12 meses terminando no mês atual — a série vem
+                pronta do backend (now()->subMonths(11) … now()); nada de cutoff fixo. */}
+            <MonthlyEvolution series={summary.monthly_series} />
 
 
             {/* Saúde dos projetos (não-Fechados) */}
