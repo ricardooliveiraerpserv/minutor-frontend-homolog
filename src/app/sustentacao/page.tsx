@@ -36,6 +36,8 @@ interface KPIs {
   closed_period: number
   sla_response_rate: number | null
   sla_solution_rate: number | null
+  sla_solution_num: number
+  sla_solution_den: number
   open_at_risk: number
   avg_solution_time: number | null
   period: { from: string; to: string }
@@ -77,7 +79,7 @@ interface QueueTicket {
 }
 
 interface SlaData {
-  by_urgency: { urgencia: string; total: number; on_time_response: number; on_time_solution: number }[]
+  by_urgency: { urgencia: string; total: number; on_time_response: number; sol_num: number; sol_den: number }[]
   breaching_now: QueueTicket[]
   monthly_trend: { month: string; total: number; on_time: number }[]
 }
@@ -93,7 +95,7 @@ interface FinancialData {
 }
 
 interface ClientData {
-  by_client: { customer_id: number; total_period: number; open_now: number; sla_ok: number; avg_solution_minutes: number; customer: { id: number; name: string } | null }[]
+  by_client: { customer_id: number; total_period: number; open_now: number; sla_ok: number; sla_num: number; sla_den: number; avg_solution_minutes: number; customer: { id: number; name: string } | null }[]
   period: { from: string; to: string }
 }
 
@@ -1363,7 +1365,7 @@ export default function SustentacaoPage() {
                 sub="Primeiras respostas no prazo" />
               <KpiCard label="SLA Solução" value={kpis.sla_solution_rate != null ? `${kpis.sla_solution_rate}%` : '—'}
                 icon={CheckCircle} color={kpis.sla_solution_rate != null && kpis.sla_solution_rate >= 90 ? GREEN : kpis.sla_solution_rate != null && kpis.sla_solution_rate >= 70 ? YELLOW : RED}
-                sub="Soluções entregues no prazo" />
+                sub={`${kpis.sla_solution_num}/${kpis.sla_solution_den} resolvidos no prazo`} />
               <KpiCard label="Tempo Médio Solução" value={fmt(kpis.avg_solution_time)} icon={Clock} sub="Últimas resoluções" />
               <KpiCard label="Fechados no Período" value={kpis.closed_period} icon={CheckCircle} color={PURPLE} />
             </div>
@@ -1790,24 +1792,42 @@ export default function SustentacaoPage() {
                       <table className="w-full text-xs">
                         <thead><tr className="text-[var(--text-muted)]">
                           <th className="text-left py-1">Urgência</th>
-                          <th className="text-right py-1">Total</th>
+                          <th className="text-right py-1">Criados</th>
                           <th className="text-right py-1">Resposta OK</th>
-                          <th className="text-right py-1">Solução OK</th>
+                          <th className="text-right py-1" title="SLA de Solução — no prazo / resolvidos com SLA aplicável (regra canônica)">Solução OK</th>
                         </tr></thead>
                         <tbody>
                           {slaData.by_urgency.map(r => (
                             <tr key={r.urgencia} className="border-t" style={{ borderColor: 'var(--border)' }}>
                               <td className="py-1.5" style={{ color: urgencyColor(r.urgencia) }}>{r.urgencia ?? '—'}</td>
                               <td className="py-1.5 text-right text-[var(--text)]">{r.total}</td>
-                              <td className="py-1.5 text-right" style={{ color: r.on_time_response >= r.total * 0.9 ? GREEN : YELLOW }}>
+                              <td className="py-1.5 text-right" style={{ color: r.total > 0 && r.on_time_response >= r.total * 0.9 ? GREEN : YELLOW }}>
                                 {r.on_time_response}/{r.total}
                               </td>
-                              <td className="py-1.5 text-right" style={{ color: r.on_time_solution >= r.total * 0.9 ? GREEN : YELLOW }}>
-                                {r.on_time_solution}/{r.total}
+                              <td className="py-1.5 text-right"
+                                title={r.sol_den === 0 ? 'Nenhum ticket resolvido com SLA de solução aplicável no período.' : 'No prazo / resolvidos com SLA aplicável (regra canônica)'}
+                                style={{ color: r.sol_den === 0 ? 'var(--text-light)' : r.sol_num >= r.sol_den * 0.9 ? GREEN : r.sol_num >= r.sol_den * 0.7 ? YELLOW : RED }}>
+                                {r.sol_den > 0 ? `${r.sol_num}/${r.sol_den} · ${Math.round(r.sol_num / r.sol_den * 100)}%` : '—'}
                               </td>
                             </tr>
                           ))}
                         </tbody>
+                        <tfoot>
+                          {(() => {
+                            const sn = slaData.by_urgency.reduce((a, r) => a + r.sol_num, 0)
+                            const sd = slaData.by_urgency.reduce((a, r) => a + r.sol_den, 0)
+                            return (
+                              <tr className="border-t font-semibold" style={{ borderColor: 'var(--border-strong)' }}>
+                                <td className="py-1.5 text-[var(--text)]">SLA Solução (total)</td>
+                                <td className="py-1.5 text-right text-[var(--text-light)]">{slaData.by_urgency.reduce((a, r) => a + r.total, 0)}</td>
+                                <td />
+                                <td className="py-1.5 text-right" style={{ color: sd === 0 ? 'var(--text-light)' : sn >= sd * 0.9 ? GREEN : sn >= sd * 0.7 ? YELLOW : RED }}>
+                                  {sd > 0 ? `${sn}/${sd} · ${Math.round(sn / sd * 100)}%` : '—'}
+                                </td>
+                              </tr>
+                            )
+                          })()}
+                        </tfoot>
                       </table>
                     </div>
                   )}
@@ -1925,7 +1945,7 @@ export default function SustentacaoPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                    {['Cliente', 'Total no Período', 'Abertos Agora', 'SLA OK', 'Tempo Médio'].map(h => (
+                    {['Cliente', 'Tickets no Período', 'Abertos Agora', 'SLA Solução', 'Tempo Médio'].map(h => (
                       <th key={h} className="px-4 py-2.5 text-left font-medium text-[var(--text-muted)]">{h}</th>
                     ))}
                   </tr>
@@ -1936,8 +1956,10 @@ export default function SustentacaoPage() {
                       <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer?.name ?? `#${c.customer_id}`}</td>
                       <td className="px-4 py-2.5" style={{ color: CYAN }}>{c.total_period}</td>
                       <td className="px-4 py-2.5" style={{ color: c.open_now > 5 ? RED : 'var(--text)' }}>{c.open_now}</td>
-                      <td className="px-4 py-2.5" style={{ color: c.sla_ok >= c.total_period * 0.9 ? GREEN : YELLOW }}>
-                        {c.sla_ok}/{c.total_period}
+                      <td className="px-4 py-2.5"
+                        title={c.sla_den === 0 ? 'Nenhum ticket resolvido com SLA de solução aplicável no período.' : 'No prazo / resolvidos com SLA aplicável no período (regra canônica)'}
+                        style={{ color: c.sla_den === 0 ? 'var(--text-light)' : c.sla_num >= c.sla_den * 0.9 ? GREEN : c.sla_num >= c.sla_den * 0.7 ? YELLOW : RED }}>
+                        {c.sla_den > 0 ? `${c.sla_num}/${c.sla_den} · ${Math.round(c.sla_num / c.sla_den * 100)}%` : '—'}
                       </td>
                       <td className="px-4 py-2.5 text-[var(--text)]">{fmt(c.avg_solution_minutes)}</td>
                     </tr>
