@@ -287,6 +287,34 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
   const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
   const invitedEmails = useMemo(() => new Set(invites.map(i => (i.email ?? '').toLowerCase()).filter(Boolean)), [invites])
 
+  // ── Remoção em massa / por categoria dos participantes ATUAIS ──
+  const [selRemove, setSelRemove] = useState<Set<number>>(new Set())
+  const emailCat = useMemo(() => {
+    const m = new Map<string, string>()
+    groups.forEach(g => g.users.forEach(u => { if (u.email) m.set(u.email.toLowerCase(), g.label) }))
+    return m
+  }, [groups])
+  const invitesByCat = useMemo(() => {
+    const m = new Map<string, Inv[]>()
+    invites.forEach(i => { const cat = emailCat.get((i.email ?? '').toLowerCase()) ?? 'Outros'; const a = m.get(cat) ?? []; a.push(i); m.set(cat, a) })
+    return Array.from(m.entries())
+  }, [invites, emailCat])
+  const toggleRemove = (id: number) => setSelRemove(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleRemoveCat = (items: Inv[]) => setSelRemove(prev => {
+    const n = new Set(prev); const allSel = items.every(i => n.has(i.id))
+    items.forEach(i => allSel ? n.delete(i.id) : n.add(i.id)); return n
+  })
+  async function bulkRemove() {
+    if (selRemove.size === 0) return
+    if (!window.confirm(`Remover ${selRemove.size} participante(s) da campanha?`)) return
+    setBusy(true)
+    try {
+      const res = await api.post<{ removed: number }>(`/competencias/surveys/${survey.id}/invites/remove`, { invite_ids: Array.from(selRemove) })
+      toast.success(`${res.removed} removido(s)`)
+      setSelRemove(new Set()); await reloadInvites(); onChanged()
+    } catch { toast.error('Erro ao remover') } finally { setBusy(false) }
+  }
+
   async function addSelected() {
     if (selected.size === 0) { toast.error('Selecione ao menos um'); return }
     setBusy(true)
@@ -304,17 +332,39 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
         {loading ? <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div> : (
           <>
             <div>
-              <Label>Atuais ({invites.length})</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Atuais ({invites.length})</Label>
+                {selRemove.size > 0 && (
+                  <button onClick={bulkRemove} disabled={busy} className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md"
+                    style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: 'pointer' }}>
+                    <Trash2 size={13} /> Remover selecionados ({selRemove.size})
+                  </button>
+                )}
+              </div>
               {invites.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum participante ainda.</p> : (
-                <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
-                  {invites.map(i => (
-                    <div key={i.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', fontSize: 12.5 }}>
-                      <span style={{ color: 'var(--text)', flex: 1 }}>{i.name ?? '—'}</span>
-                      <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{i.email}</span>
-                      <span className={i.status === 'submitted' ? 'ds-status-success' : 'ds-status'} style={{ fontSize: 10 }}>{i.status === 'submitted' ? 'Respondido' : 'Pendente'}</span>
-                      <button onClick={() => removeInvite(i)} title="Remover" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={13} /></button>
-                    </div>
-                  ))}
+                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+                  {invitesByCat.map(([cat, items]) => {
+                    const allSel = items.every(i => selRemove.has(i.id))
+                    const someSel = items.some(i => selRemove.has(i.id))
+                    return (
+                      <div key={cat}>
+                        <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: 'var(--surface-hover)', borderTop: '1px solid var(--border)' }}>
+                          <input type="checkbox" checked={allSel} ref={el => { if (el) el.indeterminate = !allSel && someSel }} onChange={() => toggleRemoveCat(items)} title="Selecionar toda a categoria" />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{cat}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{items.length}</span>
+                        </div>
+                        {items.map(i => (
+                          <div key={i.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', fontSize: 12.5 }}>
+                            <input type="checkbox" checked={selRemove.has(i.id)} onChange={() => toggleRemove(i.id)} />
+                            <span style={{ color: 'var(--text)', flex: 1 }}>{i.name ?? '—'}</span>
+                            <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{i.email}</span>
+                            <span className={i.status === 'submitted' ? 'ds-status-success' : 'ds-status'} style={{ fontSize: 10 }}>{i.status === 'submitted' ? 'Respondido' : 'Pendente'}</span>
+                            <button onClick={() => removeInvite(i)} title="Remover" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={13} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
