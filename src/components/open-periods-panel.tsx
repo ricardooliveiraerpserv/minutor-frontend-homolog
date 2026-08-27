@@ -16,9 +16,16 @@ interface OpenPeriod {
   year_month: string
   opened_by: string | null
   created_at: string
+  auto_close_at: string | null
 }
 
 const fmtYM = (ym: string) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
+const fmtDT = (iso: string | null) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 /**
  * Visão dos períodos de projeto abertos (ProjectOpenPeriod, closed_at=null) + fechar todos.
@@ -103,6 +110,7 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
           <tr className="bg-[var(--surface-hover)] text-[var(--text-light)]">
             <th className="text-left font-medium px-3 py-2">Projeto</th>
             <th className="text-left font-medium px-3 py-2">Competência</th>
+            <th className="text-left font-medium px-3 py-2">Fecha em</th>
             <th className="text-left font-medium px-3 py-2">Aberto por</th>
             <th className="px-3 py-2"></th>
           </tr>
@@ -111,10 +119,16 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
           {openPeriods.map(p => (
             <tr key={p.id} className="border-t border-[var(--border)]">
               <td className="px-3 py-2 text-[var(--text)]">
-                <span className="font-medium">{p.project_code ?? '—'}</span>
-                {p.cliente && <span className="text-[var(--text-light)]"> · {p.cliente}</span>}
+                <div className="flex flex-col">
+                  <span>
+                    <span className="font-medium">{p.project_code ?? '—'}</span>
+                    {p.cliente && <span className="text-[var(--text-light)]"> · {p.cliente}</span>}
+                  </span>
+                  {p.project_name && <span className="text-[var(--text-light)]">{p.project_name}</span>}
+                </div>
               </td>
               <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{fmtYM(p.year_month)}</td>
+              <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums whitespace-nowrap">{fmtDT(p.auto_close_at)}</td>
               <td className="px-3 py-2 text-[var(--text-muted)]">{p.opened_by ?? '—'}</td>
               <td className="px-3 py-2 text-right whitespace-nowrap">
                 {confirmRowId === p.id ? (
