@@ -925,6 +925,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
+        { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
       ]
       if (canModule('help_desk')) {
         nav.push({ type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones })
