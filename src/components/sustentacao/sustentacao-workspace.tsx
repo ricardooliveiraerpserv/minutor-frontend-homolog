@@ -1988,22 +1988,38 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
               { title: 'Por Equipe',      data: distribution.by_team },
               { title: 'Por Status',      data: distribution.by_base_status.map(d => ({ ...d, label: STATUS_LABEL[d.label] ?? d.label })) },
               { title: 'Por Origem',      data: distribution.by_origin },
-            ].map(({ title, data }) => (
-              <Section key={title} title={title}>
-                {data.length === 0
-                  ? <p className="text-[var(--text-light)] text-xs">Sem dados</p>
-                  : (
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie data={data} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name ?? ''} ${percent != null ? (percent * 100).toFixed(0) : 0}%`} labelLine={false}>
-                          {data.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
+            ].map(({ title, data }) => {
+              // Barras horizontais Top-10 + "Outros" — legível mesmo com alta cardinalidade
+              // (ex.: Por Serviço com 65 valores). Substitui as pizzas ilegíveis.
+              const sorted = [...data].sort((a, b) => b.count - a.count)
+              const total = sorted.reduce((s, d) => s + d.count, 0)
+              const top = sorted.slice(0, 10)
+              const restCount = sorted.slice(10).reduce((s, d) => s + d.count, 0)
+              const rows: { label: string; count: number; _outros?: boolean }[] =
+                restCount > 0 ? [...top, { label: `Outros (${sorted.length - 10})`, count: restCount, _outros: true }] : top
+              const max = Math.max(...rows.map(r => r.count), 1)
+              return (
+                <Section key={title} title={title}>
+                  {data.length === 0 ? (
+                    <p className="text-[var(--text-light)] text-xs">Sem dados</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {rows.map((r, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-32 shrink-0 truncate" title={r.label}
+                            style={{ color: r._outros ? 'var(--text-light)' : 'var(--text)' }}>{r.label}</span>
+                          <div className="flex-1 rounded overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                            <div className="h-full rounded" style={{ width: `${(r.count / max) * 100}%`, background: r._outros ? 'var(--text-light)' : CYAN }} />
+                          </div>
+                          <span className="w-8 text-right font-semibold text-[var(--text)] tabular-nums">{r.count}</span>
+                          <span className="w-9 text-right text-[var(--text-light)] tabular-nums">{total > 0 ? Math.round((r.count / total) * 100) : 0}%</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
-              </Section>
-            ))}
+                </Section>
+              )
+            })}
           </div>
         )}
 
