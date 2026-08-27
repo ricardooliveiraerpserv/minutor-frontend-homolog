@@ -19,7 +19,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
-  const [pos,   setPos]   = useState<{ top: number; left: number; width: number } | null>(null)
+  const [pos,   setPos]   = useState<{ top: number; left: number; width: number; up: boolean } | null>(null)
   const btnRef   = useRef<HTMLButtonElement>(null)
   const ref      = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -27,22 +27,40 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   const selected = options.find(o => String(o.id) === String(value))
   const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
 
+  // Recalcula a posição do dropdown a partir do botão. Decide abrir pra cima quando
+  // não há espaço suficiente embaixo (perto do rodapé). Chamado no abrir e em cada
+  // scroll/resize pra manter o menu COLADO ao campo (não deixa "descolar").
+  const updatePos = () => {
+    if (!btnRef.current) return
+    const r = btnRef.current.getBoundingClientRect()
+    const dropW = fullWidth ? r.width : Math.max(r.width, wide ? 240 : 200)
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - dropW - 8))
+    // Altura estimada do menu (header de busca + lista max-h-52 ≈ 208px).
+    const DROP_H = 264
+    const spaceBelow = window.innerHeight - r.bottom
+    const openUp = spaceBelow < DROP_H && r.top > spaceBelow
+    setPos({ top: openUp ? r.top - 4 : r.bottom + 4, left, width: dropW, up: openUp })
+  }
+
   useEffect(() => {
     if (!open) return
     const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    const onScroll = () => { if (!inline) setOpen(false) }
     document.addEventListener('mousedown', h)
-    // Em telas de toque NÃO fechar no scroll: ao focar o input de busca o iOS
-    // rola a tela pra acomodar o teclado, o que fecharia o dropdown e impediria
-    // de digitar. No desktop mantém o fecha-ao-rolar.
-    const isCoarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
-    if (!isCoarse) window.addEventListener('scroll', onScroll, { passive: true })
+    if (inline) return () => document.removeEventListener('mousedown', h)
+    // Menu com position:fixed: reposiciona (NÃO fecha) em qualquer scroll/resize
+    // pra ficar sempre colado ao campo. capture:true pega também o scroll de
+    // containers ancestrais (ex.: a tabela do Cronograma), não só o da janela.
+    updatePos()
+    const reposition = () => updatePos()
+    window.addEventListener('scroll', reposition, { passive: true, capture: true })
+    window.addEventListener('resize', reposition)
     return () => {
       document.removeEventListener('mousedown', h)
-      if (!isCoarse) window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scroll', reposition, { capture: true } as EventListenerOptions)
+      window.removeEventListener('resize', reposition)
     }
   }, [open, inline])
 
@@ -53,11 +71,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   const toggle = () => {
     if (open) { setOpen(false); return }
     if (inline) { setOpen(true); return }   // inline = dropdown no fluxo, sem pos fixo
-    if (!btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const dropW = fullWidth ? r.width : Math.max(r.width, wide ? 240 : 200)
-    const left = Math.min(r.left, window.innerWidth - dropW - 8)
-    setPos({ top: r.bottom + 4, left: Math.max(8, left), width: dropW })
+    updatePos()
     setOpen(true)
   }
 
@@ -69,7 +83,9 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
       className="rounded-xl shadow-2xl overflow-hidden"
       style={inline
         ? { position: 'absolute', top: '100%', left: 0, marginTop: 4, width: fullWidth ? '100%' : (wide ? 240 : 200), zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }
-        : { position: 'fixed', top: pos!.top, left: pos!.left, width: pos!.width, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }
+        : { position: 'fixed', top: pos!.top, left: pos!.left, width: pos!.width, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)',
+            // Quando abre pra cima, ancora a base do menu no topo do botão.
+            transform: pos!.up ? 'translateY(-100%)' : undefined }
       }
     >
       <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
