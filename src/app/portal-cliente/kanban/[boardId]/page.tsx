@@ -6,10 +6,11 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, Trash2, X, Tag, Paperclip, MessageSquare, CheckSquare, Calendar, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal } from 'lucide-react'
 import { ApiError } from '@/lib/api'
-import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel } from '@/lib/client-kanban'
+import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField } from '@/lib/client-kanban'
 import { KanbanCardModal } from '@/components/kanban/kanban-card-modal'
+import { KanbanFieldsManager } from '@/components/kanban/kanban-fields-manager'
 
 const COLUMN_COLORS = ['#94a3b8', '#3b82f6', '#f59e0b', '#22c55e', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
@@ -25,6 +26,7 @@ export default function ClientKanbanBoardPage() {
   const [addingCardCol, setAddingCardCol] = useState<number | null>(null)
   const [newCardTitle, setNewCardTitle] = useState('')
   const [labelsOpen, setLabelsOpen] = useState(false)
+  const [fieldsOpen, setFieldsOpen] = useState(false)
 
   function load() {
     setLoading(true)
@@ -86,6 +88,7 @@ export default function ClientKanbanBoardPage() {
             <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board?.name ?? '…'}</h1>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setFieldsOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><SlidersHorizontal size={14} /> Campos</button>
             <button onClick={() => setLabelsOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Tag size={14} /> Etiquetas</button>
             <button onClick={() => setAddingColumn(true)} className="ds-btn-secondary" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Nova coluna</button>
           </div>
@@ -112,7 +115,7 @@ export default function ClientKanbanBoardPage() {
                             <Draggable key={card.id} draggableId={String(card.id)} index={idx}>
                               {(dp, ds) => (
                                 <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps} onClick={() => setOpenCardId(card.id)} style={{ ...dp.draggableProps.style, ...cardStyle(ds.isDragging) }}>
-                                  <CardFace card={card} />
+                                  <CardFace card={card} fields={board.fields} />
                                 </div>
                               )}
                             </Draggable>
@@ -151,17 +154,21 @@ export default function ClientKanbanBoardPage() {
       </div>
 
       {openCardId && board && (
-        <KanbanCardModal cardId={openCardId} boardLabels={board.labels} users={users} onClose={() => setOpenCardId(null)} onSaved={load} />
+        <KanbanCardModal cardId={openCardId} boardLabels={board.labels} fields={board.fields} users={users} onClose={() => setOpenCardId(null)} onSaved={load} />
       )}
       {labelsOpen && board && (
         <LabelsManager boardId={boardId} labels={board.labels} onClose={() => setLabelsOpen(false)} onChanged={load} />
+      )}
+      {fieldsOpen && board && (
+        <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
     </AppLayout>
   )
 }
 
-function CardFace({ card }: { card: KCardSummary }) {
+function CardFace({ card, fields }: { card: KCardSummary; fields: KField[] }) {
   const overdue = card.due_date && new Date(card.due_date + 'T23:59:59') < new Date()
+  const frontFields = fields.filter(f => f.show_on_front).map(f => ({ f, v: fmtFieldValue(f, card.field_values?.[String(f.id)]) })).filter(x => x.v)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {card.labels.length > 0 && (
@@ -170,6 +177,13 @@ function CardFace({ card }: { card: KCardSummary }) {
         </div>
       )}
       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', lineHeight: 1.3 }}>{card.title}</div>
+      {frontFields.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {frontFields.map(({ f, v }) => (
+            <div key={f.id} style={{ fontSize: 11, color: 'var(--text-muted)' }}><span style={{ fontWeight: 600 }}>{f.name}:</span> {v}</div>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-muted)' }}>
         {card.priority && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: PRIORITY_META[card.priority]?.color }}>● {PRIORITY_META[card.priority]?.label}</span>}
         {card.due_date && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: overdue ? 'var(--danger)' : 'var(--text-muted)' }}>{overdue ? <AlertTriangle size={11} /> : <Calendar size={11} />}{fmtDDMM(card.due_date)}</span>}
@@ -219,7 +233,18 @@ function LabelsManager({ boardId, labels, onClose, onChanged }: { boardId: numbe
   )
 }
 
-const fmtDDMM = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-'); return `${d}/${m}` }
+const fmtDDMM = (s: string) => { const [, m, d] = s.slice(0, 10).split('-'); return `${d}/${m}` }
+function fmtFieldValue(f: KField, raw: string | null | undefined): string {
+  if (raw == null || raw === '') return ''
+  switch (f.type) {
+    case 'multiselect': { try { const a = JSON.parse(raw); return Array.isArray(a) ? a.join(', ') : '' } catch { return '' } }
+    case 'checkbox': return raw === '1' ? 'Sim' : ''
+    case 'money': { const n = Number(raw); return isNaN(n) ? raw : n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
+    case 'date': return raw.length >= 10 ? fmtDDMM(raw) : raw
+    case 'link_user': return ''
+    default: return raw
+  }
+}
 function cardStyle(dragging: boolean): React.CSSProperties {
   return { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', cursor: 'pointer', boxShadow: dragging ? '0 8px 20px rgba(0,0,0,.18)' : 'none' }
 }

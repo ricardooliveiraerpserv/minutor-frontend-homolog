@@ -4,6 +4,26 @@ import { api } from '@/lib/api'
 export interface KLabel { id: number; name: string; color?: string | null }
 export interface KUserRef { id: number; name: string }
 
+export type KFieldType = 'text' | 'textarea' | 'number' | 'money' | 'date' | 'datetime' | 'select' | 'multiselect' | 'checkbox' | 'link_user'
+export interface KField {
+  id: number
+  name: string
+  type: KFieldType
+  required: boolean
+  show_on_front: boolean
+  options: string[]
+  default_value?: string | null
+  position: number
+}
+/** Mapa field_id (string) → valor bruto (string; multiselect = JSON de array). */
+export type KFieldValues = Record<string, string | null>
+
+export const FIELD_TYPE_LABELS: Record<KFieldType, string> = {
+  text: 'Texto curto', textarea: 'Texto longo', number: 'Número', money: 'Valor monetário',
+  date: 'Data', datetime: 'Data e hora', select: 'Lista de seleção', multiselect: 'Seleção múltipla',
+  checkbox: 'Sim/Não', link_user: 'Usuário',
+}
+
 export interface KCardSummary {
   id: number
   column_id: number
@@ -18,6 +38,7 @@ export interface KCardSummary {
   checklist_total: number
   checklist_done: number
   comments_count: number
+  field_values: KFieldValues
 }
 
 export interface KColumn {
@@ -34,6 +55,7 @@ export interface KBoardFull {
   description?: string | null
   color?: string | null
   labels: KLabel[]
+  fields: KField[]
   columns: KColumn[]
 }
 
@@ -76,6 +98,10 @@ export const kanbanApi = {
 
   addLabel: (boardId: number, body: { name: string; color?: string }) => api.post<KLabel>(`${base}/boards/${boardId}/labels`, body),
   deleteLabel: (id: number) => api.delete(`${base}/labels/${id}`),
+
+  addField: (boardId: number, body: Record<string, unknown>) => api.post<KField>(`${base}/boards/${boardId}/fields`, body),
+  updateField: (id: number, body: Record<string, unknown>) => api.put<KField>(`${base}/fields/${id}`, body),
+  deleteField: (id: number) => api.delete(`${base}/fields/${id}`),
 
   addCard: (columnId: number, body: Record<string, unknown>) => api.post<KCardFull>(`${base}/columns/${columnId}/cards`, body),
   card: (id: number) => api.get<KCardFull>(`${base}/cards/${id}`),

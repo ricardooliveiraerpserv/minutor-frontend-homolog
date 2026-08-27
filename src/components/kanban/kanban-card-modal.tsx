@@ -4,19 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { X, Trash2, Paperclip, Download, Plus, Check, Square, CheckSquare, Send } from 'lucide-react'
 import { ApiError } from '@/lib/api'
-import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef } from '@/lib/client-kanban'
+import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef, type KField } from '@/lib/client-kanban'
 import { uploadAttachment, downloadAttachment, deleteAttachment } from '@/lib/attachments'
 import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
   cardId: number
   boardLabels: KLabel[]
+  fields: KField[]
   users: KUserRef[]
   onClose: () => void
   onSaved: () => void
 }
 
-export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }: Props) {
+export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, onSaved }: Props) {
   const [card, setCard] = useState<KCardFull | null>(null)
   const [saving, setSaving] = useState(false)
   const [newCheck, setNewCheck] = useState('')
@@ -32,6 +33,7 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('')
   const [labelIds, setLabelIds] = useState<number[]>([])
+  const [fieldVals, setFieldVals] = useState<Record<string, string | string[]>>({})
 
   function hydrate(c: KCardFull) {
     setCard(c)
@@ -42,6 +44,17 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
     setDueDate(c.due_date ?? '')
     setPriority(c.priority ?? '')
     setLabelIds(c.labels.map(l => l.id))
+    // Hidrata os valores dos campos configuráveis (multiselect vem como JSON).
+    const fv: Record<string, string | string[]> = {}
+    for (const f of fields) {
+      const raw = c.field_values?.[String(f.id)] ?? ''
+      if (f.type === 'multiselect') {
+        try { fv[f.id] = raw ? JSON.parse(raw) : [] } catch { fv[f.id] = [] }
+      } else {
+        fv[f.id] = raw ?? ''
+      }
+    }
+    setFieldVals(fv)
   }
 
   function reload() { kanbanApi.card(cardId).then(hydrate).catch(() => {}) }
@@ -49,6 +62,13 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
 
   async function save() {
     if (!title.trim()) { toast.error('Título é obrigatório.'); return }
+    // Campos obrigatórios preenchidos?
+    for (const f of fields) {
+      if (!f.required) continue
+      const v = fieldVals[f.id]
+      const empty = v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === '')
+      if (empty) { toast.error(`Preencha o campo obrigatório "${f.name}".`); return }
+    }
     setSaving(true)
     try {
       await kanbanApi.updateCard(cardId, {
@@ -59,6 +79,7 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
         due_date: dueDate || null,
         priority: priority || null,
         label_ids: labelIds,
+        field_values: fieldVals,
       })
       onSaved()
       toast.success('Card salvo')
@@ -156,6 +177,17 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
               <textarea className="ds-input" value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder="Detalhes do card…" style={{ width: '100%', padding: 10, resize: 'vertical', fontFamily: 'inherit' }} />
             </Field>
 
+            {/* Campos configuráveis do quadro (Fase 2) */}
+            {fields.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                {fields.map(f => (
+                  <Field key={f.id} label={f.name + (f.required ? ' *' : '')}>
+                    {renderFieldInput(f, fieldVals[f.id], (v) => setFieldVals(prev => ({ ...prev, [f.id]: v })), users)}
+                  </Field>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 18px' }}>{saving ? 'Salvando…' : 'Salvar alterações'}</button>
             </div>
@@ -242,6 +274,47 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   )
 }
+function renderFieldInput(f: KField, value: string | string[] | undefined, onChange: (v: string | string[]) => void, users: KUserRef[]): React.ReactNode {
+  const s = (value ?? '') as string
+  const inputStyle: React.CSSProperties = { width: '100%', fontSize: 13, padding: '7px 8px' }
+  switch (f.type) {
+    case 'textarea':
+      return <textarea className="ds-input" value={s} onChange={e => onChange(e.target.value)} rows={2} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+    case 'number':
+      return <input type="number" className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle} />
+    case 'money':
+      return <input type="number" step="0.01" className="ds-input" value={s} onChange={e => onChange(e.target.value)} placeholder="R$" style={inputStyle} />
+    case 'date':
+      return <input type="date" className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle} />
+    case 'datetime':
+      return <input type="datetime-local" className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle} />
+    case 'checkbox':
+      return <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text)' }}><input type="checkbox" checked={s === '1'} onChange={e => onChange(e.target.checked ? '1' : '0')} /> Sim</label>
+    case 'select':
+      return (
+        <select className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle}>
+          <option value="">—</option>
+          {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      )
+    case 'multiselect': {
+      const arr = Array.isArray(value) ? value : []
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {f.options.map(o => {
+            const on = arr.includes(o)
+            return <button key={o} type="button" onClick={() => onChange(on ? arr.filter(x => x !== o) : [...arr, o])} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20, cursor: 'pointer', border: '1px solid var(--border)', background: on ? 'var(--primary)' : 'transparent', color: on ? '#fff' : 'var(--text)' }}>{o}</button>
+          })}
+        </div>
+      )
+    }
+    case 'link_user':
+      return <SearchSelect fullWidth value={s} onChange={v => onChange(v)} options={users} placeholder="—" />
+    default:
+      return <input className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle} />
+  }
+}
+
 function fmtWhen(iso?: string | null): string {
   if (!iso) return ''
   const d = new Date(iso); if (isNaN(+d)) return ''
