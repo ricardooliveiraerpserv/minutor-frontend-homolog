@@ -8,11 +8,15 @@ import { toast } from 'sonner'
 import { Lock, ChevronDown } from 'lucide-react'
 
 interface OpenPeriod {
-  id: number
-  project_id: number
+  id: number | string
+  project_id: number | null
   project_code: string | null
   project_name: string | null
   cliente: string | null
+  customer_id?: number | null
+  all_projects?: boolean
+  period_ids?: number[]
+  projects_count?: number
   year_month: string
   opened_by: string | null
   created_at: string
@@ -38,8 +42,8 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
   const [loadingPeriods, setLoadingPeriods] = useState(true)
   const [closingAll, setClosingAll] = useState(false)
   const [confirmCloseAll, setConfirmCloseAll] = useState(false)
-  const [confirmRowId, setConfirmRowId] = useState<number | null>(null)
-  const [closingRowId, setClosingRowId] = useState<number | null>(null)
+  const [confirmRowId, setConfirmRowId] = useState<number | string | null>(null)
+  const [closingRowId, setClosingRowId] = useState<number | string | null>(null)
   const [expanded, setExpanded] = useState(!collapsible)
 
   const loadOpenPeriods = useCallback(async () => {
@@ -67,11 +71,12 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
     }
   }
 
-  const closeOne = async (id: number) => {
-    setClosingRowId(id)
+  const closeRow = async (p: OpenPeriod) => {
+    setClosingRowId(p.id)
     try {
-      await api.post(`/projects-open-periods/${id}/close`, {})
-      toast.success('Período fechado')
+      const ids = p.all_projects ? (p.period_ids ?? []) : [p.id as number]
+      for (const pid of ids) await api.post(`/projects-open-periods/${pid}/close`, {})
+      toast.success(p.all_projects ? `${ids.length} períodos fechados` : 'Período fechado')
       setConfirmRowId(null)
       await loadOpenPeriods()
     } catch (e) {
@@ -119,13 +124,20 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
           {openPeriods.map(p => (
             <tr key={p.id} className="border-t border-[var(--border)]">
               <td className="px-3 py-2 text-[var(--text)]">
-                <div className="flex flex-col">
+                {p.all_projects ? (
                   <span>
-                    <span className="font-medium">{p.project_code ?? '—'}</span>
-                    {p.cliente && <span className="text-[var(--text-light)]"> · {p.cliente}</span>}
+                    <span className="font-medium">{p.cliente ?? 'Cliente'}</span>
+                    <span className="text-[var(--text-light)]"> · todos os projetos ({p.projects_count})</span>
                   </span>
-                  {p.project_name && <span className="text-[var(--text-light)]">{p.project_name}</span>}
-                </div>
+                ) : (
+                  <div className="flex flex-col">
+                    <span>
+                      <span className="font-medium">{p.project_code ?? '—'}</span>
+                      {p.cliente && <span className="text-[var(--text-light)]"> · {p.cliente}</span>}
+                    </span>
+                    {p.project_name && <span className="text-[var(--text-light)]">{p.project_name}</span>}
+                  </div>
+                )}
               </td>
               <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{fmtYM(p.year_month)}</td>
               <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums whitespace-nowrap">{fmtDT(p.auto_close_at)}</td>
@@ -133,13 +145,13 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
               <td className="px-3 py-2 text-right whitespace-nowrap">
                 {confirmRowId === p.id ? (
                   <span className="inline-flex items-center gap-1.5">
-                    <Button variant="destructive" size="xs" onClick={() => closeOne(p.id)} disabled={closingRowId === p.id}>
-                      {closingRowId === p.id ? 'Fechando…' : 'Fechar'}
+                    <Button variant="destructive" size="xs" onClick={() => closeRow(p)} disabled={closingRowId === p.id}>
+                      {closingRowId === p.id ? 'Fechando…' : (p.all_projects ? 'Fechar todos' : 'Fechar')}
                     </Button>
                     <Button variant="ghost" size="xs" onClick={() => setConfirmRowId(null)} disabled={closingRowId === p.id}>Não</Button>
                   </span>
                 ) : (
-                  <Button variant="ghost" size="xs" className="gap-1" onClick={() => setConfirmRowId(p.id)} title="Fechar este período">
+                  <Button variant="ghost" size="xs" className="gap-1" onClick={() => setConfirmRowId(p.id)} title={p.all_projects ? 'Fechar TODOS os projetos deste cliente' : 'Fechar este período'}>
                     <Lock size={11} /> Fechar
                   </Button>
                 )}
