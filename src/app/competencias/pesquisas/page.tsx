@@ -348,6 +348,14 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
     return base
   }, [groups, invites])
 
+  // Filtro: Todos × Só participantes (facilita desabilitar — mostra só quem já está na campanha).
+  const [filter, setFilter] = useState<'all' | 'participants'>('all')
+  const viewCats = useMemo(() => {
+    if (filter === 'all') return cats
+    return cats.map(g => ({ ...g, users: g.users.filter(u => emailToInvite.has(u.email.toLowerCase())) }))
+      .filter(g => g.users.length > 0)
+  }, [cats, filter, emailToInvite])
+
   const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
   const toggle = (email: string) => setSel(prev => { const e = email.toLowerCase(); const n = new Set(prev); n.has(e) ? n.delete(e) : n.add(e); return n })
   const toggleCat = (users: { email: string }[]) => setSel(prev => {
@@ -400,11 +408,24 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
         {loading ? <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div> : (
           <>
             <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-              Marque as pessoas (ou uma categoria inteira pelo checkbox do topo) e use <strong>Adicionar</strong> ou <strong>Remover</strong>. Quem já participa aparece com <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>.
+              Marque as pessoas (ou uma categoria inteira pelo checkbox do topo) e use <strong>Adicionar</strong>, <strong>Desabilitar</strong> ou <strong>Habilitar</strong>. Quem já participa aparece com <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>.
             </p>
+            {/* Filtro rápido: pra DESABILITAR, use "Só participantes" (mostra só quem já está na campanha). */}
+            <div className="flex items-center gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-hover)' }}>
+              {([['all', 'Todos'], ['participants', 'Só participantes']] as const).map(([k, lbl]) => {
+                const active = filter === k
+                return (
+                  <button key={k} onClick={() => setFilter(k)} className="px-3 py-1 rounded-md text-sm"
+                    style={{ fontWeight: active ? 600 : 500, background: active ? 'var(--surface)' : 'transparent', color: active ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    {lbl}
+                  </button>
+                )
+              })}
+            </div>
+            {viewCats.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum participante ainda.</p>}
             <div className="space-y-1.5">
-              {cats.map(g => {
-                const isOpen = expanded.has(g.key)
+              {viewCats.map(g => {
+                const isOpen = expanded.has(g.key) || filter === 'participants'
                 const emails = g.users.map(u => u.email.toLowerCase())
                 const allSel = emails.length > 0 && emails.every(e => sel.has(e))
                 const someSel = emails.some(e => sel.has(e))
