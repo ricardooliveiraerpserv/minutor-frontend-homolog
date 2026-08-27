@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
-import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone, ChevronDown, ChevronRight, Eye, Repeat } from 'lucide-react'
+import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone, ChevronDown, ChevronRight, Eye, Repeat, MoreVertical, Pencil, Trash2, UserPlus } from 'lucide-react'
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{children}</label>
@@ -52,6 +52,18 @@ export default function PesquisasCompetenciasPage() {
   const [showNew, setShowNew] = useState(false)
   const [showCampaign, setShowCampaign] = useState(false)
   const [tab, setTab] = useState<'campanhas' | 'pesquisas'>('campanhas')
+  const [menuFor, setMenuFor] = useState<number | null>(null)
+  const [editSurvey, setEditSurvey] = useState<SurveyCard | null>(null)
+  const [partSurvey, setPartSurvey] = useState<SurveyCard | null>(null)
+
+  async function doDelete(s: SurveyCard) {
+    if (!window.confirm(`Excluir "${s.title}"?\n\nIsto remove a pesquisa, os convites e TODAS as respostas dela do histórico. Não dá para desfazer.`)) return
+    try {
+      await api.delete(`/competencias/surveys/${s.id}`)
+      toast.success('Pesquisa excluída')
+      load()
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Erro ao excluir') }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -152,6 +164,22 @@ export default function PesquisasCompetenciasPage() {
                 <Metric label="Respondidos" value={s.submitted} />
                 <Metric label="Pendentes" value={s.pending} />
                 <Metric label="Taxa" value={`${s.response_rate}%`} accent />
+                <div style={{ position: 'relative' }}>
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(menuFor === s.id ? null : s.id) }}
+                    className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} title="Ações">
+                    <MoreVertical size={16} />
+                  </button>
+                  {menuFor === s.id && (
+                    <>
+                      <div onClick={e => { e.preventDefault(); setMenuFor(null) }} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+                      <div className="ds-card" style={{ position: 'absolute', right: 0, top: 30, zIndex: 40, minWidth: 180, padding: 4, textAlign: 'left', boxShadow: '0 6px 20px rgba(0,0,0,0.14)' }}>
+                        <MenuItem icon={Pencil} label="Editar" onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); setEditSurvey(s) }} />
+                        {s.type === 'internal' && <MenuItem icon={UserPlus} label="Participantes" onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); setPartSurvey(s) }} />}
+                        <MenuItem icon={Trash2} label="Excluir" danger onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); doDelete(s) }} />
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </Link>
@@ -172,7 +200,163 @@ export default function PesquisasCompetenciasPage() {
           onDone={(id) => { setShowCampaign(false); router.push(`/competencias/pesquisas/${id}`) }}
         />
       )}
+
+      {editSurvey && (
+        <EditSurveyModal survey={editSurvey} onClose={() => setEditSurvey(null)} onDone={() => { setEditSurvey(null); load() }} />
+      )}
+      {partSurvey && (
+        <ParticipantsModal survey={partSurvey} onClose={() => setPartSurvey(null)} onChanged={load} />
+      )}
     </AppLayout>
+  )
+}
+
+function MenuItem({ icon: Icon, label, onClick, danger }: { icon: React.ComponentType<{ size?: number }>; label: string; onClick: (e: React.MouseEvent) => void; danger?: boolean }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-[var(--surface-hover)]"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: danger ? 'var(--danger)' : 'var(--text)' }}>
+      <Icon size={14} /> {label}
+    </button>
+  )
+}
+
+/** Edita título, mensagem e prazo da pesquisa/campanha. */
+function EditSurveyModal({ survey, onClose, onDone }: { survey: SurveyCard; onClose: () => void; onDone: () => void }) {
+  const [title, setTitle] = useState(survey.title)
+  const [description, setDescription] = useState(survey.description ?? '')
+  const [deadline, setDeadline] = useState(survey.deadline ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!title.trim()) { toast.error('Informe o título'); return }
+    setSaving(true)
+    try {
+      await api.put(`/competencias/surveys/${survey.id}`, {
+        title: title.trim(), description: description.trim() || null, deadline: deadline || null,
+      })
+      toast.success('Pesquisa atualizada')
+      onDone()
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} size="md">
+      <ModalHeader title="Editar pesquisa" icon={Pencil} onClose={onClose} />
+      <ModalBody className="space-y-3">
+        <div><Label>Título</Label><input className="ds-input" style={{ width: '100%' }} value={title} onChange={e => setTitle(e.target.value)} /></div>
+        <div><Label>Mensagem</Label><textarea className="ds-input" rows={5} style={{ width: '100%', resize: 'vertical' }} value={description} onChange={e => setDescription(e.target.value)} /></div>
+        <div><Label>Prazo</Label><input type="date" className="ds-input" style={{ width: '100%' }} value={deadline ?? ''} onChange={e => setDeadline(e.target.value)} /></div>
+      </ModalBody>
+      <ModalFooter>
+        <button className="ds-btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+        <button className="ds-btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+/** Gerencia participantes de uma campanha interna: lista atuais (remove) + adiciona por grupo. */
+function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard; onClose: () => void; onChanged: () => void }) {
+  interface Inv { id: number; name: string | null; email: string | null; status: string }
+  const [invites, setInvites] = useState<Inv[]>([])
+  const [groups, setGroups] = useState<TargetGroup[]>([])
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const reloadInvites = useCallback(async () => {
+    const r = await api.get<{ invites: Inv[] }>(`/competencias/surveys/${survey.id}/invites`)
+    setInvites(r.invites ?? [])
+  }, [survey.id])
+
+  useEffect(() => {
+    Promise.all([
+      reloadInvites(),
+      api.get<{ groups: TargetGroup[] }>('/competencias/campanhas/destinatarios').then(r => setGroups(r.groups ?? [])),
+    ]).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
+  }, [reloadInvites])
+
+  async function removeInvite(inv: Inv) {
+    if (!window.confirm(`Remover ${inv.name ?? inv.email ?? 'participante'} da campanha?`)) return
+    try { await api.delete(`/competencias/invites/${inv.id}`); toast.success('Participante removido'); await reloadInvites(); onChanged() }
+    catch { toast.error('Erro ao remover') }
+  }
+
+  const toggleUser = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const invitedEmails = useMemo(() => new Set(invites.map(i => (i.email ?? '').toLowerCase()).filter(Boolean)), [invites])
+
+  async function addSelected() {
+    if (selected.size === 0) { toast.error('Selecione ao menos um'); return }
+    setBusy(true)
+    try {
+      const res = await api.post<{ created: number }>(`/competencias/surveys/${survey.id}/invites`, { user_ids: Array.from(selected) })
+      toast.success(`${res.created} adicionado(s)`)
+      setSelected(new Set()); await reloadInvites(); onChanged()
+    } catch { toast.error('Erro ao adicionar') } finally { setBusy(false) }
+  }
+
+  return (
+    <Modal open onClose={onClose} size="lg">
+      <ModalHeader title="Participantes" subtitle={survey.title} icon={Users} onClose={onClose} />
+      <ModalBody className="space-y-4">
+        {loading ? <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div> : (
+          <>
+            <div>
+              <Label>Atuais ({invites.length})</Label>
+              {invites.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum participante ainda.</p> : (
+                <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+                  {invites.map(i => (
+                    <div key={i.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', fontSize: 12.5 }}>
+                      <span style={{ color: 'var(--text)', flex: 1 }}>{i.name ?? '—'}</span>
+                      <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{i.email}</span>
+                      <span className={i.status === 'submitted' ? 'ds-status-success' : 'ds-status'} style={{ fontSize: 10 }}>{i.status === 'submitted' ? 'Respondido' : 'Pendente'}</span>
+                      <button onClick={() => removeInvite(i)} title="Remover" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Adicionar participantes ({selected.size} selecionado{selected.size !== 1 ? 's' : ''})</Label>
+              <div className="space-y-1.5">
+                {groups.map(g => {
+                  const isOpen = expanded.has(g.key)
+                  const addable = g.users.filter(u => !invitedEmails.has((u.email ?? '').toLowerCase()))
+                  return (
+                    <div key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                      <button type="button" onClick={() => toggleExpand(g.key)} className="w-full flex items-center gap-1.5 px-2.5 py-2" style={{ background: 'var(--surface-hover)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <span className="text-sm" style={{ color: 'var(--text)', fontWeight: 600, flex: 1 }}>{g.label}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{addable.length} disponíveis</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                          {addable.length === 0 && <div className="px-3 py-2" style={{ fontSize: 12, color: 'var(--text-light)' }}>Todos já participam.</div>}
+                          {addable.map(u => (
+                            <label key={u.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 12.5 }}>
+                              <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleUser(u.id)} />
+                              <span style={{ color: 'var(--text)', flex: 1 }}>{u.name}</span>
+                              <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{u.email}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <button className="ds-btn-secondary" onClick={onClose}>Fechar</button>
+        <button className="ds-btn-primary flex items-center gap-2" onClick={addSelected} disabled={busy || selected.size === 0}><Send size={15} /> Adicionar ({selected.size})</button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
@@ -207,7 +391,7 @@ function NewCampaignModal({ onClose, onDone }: { onClose: () => void; onDone: (i
         setGroups(gs)
         // pré-seleciona Consultores + Coordenadores por padrão
         const pre = new Set<number>()
-        gs.filter(g => g.key === 'consultor' || g.key === 'coordenador').forEach(g => g.users.forEach(u => pre.add(u.id)))
+        gs.filter(g => g.key === 'consultor_interno' || g.key === 'consultor_freelance' || g.key === 'coordenador').forEach(g => g.users.forEach(u => pre.add(u.id)))
         setSelected(pre)
       })
       .catch(() => toast.error('Erro ao carregar destinatários'))
