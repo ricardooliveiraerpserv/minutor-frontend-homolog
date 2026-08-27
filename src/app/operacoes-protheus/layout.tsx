@@ -14,6 +14,7 @@ import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
 import { OperacoesProvider, OperacoesEnvSelector } from './_components/operacoes-context'
+import { ProsightCompanyProvider, ProsightCompanySelect } from '@/app/prosight/_components/company-context'
 
 export default function OperacoesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ''
@@ -21,12 +22,20 @@ export default function OperacoesLayout({ children }: { children: ReactNode }) {
   // Preview dev-only: sem AppLayout (contorna o gate de auth p/ captura isolada).
   if (pathname.startsWith('/operacoes-protheus/preview')) return <>{children}</>
 
+  // C3 — a aba Ambientes escopa pela EMPRESA real (ProsightCompany), não pelo eixo
+  // 'jng' das telas operacionais. As demais telas de Operação seguem no seletor de
+  // AMBIENTE (Bloco B/fixture) até o Conector. Os dois providers coexistem (chave
+  // 'prosight_company' compartilhada com a casca do Prosight).
+  const isAmbientes = pathname.startsWith('/operacoes-protheus/ambientes')
+
   return (
     <AppLayout>
-      <OperacoesProvider>
-        <ProsightNav rightSlot={<OperacoesEnvSelector />} />
-        {children}
-      </OperacoesProvider>
+      <ProsightCompanyProvider>
+        <OperacoesProvider>
+          <ProsightNav rightSlot={isAmbientes ? <ProsightCompanySelect /> : <OperacoesEnvSelector />} />
+          {children}
+        </OperacoesProvider>
+      </ProsightCompanyProvider>
     </AppLayout>
   )
 }

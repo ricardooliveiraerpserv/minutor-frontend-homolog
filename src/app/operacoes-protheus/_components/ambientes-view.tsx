@@ -1,145 +1,93 @@
 'use client'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Operações Protheus · Ambientes (C2 — NOVA). Nível EMPRESA → AMBIENTES:
-// a empresa JNG tem N ambientes Protheus (Produção / Homologação /
-// Desenvolvimento). Lista cada ambiente com SÓ o que já existe nas fixtures/
-// contratos: situação/saúde, nº de AppServers (online/parado), RPO (versão +
-// última atualização), banco, versão e alertas. NÃO inventa KPI.
-// Clicar num ambiente torna-o ATIVO no contexto (OperacoesProvider) e navega
-// para AppServers — o novo ambiente reescopa TODAS as áreas operacionais.
-// 100% fixtures; nenhuma chamada live.
+// Prosight C3 · Ambientes — REGISTRO real do Cofre (Env*) por empresa.
+// Autoridade = ProsightCompanyContext.customer_id (não mais o hardcode 'jng').
+// Mostra SOMENTE o que existe no cadastro: nome, tipo, status CADASTRAL (manual,
+// não health), componentes, AppServers (version/build/patch), engine do banco,
+// links seguros. Health ao vivo / RPO pertencem ao Conector (Bloco B) → exibidos
+// explicitamente como "aguardando conexão", NUNCA inventados/inferidos.
+// Sem secrets/host/porta/URL (o backend já projeta allowlist). Empresa obrigatória.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import {
-  Activity, AlertTriangle, ChevronRight, Database, Layers, Lock, Package,
-  RefreshCw, Server, ServerCog, XCircle,
+  Boxes, Building2, Database, Layers, Link2, RefreshCw, Server, ServerCog, XCircle,
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
-import { getOperacoesDataSource, operacoesDataMode } from '@/lib/operacoes/datasource'
-import type { OperacoesEnvironment } from '@/lib/operacoes/types'
-import { useOperacoes } from './operacoes-context'
-import { computeHealth, type HealthSummary } from './sections'
-import { fmtDateTime } from './shared'
+import { apiMessage } from '@/lib/api'
+import { fetchProsightEnvironments, type SafeEnvironment } from '@/lib/prosight/environments'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
 
-const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
-  producao: 'Produção', homologacao: 'Homologação', desenvolvimento: 'Desenvolvimento',
+const TYPE_LABEL: Record<SafeEnvironment['type'], string> = {
+  prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery',
+}
+const COMPONENT_LABEL: Record<string, string> = {
+  protheus: 'Protheus', appserver: 'AppServer', dbaccess: 'DBAccess',
+  tss: 'TSS', fluig: 'Fluig', portal: 'Portal', powerbi: 'Power BI',
+}
+const ENGINE_LABEL: Record<string, string> = {
+  sqlserver: 'SQL Server', postgres: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL',
+}
+// status é CADASTRAL — nunca verde "Online" (não há heartbeat). Neutro para ativo/indefinido.
+const STATUS_VARIANT: Record<SafeEnvironment['status']['code'], string> = {
+  ativo: 'default', inativo: 'danger', manutencao: 'warning', indefinido: 'default',
 }
 
-interface EnvCardData {
-  env: OperacoesEnvironment
-  health: HealthSummary
-  rpoVersion: string
-  rpoUpdatedAt: string | null
-  database: string
-  alias: string
-  exclusive: boolean
-  alerts: string[]
-}
+export function AmbientesView() {
+  const company = useProsightCompany()
+  const companyId = company?.companyId ?? null
+  const companyName = company?.companyName ?? null
 
-export function AmbientesView({ previewEnvironmentId = null }: { previewEnvironmentId?: string | null }) {
-  const ds = getOperacoesDataSource()
-  const ctx = useOperacoes()
-  const router = useRouter()
-  const companyId = ctx?.companyId ?? 'jng'
-  const companyName = ctx?.companyName ?? 'JNG'
-  const activeEnvId = ctx?.environmentId ?? previewEnvironmentId ?? null
-
-  const [cards, setCards] = useState<EnvCardData[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [envs, setEnvs] = useState<SafeEnvironment[] | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (companyId == null) { setEnvs(null); return }
     setLoading(true); setError(null)
-    try {
-      const envs = await ds.getEnvironments(companyId)
-      const data = await Promise.all(envs.map(async (env) => {
-        const [svc, info, folder, exc] = await Promise.all([
-          ds.getServices(env.id),
-          ds.getSystemInfo(env.id),
-          ds.getFolderStatus(env.id),
-          ds.getExclusiveState(env.id),
-        ])
-        const health = computeHealth(svc)
-        const rpoUpdatedAt = info.rpoFiles
-          .map((f) => f.mtime)
-          .filter((m): m is string => !!m)
-          .sort((a, b) => b.localeCompare(a))[0] ?? null
-        const alerts: string[] = []
-        // Alertas derivam da saúde JÁ classificada (compilador on-demand não alarma;
-        // base derrubada em modo exclusivo não vira "parado"). O item de manutenção vem
-        // de exc.active (mais explícito) → não duplicar o reason info equivalente.
-        for (const r of health.reasons) {
-          if (r.severity === 'info' && r.text === 'Modo exclusivo ativo') continue
-          alerts.push(r.text)
-        }
-        if (exc.active) alerts.push('Modo exclusivo ativo')
-        if (folder.level === 'red') alerts.push('Pasta System crítica')
-        else if (folder.level === 'yellow') alerts.push('Pasta System em atenção')
-        return {
-          env, health, rpoVersion: info.rpoVersion, rpoUpdatedAt,
-          database: info.topDatabase, alias: info.topAlias, exclusive: exc.active, alerts,
-        }
-      }))
-      setCards(data)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao carregar os ambientes.'); setCards(null)
-    } finally { setLoading(false) }
-  }, [ds, companyId])
+    try { setEnvs(await fetchProsightEnvironments(companyId)) }
+    catch (e) { setError(apiMessage(e, 'Falha ao carregar os ambientes.')); setEnvs(null) }
+    finally { setLoading(false) }
+  }, [companyId])
 
   useEffect(() => { void load() }, [load])
-
-  const open = (env: OperacoesEnvironment) => {
-    ctx?.setEnvironmentId(env.id)
-    router.push('/operacoes-protheus/appservers')
-  }
 
   return (
     <>
       <PageHeader
         icon={Layers}
         title="Ambientes"
-        subtitle={`Empresa: ${companyName} — ambientes Protheus. Selecione um ambiente para operar.`}
-        actions={<Button variant="primary" icon={RefreshCw} onClick={() => void load()} disabled={loading}>Atualizar</Button>}
+        subtitle="Registro técnico dos ambientes Protheus da empresa (Cofre). Operação e health ao vivo entram com o Conector."
+        actions={<Button variant="primary" icon={RefreshCw} onClick={() => void load()} disabled={loading || companyId == null}>Atualizar</Button>}
       />
 
-      {operacoesDataMode() === 'fixture' && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
-          <ServerCog size={14} />
-          Dados de demonstração (fixtures) — Operações Protheus ainda não conectado à infraestrutura real.
-        </div>
-      )}
-
-      {loading ? (
+      {/* Empresa obrigatória — ambiente é contexto operacional; "Todas" não lista. */}
+      {companyId == null ? (
+        <Card><EmptyState icon={Building2} title="Selecione uma empresa"
+          description="A aba Ambientes exige uma empresa específica. Escolha a empresa no seletor acima para ver seus ambientes cadastrados." /></Card>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}
         </div>
       ) : error ? (
-        <Card>
-          <EmptyState icon={XCircle} title="Não foi possível carregar os ambientes" description={error}
-            action={<Button variant="primary" icon={RefreshCw} onClick={() => void load()}>Tentar novamente</Button>} />
-        </Card>
-      ) : (cards ?? []).length === 0 ? (
-        <Card><EmptyState icon={Layers} title="Nenhum ambiente" description="Esta empresa não possui ambientes Protheus cadastrados." /></Card>
+        <Card><EmptyState icon={XCircle} title="Não foi possível carregar os ambientes" description={error}
+          action={<Button variant="primary" icon={RefreshCw} onClick={() => void load()}>Tentar novamente</Button>} /></Card>
+      ) : (envs ?? []).length === 0 ? (
+        <Card><EmptyState icon={Layers} title="Nenhum ambiente cadastrado"
+          description={`${companyName ?? 'Esta empresa'} ainda não possui ambientes no Cofre. Cadastre pelo Cofre de Ambientes.`} /></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {(cards ?? []).map((c) => (
-            <EnvironmentCard key={c.env.id} data={c} active={c.env.id === activeEnvId} onOpen={() => open(c.env)} />
-          ))}
+          {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} />)}
         </div>
       )}
     </>
   )
 }
 
-function EnvironmentCard({ data, active, onOpen }: { data: EnvCardData; active: boolean; onOpen: () => void }) {
-  const { env, health } = data
+function EnvironmentCard({ env }: { env: SafeEnvironment }) {
   return (
-    <button onClick={onOpen}
-      className="text-left rounded-2xl p-5 transition-all hover:opacity-95 focus:outline-none"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', outline: active ? '2px solid var(--primary)' : 'none' }}>
+    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -147,60 +95,68 @@ function EnvironmentCard({ data, active, onOpen }: { data: EnvCardData; active: 
             <Server size={17} color="var(--primary)" />
           </div>
           <div className="min-w-0">
-            <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>{env.label}</div>
-            <div className="text-xs" style={{ color: 'var(--text-light)' }}>{KIND_LABEL[env.kind]}{active ? ' · ativo' : ''}</div>
+            <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>{env.name}</div>
+            <div className="text-xs" style={{ color: 'var(--text-light)' }}>{TYPE_LABEL[env.type] ?? env.type}</div>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 shrink-0">
-          <span className="w-2 h-2 rounded-full" style={{ background: health.color }} />
-          <Badge variant={health.variant}>{health.label}</Badge>
-        </span>
+        <Badge variant={STATUS_VARIANT[env.status.code] ?? 'default'}>{env.status.label}</Badge>
       </div>
 
-      {/* Métricas (só o que já existe nas fixtures) */}
-      <div className="grid grid-cols-2 gap-2.5 mb-4">
-        <Metric icon={Activity} label="AppServers online" value={`${health.running}/${health.total}`} color="var(--success)" />
-        <Metric icon={Server} label="Parados" value={String(health.stopped)} color={health.stopped ? 'var(--danger)' : 'var(--text)'} />
-        <Metric icon={Package} label="RPO" value={data.rpoVersion || '—'} mono />
-        <Metric icon={Database} label="Banco" value={data.database ? `${data.database}${data.alias ? ` · ${data.alias}` : ''}` : '—'} mono />
-      </div>
-
-      <div className="rounded-lg px-3 py-2 mb-4 text-xs" style={{ background: 'var(--surface-hover)' }}>
-        <span style={{ color: 'var(--text-light)' }}>RPO atualizado: </span>
-        <span className="font-mono" style={{ color: 'var(--text)' }}>{fmtDateTime(data.rpoUpdatedAt)}</span>
-      </div>
-
-      {/* Alertas */}
-      {data.alerts.length > 0 ? (
-        <div className="flex flex-col gap-1.5 mb-4">
-          {data.alerts.map((a) => (
-            <div key={a} className="flex items-center gap-1.5 text-xs" style={{ color: data.exclusive && a.includes('Exclusivo') ? 'var(--danger)' : 'var(--warning)' }}>
-              {data.exclusive && a.includes('Exclusivo') ? <Lock size={12} /> : <AlertTriangle size={12} />}
-              <span>{a}</span>
-            </div>
+      {/* Componentes cadastrados */}
+      {env.components.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {env.components.map((c) => (
+            <span key={c} className="rounded-full px-2.5 py-0.5 text-[11px]" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+              {COMPONENT_LABEL[c] ?? c}
+            </span>
           ))}
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5 text-xs mb-4" style={{ color: 'var(--success)' }}>
-          <Activity size={12} /> Sem alertas
         </div>
       )}
 
-      <div className="flex items-center justify-end gap-1 text-sm font-medium" style={{ color: 'var(--primary)' }}>
-        Operar ambiente <ChevronRight size={15} />
+      {/* AppServers cadastrados (version/build/patch) — sem "online" */}
+      <div className="rounded-lg px-3 py-2.5 mb-3" style={{ background: 'var(--surface-hover)' }}>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <ServerCog size={12} style={{ color: 'var(--text-light)' }} />
+          <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+            {env.appservers.length} AppServer{env.appservers.length === 1 ? '' : 's'} cadastrado{env.appservers.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        {env.appservers.length === 0 ? (
+          <div className="text-xs" style={{ color: 'var(--text-light)' }}>—</div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {env.appservers.map((a, i) => (
+              <div key={i} className="text-xs font-mono truncate" style={{ color: 'var(--text)' }}>
+                {a.name}{a.version ? ` · ${a.version}` : ''}{a.build ? ` · build ${a.build}` : ''}{a.patch ? ` · patch ${a.patch}` : ''}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </button>
-  )
-}
 
-function Metric({ icon: Icon, label, value, color, mono }: { icon: typeof Activity; label: string; value: string; color?: string; mono?: boolean }) {
-  return (
-    <div className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-hover)' }}>
-      <div className="flex items-center gap-1.5 mb-0.5">
-        <Icon size={12} style={{ color: 'var(--text-light)' }} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</span>
+      {/* Banco (só engine) + links seguros */}
+      <div className="grid grid-cols-2 gap-2.5 mb-3">
+        <div className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-hover)' }}>
+          <div className="flex items-center gap-1.5 mb-0.5"><Database size={12} style={{ color: 'var(--text-light)' }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Banco</span></div>
+          <div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+            {env.databases.length ? env.databases.map((d) => ENGINE_LABEL[d.engine] ?? d.engine).join(', ') : '—'}
+          </div>
+        </div>
+        <div className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-hover)' }}>
+          <div className="flex items-center gap-1.5 mb-0.5"><Link2 size={12} style={{ color: 'var(--text-light)' }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Links</span></div>
+          <div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+            {env.links.length ? env.links.map((l) => l.label).join(', ') : '—'}
+          </div>
+        </div>
       </div>
-      <div className={`text-sm font-semibold ${mono ? 'font-mono' : ''} truncate`} style={{ color: color ?? 'var(--text)' }}>{value}</div>
+
+      {/* Bloco B / Conector — health e RPO ao vivo NÃO existem em C3 (nunca inventados) */}
+      <div className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-1.5" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+        <Boxes size={12} className="mt-px shrink-0" />
+        <span>Health ao vivo e RPO: <b>aguardando conexão (Conector)</b>. Status é cadastral, não tempo real.</span>
+      </div>
     </div>
   )
 }

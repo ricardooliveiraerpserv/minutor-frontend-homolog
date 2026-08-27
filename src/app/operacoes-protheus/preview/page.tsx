@@ -37,7 +37,7 @@ function PreviewInner() {
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <div className="max-w-[1200px] mx-auto px-6 py-8">
         <OperacoesProvider forcedEnvironmentId={env}>
-          {view === 'ambientes' ? <AmbientesView previewEnvironmentId={env} />
+          {view === 'ambientes' ? <AmbientesView />
             : view === 'appservers' ? <AppServersView previewEnvironmentId={env} demoAdmin />
             : view === 'compilacao' ? <CompilacaoView previewEnvironmentId={env} demoAdmin />
             : view === 'patches' ? <PatchesView previewEnvironmentId={env} demoAdmin />
