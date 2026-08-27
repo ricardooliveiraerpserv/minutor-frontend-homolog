@@ -8,7 +8,7 @@ import { useParams } from 'next/navigation'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { ArrowLeft, Bell, Copy, Link2, Play, Square, UserPlus, Send } from 'lucide-react'
+import { ArrowLeft, Bell, Copy, Link2, Play, Square, UserPlus, Send, Eye } from 'lucide-react'
 
 interface Detail {
   id: number; type: string; title: string; description: string | null
@@ -17,7 +17,7 @@ interface Detail {
   invited: number; submitted: number; pending: number; response_rate: number
 }
 interface Invite {
-  id: number; name: string | null; email: string | null; status: string
+  id: number; respondent_id: number | null; name: string | null; email: string | null; status: string
   last_access_at: string | null; submitted_at: string | null
   reminder_count: number; last_reminder_at: string | null
 }
@@ -145,22 +145,33 @@ export default function AcompanhamentoPage() {
                     <th className="py-2 pr-3">Status</th>
                     <th className="py-2 pr-3">Último acesso</th>
                     <th className="py-2 pr-3">Conclusão</th>
-                    <th className="py-2 pr-3 text-right">Lembrete</th>
+                    <th className="py-2 pr-3 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invites.map(i => (
                     <tr key={i.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
                       <td className="py-2 pr-3">
-                        <div>{i.name ?? '—'}</div>
+                        {i.respondent_id ? (
+                          <Link href={`/competencias/profissionais/${i.respondent_id}?back=${encodeURIComponent(`/competencias/pesquisas/${id}`)}`}
+                            style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }} title="Ver competências">
+                            {i.name ?? '—'}
+                          </Link>
+                        ) : <div>{i.name ?? '—'}</div>}
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{i.email}</div>
                       </td>
                       <td className="py-2 pr-3"><span className={INVITE_STATUS[i.status]?.cls ?? 'ds-status'} style={{ fontSize: 10 }}>{INVITE_STATUS[i.status]?.label ?? i.status}</span></td>
                       <td className="py-2 pr-3" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmt(i.last_access_at)}</td>
                       <td className="py-2 pr-3" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{fmt(i.submitted_at)}</td>
-                      <td className="py-2 pr-3 text-right">
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">
+                        {i.respondent_id && (
+                          <Link href={`/competencias/profissionais/${i.respondent_id}?back=${encodeURIComponent(`/competencias/pesquisas/${id}`)}`}
+                            className="ds-btn-secondary inline-flex items-center gap-1" style={{ fontSize: 12, textDecoration: 'none' }}>
+                            <Eye size={12} /> Ver competências
+                          </Link>
+                        )}
                         {i.status !== 'submitted' && (
-                          <button className="ds-btn-secondary inline-flex items-center gap-1" style={{ fontSize: 12 }} onClick={() => remind(i.id)}>
+                          <button className="ds-btn-secondary inline-flex items-center gap-1" style={{ fontSize: 12, marginLeft: i.respondent_id ? 6 : 0 }} onClick={() => remind(i.id)}>
                             <Bell size={12} /> {i.reminder_count > 0 ? `Lembrar (${i.reminder_count})` : 'Lembrar'}
                           </button>
                         )}

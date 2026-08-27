@@ -49,6 +49,13 @@ export default function PerfilProfissionalPage() {
   const [p, setP] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Voltar contextual: se veio de uma pesquisa (?back=...), o Voltar retorna pra lá.
+  const [backHref, setBackHref] = useState('/competencias/dashboard')
+  const [backLabel, setBackLabel] = useState('Voltar ao Dashboard')
+  useEffect(() => {
+    const b = new URLSearchParams(window.location.search).get('back')
+    if (b && b.startsWith('/')) { setBackHref(b); setBackLabel('Voltar') }
+  }, [])
   const [category, setCategory] = useState('')
   const [levelWeights, setLevelWeights] = useState<string[]>([])
   const [diff, setDiff] = useState<DiffResponse | null>(null)
@@ -114,7 +121,7 @@ export default function PerfilProfissionalPage() {
   if (error || !p) return (
     <AppLayout title="Perfil">
       <div className="space-y-3">
-        <Link href="/competencias/dashboard" className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--primary)' }}><ArrowLeft size={14} /> Voltar ao Dashboard</Link>
+        <Link href={backHref} className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--primary)' }}><ArrowLeft size={14} /> {backLabel}</Link>
         <div className="ds-card ds-card-pad ds-card-highlight-danger flex items-center gap-2">
           <AlertTriangle size={18} style={{ color: 'var(--danger)' }} />
           <p className="text-sm" style={{ color: 'var(--text)' }}>{error ?? 'Profissional não encontrado.'}</p>
@@ -127,7 +134,7 @@ export default function PerfilProfissionalPage() {
   return (
     <AppLayout title={r.name}>
       <div className="space-y-4">
-        <Link href="/competencias/dashboard" className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--primary)' }}><ArrowLeft size={14} /> Voltar ao Dashboard</Link>
+        <Link href={backHref} className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--primary)' }}><ArrowLeft size={14} /> {backLabel}</Link>
 
         {/* Cabeçalho */}
         <div className={`ds-card ds-card-pad${r.blacklist ? ' ds-card-highlight-danger' : ''}`}>
