@@ -291,7 +291,7 @@ function EditSurveyModal({ survey, onClose, onDone }: { survey: SurveyCard; onCl
 
 /** Gerencia participantes de uma campanha interna: lista atuais (remove) + adiciona por grupo. */
 function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard; onClose: () => void; onChanged: () => void }) {
-  interface Inv { id: number; name: string | null; email: string | null; status: string; disabled?: boolean }
+  interface Inv { id: number; name: string | null; email: string | null; status: string; disabled?: boolean; user_inactive?: boolean }
   const [invites, setInvites] = useState<Inv[]>([])
   const [groups, setGroups] = useState<TargetGroup[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -327,11 +327,17 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
     invites.forEach(i => { if (i.email && i.disabled) s.add(i.email.toLowerCase()) })
     return s
   }, [invites])
-  // Estado do e-mail: 'none' (não participa) | 'active' (participa) | 'disabled' (desabilitado)
-  const partState = (email: string | null): 'none' | 'active' | 'disabled' => {
+  const emailInactive = useMemo(() => {
+    const s = new Set<string>()
+    invites.forEach(i => { if (i.email && i.user_inactive) s.add(i.email.toLowerCase()) })
+    return s
+  }, [invites])
+  // Estado: 'none' | 'active' (participa) | 'disabled' (desabilitado na campanha) | 'inactive' (usuário desativado no cadastro)
+  const partState = (email: string | null): 'none' | 'active' | 'disabled' | 'inactive' => {
     if (!email) return 'none'
     const e = email.toLowerCase()
     if (!emailToInvite.has(e)) return 'none'
+    if (emailInactive.has(e)) return 'inactive'
     return emailDisabled.has(e) ? 'disabled' : 'active'
   }
 
@@ -452,6 +458,7 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
                               <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{u.email}</span>
                               {st === 'active' && <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>}
                               {st === 'disabled' && <span className="ds-status" style={{ fontSize: 10 }}>Desabilitado</span>}
+                              {st === 'inactive' && <span className="ds-status-danger" style={{ fontSize: 10 }}>Inativo</span>}
                             </label>
                           )
                         })}
