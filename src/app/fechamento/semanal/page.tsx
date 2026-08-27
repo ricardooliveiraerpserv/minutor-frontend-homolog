@@ -12,7 +12,7 @@ interface BlockSettings { timesheet_retroactive_limit_days?: number | null; fech
 
 interface WeekRow { n: number; week_start: string; week_end: string; deadline: string; status: string; reopen_auto_close_at: string | null }
 interface MonthGroup { ym: string; label: string; status: string; deadline: string; reopen_auto_close_at: string | null; weeks: WeekRow[] }
-interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; auto_close_at: string | null }
+interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; customer_id?: number | null; customer?: string | null; all_projects?: boolean; projects_count?: number; user_id: number | null; user: string | null; auto_close_at: string | null }
 interface ScopedClosure { id: number; period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; closed_by: number | null; closed_by_name: string | null; closed_at: string | null }
 interface LogRow { id: number; event: string; period_kind: string; period_key: string; project: string | null; user: string | null; occurred_at: string; note: string | null }
 interface Opt { id: number; name: string }
@@ -219,9 +219,9 @@ export default function FechamentoSemanalPage() {
               <div className="flex flex-wrap gap-2">
                 {activeReopens.map((p, i) => (
                   <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
-                    <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.project ?? 'global'}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}</span>
-                    <button title="Encerrar esta reabertura agora" disabled={busy === `ar${i}`}
-                      onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.project_id ? { project_id: p.project_id } : {}), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
+                    <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.all_projects ? `${p.customer ?? 'Cliente'} · projetos = todos` : (p.project ? `${p.customer ? p.customer + ' · ' : ''}${p.project}` : 'global')}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}</span>
+                    <button title={p.all_projects ? 'Encerrar a reabertura de TODOS os projetos deste cliente' : 'Encerrar esta reabertura agora'} disabled={busy === `ar${i}`}
+                      onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.all_projects && p.customer_id ? { customer_id: p.customer_id } : (p.project_id ? { project_id: p.project_id } : {})), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
                       style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
                       <Lock size={10} /> Encerrar
