@@ -6,10 +6,10 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ApiError } from '@/lib/api'
-import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField } from '@/lib/client-kanban'
+import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport } from '@/lib/client-kanban'
 import { KanbanCardModal } from '@/components/kanban/kanban-card-modal'
 import { KanbanFieldsManager } from '@/components/kanban/kanban-fields-manager'
 
@@ -28,6 +28,8 @@ export default function ClientKanbanBoardPage() {
   const [newCardTitle, setNewCardTitle] = useState('')
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [fieldsOpen, setFieldsOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   // Fase 3: view lista/kanban, busca e filtros
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [search, setSearch] = useState('')
@@ -146,6 +148,8 @@ export default function ClientKanbanBoardPage() {
             <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{board?.name ?? '…'}</h1>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setReportOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><BarChart3 size={14} /> Relatório</button>
+            <button onClick={() => setMembersOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Users size={14} /> Membros</button>
             <button onClick={() => setFieldsOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><SlidersHorizontal size={14} /> Campos</button>
             <button onClick={() => setLabelsOpen(true)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Tag size={14} /> Etiquetas</button>
             <button onClick={() => setAddingColumn(true)} className="ds-btn-secondary" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Nova coluna</button>
@@ -253,6 +257,12 @@ export default function ClientKanbanBoardPage() {
       {fieldsOpen && board && (
         <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
+      {membersOpen && board && (
+        <BoardMembersManager boardId={boardId} users={users} onClose={() => setMembersOpen(false)} />
+      )}
+      {reportOpen && board && (
+        <ReportModal boardId={boardId} onClose={() => setReportOpen(false)} />
+      )}
     </AppLayout>
   )
 }
@@ -359,6 +369,96 @@ function LabelsManager({ boardId, labels, onClose, onChanged }: { boardId: numbe
   )
 }
 
+function BoardMembersManager({ boardId, users, onClose }: { boardId: number; users: KUserRef[]; onClose: () => void }) {
+  const [sel, setSel] = useState<number[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => { kanbanApi.boardMembers(boardId).then(r => setSel(r.user_ids ?? [])).catch(() => {}).finally(() => setLoading(false)) }, [boardId])
+  function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
+  async function save() {
+    setSaving(true)
+    try { await kanbanApi.setBoardMembers(boardId, sel); toast.success('Acesso atualizado'); onClose() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') } finally { setSaving(false) }
+  }
+  return (
+    <div onClick={onClose} style={mOverlay}>
+      <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 440 }}>
+        <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
+        <div style={{ padding: 18, overflowY: 'auto' }}>
+          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Selecione quem pode ver e usar este quadro. <b>Sem ninguém marcado, todos os usuários da sua empresa têm acesso.</b></p>
+          {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {users.map(u => (
+                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', padding: '4px 0' }}>
+                  <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} /> {u.name}
+                </label>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+            <button onClick={onClose} className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }}>Cancelar</button>
+            <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>{saving ? 'Salvando…' : 'Salvar acesso'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ReportModal({ boardId, onClose }: { boardId: number; onClose: () => void }) {
+  const [rep, setRep] = useState<KReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => { kanbanApi.report(boardId).then(setRep).catch(() => toast.error('Erro ao carregar relatório')).finally(() => setLoading(false)) }, [boardId])
+  const colName = new Map((rep?.by_column ?? []).map(c => [c.column_id, c.name]))
+  return (
+    <div onClick={onClose} style={mOverlay}>
+      <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 560 }}>
+        <div style={mHead}><h3 style={mTitle}>Relatório do quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
+        <div style={{ padding: 18, overflowY: 'auto' }}>
+          {loading || !rep ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                <Kpi label="Cards" value={rep.totals.cards} />
+                <Kpi label="Em aberto" value={rep.totals.open} />
+                <Kpi label="Concluídos" value={rep.totals.done} tone="var(--success)" />
+                <Kpi label="Atrasados" value={rep.totals.overdue} tone={rep.totals.overdue ? 'var(--danger)' : undefined} />
+              </div>
+              <RepSection title="Cards por coluna">
+                {rep.by_column.map(c => (
+                  <div key={c.column_id} style={repRow}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: c.color ?? 'var(--text-light)' }} />{c.name}</span><b>{c.count}</b></div>
+                ))}
+              </RepSection>
+              <RepSection title="Por responsável">
+                {rep.by_responsible.length === 0 ? <span style={repEmpty}>—</span> : rep.by_responsible.map(r => (
+                  <div key={r.user_id} style={repRow}><span>{r.name}</span><b>{r.count}</b></div>
+                ))}
+              </RepSection>
+              <RepSection title="Tempo médio por coluna">
+                {rep.avg_days_per_column.length === 0 ? <span style={repEmpty}>Sem movimentações suficientes ainda.</span> : rep.avg_days_per_column.map(a => (
+                  <div key={a.column_id} style={repRow}><span>{colName.get(a.column_id) ?? `Coluna ${a.column_id}`}</span><b>{a.avg_days} {a.avg_days === 1 ? 'dia' : 'dias'}</b></div>
+                ))}
+              </RepSection>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+function Kpi({ label, value, tone }: { label: string; value: number; tone?: string }) {
+  return <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', textAlign: 'center' }}><div style={{ fontSize: 20, fontWeight: 700, color: tone ?? 'var(--text)' }}>{value}</div><div style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.03em' }}>{label}</div></div>
+}
+function RepSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div><div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 8 }}>{title}</div><div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</div></div>
+}
+
+const mOverlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }
+const mBox: React.CSSProperties = { width: '100%', maxHeight: '88vh', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+const mHead: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border)' }
+const mTitle: React.CSSProperties = { fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--text)' }
+const mX: React.CSSProperties = { background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }
+const repRow: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text)', padding: '4px 0', borderBottom: '1px solid var(--border)' }
+const repEmpty: React.CSSProperties = { fontSize: 12.5, color: 'var(--text-muted)' }
 const fmtDDMM = (s: string) => { const [, m, d] = s.slice(0, 10).split('-'); return `${d}/${m}` }
 function fmtFieldValue(f: KField, raw: string | null | undefined): string {
   if (raw == null || raw === '') return ''

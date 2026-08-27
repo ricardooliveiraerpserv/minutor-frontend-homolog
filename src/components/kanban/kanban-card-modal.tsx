@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { X, Trash2, Paperclip, Download, Plus, Check, Square, CheckSquare, Send } from 'lucide-react'
 import { ApiError } from '@/lib/api'
-import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef, type KField } from '@/lib/client-kanban'
+import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef, type KField, type KCardEvent } from '@/lib/client-kanban'
 import { uploadAttachment, downloadAttachment, deleteAttachment } from '@/lib/attachments'
 import { SearchSelect } from '@/components/ui/search-select'
 
@@ -33,7 +33,9 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
   const [dueDate, setDueDate] = useState('')
   const [priority, setPriority] = useState('')
   const [labelIds, setLabelIds] = useState<number[]>([])
+  const [memberIds, setMemberIds] = useState<number[]>([])
   const [fieldVals, setFieldVals] = useState<Record<string, string | string[]>>({})
+  const [history, setHistory] = useState<KCardEvent[]>([])
 
   function hydrate(c: KCardFull) {
     setCard(c)
@@ -44,6 +46,7 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
     setDueDate(c.due_date ?? '')
     setPriority(c.priority ?? '')
     setLabelIds(c.labels.map(l => l.id))
+    setMemberIds((c.members ?? []).map(m => m.id))
     // Hidrata os valores dos campos configuráveis (multiselect vem como JSON).
     const fv: Record<string, string | string[]> = {}
     for (const f of fields) {
@@ -57,8 +60,9 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
     setFieldVals(fv)
   }
 
-  function reload() { kanbanApi.card(cardId).then(hydrate).catch(() => {}) }
-  useEffect(() => { kanbanApi.card(cardId).then(hydrate).catch(() => toast.error('Erro ao abrir o card')) }, [cardId])
+  function loadHistory() { kanbanApi.cardHistory(cardId).then(r => setHistory(r.items ?? [])).catch(() => {}) }
+  function reload() { kanbanApi.card(cardId).then(hydrate).catch(() => {}); loadHistory() }
+  useEffect(() => { kanbanApi.card(cardId).then(hydrate).catch(() => toast.error('Erro ao abrir o card')); loadHistory() }, [cardId])
 
   async function save() {
     if (!title.trim()) { toast.error('Título é obrigatório.'); return }
@@ -79,6 +83,7 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
         due_date: dueDate || null,
         priority: priority || null,
         label_ids: labelIds,
+        member_ids: memberIds,
         field_values: fieldVals,
       })
       onSaved()
@@ -173,6 +178,21 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
               </Field>
             )}
 
+            <Field label="Participantes">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                {memberIds.map(id => {
+                  const u = users.find(x => x.id === id)
+                  return (
+                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'var(--field)', border: '1px solid var(--border)', borderRadius: 20, padding: '3px 8px 3px 10px' }}>
+                      {u?.name ?? `#${id}`}
+                      <button type="button" onClick={() => setMemberIds(prev => prev.filter(x => x !== id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'inline-flex' }}><X size={12} /></button>
+                    </span>
+                  )
+                })}
+                <SearchSelect value="" onChange={v => { const id = Number(v); if (id && !memberIds.includes(id)) setMemberIds(prev => [...prev, id]) }} options={users.filter(u => !memberIds.includes(u.id))} placeholder="+ adicionar" />
+              </div>
+            </Field>
+
             <Field label="Descrição">
               <textarea className="ds-input" value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder="Detalhes do card…" style={{ width: '100%', padding: 10, resize: 'vertical', fontFamily: 'inherit' }} />
             </Field>
@@ -251,6 +271,20 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
                 ))}
               </div>
             </Section>
+
+            {/* Histórico (auditoria) */}
+            <Section title="Histórico">
+              {history.length === 0 ? <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sem movimentações registradas.</span> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {history.map(e => (
+                    <div key={e.id} style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 6 }}>
+                      <span style={{ color: 'var(--text-light)', flexShrink: 0 }}>{fmtWhen(e.at)}</span>
+                      <span><b style={{ color: 'var(--text)', fontWeight: 600 }}>{e.user?.name ?? 'Alguém'}</b> {eventText(e)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
           </div>
         )}
       </div>
@@ -312,6 +346,17 @@ function renderFieldInput(f: KField, value: string | string[] | undefined, onCha
       return <SearchSelect fullWidth value={s} onChange={v => onChange(v)} options={users} placeholder="—" />
     default:
       return <input className="ds-input" value={s} onChange={e => onChange(e.target.value)} style={inputStyle} />
+  }
+}
+
+function eventText(e: KCardEvent): string {
+  switch (e.type) {
+    case 'created': return 'criou o card'
+    case 'moved': return 'moveu o card entre colunas'
+    case 'updated': return 'editou o card'
+    case 'comment': return 'comentou'
+    case 'deleted': return 'excluiu o card'
+    default: return e.type
   }
 }
 

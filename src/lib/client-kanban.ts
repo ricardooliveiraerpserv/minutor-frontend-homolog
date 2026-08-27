@@ -75,9 +75,27 @@ export interface KAttachment { id: number; name: string; mime?: string | null }
 
 export interface KCardFull extends KCardSummary {
   description?: string | null
+  members: KUserRef[]
   checklist: KChecklistItem[]
   comments: KComment[]
   attachments: KAttachment[]
+}
+
+export interface KCardEvent {
+  id: number
+  type: 'created' | 'moved' | 'updated' | 'comment' | 'deleted' | string
+  card_title?: string | null
+  from_column_id?: number | null
+  to_column_id?: number | null
+  at?: string | null
+  user?: KUserRef | null
+}
+
+export interface KReport {
+  totals: { cards: number; done: number; overdue: number; open: number }
+  by_column: { column_id: number; name: string; color?: string | null; count: number }[]
+  by_responsible: { user_id: number; name: string; count: number }[]
+  avg_days_per_column: { column_id: number; avg_days: number }[]
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────
@@ -117,6 +135,11 @@ export const kanbanApi = {
   deleteComment: (id: number) => api.delete(`${base}/comments/${id}`),
 
   assignableUsers: () => api.get<{ items: KUserRef[] }>(`${base}/assignable-users`),
+
+  cardHistory: (id: number) => api.get<{ items: KCardEvent[] }>(`${base}/cards/${id}/history`),
+  boardMembers: (boardId: number) => api.get<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`),
+  setBoardMembers: (boardId: number, userIds: number[]) => api.put<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`, { user_ids: userIds }),
+  report: (boardId: number) => api.get<KReport>(`${base}/boards/${boardId}/report`),
 }
 
 export const PRIORITY_META: Record<string, { label: string; color: string }> = {
