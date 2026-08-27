@@ -76,6 +76,13 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
 
   useEffect(() => { void load() }, [load])
 
+  // Refresh SÓ do inventário observado (sem togg*/loading → NÃO desmonta o ConfigDetail). Usado após
+  // uma coleta concluída, p/ o estado observado atualizar SEM apagar o chip de status do botão.
+  const refreshObserved = useCallback(async () => {
+    if (environmentId == null) return
+    try { setObserved(await fetchEnvironmentObserved(environmentId)) } catch { /* mantém o anterior */ }
+  }, [environmentId])
+
   const needSelection = companyId == null || environmentId == null
 
   return (
@@ -100,7 +107,7 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
           description="O ambiente selecionado não está disponível para esta empresa. Selecione um ambiente em Ambientes." /></Card>
       ) : (
         <ConfigDetail config={config} presence={presence} observed={observed} companyName={companyName}
-          environmentId={environmentId} onRefreshObserved={load} />
+          environmentId={environmentId} onRefreshObserved={refreshObserved} />
       )}
     </>
   )
