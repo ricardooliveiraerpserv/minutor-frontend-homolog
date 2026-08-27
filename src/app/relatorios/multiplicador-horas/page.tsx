@@ -16,9 +16,21 @@ interface Rule {
   created_by: string | null; created_at: string | null
 }
 interface Opt { id: string | number; name: string }
+// Faixa editável no modal: multiplicador (×) + período. Fim vazio quando "sem fim".
+interface Faixa { id?: number; factor: string; start: string; noEnd: boolean; end: string; reason: string }
 
 const fmtDate = (d: string | null) => (d ? d.split('-').reverse().join('/') : null)
 const today = () => new Date().toISOString().slice(0, 10)
+const emptyFaixa = (): Faixa => ({ factor: '', start: today(), noEnd: true, end: '', reason: '' })
+const ruleToFaixa = (r: Rule): Faixa => ({
+  id: r.id, factor: String(r.factor).replace('.', ','),
+  start: r.start_date ?? today(), noEnd: !r.end_date, end: r.end_date ?? '', reason: r.reason ?? '',
+})
+const parseFactor = (v: string) => Number(String(v).replace(',', '.'))
+const previewFor = (v: string) => {
+  const f = parseFactor(v)
+  return f > 1 ? (10 * f).toFixed(2).replace(/\.?0+$/, '').replace('.', ',') : null
+}
 
 export default function MultiplicadorHorasPage() {
   const [rules, setRules] = useState<Rule[]>([])
@@ -26,15 +38,13 @@ export default function MultiplicadorHorasPage() {
   const [customers, setCustomers] = useState<Opt[]>([])
 
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Rule | null>(null)
+  // Contrato em edição (null = criação, com seletor de cliente/contrato).
+  const [editingContract, setEditingContract] = useState<{ id: number; label: string; customer_name: string | null } | null>(null)
   const [fCustomer, setFCustomer] = useState('')
   const [fContract, setFContract] = useState('')
   const [contractOpts, setContractOpts] = useState<Opt[]>([])
-  const [fFactor, setFFactor] = useState('')
-  const [fStart, setFStart] = useState('')
-  const [fNoEnd, setFNoEnd] = useState(true)
-  const [fEnd, setFEnd] = useState('')
-  const [fReason, setFReason] = useState('')
+  const [faixas, setFaixas] = useState<Faixa[]>([emptyFaixa()])
+  const [loadingFaixas, setLoadingFaixas] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
@@ -57,50 +67,100 @@ export default function MultiplicadorHorasPage() {
 
   // Contratos do cliente selecionado (modo criação).
   useEffect(() => {
-    if (!fCustomer || editing) return
+    if (!fCustomer || editingContract) return
     setFContract('')
     api.get<{ items: { id: number; label: string }[] }>(`/contract-hour-multipliers/contracts?customer_id=${fCustomer}`)
       .then(r => setContractOpts((r.items ?? []).map(c => ({ id: c.id, name: c.label }))))
       .catch(() => setContractOpts([]))
-  }, [fCustomer, editing])
+  }, [fCustomer, editingContract])
+
+  // Ao escolher um contrato (criação), carrega as faixas ativas que ele já tenha —
+  // o sync substitui o conjunto ativo, então precisamos partir do que existe.
+  const loadFaixasOf = useCallback(async (contractId: number) => {
+    setLoadingFaixas(true)
+    try {
+      const r = await api.get<{ items: Rule[] }>(`/contract-hour-multipliers/faixas?contract_id=${contractId}`)
+      const items = r.items ?? []
+      setFaixas(items.length ? items.map(ruleToFaixa) : [emptyFaixa()])
+    } catch { setFaixas([emptyFaixa()]) }
+    finally { setLoadingFaixas(false) }
+  }, [])
+
+  useEffect(() => {
+    if (!fContract || editingContract) return
+    loadFaixasOf(Number(fContract))
+  }, [fContract, editingContract, loadFaixasOf])
 
   function openNew() {
-    setEditing(null); setFCustomer(''); setFContract(''); setContractOpts([])
-    setFFactor(''); setFStart(today()); setFNoEnd(true); setFEnd(''); setFReason('')
-    setOpen(true)
+    setEditingContract(null); setFCustomer(''); setFContract(''); setContractOpts([])
+    setFaixas([emptyFaixa()]); setOpen(true)
   }
   function openEdit(r: Rule) {
-    setEditing(r); setFCustomer(String(r.customer_id)); setFContract(String(r.contract_id))
+    setEditingContract({ id: r.contract_id, label: r.contract_label, customer_name: r.customer_name })
+    setFCustomer(String(r.customer_id)); setFContract(String(r.contract_id))
     setContractOpts([{ id: r.contract_id, name: r.contract_label }])
-    setFFactor(String(r.factor)); setFStart(r.start_date ?? today()); setFNoEnd(!r.end_date); setFEnd(r.end_date ?? ''); setFReason(r.reason ?? '')
-    setOpen(true)
+    setFaixas([]); setOpen(true)
+    loadFaixasOf(r.contract_id)
+  }
+
+  const setFaixa = (i: number, patch: Partial<Faixa>) =>
+    setFaixas(prev => prev.map((f, idx) => idx === i ? { ...f, ...patch } : f))
+  const addFaixa = () => setFaixas(prev => [...prev, emptyFaixa()])
+  const removeFaixa = (i: number) => setFaixas(prev => prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i))
+
+  // Retorna a mensagem do 1º problema (validação + sobreposição de datas), ou null se OK.
+  function validate(): string | null {
+    for (let i = 0; i < faixas.length; i++) {
+      const f = faixas[i]
+      const factor = parseFactor(f.factor)
+      const n = i + 1
+      if (!Number.isFinite(factor) || factor <= 1) return `Faixa ${n}: informe um multiplicador maior que 1 (ex.: 1,5, 2, 3).`
+      if (!f.start) return `Faixa ${n}: informe a data de início.`
+      if (!f.noEnd && !f.end) return `Faixa ${n}: informe a data de fim ou marque "sem fim".`
+      if (!f.noEnd && f.end < f.start) return `Faixa ${n}: a data de fim não pode ser antes do início.`
+    }
+    // Sobreposição: fim vazio ("sem fim") = infinito.
+    const INF = '9999-12-31'
+    const ranges = faixas.map(f => ({ s: f.start, e: f.noEnd ? INF : f.end }))
+    for (let a = 0; a < ranges.length; a++) {
+      for (let b = a + 1; b < ranges.length; b++) {
+        if (ranges[a].s <= ranges[b].e && ranges[b].s <= ranges[a].e) {
+          return `As faixas ${a + 1} e ${b + 1} têm datas que se sobrepõem. Ajuste os períodos (uma faixa por período).`
+        }
+      }
+    }
+    return null
   }
 
   async function save() {
-    const factor = Number(String(fFactor).replace(',', '.'))
-    // Internamente guardamos como % de acréscimo: fator 1,5 → percent 50. Todo o SQL usa (1 + percent/100) = fator.
-    const percent = Math.round((factor - 1) * 100 * 100) / 100
-    if (!editing && !fContract) return toast.error('Selecione o contrato')
-    if (!Number.isFinite(factor) || factor <= 1) return toast.error('Informe um multiplicador maior que 1 (ex.: 1,5, 2, 3)')
-    if (!fStart) return toast.error('Informe a data de início')
-    if (!fNoEnd && !fEnd) return toast.error('Informe a vigência (fim) ou marque "sem fim"')
-    const payload: Record<string, unknown> = {
-      percent, start_date: fStart, end_date: fNoEnd ? null : fEnd,
-      reason: fReason.trim() || null, active: true,
+    const contractId = editingContract ? editingContract.id : Number(fContract)
+    if (!contractId) return toast.error('Selecione o contrato')
+    const err = validate()
+    if (err) return toast.error(err)
+
+    const payload = {
+      contract_id: contractId,
+      faixas: faixas.map(f => ({
+        id: f.id,
+        // Guardamos como % de acréscimo: fator 1,5 → percent 50. Todo o SQL usa (1 + percent/100).
+        percent: Math.round((parseFactor(f.factor) - 1) * 100 * 100) / 100,
+        start_date: f.start,
+        end_date: f.noEnd ? null : f.end,
+        reason: f.reason.trim() || null,
+      })),
     }
     setSaving(true)
     try {
-      if (editing) await api.put(`/contract-hour-multipliers/${editing.id}`, payload)
-      else await api.post('/contract-hour-multipliers', { ...payload, contract_id: Number(fContract) })
-      toast.success(editing ? 'Regra atualizada' : 'Regra criada')
+      await api.post('/contract-hour-multipliers/sync', payload)
+      toast.success('Faixas salvas')
       setOpen(false); load()
     } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar')) }
     finally { setSaving(false) }
   }
 
   async function remove(r: Rule) {
-    if (!window.confirm(`Remover a regra de ${r.customer_name ?? 'cliente'} — ${r.contract_label}?`)) return
-    try { await api.delete(`/contract-hour-multipliers/${r.id}`); toast.success('Regra removida'); load() }
+    if (!window.confirm(`Remover esta faixa (×${r.factor.toFixed(2).replace('.', ',')}) de ${r.customer_name ?? 'cliente'} — ${r.contract_label}?`)) return
+    try { await api.delete(`/contract-hour-multipliers/${r.id}`); toast.success('Faixa removida'); load() }
     catch (e) { toast.error(apiMessage(e, 'Erro ao remover')) }
   }
 
@@ -111,14 +171,10 @@ export default function MultiplicadorHorasPage() {
         percent: r.percent, start_date: r.start_date, end_date: r.end_date,
         reason: r.reason, active: !r.active,
       })
-      toast.success(r.active ? 'Regra desativada' : 'Regra ativada')
-      if (editing?.id === r.id) setOpen(false)
+      toast.success(r.active ? 'Faixa desativada' : 'Faixa ativada')
       load()
     } catch (e) { toast.error(apiMessage(e, 'Erro ao alterar status')) }
   }
-
-  const factorNum = Number(String(fFactor).replace(',', '.'))
-  const previewHours = factorNum > 1 ? (10 * factorNum).toFixed(2).replace(/\.?0+$/, '').replace('.', ',') : null
 
   return (
     <AppLayout title="Multiplicador de Horas">
@@ -129,13 +185,13 @@ export default function MultiplicadorHorasPage() {
           <p className="text-sm" style={{ color: 'var(--text-muted)', margin: 0 }}>
             Aplica um <strong style={{ color: 'var(--text)' }}>multiplicador</strong> nas horas apontadas de um contrato,
             <strong style={{ color: 'var(--text)' }}> só do lado do cliente</strong> (fechamentos do cliente/contrato, faturamento e receita da rentabilidade).
-            Ex.: ×1,5 → cada 10h vira 15h; ×2 → 10h vira 20h; ×3 → 30h. <strong style={{ color: 'var(--text)' }}>Nunca</strong> afeta o consultor/parceiro
-            (apontamento, fechamento, pagamento) — as horas a mais têm custo zero. O cliente vê o total já multiplicado, sem o fator.
+            Um contrato pode ter <strong style={{ color: 'var(--text)' }}>várias faixas</strong> (períodos com alíquotas diferentes) — a multiplicação só ocorre nos apontamentos <strong style={{ color: 'var(--text)' }}>dentro do período</strong> de cada faixa; datas sem faixa ficam no real.
+            <strong style={{ color: 'var(--text)' }}> Nunca</strong> afeta o consultor/parceiro (apontamento, fechamento, pagamento) — as horas a mais têm custo zero.
           </p>
         </div>
 
         <div className="flex items-center justify-between">
-          <h3 className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>Regras cadastradas <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{rules.length}</span></h3>
+          <h3 className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>Faixas cadastradas <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{rules.length}</span></h3>
           <button onClick={openNew} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Plus size={14} /> Nova regra</button>
         </div>
 
@@ -171,7 +227,7 @@ export default function MultiplicadorHorasPage() {
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button onClick={() => toggleActive(r)} title={r.active ? 'Desativar' : 'Ativar'} className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: r.active ? 'var(--warning)' : 'var(--success)' }}>{r.active ? <Ban size={14} /> : <CheckCircle size={14} />}</button>
-                        <button onClick={() => openEdit(r)} title="Editar" className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
+                        <button onClick={() => openEdit(r)} title="Editar faixas do contrato" className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
                         <button onClick={() => remove(r)} title="Remover" className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
                       </td>
                     </tr>
@@ -184,58 +240,70 @@ export default function MultiplicadorHorasPage() {
       </div>
 
       {open && (
-        <Modal open onClose={() => setOpen(false)} size="md">
-          <ModalHeader title={editing ? 'Editar regra' : 'Nova regra de multiplicação'} subtitle="Multiplicador de horas faturáveis ao cliente, por contrato" icon={Percent} onClose={() => setOpen(false)} />
+        <Modal open onClose={() => setOpen(false)} size="lg">
+          <ModalHeader title={editingContract ? 'Editar faixas do contrato' : 'Nova regra de multiplicação'} subtitle="Multiplicador de horas faturáveis ao cliente, por contrato" icon={Percent} onClose={() => setOpen(false)} />
           <ModalBody className="space-y-3">
             <div>
               <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Cliente</div>
-              <SearchSelect value={fCustomer} onChange={setFCustomer} options={customers} placeholder="Selecione o cliente" fullWidth disabled={!!editing} />
+              <SearchSelect value={fCustomer} onChange={setFCustomer} options={customers} placeholder="Selecione o cliente" fullWidth disabled={!!editingContract} />
             </div>
             <div>
               <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Contrato afetado</div>
-              <SearchSelect value={fContract} onChange={setFContract} options={contractOpts} placeholder={fCustomer ? 'Selecione o contrato' : 'Escolha o cliente primeiro'} fullWidth disabled={!!editing || !fCustomer} />
-              {editing && <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>O contrato não muda na edição — crie uma nova regra para outro contrato.</div>}
+              <SearchSelect value={fContract} onChange={setFContract} options={contractOpts} placeholder={fCustomer ? 'Selecione o contrato' : 'Escolha o cliente primeiro'} fullWidth disabled={!!editingContract || !fCustomer} />
+              {editingContract && <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>O contrato não muda na edição — crie uma nova regra para outro contrato.</div>}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Multiplicador (×)</div>
-                <input className="ds-input" type="number" min={1} step="0.1" value={fFactor} onChange={e => setFFactor(e.target.value)} placeholder="Ex.: 2" style={{ width: '100%' }} />
-                <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>{previewHours ? `Cada 10h vira ${previewHours}h` : 'Ex.: 1,5 · 2 · 3'}</div>
-              </div>
-              <div>
-                <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Data de início</div>
-                <input className="ds-input" type="date" value={fStart} onChange={e => setFStart(e.target.value)} style={{ width: '100%' }} />
-              </div>
-            </div>
+
+            {/* Faixas: período + alíquota. + adiciona, 🗑 remove. Datas não podem sobrepor. */}
             <div>
-              <label className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--text)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={fNoEnd} onChange={e => setFNoEnd(e.target.checked)} /> Vigência sem fim (indefinida)
-              </label>
-              {!fNoEnd && (
-                <>
-                  <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Vigência até</div>
-                  <input className="ds-input" type="date" value={fEnd} min={fStart} onChange={e => setFEnd(e.target.value)} style={{ width: '100%' }} />
-                </>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[12px]" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Faixas (período · multiplicador)</div>
+                <button type="button" onClick={addFaixa} className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md" style={{ color: 'var(--primary)', border: '1px solid var(--border)' }}><Plus size={13} /> Adicionar faixa</button>
+              </div>
+
+              {loadingFaixas ? <div className="ds-card ds-card-pad"><SectionLoader label="Carregando faixas…" /></div> : (
+                <div className="space-y-2">
+                  {faixas.map((f, i) => {
+                    const pv = previewFor(f.factor)
+                    return (
+                      <div key={i} className="ds-card" style={{ padding: 12, position: 'relative' }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px]" style={{ color: 'var(--text-light)', fontWeight: 600 }}>Faixa {i + 1}</span>
+                          {faixas.length > 1 && (
+                            <button type="button" onClick={() => removeFaixa(i)} title="Remover faixa" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Multiplicador (×)</div>
+                            <input className="ds-input" type="number" min={1} step="0.1" value={f.factor} onChange={e => setFaixa(i, { factor: e.target.value })} placeholder="Ex.: 2" style={{ width: '100%' }} />
+                            <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>{pv ? `Cada 10h vira ${pv}h` : 'Ex.: 1,5 · 2 · 3'}</div>
+                          </div>
+                          <div>
+                            <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Início</div>
+                            <input className="ds-input" type="date" value={f.start} onChange={e => setFaixa(i, { start: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Fim</div>
+                            <input className="ds-input" type="date" value={f.end} min={f.start} disabled={f.noEnd} onChange={e => setFaixa(i, { end: e.target.value })} style={{ width: '100%', opacity: f.noEnd ? 0.5 : 1 }} />
+                            <label className="flex items-center gap-1.5 text-[11px] mt-1" style={{ color: 'var(--text-muted)', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={f.noEnd} onChange={e => setFaixa(i, { noEnd: e.target.checked, end: e.target.checked ? '' : f.end })} /> Sem fim (indefinida)
+                            </label>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Motivo (opcional)</div>
+                          <input className="ds-input" value={f.reason} onChange={e => setFaixa(i, { reason: e.target.value })} placeholder="Ex.: markup comercial contrato X" maxLength={500} style={{ width: '100%' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               )}
-            </div>
-            <div>
-              <div className="text-[12px] mb-1" style={{ color: 'var(--text-muted)' }}>Motivo (opcional)</div>
-              <input className="ds-input" value={fReason} onChange={e => setFReason(e.target.value)} placeholder="Ex.: markup comercial contrato X" maxLength={500} style={{ width: '100%' }} />
             </div>
           </ModalBody>
           <ModalFooter>
-            {editing && (
-              <button
-                onClick={() => toggleActive(editing)}
-                disabled={saving}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg"
-                style={{ marginRight: 'auto', color: editing.active ? 'var(--warning)' : 'var(--success)', border: '1px solid var(--border)' }}
-              >
-                {editing.active ? <><Ban size={14} /> Desativar</> : <><CheckCircle size={14} /> Ativar</>}
-              </button>
-            )}
             <button className="ds-btn-secondary" onClick={() => setOpen(false)} disabled={saving}>Cancelar</button>
-            <button className="ds-btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : (editing ? 'Salvar' : 'Criar regra')}</button>
+            <button className="ds-btn-primary" onClick={save} disabled={saving || loadingFaixas}>{saving ? 'Salvando…' : 'Salvar faixas'}</button>
           </ModalFooter>
         </Modal>
       )}
