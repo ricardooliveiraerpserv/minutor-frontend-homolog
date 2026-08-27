@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
 import { UserFormModal } from '@/components/users/user-form-modal'
-import { ArrowLeft, User as UserIcon, Mail, Phone, Link2, Building2, MapPin, Calendar, DollarSign, Filter, AlertTriangle, UserPlus, ArrowUp, ArrowDown, Plus, Minus, ChevronDown, ChevronRight, History } from 'lucide-react'
+import { ArrowLeft, User as UserIcon, Mail, Phone, Link2, Building2, MapPin, Calendar, DollarSign, Filter, AlertTriangle, UserPlus, ArrowUp, ArrowDown, Plus, Minus, ChevronDown, ChevronRight, History, Pencil } from 'lucide-react'
 
 interface RadarPoint { category: string; avg_weight: number }
 interface CatRow { category: string; avg_weight: number; total: number; with_knowledge: number }
@@ -99,6 +99,7 @@ export default function PerfilProfissionalPage() {
   const [hiring, setHiring] = useState(false)
   // Parceiro: contratação NÃO passa pelo kanban — cria o usuário parceiro direto (form reusado).
   const [showPartnerUser, setShowPartnerUser] = useState(false)
+  const [showEditInfo, setShowEditInfo] = useState(false)
   async function doContratar() {
     setHiring(true)
     try {
@@ -183,6 +184,10 @@ export default function PerfilProfissionalPage() {
                     <UserPlus size={13} /> Contratar
                   </button>
                 )}
+                <button className="ds-btn-secondary flex items-center gap-1" style={{ padding: '4px 12px', fontSize: 12 }}
+                  onClick={() => setShowEditInfo(true)} title="Editar informações do candidato (não altera competências)">
+                  <Pencil size={13} /> Editar informações
+                </button>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {r.cargo && <span className="flex items-center gap-1"><UserIcon size={12} /> {r.cargo}</span>}
@@ -409,7 +414,104 @@ export default function PerfilProfissionalPage() {
           onSaved={() => { setShowPartnerUser(false); toast.success('Usuário parceiro criado') }}
         />
       )}
+
+      {showEditInfo && (
+        <EditInfoModal
+          id={id}
+          r={r}
+          onClose={() => setShowEditInfo(false)}
+          onDone={() => { setShowEditInfo(false); load() }}
+        />
+      )}
     </AppLayout>
+  )
+}
+
+/** Edita as informações cadastrais do candidato (NÃO as competências). */
+function EditInfoModal({ id, r, onClose, onDone }: {
+  id: number
+  r: Profile['respondent']
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [f, setF] = useState({
+    name: r.name ?? '', email: r.email ?? '', phone: r.phone ?? '',
+    empresa: r.empresa ?? '', cargo: r.cargo ?? '', cidade: r.cidade ?? '',
+    estado: r.estado ?? '', linkedin: (r.linkedin as string | null) ?? '', idiomas: r.idiomas ?? '',
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (patch: Partial<typeof f>) => setF(prev => ({ ...prev, ...patch }))
+
+  async function save() {
+    if (!f.name.trim()) { toast.error('Informe o nome'); return }
+    setSaving(true)
+    try {
+      await api.put(`/competencias/profissionais/${id}/info`, {
+        name: f.name.trim(),
+        email: f.email.trim() || null, phone: f.phone.trim() || null,
+        empresa: f.empresa.trim() || null, cargo: f.cargo.trim() || null,
+        cidade: f.cidade.trim() || null, estado: f.estado.trim() || null,
+        linkedin: f.linkedin.trim() || null, idiomas: f.idiomas.trim() || null,
+      })
+      toast.success('Informações atualizadas')
+      onDone()
+    } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  const lbl = { fontSize: 12, marginBottom: 4, color: 'var(--text-muted)' } as const
+
+  return (
+    <Modal open onClose={onClose} size="md">
+      <ModalHeader title="Editar informações do candidato" subtitle="As competências não são alteradas aqui." icon={Pencil} onClose={onClose} />
+      <ModalBody className="space-y-3">
+        <div>
+          <div style={lbl}>Nome</div>
+          <input className="ds-input" value={f.name} onChange={e => set({ name: e.target.value })} style={{ width: '100%' }} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div style={lbl}>E-mail</div>
+            <input className="ds-input" type="email" value={f.email} onChange={e => set({ email: e.target.value })} style={{ width: '100%' }} />
+          </div>
+          <div>
+            <div style={lbl}>Telefone</div>
+            <input className="ds-input" value={f.phone} onChange={e => set({ phone: e.target.value })} style={{ width: '100%' }} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div style={lbl}>Empresa</div>
+            <input className="ds-input" value={f.empresa} onChange={e => set({ empresa: e.target.value })} style={{ width: '100%' }} />
+          </div>
+          <div>
+            <div style={lbl}>Cargo</div>
+            <input className="ds-input" value={f.cargo} onChange={e => set({ cargo: e.target.value })} style={{ width: '100%' }} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div style={lbl}>Cidade</div>
+            <input className="ds-input" value={f.cidade} onChange={e => set({ cidade: e.target.value })} style={{ width: '100%' }} />
+          </div>
+          <div>
+            <div style={lbl}>Estado</div>
+            <input className="ds-input" value={f.estado} onChange={e => set({ estado: e.target.value })} placeholder="UF" style={{ width: '100%' }} />
+          </div>
+        </div>
+        <div>
+          <div style={lbl}>LinkedIn</div>
+          <input className="ds-input" value={f.linkedin} onChange={e => set({ linkedin: e.target.value })} placeholder="https://linkedin.com/in/…" style={{ width: '100%' }} />
+        </div>
+        <div>
+          <div style={lbl}>Idiomas</div>
+          <input className="ds-input" value={f.idiomas} onChange={e => set({ idiomas: e.target.value })} placeholder="Ex.: Inglês avançado, Espanhol básico" style={{ width: '100%' }} />
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <button className="ds-btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+        <button className="ds-btn-primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
