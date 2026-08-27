@@ -386,11 +386,13 @@ export interface UserFormModalProps {
   onClose: () => void
   /** Chamado após criar/atualizar com sucesso. */
   onSaved: () => void
+  /** Pré-preenche o form em modo CRIAÇÃO (ex.: contratar um parceiro a partir das competências). */
+  prefill?: Partial<typeof EMPTY_FORM>
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalProps) {
+export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserFormModalProps) {
   const { user: authUser } = useAuth()
   const isAdmin      = authUser?.type === 'admin'
   const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
@@ -452,7 +454,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
     setResendPwd('')
     if (userId == null) {
       setEditItem(null)
-      setForm({ ...EMPTY_FORM })
+      setForm({ ...EMPTY_FORM, ...(prefill ?? {}) })
       return
     }
     let cancelled = false
@@ -522,6 +524,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       })
       .finally(() => { if (!cancelled) setLoadingItem(false) })
     return () => { cancelled = true }
+    // `prefill` é lido só quando o modal abre (open→true); não entra nas deps de propósito,
+    // senão um re-render do pai reaplicaria o prefill e apagaria o que já foi digitado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, userId])
 
   // Busca automática de endereço (ViaCEP) ao preencher o CEP.

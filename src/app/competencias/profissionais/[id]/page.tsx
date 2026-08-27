@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
+import { UserFormModal } from '@/components/users/user-form-modal'
 import { ArrowLeft, User as UserIcon, Mail, Phone, Link2, Building2, MapPin, Calendar, DollarSign, Filter, AlertTriangle, UserPlus, ArrowUp, ArrowDown, Plus, Minus, ChevronDown, ChevronRight, History } from 'lucide-react'
 
 interface RadarPoint { category: string; avg_weight: number }
@@ -94,6 +95,8 @@ export default function PerfilProfissionalPage() {
 
   const [confirmHire, setConfirmHire] = useState(false)
   const [hiring, setHiring] = useState(false)
+  // Parceiro: contratação NÃO passa pelo kanban — cria o usuário parceiro direto (form reusado).
+  const [showPartnerUser, setShowPartnerUser] = useState(false)
   async function doContratar() {
     setHiring(true)
     try {
@@ -158,7 +161,10 @@ export default function PerfilProfissionalPage() {
                   </select>
                 )}
                 {r.classification !== 'erpserv' && (
-                  <button className="ds-btn-primary flex items-center gap-1" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => setConfirmHire(true)}><UserPlus size={13} /> Contratar</button>
+                  <button className="ds-btn-primary flex items-center gap-1" style={{ padding: '4px 12px', fontSize: 12 }}
+                    onClick={() => (r.type === 'partner' || r.classification === 'parceiro') ? setShowPartnerUser(true) : setConfirmHire(true)}>
+                    <UserPlus size={13} /> Contratar
+                  </button>
                 )}
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -345,6 +351,25 @@ export default function PerfilProfissionalPage() {
             <button className="ds-btn-primary flex items-center gap-2" disabled={hiring} onClick={doContratar}><UserPlus size={15} /> {hiring ? 'Contratando…' : 'Contratar'}</button>
           </ModalFooter>
         </Modal>
+      )}
+
+      {/* Parceiro: cria o usuário parceiro DIRETO (form do cadastro de usuários, sem kanban),
+          já pré-preenchido. O valor/hora segue a regra do parceiro: preço único (fixed) herda,
+          diferente (variable) é informado no próprio form. */}
+      {showPartnerUser && (
+        <UserFormModal
+          open
+          userId={null}
+          prefill={{
+            name: r.name,
+            email: r.email ?? '',
+            phone: r.phone ?? '',
+            profiles: ['parceiro_adm' as const],
+            partner_id: r.partner_id ? Number(r.partner_id) : '',
+          }}
+          onClose={() => setShowPartnerUser(false)}
+          onSaved={() => { setShowPartnerUser(false); toast.success('Usuário parceiro criado') }}
+        />
       )}
     </AppLayout>
   )
