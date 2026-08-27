@@ -6,7 +6,8 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField } from '@/lib/client-kanban'
 import { KanbanCardModal } from '@/components/kanban/kanban-card-modal'
@@ -27,6 +28,63 @@ export default function ClientKanbanBoardPage() {
   const [newCardTitle, setNewCardTitle] = useState('')
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [fieldsOpen, setFieldsOpen] = useState(false)
+  // Fase 3: view lista/kanban, busca e filtros
+  const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [search, setSearch] = useState('')
+  const [fResp, setFResp] = useState('')
+  const [fPrio, setFPrio] = useState('')
+  const [fLabel, setFLabel] = useState('')
+  const [fCol, setFCol] = useState('')
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+
+  const hasFilters = !!(search || fResp || fPrio || fLabel || fCol || dueFrom || dueTo)
+  function matchCard(c: KCardSummary): boolean {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      if (!c.title.toLowerCase().includes(q) && !(c.responsible?.name?.toLowerCase().includes(q))) return false
+    }
+    if (fResp && String(c.responsible?.id ?? '') !== fResp) return false
+    if (fPrio && (c.priority ?? '') !== fPrio) return false
+    if (fLabel && !c.labels.some(l => String(l.id) === fLabel)) return false
+    if (fCol && String(c.column_id) !== fCol) return false
+    if (dueFrom && (!c.due_date || c.due_date < dueFrom)) return false
+    if (dueTo && (!c.due_date || c.due_date > dueTo)) return false
+    return true
+  }
+  function clearFilters() { setSearch(''); setFResp(''); setFPrio(''); setFLabel(''); setFCol(''); setDueFrom(''); setDueTo('') }
+
+  // Responsáveis presentes nos cards (pro filtro)
+  const respOptions = useMemo(() => {
+    const m = new Map<number, string>()
+    board?.columns.forEach(c => c.cards.forEach(cd => { if (cd.responsible) m.set(cd.responsible.id, cd.responsible.name) }))
+    return Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [board])
+
+  function exportExcel() {
+    if (!board) return
+    const colName = new Map(board.columns.map(c => [c.id, c.name]))
+    const rows: Record<string, string>[] = []
+    board.columns.forEach(col => col.cards.filter(matchCard).forEach(card => {
+      const row: Record<string, string> = {
+        'Título': card.title,
+        'Coluna': colName.get(card.column_id) ?? '',
+        'Responsável': card.responsible?.name ?? '',
+        'Prioridade': card.priority ? (PRIORITY_META[card.priority]?.label ?? card.priority) : '',
+        'Etiquetas': card.labels.map(l => l.name).join(', '),
+        'Início': card.start_date ?? '',
+        'Vencimento': card.due_date ?? '',
+        'Checklist': card.checklist_total ? `${card.checklist_done}/${card.checklist_total}` : '',
+      }
+      board.fields.forEach(f => { row[f.name] = fmtFieldValue(f, card.field_values?.[String(f.id)]) })
+      rows.push(row)
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Kanban')
+    XLSX.writeFile(wb, `${(board.name || 'kanban').replace(/[^\w-]+/g, '_')}.xlsx`)
+  }
 
   function load() {
     setLoading(true)
@@ -97,6 +155,37 @@ export default function ClientKanbanBoardPage() {
         {loading || !board ? (
           <div style={{ color: 'var(--text-muted)' }}>Carregando…</div>
         ) : (
+          <>
+          {/* Toolbar: view · busca · filtros · export */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <button onClick={() => setView('kanban')} title="Kanban" style={{ ...toggleBtn, background: view === 'kanban' ? 'var(--primary)' : 'transparent', color: view === 'kanban' ? '#fff' : 'var(--text-muted)' }}><LayoutGrid size={15} /></button>
+              <button onClick={() => setView('list')} title="Lista" style={{ ...toggleBtn, background: view === 'list' ? 'var(--primary)' : 'transparent', color: view === 'list' ? '#fff' : 'var(--text-muted)' }}><List size={15} /></button>
+            </div>
+            <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 320 }}>
+              <Search size={14} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
+              <input className="ds-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por título ou responsável…" style={{ width: '100%', fontSize: 13, padding: '7px 8px 7px 30px' }} />
+            </div>
+            <button onClick={() => setShowFilters(s => !s)} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, color: hasFilters ? 'var(--primary)' : undefined }}><Filter size={14} /> Filtros{hasFilters ? ' •' : ''}</button>
+            <button onClick={exportExcel} className="ds-btn-ghost" style={{ fontSize: 12.5, padding: '7px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Download size={14} /> Excel</button>
+          </div>
+          {showFilters && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12, padding: 10, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+              <select className="ds-input" value={fCol} onChange={e => setFCol(e.target.value)} style={fsel}><option value="">Todas colunas</option>{board.columns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+              <select className="ds-input" value={fResp} onChange={e => setFResp(e.target.value)} style={fsel}><option value="">Todos responsáveis</option>{respOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+              <select className="ds-input" value={fPrio} onChange={e => setFPrio(e.target.value)} style={fsel}><option value="">Toda prioridade</option>{Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+              <select className="ds-input" value={fLabel} onChange={e => setFLabel(e.target.value)} style={fsel}><option value="">Toda etiqueta</option>{board.labels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Vencimento:</span>
+              <input type="date" className="ds-input" value={dueFrom} onChange={e => setDueFrom(e.target.value)} style={fsel} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>a</span>
+              <input type="date" className="ds-input" value={dueTo} onChange={e => setDueTo(e.target.value)} style={fsel} />
+              {hasFilters && <button onClick={clearFilters} className="ds-btn-ghost" style={{ fontSize: 12, padding: '6px 10px' }}>Limpar</button>}
+            </div>
+          )}
+
+          {view === 'list' ? (
+            <KanbanListView board={board} match={matchCard} onOpen={setOpenCardId} />
+          ) : (
           <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden' }}>
             <DragDropContext onDragEnd={onDragEnd}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', height: '100%', paddingBottom: 8 }}>
@@ -105,14 +194,14 @@ export default function ClientKanbanBoardPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.color ?? 'var(--text-light)', flexShrink: 0 }} />
                       <button onClick={() => renameColumn(col)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.name}</button>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--field)', borderRadius: 10, padding: '1px 7px' }}>{col.cards.length}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--field)', borderRadius: 10, padding: '1px 7px' }}>{hasFilters ? `${col.cards.filter(matchCard).length}/${col.cards.length}` : col.cards.length}</span>
                       <button onClick={() => delColumn(col.id)} title="Excluir coluna" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}><Trash2 size={13} /></button>
                     </div>
                     <Droppable droppableId={String(col.id)}>
                       {(prov, snap) => (
                         <div ref={prov.innerRef} {...prov.droppableProps} style={{ flex: 1, overflowY: 'auto', padding: 8, display: 'flex', flexDirection: 'column', gap: 8, background: snap.isDraggingOver ? 'var(--surface-hover)' : 'transparent', minHeight: 40 }}>
-                          {col.cards.map((card, idx) => (
-                            <Draggable key={card.id} draggableId={String(card.id)} index={idx}>
+                          {col.cards.filter(matchCard).map((card, idx) => (
+                            <Draggable key={card.id} draggableId={String(card.id)} index={idx} isDragDisabled={hasFilters}>
                               {(dp, ds) => (
                                 <div ref={dp.innerRef} {...dp.draggableProps} {...dp.dragHandleProps} onClick={() => setOpenCardId(card.id)} style={{ ...dp.draggableProps.style, ...cardStyle(ds.isDragging) }}>
                                   <CardFace card={card} fields={board.fields} />
@@ -150,6 +239,8 @@ export default function ClientKanbanBoardPage() {
               </div>
             </DragDropContext>
           </div>
+          )}
+          </>
         )}
       </div>
 
@@ -163,6 +254,41 @@ export default function ClientKanbanBoardPage() {
         <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
     </AppLayout>
+  )
+}
+
+function KanbanListView({ board, match, onOpen }: { board: KBoardFull; match: (c: KCardSummary) => boolean; onOpen: (id: number) => void }) {
+  const rows = board.columns.flatMap(col => col.cards.filter(match).map(card => ({ card, colName: col.name, colColor: col.color })))
+  return (
+    <div style={{ flex: 1, overflow: 'auto' }}>
+      {rows.length === 0 ? (
+        <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: 20, textAlign: 'center' }}>Nenhum card encontrado.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.03em' }}>
+              <th style={th}>Título</th><th style={th}>Coluna</th><th style={th}>Responsável</th><th style={th}>Prioridade</th><th style={th}>Etiquetas</th><th style={th}>Vencimento</th><th style={th}>Checklist</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ card, colName, colColor }) => {
+              const overdue = card.due_date && new Date(card.due_date + 'T23:59:59') < new Date()
+              return (
+                <tr key={card.id} onClick={() => onOpen(card.id)} className="ds-row-hover" style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}>
+                  <td style={{ ...td, fontWeight: 500, color: 'var(--text)' }}>{card.title}</td>
+                  <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: colColor ?? 'var(--text-light)' }} />{colName}</span></td>
+                  <td style={td}>{card.responsible?.name ?? '—'}</td>
+                  <td style={td}>{card.priority ? <span style={{ color: PRIORITY_META[card.priority]?.color }}>{PRIORITY_META[card.priority]?.label}</span> : '—'}</td>
+                  <td style={td}>{card.labels.length ? <span style={{ display: 'inline-flex', gap: 3 }}>{card.labels.map(l => <span key={l.id} title={l.name} style={{ width: 22, height: 6, borderRadius: 3, background: l.color ?? 'var(--primary)' }} />)}</span> : '—'}</td>
+                  <td style={{ ...td, color: overdue ? 'var(--danger)' : 'var(--text-muted)' }}>{card.due_date ? card.due_date.slice(8, 10) + '/' + card.due_date.slice(5, 7) + '/' + card.due_date.slice(0, 4) : '—'}</td>
+                  <td style={td}>{card.checklist_total ? `${card.checklist_done}/${card.checklist_total}` : '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
   )
 }
 
@@ -248,3 +374,7 @@ function fmtFieldValue(f: KField, raw: string | null | undefined): string {
 function cardStyle(dragging: boolean): React.CSSProperties {
   return { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', cursor: 'pointer', boxShadow: dragging ? '0 8px 20px rgba(0,0,0,.18)' : 'none' }
 }
+const toggleBtn: React.CSSProperties = { border: 'none', cursor: 'pointer', padding: '7px 12px', display: 'inline-flex', alignItems: 'center' }
+const fsel: React.CSSProperties = { fontSize: 12.5, padding: '6px 8px' }
+const th: React.CSSProperties = { padding: '8px 12px', fontWeight: 600, whiteSpace: 'nowrap' }
+const td: React.CSSProperties = { padding: '9px 12px', color: 'var(--text-muted)', verticalAlign: 'middle' }
