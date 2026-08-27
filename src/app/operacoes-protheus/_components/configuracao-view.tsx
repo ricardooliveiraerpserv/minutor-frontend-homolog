@@ -15,7 +15,10 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
 import { ApiError, apiMessage } from '@/lib/api'
-import { fetchProsightEnvironmentConfig, type SafeEnvironmentConfig } from '@/lib/prosight/environments'
+import {
+  fetchEnvironmentPresence, fetchProsightEnvironmentConfig, presenceLabel,
+  type EnvironmentPresence, type SafeEnvironmentConfig,
+} from '@/lib/prosight/environments'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
 
@@ -43,13 +46,20 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
   const environmentId = sel?.environmentId ?? null
 
   const [config, setConfig] = useState<SafeEnvironmentConfig | null>(null)
+  const [presence, setPresence] = useState<EnvironmentPresence | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (companyId == null || environmentId == null) { setConfig(null); return }
     setLoading(true); setError(null)
-    try { setConfig(await fetchProsightEnvironmentConfig(companyId, environmentId)) }
+    try {
+      const [cfg, pres] = await Promise.all([
+        fetchProsightEnvironmentConfig(companyId, environmentId),
+        fetchEnvironmentPresence(environmentId).catch(() => null), // observado (best-effort)
+      ])
+      setConfig(cfg); setPresence(pres)
+    }
     catch (e) {
       setConfig(null)
       // 404 = ambiente não pertence a esta empresa / fora de escopo → limpa a seleção (sem stale).
@@ -84,14 +94,15 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
         <Card><EmptyState icon={Layers} title="Ambiente não disponível"
           description="O ambiente selecionado não está disponível para esta empresa. Selecione um ambiente em Ambientes." /></Card>
       ) : (
-        <ConfigDetail config={config} companyName={companyName} />
+        <ConfigDetail config={config} presence={presence} companyName={companyName} />
       )}
     </>
   )
 }
 
-function ConfigDetail({ config, companyName }: { config: SafeEnvironmentConfig; companyName: string | null }) {
+function ConfigDetail({ config, presence, companyName }: { config: SafeEnvironmentConfig; presence: EnvironmentPresence | null; companyName: string | null }) {
   const env = config.environment
+  const pres = presenceLabel(presence)
   return (
     <div className="flex flex-col gap-4">
       {/* Cabeçalho do ambiente */}
@@ -108,12 +119,19 @@ function ConfigDetail({ config, companyName }: { config: SafeEnvironmentConfig; 
               <div className="text-xs" style={{ color: 'var(--text-light)' }}>{TYPE_LABEL[env.type] ?? env.type}</div>
             </div>
           </div>
-          <Badge variant={STATUS_VARIANT[env.status.code] ?? 'default'}>{env.status.label}</Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant={STATUS_VARIANT[env.status.code] ?? 'default'}>{env.status.label}</Badge>
+            {/* Presença OBSERVADA (Conector) — conceito DISTINTO do status cadastral acima */}
+            <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-light)' }}>
+              Presença: <Badge variant={pres.variant}>{pres.label}</Badge>
+              {presence?.observed?.since_s != null && <span>· há {fmtSince(presence.observed.since_s)}</span>}
+            </span>
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
           {env.responsible_name && <span>Responsável: <b style={{ color: 'var(--text)' }}>{env.responsible_name}</b></span>}
           {env.updated_at && <span>Atualizado: {new Date(env.updated_at).toLocaleString('pt-BR')}</span>}
-          <span style={{ color: 'var(--text-light)' }}>{env.status.note}</span>
+          <span style={{ color: 'var(--text-light)' }}>{env.status.note} · Presença = observada pelo agente (Conector), não é o status cadastral.</span>
         </div>
       </div>
 
@@ -190,4 +208,10 @@ function Section({ icon: Icon, title, children }: { icon: typeof Server; title: 
 
 function Empty() {
   return <div className="text-sm" style={{ color: 'var(--text-light)' }}>—</div>
+}
+
+function fmtSince(s: number): string {
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  return `${Math.floor(s / 3600)}h`
 }

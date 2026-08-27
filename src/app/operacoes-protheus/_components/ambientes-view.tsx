@@ -17,7 +17,10 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
 import { apiMessage } from '@/lib/api'
-import { fetchProsightEnvironments, type SafeEnvironment } from '@/lib/prosight/environments'
+import {
+  fetchEnvironmentsPresence, fetchProsightEnvironments, presenceLabel,
+  type EnvironmentPresence, type SafeEnvironment,
+} from '@/lib/prosight/environments'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
 
@@ -35,6 +38,11 @@ const ENGINE_LABEL: Record<string, string> = {
 const STATUS_VARIANT: Record<SafeEnvironment['status']['code'], string> = {
   ativo: 'default', inativo: 'danger', manutencao: 'warning', indefinido: 'default',
 }
+function fmtSince(s: number): string {
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  return `${Math.floor(s / 3600)}h`
+}
 
 export function AmbientesView() {
   const company = useProsightCompany()
@@ -49,14 +57,22 @@ export function AmbientesView() {
   }
 
   const [envs, setEnvs] = useState<SafeEnvironment[] | null>(null)
+  const [presence, setPresence] = useState<Record<number, EnvironmentPresence>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (companyId == null) { setEnvs(null); return }
     setLoading(true); setError(null)
-    try { setEnvs(await fetchProsightEnvironments(companyId)) }
-    catch (e) { setError(apiMessage(e, 'Falha ao carregar os ambientes.')); setEnvs(null) }
+    try {
+      // Cadastro (obrigatório) + presença observada (best-effort; não bloqueia o cadastro).
+      const [list, pres] = await Promise.all([
+        fetchProsightEnvironments(companyId),
+        fetchEnvironmentsPresence(companyId).catch(() => [] as EnvironmentPresence[]),
+      ])
+      setEnvs(list)
+      setPresence(Object.fromEntries(pres.map((p) => [p.environment_id, p])))
+    } catch (e) { setError(apiMessage(e, 'Falha ao carregar os ambientes.')); setEnvs(null) }
     finally { setLoading(false) }
   }, [companyId])
 
@@ -87,18 +103,19 @@ export function AmbientesView() {
           description={`${companyName ?? 'Esta empresa'} ainda não possui ambientes no Cofre. Cadastre pelo Cofre de Ambientes.`} /></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} onConfig={() => openConfig(e.id)} />)}
+          {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} presence={presence[e.id]} onConfig={() => openConfig(e.id)} />)}
         </div>
       )}
     </>
   )
 }
 
-function EnvironmentCard({ env, onConfig }: { env: SafeEnvironment; onConfig: () => void }) {
+function EnvironmentCard({ env, presence, onConfig }: { env: SafeEnvironment; presence?: EnvironmentPresence; onConfig: () => void }) {
+  const pres = presenceLabel(presence)
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Cabeçalho */}
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
             <Server size={17} color="var(--primary)" />
@@ -109,6 +126,14 @@ function EnvironmentCard({ env, onConfig }: { env: SafeEnvironment; onConfig: ()
           </div>
         </div>
         <Badge variant={STATUS_VARIANT[env.status.code] ?? 'default'}>{env.status.label}</Badge>
+      </div>
+
+      {/* Cadastral × Observado — conceitos DISTINTOS (nunca misturar) */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-[11px]" style={{ color: 'var(--text-light)' }}>
+        <span>Cadastral: <b style={{ color: 'var(--text-muted)' }}>{env.status.label}</b></span>
+        <span className="inline-flex items-center gap-1">Presença (Conector): <Badge variant={pres.variant}>{pres.label}</Badge>
+          {presence?.observed?.since_s != null && <span>· visto há {fmtSince(presence.observed.since_s)}</span>}
+        </span>
       </div>
 
       {/* Componentes cadastrados */}

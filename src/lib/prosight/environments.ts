@@ -59,3 +59,44 @@ export async function fetchProsightEnvironmentConfig(customerId: number, environ
   )
   return r.data
 }
+
+// ── Connector-1 — PRESENÇA (estado OBSERVADO; distinto do cadastral) ────────────
+
+export interface EnvironmentPresence {
+  environment_id: number
+  has_agent: boolean
+  observed: {
+    status: 'never_seen' | 'online' | 'stale' | 'offline' | 'degraded'
+    since_s: number | null
+    last_seen_at: string | null
+    clock_offset_s: number | null
+    agent_reported_status: string | null
+  } | null
+}
+
+/** Presença de todos os ambientes da empresa (1 chamada). Observado ≠ cadastral. */
+export async function fetchEnvironmentsPresence(customerId: number): Promise<EnvironmentPresence[]> {
+  const r = await api.get<{ data: { environments: EnvironmentPresence[] } }>(
+    `/prosight/environments/presence?customer_id=${customerId}`,
+  )
+  return r.data.environments
+}
+
+/** Presença de UM ambiente (para o C4). */
+export async function fetchEnvironmentPresence(environmentId: number): Promise<EnvironmentPresence> {
+  const r = await api.get<{ data: EnvironmentPresence }>(`/prosight/environments/${environmentId}/presence`)
+  return r.data
+}
+
+/** Rótulo/variante honestos para a presença OBSERVADA (nunca confundir com status cadastral). */
+export function presenceLabel(p: EnvironmentPresence | undefined | null): { label: string; variant: string } {
+  if (!p || (!p.has_agent && !p.observed)) return { label: 'Sem agente conectado', variant: 'default' }
+  switch (p.observed?.status) {
+    case 'online': return { label: 'Online', variant: 'success' }
+    case 'stale': return { label: 'Atrasado', variant: 'warning' }
+    case 'offline': return { label: 'Offline', variant: 'danger' }
+    case 'degraded': return { label: 'Degradado', variant: 'warning' }
+    case 'never_seen': return { label: 'Aguardando 1º heartbeat', variant: 'default' }
+    default: return { label: '—', variant: 'default' }
+  }
+}
