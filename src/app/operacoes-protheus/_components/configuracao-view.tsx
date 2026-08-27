@@ -9,18 +9,21 @@
 // Nada de secret/host/porta/URL. Sem fallback fixture no live: erro = indisponível.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Boxes, Building2, Database, Layers, Link2, RefreshCw, Server, ServerCog, Settings, XCircle,
+  Boxes, Building2, Database, DownloadCloud, ExternalLink, Layers, Link2, RefreshCw, Server, ServerCog, Settings, XCircle,
 } from 'lucide-react'
+import Link from 'next/link'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
 import { ApiError, apiMessage } from '@/lib/api'
 import {
-  fetchEnvironmentObserved, fetchEnvironmentPresence, fetchProsightEnvironmentConfig, presenceLabel,
-  type EnvironmentObserved, type EnvironmentPresence, type SafeEnvironmentConfig,
+  fetchCommandStatus, fetchEnvironmentObserved, fetchEnvironmentPresence, fetchProsightEnvironmentConfig,
+  presenceLabel, requestInventoryCollection,
+  type ConnectorCommandStatus, type EnvironmentObserved, type EnvironmentPresence, type SafeEnvironmentConfig,
 } from '@/lib/prosight/environments'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
+import { useAuth } from '@/contexts/auth-context'
 
 const TYPE_LABEL: Record<SafeEnvironmentConfig['environment']['type'], string> = {
   prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery',
@@ -31,8 +34,8 @@ const ENGINE_LABEL: Record<string, string> = {
 const STATUS_VARIANT: Record<string, string> = {
   ativo: 'default', inativo: 'danger', manutencao: 'warning', indefinido: 'default',
 }
-// Operações REMOTAS ainda não disponíveis (Connector-3+). Health/AppServer/RPO/REST já são
-// OBSERVADOS no C-2 (seção Observado). Aqui fica só o que ALTERA infraestrutura.
+// Operações que ALTERAM infraestrutura ainda não disponíveis (Connector-4+). Observação (C-2) e a
+// SOLICITAÇÃO de coleta (C-3, botão na seção Observado) já existem; aqui fica só o destrutivo/controlado.
 const PENDING = [
   'Start / Stop / Restart', 'Compilação', 'Aplicação de patch', 'Promoção / rollback de RPO',
 ]
@@ -96,15 +99,22 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
         <Card><EmptyState icon={Layers} title="Ambiente não disponível"
           description="O ambiente selecionado não está disponível para esta empresa. Selecione um ambiente em Ambientes." /></Card>
       ) : (
-        <ConfigDetail config={config} presence={presence} observed={observed} companyName={companyName} />
+        <ConfigDetail config={config} presence={presence} observed={observed} companyName={companyName}
+          environmentId={environmentId} onRefreshObserved={load} />
       )}
     </>
   )
 }
 
-function ConfigDetail({ config, presence, observed, companyName }: { config: SafeEnvironmentConfig; presence: EnvironmentPresence | null; observed: EnvironmentObserved | null; companyName: string | null }) {
+function ConfigDetail({ config, presence, observed, companyName, environmentId, onRefreshObserved }: {
+  config: SafeEnvironmentConfig; presence: EnvironmentPresence | null; observed: EnvironmentObserved | null
+  companyName: string | null; environmentId: number; onRefreshObserved: () => void | Promise<void>
+}) {
   const env = config.environment
   const pres = presenceLabel(presence)
+  const { hasPermission } = useAuth()
+  // Guardrail: só quem tem prosight.operations.execute vê o botão de solicitar coleta.
+  const canExecute = hasPermission('prosight.operations.execute')
   return (
     <div className="flex flex-col gap-4">
       {/* Cabeçalho do ambiente */}
@@ -178,13 +188,13 @@ function ConfigDetail({ config, presence, observed, companyName }: { config: Saf
       </Section>
 
       {/* OBSERVADO (Conector) — estado real coletado pelo agente; DISTINTO do cadastral, nunca reconcilia */}
-      <ObservedSection observed={observed} />
+      <ObservedSection observed={observed} environmentId={environmentId} canExecute={canExecute} onRefreshObserved={onRefreshObserved} />
 
       {/* Operações remotas ainda sem conexão (Connector-3+) */}
       <div className="rounded-2xl p-5" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)' }}>
         <div className="flex items-center gap-1.5 mb-2">
           <Boxes size={14} style={{ color: 'var(--text-muted)' }} />
-          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Operações remotas — aguardando Connector-3+</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Operações remotas que ALTERAM infraestrutura — aguardando Connector-4+</span>
         </div>
         <div className="flex flex-col gap-1">
           {PENDING.map((p) => (
@@ -205,7 +215,10 @@ function fmtStale(s: number): string {
   return `${Math.floor(s / 3600)}h`
 }
 
-function ObservedSection({ observed }: { observed: EnvironmentObserved | null }) {
+function ObservedSection({ observed, environmentId, canExecute, onRefreshObserved }: {
+  observed: EnvironmentObserved | null; environmentId: number; canExecute: boolean
+  onRefreshObserved: () => void | Promise<void>
+}) {
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -213,7 +226,11 @@ function ObservedSection({ observed }: { observed: EnvironmentObserved | null })
           <ServerCog size={14} style={{ color: 'var(--text-light)' }} />
           <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Observado (Conector) — coletado pelo agente</span>
         </div>
-        {observed?.stale_s != null && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>coletado há {fmtStale(observed.stale_s)}</span>}
+        <div className="flex items-center gap-2">
+          {observed?.stale_s != null && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>coletado há {fmtStale(observed.stale_s)}</span>}
+          {/* Connector-3 — solicitar NOVA coleta (perm operations.execute). Reusa comando collect_inventory_now. */}
+          {canExecute && <InventoryCommandButton environmentId={environmentId} onCollected={onRefreshObserved} />}
+        </div>
       </div>
       {!observed?.has_inventory || !observed.inventory ? (
         <div className="text-sm" style={{ color: 'var(--text-light)' }}>Inventário observado: aguardando coleta do agente.</div>
@@ -250,6 +267,103 @@ function ObservedSection({ observed }: { observed: EnvironmentObserved | null })
         </div>
       )}
     </div>
+  )
+}
+
+// ── Connector-3 (C3-FE) — emitir collect_inventory_now e acompanhar o ciclo real ────────────────
+// Reusa API/permissões/status/timeline existentes. Zero endpoint/tabela novos. Polling brando (3s,
+// cap ~150s, para em terminal). succeeded = "a SOLICITAÇÃO de coleta terminou" (NÃO "Protheus saudável").
+type CmdPhase = 'idle' | 'requesting' | 'queued' | 'collecting' | 'done' | 'failed' | 'expired' | 'canceled' | 'error'
+const ACTIVE_PHASES: CmdPhase[] = ['requesting', 'queued', 'collecting']
+
+function phaseFromStatus(s: ConnectorCommandStatus): CmdPhase {
+  switch (s) {
+    case 'queued': return 'queued'
+    case 'claimed': case 'running': return 'collecting'
+    case 'succeeded': return 'done'
+    case 'failed': return 'failed'
+    case 'expired': return 'expired'
+    case 'canceled': return 'canceled'
+    default: return 'idle'
+  }
+}
+
+function InventoryCommandButton({ environmentId, onCollected }: { environmentId: number; onCollected: () => void | Promise<void> }) {
+  const [phase, setPhase] = useState<CmdPhase>('idle')
+  const [note, setNote] = useState<string | null>(null)
+  const cmdRef = useRef<number | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const triesRef = useRef(0)
+  const mounted = useRef(true)
+
+  const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
+  useEffect(() => () => { mounted.current = false; stopPoll() }, [])
+
+  const start = useCallback(async () => {
+    if (ACTIVE_PHASES.includes(phase)) return
+    setPhase('requesting'); setNote(null); triesRef.current = 0
+    try {
+      const { command, coalesced } = await requestInventoryCollection(environmentId)
+      if (!mounted.current) return
+      cmdRef.current = command.id
+      if (coalesced) setNote('Já havia uma coleta em andamento — acompanhando a existente.')
+      const p0 = phaseFromStatus(command.status)
+      setPhase(p0)
+      if (!ACTIVE_PHASES.includes(p0)) { if (p0 === 'done') await onCollected(); return }
+      stopPoll()
+      pollRef.current = setInterval(async () => {
+        triesRef.current += 1
+        if (cmdRef.current == null || triesRef.current > 50) { stopPoll(); return } // cap ~150s (> TTL 120s)
+        try {
+          const c = await fetchCommandStatus(cmdRef.current)
+          if (!mounted.current) return
+          const p = phaseFromStatus(c.status)
+          setPhase(p)
+          if (!ACTIVE_PHASES.includes(p)) { stopPoll(); if (p === 'done') await onCollected() }
+        } catch { /* transitório — continua até o cap */ }
+      }, 3000)
+    } catch (e) {
+      if (!mounted.current) return
+      stopPoll(); setPhase('error'); setNote(apiMessage(e, 'Não foi possível solicitar a coleta.'))
+    }
+  }, [environmentId, onCollected, phase])
+
+  const busy = ACTIVE_PHASES.includes(phase)
+  return (
+    <div className="inline-flex items-center gap-2">
+      <CmdStatusChip phase={phase} note={note} />
+      <Button variant="secondary" icon={DownloadCloud} onClick={() => void start()} disabled={busy}>
+        {busy ? 'Coletando…' : 'Solicitar nova coleta'}
+      </Button>
+    </div>
+  )
+}
+
+const CMD_PHASE_UI: Record<Exclude<CmdPhase, 'idle'>, { label: string; variant: string }> = {
+  requesting: { label: 'Solicitando…', variant: 'default' },
+  queued: { label: 'Na fila…', variant: 'default' },
+  collecting: { label: 'Coletando…', variant: 'warning' },
+  done: { label: 'Coleta concluída', variant: 'success' }, // a SOLICITAÇÃO terminou (não é "saudável")
+  failed: { label: 'Falha na coleta', variant: 'danger' },
+  expired: { label: 'Solicitação expirada', variant: 'danger' },
+  canceled: { label: 'Coleta cancelada', variant: 'default' },
+  error: { label: 'Erro na solicitação', variant: 'danger' },
+}
+
+function CmdStatusChip({ phase, note }: { phase: CmdPhase; note: string | null }) {
+  if (phase === 'idle') return null
+  const m = CMD_PHASE_UI[phase]
+  const showAudit = phase === 'failed' || phase === 'expired'
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] flex-wrap justify-end" style={{ color: 'var(--text-light)', maxWidth: 340 }}>
+      <Badge variant={m.variant}>{m.label}</Badge>
+      {showAudit && (
+        <Link href="/prosight/atividade" className="inline-flex items-center gap-0.5 underline" style={{ color: 'var(--text-muted)' }}>
+          auditoria <ExternalLink size={11} />
+        </Link>
+      )}
+      {note && <span style={{ color: 'var(--text-light)' }}>{note}</span>}
+    </span>
   )
 }
 

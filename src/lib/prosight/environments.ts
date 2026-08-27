@@ -109,6 +109,38 @@ export async function fetchEnvironmentObserved(environmentId: number): Promise<E
   return r.data
 }
 
+// ── Connector-3 — emitir coleta de inventário pela UI (REUSA endpoints existentes; ZERO endpoint novo) ──
+
+export type ConnectorCommandStatus = 'queued' | 'claimed' | 'running' | 'succeeded' | 'failed' | 'expired' | 'canceled'
+
+/** Projeção segura do comando (sem claim_token). succeeded = "solicitação de coleta terminou", NÃO "Protheus saudável". */
+export interface ConnectorCommandView {
+  id: number
+  environment_id: number
+  command_type: string
+  status: ConnectorCommandStatus
+  attempts: number
+  result_outcome: 'ok' | 'fail' | null
+  result_detail: string | null
+  correlated: boolean
+  finished_at: string | null
+}
+
+/** Solicita uma NOVA coleta de inventário (command_type=collect_inventory_now). Coalesce no backend (1 em-voo/ambiente). */
+export async function requestInventoryCollection(environmentId: number): Promise<{ command: ConnectorCommandView; coalesced: boolean }> {
+  const r = await api.post<{ data: ConnectorCommandView; coalesced: boolean }>(
+    `/prosight/environments/${environmentId}/commands`,
+    { command_type: 'collect_inventory_now' },
+  )
+  return { command: r.data, coalesced: r.coalesced }
+}
+
+/** Status atual de um comando (para acompanhar o ciclo Na fila → Coletando → Concluído/Falha/Expirado). */
+export async function fetchCommandStatus(commandId: number): Promise<ConnectorCommandView> {
+  const r = await api.get<{ data: ConnectorCommandView }>(`/prosight/commands/${commandId}`)
+  return r.data
+}
+
 /** Rótulo/variante honestos para a presença OBSERVADA (nunca confundir com status cadastral). */
 export function presenceLabel(p: EnvironmentPresence | undefined | null): { label: string; variant: string } {
   if (!p || (!p.has_agent && !p.observed)) return { label: 'Sem agente conectado', variant: 'default' }
