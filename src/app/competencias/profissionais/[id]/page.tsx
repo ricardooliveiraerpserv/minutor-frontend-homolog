@@ -438,6 +438,7 @@ function EditInfoModal({ id, r, onClose, onDone }: {
     name: r.name ?? '', email: r.email ?? '', phone: r.phone ?? '',
     empresa: r.empresa ?? '', cargo: r.cargo ?? '', cidade: r.cidade ?? '',
     estado: r.estado ?? '', linkedin: (r.linkedin as string | null) ?? '', idiomas: r.idiomas ?? '',
+    valor: r.valor ?? '',
   })
   const [saving, setSaving] = useState(false)
   const set = (patch: Partial<typeof f>) => setF(prev => ({ ...prev, ...patch }))
@@ -452,6 +453,7 @@ function EditInfoModal({ id, r, onClose, onDone }: {
         empresa: f.empresa.trim() || null, cargo: f.cargo.trim() || null,
         cidade: f.cidade.trim() || null, estado: f.estado.trim() || null,
         linkedin: f.linkedin.trim() || null, idiomas: f.idiomas.trim() || null,
+        ...(r.from_cadastro ? {} : { valor: f.valor.trim() || null }),
       })
       toast.success('Informações atualizadas')
       onDone()
@@ -505,6 +507,13 @@ function EditInfoModal({ id, r, onClose, onDone }: {
         <div>
           <div style={lbl}>Idiomas</div>
           <input className="ds-input" value={f.idiomas} onChange={e => set({ idiomas: e.target.value })} placeholder="Ex.: Inglês avançado, Espanhol básico" style={{ width: '100%' }} />
+        </div>
+        <div>
+          <div style={lbl}>Valor</div>
+          <input className="ds-input" value={f.valor} onChange={e => set({ valor: e.target.value })}
+            disabled={r.from_cadastro} placeholder="Ex.: R$ 120,00"
+            style={{ width: '100%', opacity: r.from_cadastro ? 0.6 : 1 }} />
+          {r.from_cadastro && <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4 }}>O valor vem do cadastro de usuário e não é editável aqui.</div>}
         </div>
       </ModalBody>
       <ModalFooter>
