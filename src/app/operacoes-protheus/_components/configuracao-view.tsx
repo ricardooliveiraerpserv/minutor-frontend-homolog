@@ -16,8 +16,8 @@ import {
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
 import { ApiError, apiMessage } from '@/lib/api'
 import {
-  fetchEnvironmentPresence, fetchProsightEnvironmentConfig, presenceLabel,
-  type EnvironmentPresence, type SafeEnvironmentConfig,
+  fetchEnvironmentObserved, fetchEnvironmentPresence, fetchProsightEnvironmentConfig, presenceLabel,
+  type EnvironmentObserved, type EnvironmentPresence, type SafeEnvironmentConfig,
 } from '@/lib/prosight/environments'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
@@ -31,10 +31,10 @@ const ENGINE_LABEL: Record<string, string> = {
 const STATUS_VARIANT: Record<string, string> = {
   ativo: 'default', inativo: 'danger', manutencao: 'warning', indefinido: 'default',
 }
-// Capacidades que dependem do Conector — lista ESTÁTICA de UI (o Env NÃO conhece o estado delas).
+// Operações REMOTAS ainda não disponíveis (Connector-3+). Health/AppServer/RPO/REST já são
+// OBSERVADOS no C-2 (seção Observado). Aqui fica só o que ALTERA infraestrutura.
 const PENDING = [
-  'Health ao vivo', 'RPO', 'Compilação', 'REST health', 'Broker / serviços',
-  'Pastas / janela de manutenção / n8n', 'Modo exclusivo / operação',
+  'Start / Stop / Restart', 'Compilação', 'Aplicação de patch', 'Promoção / rollback de RPO',
 ]
 
 // previewEnvironmentId/demoAdmin: aceitos p/ compatibilidade do harness de preview; o C4 usa o contexto real.
@@ -47,6 +47,7 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
 
   const [config, setConfig] = useState<SafeEnvironmentConfig | null>(null)
   const [presence, setPresence] = useState<EnvironmentPresence | null>(null)
+  const [observed, setObserved] = useState<EnvironmentObserved | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,11 +55,12 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
     if (companyId == null || environmentId == null) { setConfig(null); return }
     setLoading(true); setError(null)
     try {
-      const [cfg, pres] = await Promise.all([
+      const [cfg, pres, obs] = await Promise.all([
         fetchProsightEnvironmentConfig(companyId, environmentId),
-        fetchEnvironmentPresence(environmentId).catch(() => null), // observado (best-effort)
+        fetchEnvironmentPresence(environmentId).catch(() => null),   // presença (best-effort)
+        fetchEnvironmentObserved(environmentId).catch(() => null),   // inventário observado (best-effort)
       ])
-      setConfig(cfg); setPresence(pres)
+      setConfig(cfg); setPresence(pres); setObserved(obs)
     }
     catch (e) {
       setConfig(null)
@@ -94,13 +96,13 @@ export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null;
         <Card><EmptyState icon={Layers} title="Ambiente não disponível"
           description="O ambiente selecionado não está disponível para esta empresa. Selecione um ambiente em Ambientes." /></Card>
       ) : (
-        <ConfigDetail config={config} presence={presence} companyName={companyName} />
+        <ConfigDetail config={config} presence={presence} observed={observed} companyName={companyName} />
       )}
     </>
   )
 }
 
-function ConfigDetail({ config, presence, companyName }: { config: SafeEnvironmentConfig; presence: EnvironmentPresence | null; companyName: string | null }) {
+function ConfigDetail({ config, presence, observed, companyName }: { config: SafeEnvironmentConfig; presence: EnvironmentPresence | null; observed: EnvironmentObserved | null; companyName: string | null }) {
   const env = config.environment
   const pres = presenceLabel(presence)
   return (
@@ -175,11 +177,14 @@ function ConfigDetail({ config, presence, companyName }: { config: SafeEnvironme
         )}
       </Section>
 
-      {/* Capacidades ainda sem conexão (Conector) — estático, sem estado observado */}
+      {/* OBSERVADO (Conector) — estado real coletado pelo agente; DISTINTO do cadastral, nunca reconcilia */}
+      <ObservedSection observed={observed} />
+
+      {/* Operações remotas ainda sem conexão (Connector-3+) */}
       <div className="rounded-2xl p-5" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)' }}>
         <div className="flex items-center gap-1.5 mb-2">
           <Boxes size={14} style={{ color: 'var(--text-muted)' }} />
-          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Capacidades ainda sem conexão (Conector)</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Operações remotas — aguardando Connector-3+</span>
         </div>
         <div className="flex flex-col gap-1">
           {PENDING.map((p) => (
@@ -190,6 +195,60 @@ function ConfigDetail({ config, presence, companyName }: { config: SafeEnvironme
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function fmtStale(s: number): string {
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  return `${Math.floor(s / 3600)}h`
+}
+
+function ObservedSection({ observed }: { observed: EnvironmentObserved | null }) {
+  return (
+    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          <ServerCog size={14} style={{ color: 'var(--text-light)' }} />
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Observado (Conector) — coletado pelo agente</span>
+        </div>
+        {observed?.stale_s != null && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>coletado há {fmtStale(observed.stale_s)}</span>}
+      </div>
+      {!observed?.has_inventory || !observed.inventory ? (
+        <div className="text-sm" style={{ color: 'var(--text-light)' }}>Inventário observado: aguardando coleta do agente.</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {/* AppServers observados */}
+          {observed.inventory.appservers.map((a, i) => (
+            <div key={i} className="text-xs font-mono flex flex-wrap items-center gap-2" style={{ color: 'var(--text)' }}>
+              <Badge variant={a.up ? 'success' : 'danger'}>{a.up ? 'up' : 'down'}</Badge>
+              {a.name}{a.version ? ` · ${a.version}` : ''}{a.build ? ` · build ${a.build}` : ''}{a.patch ? ` · patch ${a.patch}` : ''}
+            </div>
+          ))}
+          {/* RPO observado (hash) */}
+          {observed.inventory.rpo.map((r, i) => (
+            <div key={`rpo${i}`} className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              RPO: <span className="font-mono">{r.hash.slice(0, 12)}…</span>{r.version ? ` · ${r.version}` : ''}
+            </div>
+          ))}
+          {/* REST health observado */}
+          {observed.inventory.rest.map((r, i) => (
+            <div key={`rest${i}`} className="text-xs inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+              REST {r.name}: <Badge variant={r.healthy ? 'success' : 'danger'}>{r.healthy ? 'healthy' : 'unhealthy'}</Badge>
+            </div>
+          ))}
+          {/* DIVERGÊNCIA Cadastral × Observado — nunca reconcilia */}
+          {(observed.divergence?.length ?? 0) > 0 && (
+            <div className="mt-1 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning)' }}>
+              <b>Divergência Cadastral × Observado:</b>
+              {observed.divergence.map((d, i) => (
+                <div key={i}>{d.appserver} · {d.field}: cadastral <b>{d.cadastral ?? '—'}</b> ≠ observado <b>{d.observed ?? '—'}</b></div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

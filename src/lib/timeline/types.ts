@@ -51,7 +51,7 @@ export interface TimelineFacet {
   // C1 (aditivo, não-quebrável): 'source-action' (ações/governança do action_log),
   // 'campaign' (eventos de campanha semântica), 'coverage-scan' (cobertura real por repo).
   kind: 'build' | 'audit' | 'source-version' | 'gmud-commit' | 'gmud-package' | 'quality' | 'inventory-scan'
-    | 'source-action' | 'campaign' | 'coverage-scan'
+    | 'source-action' | 'campaign' | 'coverage-scan' | 'connector-event'
   /** Datasource nativo de origem (não é fundido; é a procedência). */
   source: 'operacoes' | 'source-docs' | 'gmud' | 'quality' | 'inventario'
   authority: TimelineAuthority

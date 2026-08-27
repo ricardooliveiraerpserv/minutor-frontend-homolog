@@ -88,6 +88,27 @@ export async function fetchEnvironmentPresence(environmentId: number): Promise<E
   return r.data
 }
 
+// ── Connector-2 — inventário OBSERVADO (Protheus) + divergência cadastral × observado ───
+
+export interface EnvironmentObserved {
+  environment_id: number
+  has_inventory: boolean
+  stale_s: number | null // frescor do INVENTÁRIO (independente da presença)
+  inventory: {
+    appservers: { ref: string; name: string; up: boolean; version: string | null; build: string | null; patch: string | null; uptime_s: number | null }[]
+    rest: { name: string; healthy: boolean; status_code?: number | null; latency_ms?: number | null }[]
+    rpo: { appserver_ref: string; hash: string; version: string | null; size: number | null; mtime: number | null }[]
+    collect_error: string | null
+  } | null
+  divergence: { appserver: string; field: string; cadastral: string | null; observed: string | null }[]
+}
+
+/** Inventário observado + divergência (Cadastral × Observado). Read-only, sem secret. */
+export async function fetchEnvironmentObserved(environmentId: number): Promise<EnvironmentObserved> {
+  const r = await api.get<{ data: EnvironmentObserved }>(`/prosight/environments/${environmentId}/observed`)
+  return r.data
+}
+
 /** Rótulo/variante honestos para a presença OBSERVADA (nunca confundir com status cadastral). */
 export function presenceLabel(p: EnvironmentPresence | undefined | null): { label: string; variant: string } {
   if (!p || (!p.has_agent && !p.observed)) return { label: 'Sem agente conectado', variant: 'default' }

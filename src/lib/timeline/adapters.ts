@@ -294,6 +294,39 @@ export function fromCoverageScan(s: CoverageScanNative): TimelineEvent {
   }
 }
 
+// ── Operações — transição observada pelo Conector (Connector-2) ────────────────
+export interface ConnectorEventNative {
+  id: number
+  environment_id: number
+  environment_name: string | null
+  customer_id: number | null
+  customer_name?: string | null
+  appserver_ref: string | null
+  event_type: string // appserver_up|appserver_down|process_changed|version_changed|rpo_changed|rest_health_changed
+  outcome: 'ok' | 'fail' | 'info'
+  detail: string | null
+  meta: Record<string, unknown> | null
+  occurred_at: string | null
+}
+const CONNECTOR_LABEL: Record<string, string> = {
+  appserver_up: 'AppServer detectado', appserver_down: 'AppServer sumiu', process_changed: 'Processo alterado',
+  version_changed: 'Versão alterada', rpo_changed: 'RPO alterado', rest_health_changed: 'REST health',
+}
+const CONNECTOR_OUTCOME: Record<string, TimelineOutcome> = { ok: 'ok', fail: 'fail', info: 'info' }
+export function fromConnectorEvent(c: ConnectorEventNative): TimelineEvent {
+  const facet: TimelineFacet = {
+    kind: 'connector-event', source: 'operacoes', authority: 'minutor-db', origin: 'Conector (agente on-prem, observado)',
+    nativeId: String(c.id), detail: c.detail ?? undefined, payload: { event_type: c.event_type, meta: c.meta ?? null },
+  }
+  return {
+    id: `operacoes:connector:${c.id}`, family: 'operacoes',
+    title: CONNECTOR_LABEL[c.event_type] ?? c.event_type, subtype: c.event_type,
+    where: c.environment_name ?? 'Ambiente', occurredAt: c.occurred_at, actor: null, // observado, sem ator
+    outcome: CONNECTOR_OUTCOME[c.outcome] ?? 'info', facets: [facet],
+    correlation: { confidence: 'none', keys: { environmentId: String(c.environment_id), companyId: c.customer_id ?? null }, relatedIds: [] },
+  }
+}
+
 // ── Inventário — scan Git×RPO (snapshot por empresa) ───────────────────────────
 export function fromInventoryScan(s: InventoryScanOk, companyId: string | number, companyLabel: string): TimelineEvent {
   const facet: TimelineFacet = {

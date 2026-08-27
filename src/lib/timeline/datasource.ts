@@ -10,9 +10,9 @@
 
 import { api } from '@/lib/api'
 import {
-  fromAuditEntry, fromCampaignEvent, fromChangeEntry, fromCoverageScan, fromGmudCommit,
+  fromAuditEntry, fromCampaignEvent, fromChangeEntry, fromConnectorEvent, fromCoverageScan, fromGmudCommit,
   fromInventoryScan, fromQualityAnalysis, fromSourceAction, fromSourceVersion,
-  type CampaignEventNative, type CoverageScanNative, type GmudCommitNative,
+  type CampaignEventNative, type ConnectorEventNative, type CoverageScanNative, type GmudCommitNative,
   type QualityAnalysisNative, type SourceActionNative, type SourceVersionNative,
 } from './adapters'
 import { correlate } from './correlate'
@@ -64,6 +64,7 @@ function adaptItem(it: ActivityItem): TimelineEvent | null {
     case 'source-action': return fromSourceAction(it.native as SourceActionNative)
     case 'campaign': return fromCampaignEvent(it.native as CampaignEventNative)
     case 'coverage-scan': return fromCoverageScan(it.native as CoverageScanNative)
+    case 'connector-event': return fromConnectorEvent(it.native as ConnectorEventNative)
     default: return null // kind desconhecido → ignora (nunca inventa)
   }
 }
