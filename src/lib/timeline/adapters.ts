@@ -168,6 +168,132 @@ export function fromQualityAnalysis(q: QualityAnalysisNative): TimelineEvent {
   }
 }
 
+// ── Fontes/Publicações/Governança — ação do action_log (C1) ────────────────────
+export interface SourceActionNative {
+  id: number
+  source_doc_id: number
+  version_id: number | null
+  action: string            // validate|reprocess|download|view_git|compare|publish_git|cost_approval_*
+  layer: string | null
+  status: string            // queued|running|ok|failed|skipped|denied
+  denied: boolean
+  reason: string | null
+  cost_usd: number | null
+  duration_ms: number | null
+  actor_user_id: number | null
+  actor_name: string | null
+  created_at: string | null
+  filename: string
+  owner: string
+  repository: string
+  customer_id: number | null
+  customer_name?: string | null
+  approval?: Record<string, unknown> | null // enriquecimento (cost_approval_*), quando houver
+}
+const ACTION_LABEL: Record<string, string> = {
+  validate: 'Validação', reprocess: 'Reprocessamento', download: 'Download',
+  view_git: 'Consulta ao Git', compare: 'Comparação', publish_git: 'Publicação no Git',
+}
+const ACTION_OUTCOME: Record<string, TimelineOutcome> = {
+  ok: 'ok', failed: 'fail', denied: 'fail', skipped: 'partial', queued: 'pending', running: 'pending',
+}
+export function fromSourceAction(a: SourceActionNative): TimelineEvent {
+  const isCost = a.action.startsWith('cost_approval_')
+  const isPublish = a.action === 'publish_git'
+  const title = isCost
+    ? `Aprovação de custo · ${a.action.replace('cost_approval_', '').replace(/_/g, ' ')}`
+    : (ACTION_LABEL[a.action] ?? a.action)
+  // Ajuste #2: negativa por AUTORIZAÇÃO é distinta de falha técnica de processamento.
+  const detail = a.denied
+    ? `Acesso negado (autorização)${a.reason ? ` — ${a.reason}` : ''}`
+    : (a.reason ?? undefined)
+  const facet: TimelineFacet = {
+    kind: 'source-action', source: 'source-docs', authority: 'minutor-db',
+    origin: isCost ? 'source-docs (governança de custo)' : 'source-docs',
+    nativeId: String(a.id), detail,
+    payload: { action: a.action, status: a.status, denied: a.denied, layer: a.layer, cost_usd: a.cost_usd, approval: a.approval ?? null },
+  }
+  return {
+    id: `${isPublish ? 'publicacoes' : 'fontes'}:action:${a.id}`,
+    family: isPublish ? 'publicacoes' : 'fontes',
+    title, subtype: a.action, where: `${a.owner}/${a.repository} · ${a.filename}`,
+    occurredAt: a.created_at, actor: a.actor_name || null,
+    outcome: ACTION_OUTCOME[a.status] ?? 'info',
+    facets: [facet],
+    correlation: { confidence: 'none', keys: { sourceDocId: a.source_doc_id, companyId: a.customer_id ?? null }, relatedIds: [] },
+  }
+}
+
+// ── Qualidade — evento de campanha semântica (C1; GLOBAL, sem empresa) ──────────
+export interface CampaignEventNative {
+  id: number
+  campaign_id: number
+  campaign_name: string | null
+  event: string // created|started|paused|resumed|cancelled|budget_changed|auto_paused|completed
+  actor_user_id: number | null
+  actor_name: string | null
+  created_at: string | null
+}
+const CAMPAIGN_LABEL: Record<string, string> = {
+  created: 'criada', started: 'iniciada', paused: 'pausada', resumed: 'retomada',
+  cancelled: 'cancelada', budget_changed: 'orçamento alterado', auto_paused: 'pausa automática', completed: 'concluída',
+}
+export function fromCampaignEvent(c: CampaignEventNative): TimelineEvent {
+  const facet: TimelineFacet = {
+    kind: 'campaign', source: 'source-docs', authority: 'minutor-db', origin: 'source-docs (campanha semântica global)',
+    nativeId: String(c.id), detail: c.campaign_name ?? undefined, payload: { event: c.event },
+  }
+  return {
+    id: `qualidade:campaign:${c.id}`, family: 'qualidade',
+    title: `Campanha · ${CAMPAIGN_LABEL[c.event] ?? c.event}`, subtype: `campaign-${c.event}`,
+    where: c.campaign_name ?? 'Campanha semântica',
+    occurredAt: c.created_at, actor: c.actor_name || null,
+    outcome: c.event === 'completed' ? 'ok' : 'info',
+    facets: [facet],
+    correlation: { confidence: 'none', keys: {}, relatedIds: [] }, // campanha global — sem empresa
+  }
+}
+
+// ── Inventário — cobertura REAL por repo (C1; sem RPO — RPO é Bloco B) ──────────
+export interface CoverageScanNative {
+  source_repo_id: number
+  owner: string
+  repository: string
+  branch: string | null
+  customer_id: number | null
+  customer_name?: string | null
+  scan_status: string // pending|running|completed|partial|failed|rate_limited
+  scan_started_at: string | null
+  scan_finished_at: string | null
+  last_synced_at: string | null
+  occurred_at: string | null
+  github_files: number
+  eligible: number
+  cataloged: number
+  deterministic: number
+  semantic: number
+  indexed: number
+  changed: number
+}
+const COVERAGE_OUTCOME: Record<string, TimelineOutcome> = {
+  completed: 'ok', partial: 'partial', failed: 'fail', running: 'pending', pending: 'pending', rate_limited: 'info',
+}
+export function fromCoverageScan(s: CoverageScanNative): TimelineEvent {
+  const facet: TimelineFacet = {
+    kind: 'coverage-scan', source: 'inventario', authority: 'minutor-db', origin: 'source-docs (cobertura por repo)',
+    nativeId: String(s.source_repo_id),
+    detail: `${s.cataloged}/${s.eligible} catalogados · ${s.changed} desatualizados · ${s.semantic} c/ semântica`,
+    payload: { scan_status: s.scan_status, github_files: s.github_files, indexed: s.indexed, deterministic: s.deterministic },
+  }
+  return {
+    id: `inventario:coverage:${s.source_repo_id}:${s.occurred_at ?? 'na'}`, family: 'inventario',
+    title: `Cobertura · ${s.owner}/${s.repository}`, subtype: 'coverage-scan',
+    where: `${s.owner}/${s.repository}`, occurredAt: s.occurred_at, actor: null, // scan não tem ator
+    outcome: COVERAGE_OUTCOME[s.scan_status] ?? 'info', facets: [facet],
+    correlation: { confidence: 'none', keys: { companyId: s.customer_id ?? null }, relatedIds: [] },
+  }
+}
+
 // ── Inventário — scan Git×RPO (snapshot por empresa) ───────────────────────────
 export function fromInventoryScan(s: InventoryScanOk, companyId: string | number, companyLabel: string): TimelineEvent {
   const facet: TimelineFacet = {

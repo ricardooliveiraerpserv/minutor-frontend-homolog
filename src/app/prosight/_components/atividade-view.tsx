@@ -19,11 +19,12 @@ import {
 import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { useAuth } from '@/contexts/auth-context'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
-import { getTimelineDataSource, timelineDataMode } from '@/lib/timeline/datasource'
+import { getTimelineDataSource, timelineDataMode, type ActivityQuery } from '@/lib/timeline/datasource'
 import {
   AUTHORITY_META, CONFIDENCE_META, FAMILY_META, OUTCOME_META,
   type TimelineEvent, type TimelineFamily,
 } from '@/lib/timeline/types'
+import { useProsightCompany } from './company-context'
 
 type Role = 'admin' | 'coordenador' | 'operador'
 
@@ -58,6 +59,10 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
   const spFamily = sp?.get('family')
   const initialFamily = spFamily && spFamily in FAMILY_META ? (spFamily as TimelineFamily) : 'todos'
 
+  // Empresa: alinhado ao seletor Prosight (como as demais telas reais). null = "Todas".
+  const companyCtx = useProsightCompany()
+  const companyId = companyCtx?.companyId ?? null
+
   const [events, setEvents] = useState<TimelineEvent[] | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [family, setFamily] = useState<'todos' | TimelineFamily>(initialFamily)
@@ -67,13 +72,40 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [pendingFamilies, setPendingFamilies] = useState<TimelineFamily[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  // Filtros aplicados NO SERVIDOR (escopo/anti-IDOR + empresa/período/família/resultado).
+  // Busca textual (q) e escopo (where) seguem client-side sobre o que já foi carregado.
+  const serverQuery = useCallback((cursor?: string | null): ActivityQuery => ({
+    customerId: companyId,
+    from: from || undefined,
+    to: to || undefined,
+    families: family === 'todos' ? undefined : [family],
+    outcome: outcome || undefined,
+    cursor: cursor ?? undefined,
+    limit: 50,
+  }), [companyId, from, to, family, outcome])
 
   const reload = useCallback(async () => {
     setState('loading')
-    try { setEvents(await getTimelineDataSource().getEvents()); setState('ready') }
-    catch { setEvents(null); setState('error') }
-  }, [])
+    try {
+      const page = await getTimelineDataSource().getEvents(serverQuery())
+      setEvents(page.events); setNextCursor(page.nextCursor); setPendingFamilies(page.pendingFamilies); setState('ready')
+    } catch { setEvents(null); setNextCursor(null); setState('error') }
+  }, [serverQuery])
   useEffect(() => { void reload() }, [reload])
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor) return
+    setLoadingMore(true)
+    try {
+      const page = await getTimelineDataSource().getEvents(serverQuery(nextCursor))
+      setEvents((prev) => [...(prev ?? []), ...page.events]); setNextCursor(page.nextCursor)
+    } catch { /* erro ao paginar não zera a página já carregada */ }
+    finally { setLoadingMore(false) }
+  }, [nextCursor, serverQuery])
 
   // Famílias visíveis por permissão (não eleva).
   const visibleFamilies = useMemo(
@@ -112,6 +144,14 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
         <span>Visão de <b>consulta</b>. Não é fonte de verdade: cada evento mantém sua <b>origem e autoridade</b>. Mudanças, Auditoria, histórico da fonte e GMUD seguem como telas especializadas de drill-down.</span>
       </div>
 
+      {/* Bloco B / Trilha Conector: Operações ainda não tem fonte live (nunca preenchida com fixture). */}
+      {timelineDataMode() === 'live' && pendingFamilies.includes('operacoes') && visibleFamilies.includes('operacoes') && (family === 'todos' || family === 'operacoes') && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
+          <ServerCog size={14} className="mt-px shrink-0" />
+          <span><b>Operações</b> (compilação/patch/RPO/health) — <b>aguardando conexão live</b> (Trilha Conector). Esses eventos entrarão neste mesmo contrato quando o conector de AppServer existir.</span>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="flex flex-wrap gap-1.5">
@@ -149,12 +189,23 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
       ) : visibleFamilies.length === 0 ? (
         <Card><EmptyState icon={ShieldCheck} title="Sem acesso a domínios de atividade" description="Seu perfil não tem acesso a nenhuma família de eventos consolidável." /></Card>
       ) : filtered.length === 0 ? (
-        <Card><EmptyState icon={Activity} title="Nenhum evento" description="Nada encontrado com esses filtros." /></Card>
+        family === 'operacoes' && timelineDataMode() === 'live' ? (
+          <Card><EmptyState icon={ServerCog} title="Operações — aguardando conexão live" description="A família Operações (AppServer/compilação/patch/RPO/health) entra por esta timeline quando a Trilha Conector existir. Sem dados simulados." /></Card>
+        ) : (
+          <Card><EmptyState icon={Activity} title="Nenhum evento" description="Nada encontrado com esses filtros." /></Card>
+        )
       ) : (
         <div className="flex flex-col gap-2">
           {filtered.map((e) => (
             <EventRow key={e.id} e={e} byId={byId} expanded={!!open[e.id]} onToggle={() => setOpen((o) => ({ ...o, [e.id]: !o[e.id] }))} />
           ))}
+          {nextCursor && (
+            <div className="mt-1 flex justify-center">
+              <Button variant="secondary" icon={ChevronDown} onClick={() => void loadMore()} disabled={loadingMore}>
+                {loadingMore ? 'Carregando…' : 'Carregar mais'}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>
