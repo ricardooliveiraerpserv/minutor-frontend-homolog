@@ -20,6 +20,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/investimento-comercial',  label: 'Investimento Interno',    group: 'Projetos' },
   { key: '/projetos/indicadores',    label: 'Indicadores de Projetos', group: 'Projetos' },
   { key: '/sustentacao',             label: 'Sustentação (Portal)',    group: 'Sustentação' },
+  { key: '/sustentacao/indicadores', label: 'Indicadores',             group: 'Sustentação' },
   { key: '/timesheets',              label: 'Apontamentos',            group: 'Apontamentos & Despesas' },
   { key: '/expenses',                label: 'Despesas',                group: 'Apontamentos & Despesas' },
   { key: '/approvals',               label: 'Aprovações',              group: 'Apontamentos & Despesas' },

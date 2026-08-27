@@ -202,7 +202,6 @@ const TABS = [
   { id: 'status',       label: 'Status de Suporte', icon: Gauge },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
-  { id: 'indicadores',  label: 'Indicadores',       icon: BarChart2 },
   { id: 'sla',          label: 'SLA',               icon: Shield },
   { id: 'productivity', label: 'Produtividade',     icon: Users },
   { id: 'financial',    label: 'Financeiro',        icon: DollarSign },
@@ -856,7 +855,6 @@ export default function SustentacaoPage() {
   const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
   const [loadError, setLoadError]         = useState<string | null>(null)
   const [contextStats, setContextStats]   = useState<ContextStats | null>(null)
-  const [indicadores, setIndicadores]     = useState<ExecutiveData | null>(null)
   const [status, setStatus]               = useState<StatusData | null>(null)
   const [queueStatusOptions, setQueueStatusOptions] = useState<{ value: string; label: string; base_status: string }[]>([])
   const [drillDown, setDrillDown]       = useState<{ type: 'consultor' | 'cliente'; key: string; label: string } | null>(null)
@@ -893,9 +891,6 @@ export default function SustentacaoPage() {
       } else if (t === 'evolution' && !evolution) {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
-      } else if (t === 'indicadores' && !indicadores) {
-        const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
-        setIndicadores(r)
       } else if (t === 'status') {
         // compare=yoy: backend calcula current+previous+variation com a MESMA regra.
         const r = await api.get<{ status: StatusData }>(`/sustentacao/executive?${params}&compare=yoy`)
@@ -1371,159 +1366,6 @@ export default function SustentacaoPage() {
             </div>
           </div>
         )}
-
-        {/* INDICADORES — Dashboard Executivo */}
-        {!routineTab && tab === 'indicadores' && indicadores && (() => {
-          const { pct_critical, pct_stopped, sla_breach_pct, avg_resolution_hours, lead_time_avg_hours, aging, pct_hours_consumed, total_sold_h, total_used_h, hours_per_ticket, top_clients, by_category, by_urgency } = indicadores
-
-          const kpiColor = (v: number | null, thresholds: [number, number]): string => {
-            if (v == null) return 'var(--text-light)'
-            if (v < thresholds[0]) return GREEN
-            if (v < thresholds[1]) return YELLOW
-            return RED
-          }
-
-          const agingBuckets = [
-            { label: '0–3 dias',  value: aging.d0_3,    color: GREEN },
-            { label: '4–7 dias',  value: aging.d4_7,    color: YELLOW },
-            { label: '8–15 dias', value: aging.d8_15,   color: ORANGE },
-            { label: '+15 dias',  value: aging.d15_plus, color: RED },
-          ]
-          const agingMax = Math.max(...agingBuckets.map(b => b.value), 1)
-
-          return (
-            <div className="space-y-5">
-              {/* ROW 1 — 4 KPI Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: '% Críticos (Alta/Urgente)', value: `${pct_critical}%`, sub: 'do total do período', color: kpiColor(pct_critical, [40, 60]) },
-                  { label: '% Parados',                 value: `${pct_stopped}%`,  sub: 'de todos os ativos', color: kpiColor(pct_stopped, [20, 35]) },
-                  { label: 'SLA Violado',               value: sla_breach_pct != null ? `${sla_breach_pct}%` : '—', sub: 'resolvidos fora do prazo', color: kpiColor(sla_breach_pct, [20, 40]) },
-                  { label: 'Tempo Médio Resolução',     value: avg_resolution_hours != null ? `${avg_resolution_hours}h` : '—', sub: 'baseado em sla_solution_time', color: kpiColor(avg_resolution_hours, [8, 24]) },
-                ].map(c => (
-                  <div key={c.label} className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <span className="text-[11px] text-[var(--text-muted)]">{c.label}</span>
-                    <span className="text-3xl font-bold" style={{ color: c.color }}>{c.value}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{c.sub}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* ROW 2 — Aging + Lead Time/Horas por Ticket */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                  <p className="text-xs font-semibold text-[var(--text)] mb-4">Aging — Tickets Abertos</p>
-                  <div className="space-y-3">
-                    {agingBuckets.map(b => (
-                      <div key={b.label} className="flex items-center gap-3">
-                        <span className="text-[11px] text-[var(--text-muted)] w-20 shrink-0">{b.label}</span>
-                        <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 10 }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${(b.value / agingMax) * 100}%`, background: b.color }} />
-                        </div>
-                        <span className="text-[11px] font-semibold w-8 text-right" style={{ color: b.color }}>{b.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <span className="text-[11px] text-[var(--text-muted)]">Lead Time Médio</span>
-                    <span className="text-3xl font-bold" style={{ color: kpiColor(lead_time_avg_hours, [8, 24]) }}>
-                      {lead_time_avg_hours != null ? `${lead_time_avg_hours}h` : '—'}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">abertura → fechamento</span>
-                  </div>
-                  <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                    <span className="text-[11px] text-[var(--text-muted)]">Horas / Ticket</span>
-                    <span className="text-3xl font-bold" style={{ color: CYAN }}>
-                      {hours_per_ticket != null ? `${hours_per_ticket}h` : '—'}
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">horas apontadas por ticket resolvido</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ROW 3 — Consumo de Horas */}
-              <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <p className="text-xs font-semibold text-[var(--text)]">Consumo de Horas por Cliente</p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs text-[var(--text-light)]">Consumido / Vendido</span>
-                      <span className="text-sm font-bold" style={{ color: kpiColor(pct_hours_consumed, [70, 90]) }}>
-                        {total_used_h}h / {total_sold_h}h
-                        {pct_hours_consumed != null && <span className="ml-1 text-[11px]">({pct_hours_consumed}%)</span>}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {top_clients.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(200, top_clients.length * 32)}>
-                    <BarChart layout="vertical"
-                      data={top_clients.map(c => ({
-                        name: c.name.length > 22 ? c.name.slice(0, 20) + '…' : c.name, fullName: c.name,
-                        'Usado (h)': c.used_h,
-                        'Vendido (h)': c.sold_h,
-                        pct: c.pct,
-                      }))}
-                      margin={{ left: 0, right: 55, top: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={130} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''}
-                        formatter={(v: any, name: any) => [`${v}h`, name]} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="Vendido (h)" fill="var(--border-strong)" radius={[0,3,3,0]} />
-                      <Bar dataKey="Usado (h)" fill={CYAN} radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? `${v}h` : '' }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-xs text-[var(--text-light)] py-4 text-center">Nenhum dado de timesheet no período.</p>
-                )}
-              </div>
-
-              {/* ROW 4 — Distribuição Categoria + Urgência */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Distribuição por Categoria</p>
-                  <ResponsiveContainer width="100%" height={Math.max(160, by_category.length * 30)}>
-                    <BarChart layout="vertical" data={by_category.map(b => ({ name: b.label, count: b.count }))}
-                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
-                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="count" name="Tickets" fill={BLUE} radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Distribuição por Urgência</p>
-                  <ResponsiveContainer width="100%" height={Math.max(160, by_urgency.length * 30)}>
-                    <BarChart layout="vertical" data={by_urgency.map(b => ({
-                      name: b.label,
-                      count: b.count,
-                      fill: b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : 'var(--text-light)',
-                    }))}
-                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
-                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="count" name="Tickets" radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }}>
-                        {by_urgency.map((b, i) => (
-                          <Cell key={i} fill={b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : 'var(--text-light)'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          )
-        })()}
 
         {/* FILA OPERACIONAL */}
         {!routineTab && tab === 'queue' && queue && (
