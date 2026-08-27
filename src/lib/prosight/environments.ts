@@ -30,3 +30,32 @@ export async function fetchProsightEnvironments(customerId: number): Promise<Saf
   )
   return r.data.environments
 }
+
+// ── C4 — Configuração de Ambiente (detalhe cadastral de UM ambiente) ────────────
+
+export interface SafeEnvironmentConfig {
+  environment: {
+    id: number
+    customer_id: number
+    name: string
+    type: SafeEnvironment['type']
+    status: { code: string; label: string; note: string }
+    responsible_name: string | null
+    updated_at: string | null
+  }
+  appservers: { name: string; version: string | null; build: string | null; patch: string | null }[]
+  databases: { engine: string; always_on_cadastrado: boolean }[]
+  links: { label: string; kind: string }[]
+}
+
+/**
+ * Configuração cadastral de UM ambiente. Empresa + ambiente obrigatórios; o backend valida
+ * environment↔customer (404 se cross-customer/fora de escopo). Health/RPO/operação NÃO vêm daqui
+ * (a UI rotula "Aguardando Conector" estaticamente — o Env não conhece estado live).
+ */
+export async function fetchProsightEnvironmentConfig(customerId: number, environmentId: number): Promise<SafeEnvironmentConfig> {
+  const r = await api.get<{ data: SafeEnvironmentConfig }>(
+    `/prosight/environments/${environmentId}/configuration?customer_id=${customerId}`,
+  )
+  return r.data
+}

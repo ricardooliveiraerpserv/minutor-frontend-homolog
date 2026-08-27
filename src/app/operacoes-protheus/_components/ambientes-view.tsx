@@ -11,13 +11,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
-  Boxes, Building2, Database, Layers, Link2, RefreshCw, Server, ServerCog, XCircle,
+  Boxes, Building2, ChevronRight, Database, Layers, Link2, RefreshCw, Server, ServerCog, XCircle,
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
 import { apiMessage } from '@/lib/api'
 import { fetchProsightEnvironments, type SafeEnvironment } from '@/lib/prosight/environments'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
+import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
 
 const TYPE_LABEL: Record<SafeEnvironment['type'], string> = {
   prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery',
@@ -36,8 +38,15 @@ const STATUS_VARIANT: Record<SafeEnvironment['status']['code'], string> = {
 
 export function AmbientesView() {
   const company = useProsightCompany()
+  const sel = useProsightEnvSelection()
+  const router = useRouter()
   const companyId = company?.companyId ?? null
   const companyName = company?.companyName ?? null
+
+  const openConfig = (id: number) => {
+    sel?.setEnvironmentId(id) // C4 — eixo customer_id + environment_id
+    router.push('/operacoes-protheus/configuracao')
+  }
 
   const [envs, setEnvs] = useState<SafeEnvironment[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -78,14 +87,14 @@ export function AmbientesView() {
           description={`${companyName ?? 'Esta empresa'} ainda não possui ambientes no Cofre. Cadastre pelo Cofre de Ambientes.`} /></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} />)}
+          {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} onConfig={() => openConfig(e.id)} />)}
         </div>
       )}
     </>
   )
 }
 
-function EnvironmentCard({ env }: { env: SafeEnvironment }) {
+function EnvironmentCard({ env, onConfig }: { env: SafeEnvironment; onConfig: () => void }) {
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Cabeçalho */}
@@ -153,10 +162,15 @@ function EnvironmentCard({ env }: { env: SafeEnvironment }) {
       </div>
 
       {/* Bloco B / Conector — health e RPO ao vivo NÃO existem em C3 (nunca inventados) */}
-      <div className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-1.5" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+      <div className="rounded-lg px-3 py-2 text-[11px] flex items-start gap-1.5 mb-3" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
         <Boxes size={12} className="mt-px shrink-0" />
         <span>Health ao vivo e RPO: <b>aguardando conexão (Conector)</b>. Status é cadastral, não tempo real.</span>
       </div>
+
+      {/* C4 — abre o detalhe cadastral (Configuração) deste ambiente */}
+      <button onClick={onConfig} className="flex w-full items-center justify-end gap-1 text-sm font-medium" style={{ color: 'var(--primary)' }}>
+        Ver configuração <ChevronRight size={15} />
+      </button>
     </div>
   )
 }

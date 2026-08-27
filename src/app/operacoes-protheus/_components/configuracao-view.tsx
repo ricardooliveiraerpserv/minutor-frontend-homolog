@@ -1,235 +1,193 @@
 'use client'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Operações Protheus · Configuração — cara administrativa do Minutor (NÃO o
-// wizard 10-passos nem file browser do Dashboards legado). Seções:
-//   Ambiente · Compilador · AppServers/Slaves · RPO · Pastas · REST · Parâmetros.
-// Preserva TODOS os parâmetros relevantes do configurador original. Paths
-// Windows/UNC como TEXTO (validação física é do backend no live). Segredos JAMAIS
-// em claro — só "Configurado". Somente admin (config.manage).
+// Prosight C4 · Configuração de Ambiente — detalhe CADASTRAL real de UM ambiente.
+// Eixo oficial: ProsightCompanyContext.customer_id + environment_id (selecionado em
+// C3). Mostra SOMENTE o que o Env* sabe hoje: ambiente, AppServers (version/build/
+// patch), engine do banco (+ AlwaysOn CADASTRADO), links. Broker/compilação/RPO/
+// REST/health/folders/janela/n8n/operação = Conector → seção estática "aguardando".
+// Nada de secret/host/porta/URL. Sem fallback fixture no live: erro = indisponível.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Boxes, Database, FolderCog, Hammer, Lock, Server, Settings2, ShieldAlert, Sliders, XCircle,
+  Boxes, Building2, Database, Layers, Link2, RefreshCw, Server, ServerCog, Settings, XCircle,
 } from 'lucide-react'
-import {
-  Badge, Button, Card, EmptyState, PageHeader, Skeleton,
-} from '@/components/ds'
-import { useAuth } from '@/hooks/use-auth'
-import { getOperacoesDataSource } from '@/lib/operacoes/datasource'
-import { canOperacoes } from '@/lib/operacoes/permissions'
-import type { EnvironmentConfig } from '@/lib/operacoes/types'
-import { useOperacoes } from './operacoes-context'
-import { fmtDateTime } from './shared'
+import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
+import { ApiError, apiMessage } from '@/lib/api'
+import { fetchProsightEnvironmentConfig, type SafeEnvironmentConfig } from '@/lib/prosight/environments'
+import { useProsightCompany } from '@/app/prosight/_components/company-context'
+import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
 
-export function ConfiguracaoView({ previewEnvironmentId = null, demoAdmin = false }: { previewEnvironmentId?: string | null; demoAdmin?: boolean }) {
-  const ds = getOperacoesDataSource()
-  const { user } = useAuth()
-  const ctx = useOperacoes()
-  const environmentId = ctx?.environmentId ?? previewEnvironmentId ?? null
-  const environmentLabel = ctx?.environmentLabel ?? null
-  const canManage = demoAdmin || canOperacoes('config.manage', user)
+const TYPE_LABEL: Record<SafeEnvironmentConfig['environment']['type'], string> = {
+  prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery',
+}
+const ENGINE_LABEL: Record<string, string> = {
+  sqlserver: 'SQL Server', postgres: 'PostgreSQL', oracle: 'Oracle', mysql: 'MySQL',
+}
+const STATUS_VARIANT: Record<string, string> = {
+  ativo: 'default', inativo: 'danger', manutencao: 'warning', indefinido: 'default',
+}
+// Capacidades que dependem do Conector — lista ESTÁTICA de UI (o Env NÃO conhece o estado delas).
+const PENDING = [
+  'Health ao vivo', 'RPO', 'Compilação', 'REST health', 'Broker / serviços',
+  'Pastas / janela de manutenção / n8n', 'Modo exclusivo / operação',
+]
 
-  const [cfg, setCfg] = useState<EnvironmentConfig | null>(null)
-  const [loading, setLoading] = useState(true)
+// previewEnvironmentId/demoAdmin: aceitos p/ compatibilidade do harness de preview; o C4 usa o contexto real.
+export function ConfiguracaoView(_props: { previewEnvironmentId?: string | null; demoAdmin?: boolean } = {}) {
+  const company = useProsightCompany()
+  const sel = useProsightEnvSelection()
+  const companyId = company?.companyId ?? null
+  const companyName = company?.companyName ?? null
+  const environmentId = sel?.environmentId ?? null
+
+  const [config, setConfig] = useState<SafeEnvironmentConfig | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notConfigured, setNotConfigured] = useState(false)
 
   const load = useCallback(async () => {
-    if (!environmentId) return
-    setLoading(true); setError(null); setNotConfigured(false)
-    try {
-      const c = await ds.getConfig(environmentId)
-      if (!c) { setNotConfigured(true); setCfg(null) } else setCfg(c)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao carregar a configuração.'); setCfg(null)
-    } finally { setLoading(false) }
-  }, [ds, environmentId])
+    if (companyId == null || environmentId == null) { setConfig(null); return }
+    setLoading(true); setError(null)
+    try { setConfig(await fetchProsightEnvironmentConfig(companyId, environmentId)) }
+    catch (e) {
+      setConfig(null)
+      // 404 = ambiente não pertence a esta empresa / fora de escopo → limpa a seleção (sem stale).
+      if (e instanceof ApiError && e.status === 404) { sel?.setEnvironmentId(null); setError(null) }
+      else { setError(apiMessage(e, 'Falha ao carregar a configuração do ambiente.')) }
+    }
+    finally { setLoading(false) }
+  }, [companyId, environmentId, sel])
 
-  useEffect(() => { if (canManage) void load() }, [canManage, load])
+  useEffect(() => { void load() }, [load])
 
-  if (!canManage) {
-    return (
-      <>
-        <PageHeader icon={Settings2} title="Configuração" subtitle="Parâmetros do ambiente Protheus." />
-        <Card><EmptyState icon={ShieldAlert} title="Acesso restrito" description="A configuração de Operações Protheus é exclusiva de administradores do Minutor." /></Card>
-      </>
-    )
-  }
+  const needSelection = companyId == null || environmentId == null
 
   return (
     <>
       <PageHeader
-        icon={Settings2}
-        title="Configuração"
-        subtitle={`Parâmetros do ambiente${environmentLabel ? ` · ${environmentLabel}` : ''}. Edição efetiva no D-live (validação física no backend).`}
-        actions={<Button variant="secondary" disabled title="A edição será habilitada na conexão real (D-live).">Editar (D-live)</Button>}
+        icon={Settings}
+        title="Configuração de Ambiente"
+        subtitle="Configuração cadastral do ambiente selecionado (Cofre). Operação, health e RPO ao vivo entram com o Conector."
+        actions={<Button variant="primary" icon={RefreshCw} onClick={() => void load()} disabled={loading || needSelection}>Atualizar</Button>}
       />
 
-      {loading ? (
-        <div className="flex flex-col gap-4">
-          <Card><Skeleton className="h-32 w-full" /></Card>
-          <Card><Skeleton className="h-40 w-full" /></Card>
-          <Card><Skeleton className="h-32 w-full" /></Card>
-        </div>
+      {needSelection ? (
+        <Card><EmptyState icon={Building2} title="Selecione empresa e ambiente"
+          description="A Configuração exige uma empresa (seletor acima) e um ambiente específico. Abra em Ambientes e use “Ver configuração”." /></Card>
+      ) : loading ? (
+        <div className="flex flex-col gap-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div>
       ) : error ? (
-        <Card><EmptyState icon={XCircle} title="Não foi possível carregar" description={error}
-          action={<Button variant="primary" onClick={() => void load()}>Tentar novamente</Button>} /></Card>
-      ) : notConfigured ? (
-        <Card><EmptyState icon={ShieldAlert} title="Ambiente não configurado" description="Este ambiente ainda não possui configuração. No D-live, use o assistente para definir broker, slaves, compilador, RPO e pastas." /></Card>
-      ) : cfg ? (
-        <div className="flex flex-col gap-4">
-          {/* Ambiente */}
-          <Section icon={Database} title="Ambiente" description="Broker e identificação do ambiente.">
-            <FieldGrid rows={[
-              { label: 'Broker habilitado', value: cfg.broker.enabled ? 'Sim' : 'Não' },
-              { label: 'Serviço do Broker', value: cfg.broker.serviceName, mono: true },
-              { label: 'Broker · exibição', value: cfg.broker.serviceDisplayName },
-              { label: 'Broker · porta', value: String(cfg.broker.port), mono: true },
-              { label: 'Broker · exe', value: cfg.broker.exePath, mono: true },
-              { label: 'Broker · ini', value: cfg.broker.iniPath, mono: true },
-              { label: 'Estratégia de RPO', value: cfg.rpoStrategy, mono: true },
-            ]} />
-          </Section>
-
-          {/* Compilador */}
-          <Section icon={Hammer} title="Compilador" description="Appserver dedicado à compilação/depuração.">
-            <FieldGrid rows={[
-              { label: 'Serviço', value: cfg.compiler.serviceName, mono: true },
-              { label: 'Ambiente AdvPL', value: cfg.compiler.appEnvironment, mono: true },
-              { label: 'Porta', value: String(cfg.compiler.port), mono: true },
-              { label: 'Exe', value: cfg.compiler.exePath, mono: true },
-            ]} />
-          </Section>
-
-          {/* AppServers / Slaves */}
-          <Section icon={Boxes} title="AppServers / Slaves" description="Instâncias de execução do ambiente.">
-            <div className="flex flex-col gap-3">
-              {cfg.slaves.map((s, i) => (
-                <div key={i} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)' }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{s.serviceDisplayName}</span>
-                    <Badge variant={s.valid ? 'success' : 'danger'}>{s.valid ? 'Válido' : 'Com erros'}</Badge>
-                  </div>
-                  <FieldGrid dense rows={[
-                    { label: 'Serviço', value: s.serviceName, mono: true },
-                    { label: 'Porta', value: String(s.port), mono: true },
-                    { label: 'Ambiente', value: s.appEnvironment, mono: true },
-                    { label: 'RPO Custom', value: s.rpoCustom, mono: true },
-                    { label: 'Versão RPO', value: s.rpoVersion, mono: true },
-                    { label: 'Root Path', value: s.rootPath, mono: true },
-                    { label: 'Source Path', value: s.sourcePath, mono: true },
-                    { label: 'UNC', value: s.uncPath, mono: true },
-                    { label: 'INI', value: s.iniPath, mono: true },
-                  ]} />
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* RPO */}
-          <Section icon={Server} title="RPO" description="Repositório de objetos compilados.">
-            <FieldGrid rows={[
-              { label: 'Estratégia', value: cfg.rpoStrategy, mono: true },
-              { label: 'RPO Custom (slave 01)', value: cfg.slaves[0]?.rpoCustom ?? '—', mono: true },
-              { label: 'Versão (slave 01)', value: cfg.slaves[0]?.rpoVersion ?? '—', mono: true },
-              { label: 'Compilador · source', value: cfg.slaves[0]?.sourcePath ?? '—', mono: true },
-            ]} />
-          </Section>
-
-          {/* Pastas */}
-          <Section icon={FolderCog} title="Pastas" description="Diretórios de trabalho (Windows/UNC).">
-            <FieldGrid rows={[
-              { label: 'Fontes', value: cfg.folders.sources, mono: true },
-              { label: 'Patches', value: cfg.folders.patches, mono: true },
-              { label: 'GetApoInfo', value: cfg.folders.getapoinfo, mono: true },
-            ]} />
-          </Section>
-
-          {/* REST */}
-          <Section icon={Server} title="REST" description="Servidores REST e health check.">
-            <div className="flex flex-col gap-3">
-              {cfg.restServers.map((r, i) => (
-                <div key={i} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)' }}>
-                  <div className="font-semibold text-sm mb-2" style={{ color: 'var(--text)' }}>{r.serviceName}</div>
-                  <FieldGrid dense rows={[
-                    { label: 'Porta', value: String(r.port), mono: true },
-                    { label: 'SSL', value: r.hasSSL ? 'Sim' : 'Não' },
-                    { label: 'Health check URL', value: r.healthCheckUrl, mono: true },
-                    { label: 'Health check usuário', value: r.healthCheckUser, mono: true },
-                    { label: 'Health check senha', value: r.healthCheckPassSet ? 'Configurado' : 'Não configurado', secret: r.healthCheckPassSet },
-                  ]} />
-                </div>
-              ))}
-              {cfg.scheduleServers.map((s, i) => (
-                <div key={`sch-${i}`} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)' }}>
-                  <div className="font-semibold text-sm mb-2" style={{ color: 'var(--text)' }}>Schedule · {s.serviceName}</div>
-                  <FieldGrid dense rows={[
-                    { label: 'Porta', value: String(s.port), mono: true },
-                    { label: 'Exe', value: s.exePath, mono: true },
-                  ]} />
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* Parâmetros Operacionais */}
-          <Section icon={Sliders} title="Parâmetros Operacionais" description="Janela de manutenção, integrações e serviços extras.">
-            <FieldGrid rows={[
-              { label: 'Janela de manutenção', value: cfg.maintenanceWindow.enabled ? 'Ativa' : 'Inativa' },
-              { label: 'Dias', value: cfg.maintenanceWindow.days.join(', ') || '—' },
-              { label: 'Horário', value: cfg.maintenanceWindow.time, mono: true },
-              { label: 'E-mails de alerta', value: cfg.maintenanceWindow.emails.join(', ') || '—' },
-              { label: 'Exclusivo · serviço', value: cfg.exclusive.serviceName, mono: true },
-              { label: 'Exclusivo · porta', value: String(cfg.exclusive.port), mono: true },
-              { label: 'Webhook n8n', value: cfg.integrations.n8nWebhookUrl ? 'Configurado' : 'Não configurado', secret: !!cfg.integrations.n8nWebhookUrl },
-              { label: 'Alertar fonte ausente', value: cfg.integrations.alertMissingSource ? 'Sim' : 'Não' },
-              ...cfg.extraServices.map((x) => ({ label: `Extra · ${x.name}`, value: x.exePath, mono: true })),
-            ]} />
-          </Section>
-
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-light)' }}>
-            <Lock size={12} /> Última atualização por <b style={{ color: 'var(--text-muted)' }}>{cfg.updatedBy}</b> em {fmtDateTime(cfg.updatedAt)}.
-          </div>
-        </div>
-      ) : null}
+        <Card><EmptyState icon={XCircle} title="Configuração indisponível" description={error}
+          action={<Button variant="primary" icon={RefreshCw} onClick={() => void load()}>Tentar novamente</Button>} /></Card>
+      ) : !config ? (
+        <Card><EmptyState icon={Layers} title="Ambiente não disponível"
+          description="O ambiente selecionado não está disponível para esta empresa. Selecione um ambiente em Ambientes." /></Card>
+      ) : (
+        <ConfigDetail config={config} companyName={companyName} />
+      )}
     </>
   )
 }
 
-function Section({ icon: Icon, title, description, children }: { icon: typeof Settings2; title: string; description: string; children: React.ReactNode }) {
+function ConfigDetail({ config, companyName }: { config: SafeEnvironmentConfig; companyName: string | null }) {
+  const env = config.environment
   return (
-    <Card>
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
-          <Icon size={15} color="var(--primary)" />
+    <div className="flex flex-col gap-4">
+      {/* Cabeçalho do ambiente */}
+      <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
+              <Server size={17} color="var(--primary)" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold truncate" style={{ color: 'var(--text)' }}>
+                {companyName ? `${companyName} · ` : ''}{env.name}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--text-light)' }}>{TYPE_LABEL[env.type] ?? env.type}</div>
+            </div>
+          </div>
+          <Badge variant={STATUS_VARIANT[env.status.code] ?? 'default'}>{env.status.label}</Badge>
         </div>
-        <div>
-          <div className="font-semibold" style={{ color: 'var(--text)' }}>{title}</div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{description}</div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+          {env.responsible_name && <span>Responsável: <b style={{ color: 'var(--text)' }}>{env.responsible_name}</b></span>}
+          {env.updated_at && <span>Atualizado: {new Date(env.updated_at).toLocaleString('pt-BR')}</span>}
+          <span style={{ color: 'var(--text-light)' }}>{env.status.note}</span>
         </div>
       </div>
-      {children}
-    </Card>
+
+      {/* AppServers cadastrados */}
+      <Section icon={ServerCog} title={`${config.appservers.length} AppServer${config.appservers.length === 1 ? '' : 's'} cadastrado${config.appservers.length === 1 ? '' : 's'}`}>
+        {config.appservers.length === 0 ? <Empty /> : (
+          <div className="flex flex-col gap-1">
+            {config.appservers.map((a, i) => (
+              <div key={i} className="text-sm font-mono truncate" style={{ color: 'var(--text)' }}>
+                {a.name}{a.version ? ` · ${a.version}` : ''}{a.build ? ` · build ${a.build}` : ''}{a.patch ? ` · patch ${a.patch}` : ''}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Banco (engine + AlwaysOn cadastrado) */}
+      <Section icon={Database} title="Banco de dados">
+        {config.databases.length === 0 ? <Empty /> : (
+          <div className="flex flex-col gap-1">
+            {config.databases.map((d, i) => (
+              <div key={i} className="text-sm" style={{ color: 'var(--text)' }}>
+                {ENGINE_LABEL[d.engine] ?? d.engine}
+                <span style={{ color: 'var(--text-light)' }}> · AlwaysOn (cadastrado): {d.always_on_cadastrado ? 'sim' : 'não'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Links / integrações cadastradas */}
+      <Section icon={Link2} title="Integrações cadastradas">
+        {config.links.length === 0 ? <Empty /> : (
+          <div className="flex flex-wrap gap-1.5">
+            {config.links.map((l, i) => (
+              <span key={i} className="rounded-full px-2.5 py-0.5 text-[11px]" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                {l.label} · {l.kind}
+              </span>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Capacidades ainda sem conexão (Conector) — estático, sem estado observado */}
+      <div className="rounded-2xl p-5" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)' }}>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Boxes size={14} style={{ color: 'var(--text-muted)' }} />
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Capacidades ainda sem conexão (Conector)</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          {PENDING.map((p) => (
+            <div key={p} className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
+              <span>{p}</span>
+              <span style={{ color: 'var(--text-light)' }}>Aguardando Conector</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
-interface FieldRow { label: string; value: string; mono?: boolean; secret?: boolean }
-
-function FieldGrid({ rows, dense }: { rows: FieldRow[]; dense?: boolean }) {
+function Section({ icon: Icon, title, children }: { icon: typeof Server; title: string; children: React.ReactNode }) {
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 ${dense ? 'lg:grid-cols-3' : ''} gap-2.5`}>
-      {rows.map((r, i) => (
-        <div key={i} className="rounded-lg px-3 py-2" style={{ background: dense ? 'var(--surface)' : 'var(--surface-hover)', border: dense ? '1px solid var(--border)' : 'none' }}>
-          <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{r.label}</div>
-          {r.secret !== undefined ? (
-            <div className="mt-0.5"><Badge variant={r.secret ? 'success' : 'default'}>{r.value}</Badge></div>
-          ) : (
-            <div className={`text-sm mt-0.5 ${r.mono ? 'font-mono break-all' : ''}`} style={{ color: 'var(--text)' }}>{r.value}</div>
-          )}
-        </div>
-      ))}
+    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icon size={14} style={{ color: 'var(--text-light)' }} />
+        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{title}</span>
+      </div>
+      {children}
     </div>
   )
+}
+
+function Empty() {
+  return <div className="text-sm" style={{ color: 'var(--text-light)' }}>—</div>
 }
