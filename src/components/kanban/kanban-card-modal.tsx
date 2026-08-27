@@ -6,6 +6,7 @@ import { X, Trash2, Paperclip, Download, Plus, Check, Square, CheckSquare, Send 
 import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef } from '@/lib/client-kanban'
 import { uploadAttachment, downloadAttachment, deleteAttachment } from '@/lib/attachments'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
   cardId: number
@@ -123,10 +124,8 @@ export function KanbanCardModal({ cardId, boardLabels, users, onClose, onSaved }
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
               <Field label="Responsável">
-                <select className="ds-input" value={responsibleId} onChange={e => setResponsibleId(e.target.value)} style={sel}>
-                  <option value="">—</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
+                {/* Busca por texto; só usuários da empresa (customer) logada — vem escopado do BE. */}
+                <SearchSelect fullWidth value={responsibleId} onChange={setResponsibleId} options={users} placeholder="—" />
               </Field>
               <Field label="Prioridade">
                 <select className="ds-input" value={priority} onChange={e => setPriority(e.target.value)} style={sel}>
