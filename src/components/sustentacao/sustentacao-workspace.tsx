@@ -147,7 +147,7 @@ interface ExecutiveData {
   total_sold_h: number
   total_used_h: number
   hours_per_ticket: number | null
-  top_clients: { name: string; used_h: number; sold_h: number; pct: number | null }[]
+  top_clients: { name: string; used_h: number; sold_h: number | null; pct: number | null }[]
   by_category: { label: string; count: number }[]
   by_urgency: { label: string; count: number }[]
   period: { from: string; to: string }
@@ -1448,42 +1448,39 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                 </div>
               </div>
 
-              {/* ROW 3 — Consumo de Horas */}
-              <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <p className="text-xs font-semibold text-[var(--text)]">Consumo de Horas por Cliente</p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs text-[var(--text-light)]">Consumido / Vendido</span>
-                      <span className="text-sm font-bold" style={{ color: kpiColor(pct_hours_consumed, [70, 90]) }}>
-                        {total_used_h}h / {total_sold_h}h
-                        {pct_hours_consumed != null && <span className="ml-1 text-[11px]">({pct_hours_consumed}%)</span>}
-                      </span>
-                    </div>
+              {/* ROW 3 — Consumo de Horas por Cliente (% da franquia MENSAL) */}
+              <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text)]">Consumo de Horas por Cliente</p>
+                    <p className="text-[10px] text-[var(--text-light)]">Consumido no período ÷ franquia mensal (Banco de Horas Mensal). Outros contratos → —</p>
                   </div>
+                  <span className="text-xs text-[var(--text-muted)]">Consumido total: <b className="text-[var(--text)]">{total_used_h}h</b></span>
+                </div>
+                {/* legenda das faixas */}
+                <div className="flex items-center gap-3 text-[10px] text-[var(--text-light)] flex-wrap">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: GREEN }} />&lt;70% normal</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: YELLOW }} />70–90% atenção</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: ORANGE }} />90–100% alerta</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: RED }} />≥100% excedido</span>
                 </div>
                 {top_clients.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(200, top_clients.length * 32)}>
-                    <BarChart layout="vertical"
-                      data={top_clients.map(c => ({
-                        name: c.name.length > 22 ? c.name.slice(0, 20) + '…' : c.name, fullName: c.name,
-                        'Usado (h)': c.used_h,
-                        'Vendido (h)': c.sold_h,
-                        pct: c.pct,
-                      }))}
-                      margin={{ left: 0, right: 55, top: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={130} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''}
-                        formatter={(v: any, name: any) => [`${v}h`, name]} />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="Vendido (h)" fill="var(--border-strong)" radius={[0,3,3,0]} />
-                      <Bar dataKey="Usado (h)" fill={CYAN} radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? `${v}h` : '' }} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="space-y-1.5">
+                    {top_clients.map((c, i) => {
+                      const has = c.sold_h != null && c.pct != null
+                      const band = !has ? 'var(--text-light)' : c.pct! >= 100 ? RED : c.pct! >= 90 ? ORANGE : c.pct! >= 70 ? YELLOW : GREEN
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-32 shrink-0 truncate text-[var(--text)]" title={c.name}>{c.name}</span>
+                          <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 12 }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${has ? Math.min(c.pct!, 100) : 0}%`, background: band }} />
+                          </div>
+                          <span className="w-24 text-right text-[var(--text-muted)] tabular-nums">{c.used_h}h / {has ? `${c.sold_h}h` : '—'}</span>
+                          <span className="w-12 text-right font-semibold tabular-nums" style={{ color: band }}>{has ? `${c.pct}%` : '—'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 ) : (
                   <p className="text-xs text-[var(--text-light)] py-4 text-center">Nenhum dado de timesheet no período.</p>
                 )}
