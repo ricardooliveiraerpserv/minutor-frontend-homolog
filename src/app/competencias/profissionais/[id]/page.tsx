@@ -374,7 +374,7 @@ export default function PerfilProfissionalPage() {
             </p>
             <ul className="mt-3 space-y-1.5" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               <li className="flex items-center gap-2"><UserPlus size={13} style={{ color: 'var(--primary)' }} /> Cria um card no <strong>kanban de Contratação</strong> (onboarding)</li>
-              <li className="flex items-center gap-2"><ArrowLeft size={13} style={{ color: 'var(--primary)', transform: 'rotate(180deg)' }} /> A classificação passa a ser <strong>ERPSERV</strong></li>
+              <li className="flex items-center gap-2"><ArrowLeft size={13} style={{ color: 'var(--primary)', transform: 'rotate(180deg)' }} /> A classificação passa a ser <strong>Interno</strong></li>
               <li className="flex items-center gap-2"><Calendar size={13} style={{ color: 'var(--primary)' }} /> Ao concluir o checklist, o <strong>usuário é criado</strong></li>
             </ul>
           </ModalBody>

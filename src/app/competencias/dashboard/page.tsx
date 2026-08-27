@@ -28,7 +28,8 @@ interface Summary {
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 function classClass(c: string | null) {
   if (c === 'blacklist') return 'ds-status-danger'
-  if (c === 'erpserv') return 'ds-status-info'
+  if (c === 'erpserv') return 'ds-status-info'      // Interno
+  if (c === 'freelance') return 'ds-status-warning'
   if (c === 'candidato') return 'ds-status-success'
   return 'ds-status'
 }
