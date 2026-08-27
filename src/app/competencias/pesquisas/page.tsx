@@ -55,14 +55,17 @@ export default function PesquisasCompetenciasPage() {
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [editSurvey, setEditSurvey] = useState<SurveyCard | null>(null)
   const [partSurvey, setPartSurvey] = useState<SurveyCard | null>(null)
+  const [confirmDel, setConfirmDel] = useState<SurveyCard | null>(null)
+  const [delBusy, setDelBusy] = useState(false)
 
-  async function doDelete(s: SurveyCard) {
-    if (!window.confirm(`Excluir "${s.title}"?\n\nIsto remove a pesquisa, os convites e TODAS as respostas dela do histórico. Não dá para desfazer.`)) return
+  async function performDelete() {
+    if (!confirmDel) return
+    setDelBusy(true)
     try {
-      await api.delete(`/competencias/surveys/${s.id}`)
+      await api.delete(`/competencias/surveys/${confirmDel.id}`)
       toast.success('Pesquisa excluída')
-      load()
-    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Erro ao excluir') }
+      setConfirmDel(null); load()
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : 'Erro ao excluir') } finally { setDelBusy(false) }
   }
 
   const load = useCallback(async () => {
@@ -175,7 +178,7 @@ export default function PesquisasCompetenciasPage() {
                       <div className="ds-card" style={{ position: 'absolute', right: 0, top: 30, zIndex: 40, minWidth: 180, padding: 4, textAlign: 'left', boxShadow: '0 6px 20px rgba(0,0,0,0.14)' }}>
                         <MenuItem icon={Pencil} label="Editar" onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); setEditSurvey(s) }} />
                         {s.type === 'internal' && <MenuItem icon={UserPlus} label="Participantes" onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); setPartSurvey(s) }} />}
-                        <MenuItem icon={Trash2} label="Excluir" danger onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); doDelete(s) }} />
+                        <MenuItem icon={Trash2} label="Excluir" danger onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuFor(null); setConfirmDel(s) }} />
                       </div>
                     </>
                   )}
@@ -207,7 +210,38 @@ export default function PesquisasCompetenciasPage() {
       {partSurvey && (
         <ParticipantsModal survey={partSurvey} onClose={() => setPartSurvey(null)} onChanged={load} />
       )}
+      {confirmDel && (
+        <ConfirmModal
+          title="Excluir pesquisa"
+          message={`Excluir "${confirmDel.title}"?\n\nIsto remove a pesquisa, os convites e TODAS as respostas dela do histórico. Não dá para desfazer.`}
+          confirmLabel="Excluir"
+          busy={delBusy}
+          onCancel={() => setConfirmDel(null)}
+          onConfirm={performDelete}
+        />
+      )}
     </AppLayout>
+  )
+}
+
+/** Confirmação in-app (não usa window.confirm, que o browser bloqueia após muitos diálogos). */
+function ConfirmModal({ title, message, confirmLabel = 'Confirmar', busy, onCancel, onConfirm }: {
+  title: string; message: string; confirmLabel?: string; busy?: boolean; onCancel: () => void; onConfirm: () => void
+}) {
+  return (
+    <Modal open onClose={onCancel} size="md">
+      <ModalHeader title={title} icon={Trash2} onClose={onCancel} />
+      <ModalBody>
+        <p className="text-sm" style={{ color: 'var(--text)', whiteSpace: 'pre-line' }}>{message}</p>
+      </ModalBody>
+      <ModalFooter>
+        <button className="ds-btn-secondary" onClick={onCancel} disabled={busy}>Cancelar</button>
+        <button onClick={onConfirm} disabled={busy}
+          style={{ background: 'var(--danger)', color: '#fff', padding: '8px 14px', borderRadius: 8, border: 'none', cursor: busy ? 'default' : 'pointer' }}>
+          {busy ? 'Aguarde…' : confirmLabel}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }
 
@@ -264,6 +298,7 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
   const [sel, setSel] = useState<Set<string>>(new Set()) // seleção por e-mail (lowercase)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [confirmRem, setConfirmRem] = useState(false)
 
   const reloadInvites = useCallback(async () => {
     const r = await api.get<{ invites: Inv[] }>(`/competencias/surveys/${survey.id}/invites`)
@@ -326,17 +361,17 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
   }
   async function doRemove() {
     if (toRemove.length === 0) return
-    if (!window.confirm(`Remover ${toRemove.length} participante(s) da campanha?`)) return
     setBusy(true)
     try {
       const ids = toRemove.map(e => emailToInvite.get(e)).filter((x): x is number => !!x)
       const res = await api.post<{ removed: number }>(`/competencias/surveys/${survey.id}/invites/remove`, { invite_ids: ids })
       toast.success(`${res.removed} removido(s)`)
-      setSel(new Set()); await reloadInvites(); onChanged()
+      setConfirmRem(false); setSel(new Set()); await reloadInvites(); onChanged()
     } catch { toast.error('Erro ao remover') } finally { setBusy(false) }
   }
 
   return (
+    <>
     <Modal open onClose={onClose} size="lg">
       <ModalHeader title="Participantes" subtitle={survey.title} icon={Users} onClose={onClose} />
       <ModalBody className="space-y-3">
@@ -388,7 +423,7 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
       <ModalFooter className="!justify-between">
         <button className="ds-btn-secondary" onClick={onClose}>Fechar</button>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy || toRemove.length === 0} onClick={doRemove}
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy || toRemove.length === 0} onClick={() => setConfirmRem(true)}
             style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: toRemove.length ? 'pointer' : 'not-allowed', opacity: toRemove.length ? 1 : 0.5 }}>
             <Trash2 size={15} /> Remover ({toRemove.length})
           </button>
@@ -396,6 +431,17 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
         </div>
       </ModalFooter>
     </Modal>
+    {confirmRem && (
+      <ConfirmModal
+        title="Remover participantes"
+        message={`Remover ${toRemove.length} participante(s) da campanha?`}
+        confirmLabel="Remover"
+        busy={busy}
+        onCancel={() => setConfirmRem(false)}
+        onConfirm={doRemove}
+      />
+    )}
+    </>
   )
 }
 
