@@ -114,7 +114,7 @@ export default function FechamentoSemanalPage() {
     doAction(action, {
       period_kind: fKind,
       period_key: fKind === 'month' ? fMonth : fWeek,
-      ...(fProjeto ? { project_id: Number(fProjeto) } : {}),
+      ...(fProjeto ? { project_id: Number(fProjeto) } : (fCliente ? { customer_id: Number(fCliente) } : {})),
       ...(fUser ? { user_id: Number(fUser) } : {}),
     }, 'form')
   }
