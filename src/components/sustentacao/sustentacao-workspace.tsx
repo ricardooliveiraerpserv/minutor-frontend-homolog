@@ -1008,6 +1008,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   return (
     <AppLayout>
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg)' }}>
+      {/* Toda a tela (header + filtro + abas + conteúdo) rola junto — nada congelado. */}
+      <div className="flex-1 overflow-y-auto">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap px-4 md:px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
         <div>
@@ -1125,7 +1127,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
           Lançamentos + o botão "Voltar à Home do Portal" já fazem o papel. */}
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="p-4 md:p-6">
         {!routineTab && loading && !(tab === 'kpis' && !kpis) && (
           <div className="mb-4">
             <InlineLoader />
@@ -2084,6 +2086,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
             }}
           />
         )}
+      </div>
       </div>
     </div>
     </AppLayout>
