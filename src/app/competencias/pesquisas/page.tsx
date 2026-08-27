@@ -260,8 +260,8 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
   interface Inv { id: number; name: string | null; email: string | null; status: string }
   const [invites, setInvites] = useState<Inv[]>([])
   const [groups, setGroups] = useState<TargetGroup[]>([])
-  const [selected, setSelected] = useState<Set<number>>(new Set())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [sel, setSel] = useState<Set<string>>(new Set()) // seleção por e-mail (lowercase)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
 
@@ -277,134 +277,123 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
     ]).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
   }, [reloadInvites])
 
-  async function removeInvite(inv: Inv) {
-    if (!window.confirm(`Remover ${inv.name ?? inv.email ?? 'participante'} da campanha?`)) return
-    try { await api.delete(`/competencias/invites/${inv.id}`); toast.success('Participante removido'); await reloadInvites(); onChanged() }
-    catch { toast.error('Erro ao remover') }
-  }
-
-  const toggleUser = (id: number) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
-  const invitedEmails = useMemo(() => new Set(invites.map(i => (i.email ?? '').toLowerCase()).filter(Boolean)), [invites])
-
-  // ── Remoção em massa / por categoria dos participantes ATUAIS ──
-  const [selRemove, setSelRemove] = useState<Set<number>>(new Set())
-  const emailCat = useMemo(() => {
-    const m = new Map<string, string>()
-    groups.forEach(g => g.users.forEach(u => { if (u.email) m.set(u.email.toLowerCase(), g.label) }))
+  const emailToInvite = useMemo(() => {
+    const m = new Map<string, number>()
+    invites.forEach(i => { if (i.email) m.set(i.email.toLowerCase(), i.id) })
+    return m
+  }, [invites])
+  const emailToUserId = useMemo(() => {
+    const m = new Map<string, number>()
+    groups.forEach(g => g.users.forEach(u => { if (u.email) m.set(u.email.toLowerCase(), u.id) }))
     return m
   }, [groups])
-  const invitesByCat = useMemo(() => {
-    const m = new Map<string, Inv[]>()
-    invites.forEach(i => { const cat = emailCat.get((i.email ?? '').toLowerCase()) ?? 'Outros'; const a = m.get(cat) ?? []; a.push(i); m.set(cat, a) })
-    return Array.from(m.entries())
-  }, [invites, emailCat])
-  const toggleRemove = (id: number) => setSelRemove(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const toggleRemoveCat = (items: Inv[]) => setSelRemove(prev => {
-    const n = new Set(prev); const allSel = items.every(i => n.has(i.id))
-    items.forEach(i => allSel ? n.delete(i.id) : n.add(i.id)); return n
-  })
-  async function bulkRemove() {
-    if (selRemove.size === 0) return
-    if (!window.confirm(`Remover ${selRemove.size} participante(s) da campanha?`)) return
-    setBusy(true)
-    try {
-      const res = await api.post<{ removed: number }>(`/competencias/surveys/${survey.id}/invites/remove`, { invite_ids: Array.from(selRemove) })
-      toast.success(`${res.removed} removido(s)`)
-      setSelRemove(new Set()); await reloadInvites(); onChanged()
-    } catch { toast.error('Erro ao remover') } finally { setBusy(false) }
-  }
+  const isParticipant = (email: string | null) => !!email && emailToInvite.has(email.toLowerCase())
 
-  async function addSelected() {
-    if (selected.size === 0) { toast.error('Selecione ao menos um'); return }
+  // Categorias = grupos do backend + "Outros participantes" (convidados fora de qualquer grupo,
+  // ex.: usuário desativado). Todos aparecem, com quem já participa marcado.
+  const cats = useMemo(() => {
+    const known = new Set<string>()
+    groups.forEach(g => g.users.forEach(u => { if (u.email) known.add(u.email.toLowerCase()) }))
+    const orphans = invites
+      .filter(i => i.email && !known.has(i.email.toLowerCase()))
+      .map(i => ({ id: -i.id, name: i.name ?? '—', email: i.email as string }))
+    const base = groups.map(g => ({ key: g.key, label: g.label, users: g.users as { id: number; name: string; email: string }[] }))
+    if (orphans.length) base.push({ key: '__outros__', label: 'Outros participantes', users: orphans })
+    return base
+  }, [groups, invites])
+
+  const toggleExpand = (k: string) => setExpanded(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const toggle = (email: string) => setSel(prev => { const e = email.toLowerCase(); const n = new Set(prev); n.has(e) ? n.delete(e) : n.add(e); return n })
+  const toggleCat = (users: { email: string }[]) => setSel(prev => {
+    const n = new Set(prev); const emails = users.map(u => u.email.toLowerCase())
+    const allSel = emails.length > 0 && emails.every(e => n.has(e))
+    emails.forEach(e => allSel ? n.delete(e) : n.add(e)); return n
+  })
+
+  const selEmails = Array.from(sel)
+  const toAdd = selEmails.filter(e => !emailToInvite.has(e) && emailToUserId.has(e))
+  const toRemove = selEmails.filter(e => emailToInvite.has(e))
+
+  async function doAdd() {
+    if (toAdd.length === 0) return
     setBusy(true)
     try {
-      const res = await api.post<{ created: number }>(`/competencias/surveys/${survey.id}/invites`, { user_ids: Array.from(selected) })
+      const ids = toAdd.map(e => emailToUserId.get(e)).filter((x): x is number => !!x)
+      const res = await api.post<{ created: number }>(`/competencias/surveys/${survey.id}/invites`, { user_ids: ids })
       toast.success(`${res.created} adicionado(s)`)
-      setSelected(new Set()); await reloadInvites(); onChanged()
+      setSel(new Set()); await reloadInvites(); onChanged()
     } catch { toast.error('Erro ao adicionar') } finally { setBusy(false) }
+  }
+  async function doRemove() {
+    if (toRemove.length === 0) return
+    if (!window.confirm(`Remover ${toRemove.length} participante(s) da campanha?`)) return
+    setBusy(true)
+    try {
+      const ids = toRemove.map(e => emailToInvite.get(e)).filter((x): x is number => !!x)
+      const res = await api.post<{ removed: number }>(`/competencias/surveys/${survey.id}/invites/remove`, { invite_ids: ids })
+      toast.success(`${res.removed} removido(s)`)
+      setSel(new Set()); await reloadInvites(); onChanged()
+    } catch { toast.error('Erro ao remover') } finally { setBusy(false) }
   }
 
   return (
     <Modal open onClose={onClose} size="lg">
       <ModalHeader title="Participantes" subtitle={survey.title} icon={Users} onClose={onClose} />
-      <ModalBody className="space-y-4">
+      <ModalBody className="space-y-3">
         {loading ? <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div> : (
           <>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label>Atuais ({invites.length})</Label>
-                {selRemove.size > 0 && (
-                  <button onClick={bulkRemove} disabled={busy} className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md"
-                    style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: 'pointer' }}>
-                    <Trash2 size={13} /> Remover selecionados ({selRemove.size})
-                  </button>
-                )}
-              </div>
-              {invites.length === 0 ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum participante ainda.</p> : (
-                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
-                  {invitesByCat.map(([cat, items]) => {
-                    const allSel = items.every(i => selRemove.has(i.id))
-                    const someSel = items.some(i => selRemove.has(i.id))
-                    return (
-                      <div key={cat}>
-                        <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: 'var(--surface-hover)', borderTop: '1px solid var(--border)' }}>
-                          <input type="checkbox" checked={allSel} ref={el => { if (el) el.indeterminate = !allSel && someSel }} onChange={() => toggleRemoveCat(items)} title="Selecionar toda a categoria" />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{cat}</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{items.length}</span>
-                        </div>
-                        {items.map(i => (
-                          <div key={i.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', fontSize: 12.5 }}>
-                            <input type="checkbox" checked={selRemove.has(i.id)} onChange={() => toggleRemove(i.id)} />
-                            <span style={{ color: 'var(--text)', flex: 1 }}>{i.name ?? '—'}</span>
-                            <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{i.email}</span>
-                            <span className={i.status === 'submitted' ? 'ds-status-success' : 'ds-status'} style={{ fontSize: 10 }}>{i.status === 'submitted' ? 'Respondido' : 'Pendente'}</span>
-                            <button onClick={() => removeInvite(i)} title="Remover" className="p-1 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={13} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label>Adicionar participantes ({selected.size} selecionado{selected.size !== 1 ? 's' : ''})</Label>
-              <div className="space-y-1.5">
-                {groups.map(g => {
-                  const isOpen = expanded.has(g.key)
-                  const addable = g.users.filter(u => !invitedEmails.has((u.email ?? '').toLowerCase()))
-                  return (
-                    <div key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                      <button type="button" onClick={() => toggleExpand(g.key)} className="w-full flex items-center gap-1.5 px-2.5 py-2" style={{ background: 'var(--surface-hover)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              Marque as pessoas (ou uma categoria inteira pelo checkbox do topo) e use <strong>Adicionar</strong> ou <strong>Remover</strong>. Quem já participa aparece com <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>.
+            </p>
+            <div className="space-y-1.5">
+              {cats.map(g => {
+                const isOpen = expanded.has(g.key)
+                const emails = g.users.map(u => u.email.toLowerCase())
+                const allSel = emails.length > 0 && emails.every(e => sel.has(e))
+                const someSel = emails.some(e => sel.has(e))
+                const nPart = g.users.filter(u => isParticipant(u.email)).length
+                return (
+                  <div key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'var(--surface-hover)' }}>
+                      <input type="checkbox" checked={allSel} ref={el => { if (el) el.indeterminate = !allSel && someSel }} onChange={() => toggleCat(g.users)} title="Selecionar toda a categoria" />
+                      <button type="button" onClick={() => toggleExpand(g.key)} className="flex items-center gap-1.5 flex-1 text-left" style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
                         {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         <span className="text-sm" style={{ color: 'var(--text)', fontWeight: 600, flex: 1 }}>{g.label}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{addable.length} disponíveis</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{nPart}/{g.users.length} participam</span>
                       </button>
-                      {isOpen && (
-                        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                          {addable.length === 0 && <div className="px-3 py-2" style={{ fontSize: 12, color: 'var(--text-light)' }}>Todos já participam.</div>}
-                          {addable.map(u => (
-                            <label key={u.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 12.5 }}>
-                              <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleUser(u.id)} />
+                    </div>
+                    {isOpen && (
+                      <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                        {g.users.length === 0 && <div className="px-3 py-2" style={{ fontSize: 12, color: 'var(--text-light)' }}>Ninguém neste grupo.</div>}
+                        {g.users.map(u => {
+                          const part = isParticipant(u.email)
+                          return (
+                            <label key={u.email || u.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 12.5 }}>
+                              <input type="checkbox" checked={sel.has(u.email.toLowerCase())} onChange={() => toggle(u.email)} />
                               <span style={{ color: 'var(--text)', flex: 1 }}>{u.name}</span>
                               <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{u.email}</span>
+                              {part && <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>}
                             </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </>
         )}
       </ModalBody>
-      <ModalFooter>
+      <ModalFooter className="!justify-between">
         <button className="ds-btn-secondary" onClick={onClose}>Fechar</button>
-        <button className="ds-btn-primary flex items-center gap-2" onClick={addSelected} disabled={busy || selected.size === 0}><Send size={15} /> Adicionar ({selected.size})</button>
+        <div className="flex items-center gap-2">
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy || toRemove.length === 0} onClick={doRemove}
+            style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: toRemove.length ? 'pointer' : 'not-allowed', opacity: toRemove.length ? 1 : 0.5 }}>
+            <Trash2 size={15} /> Remover ({toRemove.length})
+          </button>
+          <button className="ds-btn-primary flex items-center gap-2" disabled={busy || toAdd.length === 0} onClick={doAdd}><Send size={15} /> Adicionar ({toAdd.length})</button>
+        </div>
       </ModalFooter>
     </Modal>
   )
