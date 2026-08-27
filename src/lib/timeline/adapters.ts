@@ -302,7 +302,10 @@ export interface ConnectorEventNative {
   customer_id: number | null
   customer_name?: string | null
   appserver_ref: string | null
-  event_type: string // appserver_up|appserver_down|process_changed|version_changed|rpo_changed|rest_health_changed
+  // C-2: appserver_up|appserver_down|process_changed|version_changed|rpo_changed|rest_health_changed
+  // C-3 (comandos assíncronos): command_enqueued|command_claimed|command_running|command_succeeded|
+  //     command_failed|command_expired|command_claim_expired|command_canceled
+  event_type: string
   outcome: 'ok' | 'fail' | 'info'
   detail: string | null
   meta: Record<string, unknown> | null
@@ -311,6 +314,10 @@ export interface ConnectorEventNative {
 const CONNECTOR_LABEL: Record<string, string> = {
   appserver_up: 'AppServer detectado', appserver_down: 'AppServer sumiu', process_changed: 'Processo alterado',
   version_changed: 'Versão alterada', rpo_changed: 'RPO alterado', rest_health_changed: 'REST health',
+  // Connector-3 — orquestração de comandos (aditivo).
+  command_enqueued: 'Comando solicitado', command_claimed: 'Comando reivindicado', command_running: 'Comando em execução',
+  command_succeeded: 'Comando concluído', command_failed: 'Comando falhou', command_expired: 'Comando expirado',
+  command_claim_expired: 'Lease perdido — reenfileirado', command_canceled: 'Comando cancelado',
 }
 const CONNECTOR_OUTCOME: Record<string, TimelineOutcome> = { ok: 'ok', fail: 'fail', info: 'info' }
 export function fromConnectorEvent(c: ConnectorEventNative): TimelineEvent {
