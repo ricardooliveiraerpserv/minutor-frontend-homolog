@@ -30,6 +30,7 @@ function classClass(c: string | null) {
   if (c === 'blacklist') return 'ds-status-danger'
   if (c === 'erpserv') return 'ds-status-info'      // Interno
   if (c === 'freelance') return 'ds-status-warning'
+  if (c === 'desligado') return 'ds-status'
   if (c === 'candidato') return 'ds-status-success'
   return 'ds-status'
 }

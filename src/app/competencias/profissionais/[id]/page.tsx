@@ -162,7 +162,7 @@ export default function PerfilProfissionalPage() {
                 <span className="ds-status-info" style={{ fontSize: 10 }}>{TYPE_LABEL[r.type] ?? r.type}</span>
                 {r.from_cadastro ? (
                   <span title="Conforme cadastro de usuário"
-                    className={r.classification === 'blacklist' ? 'ds-status-danger' : r.classification === 'freelance' ? 'ds-status-warning' : 'ds-status-info'}
+                    className={r.classification === 'blacklist' ? 'ds-status-danger' : r.classification === 'desligado' ? 'ds-status' : r.classification === 'freelance' ? 'ds-status-warning' : 'ds-status-info'}
                     style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{r.classification_label ?? '—'}</span>
                 ) : (
                   <select value={r.classification ?? ''} onChange={e => saveClassification(e.target.value)} title="Classificação (clique p/ alterar)"
