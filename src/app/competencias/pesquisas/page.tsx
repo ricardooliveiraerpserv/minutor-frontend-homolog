@@ -18,6 +18,7 @@ function Label({ children }: { children: React.ReactNode }) {
 interface SurveyCard {
   id: number
   type: 'internal' | 'partner' | 'candidate'
+  is_campaign?: boolean
   title: string
   description: string | null
   status: 'draft' | 'open' | 'closed'
@@ -50,6 +51,7 @@ export default function PesquisasCompetenciasPage() {
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [showCampaign, setShowCampaign] = useState(false)
+  const [tab, setTab] = useState<'campanhas' | 'pesquisas'>('campanhas')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -69,6 +71,10 @@ export default function PesquisasCompetenciasPage() {
 
   useEffect(() => { load() }, [load])
 
+  const campanhas = useMemo(() => surveys.filter(s => s.is_campaign), [surveys])
+  const formularios = useMemo(() => surveys.filter(s => !s.is_campaign), [surveys])
+  const shown = tab === 'campanhas' ? campanhas : formularios
+
   return (
     <AppLayout title="Pesquisas de Competências">
       <div className="space-y-4">
@@ -80,31 +86,60 @@ export default function PesquisasCompetenciasPage() {
               : 'Nenhuma matriz publicada'}
           </p>
           <div className="flex items-center gap-2">
-            <button className="ds-btn-primary flex items-center gap-2" onClick={() => setShowCampaign(true)}>
-              <Megaphone size={16} /> Nova campanha
-            </button>
-            <button className="ds-btn-secondary flex items-center gap-2" onClick={() => setShowNew(true)}>
-              <Plus size={16} /> Nova Pesquisa
-            </button>
+            {tab === 'campanhas' ? (
+              <button className="ds-btn-primary flex items-center gap-2" onClick={() => setShowCampaign(true)}>
+                <Megaphone size={16} /> Nova campanha
+              </button>
+            ) : (
+              <button className="ds-btn-primary flex items-center gap-2" onClick={() => setShowNew(true)}>
+                <Plus size={16} /> Nova Pesquisa
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Abas: Campanhas (auto-atualização interna) × Formulários/Pesquisas (Parceiros, Candidatos, Base Histórica) */}
+        <div className="flex items-center gap-1 p-1 rounded-lg w-fit" style={{ background: 'var(--surface-hover)' }}>
+          {([
+            { key: 'campanhas' as const, label: 'Campanhas', icon: Megaphone, count: campanhas.length },
+            { key: 'pesquisas' as const, label: 'Formulários / Pesquisas', icon: ClipboardList, count: formularios.length },
+          ]).map(t => {
+            const active = tab === t.key
+            const Ico = t.icon
+            return (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm"
+                style={{
+                  fontWeight: active ? 600 : 500,
+                  background: active ? 'var(--surface)' : 'transparent',
+                  color: active ? 'var(--primary)' : 'var(--text-muted)',
+                  boxShadow: active ? 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.06))' : 'none',
+                }}>
+                <Ico size={15} /> {t.label}
+                <span style={{ fontSize: 11, color: active ? 'var(--primary)' : 'var(--text-light)', fontWeight: 400 }}>{t.count}</span>
+              </button>
+            )
+          })}
         </div>
 
         {loading && <div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div>}
 
-        {!loading && surveys.length === 0 && (
+        {!loading && shown.length === 0 && (
           <div className="ds-card ds-card-pad">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Nenhuma pesquisa ainda. Crie a primeira para substituir o Forms.
+              {tab === 'campanhas'
+                ? 'Nenhuma campanha ainda. Clique em "Nova campanha" para pedir aos colaboradores que atualizem suas competências.'
+                : 'Nenhum formulário/pesquisa ainda. Clique em "Nova Pesquisa" para substituir o Forms.'}
             </p>
           </div>
         )}
 
-        {!loading && surveys.map(s => (
+        {!loading && shown.map(s => (
           <Link key={s.id} href={`/competencias/pesquisas/${s.id}`} className="block ds-card ds-card-pad ds-row-hover" style={{ textDecoration: 'none' }}>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <ClipboardList size={16} style={{ color: 'var(--primary)' }} />
+                  {s.is_campaign ? <Megaphone size={16} style={{ color: 'var(--primary)' }} /> : <ClipboardList size={16} style={{ color: 'var(--primary)' }} />}
                   <span className="text-sm" style={{ color: 'var(--text)', fontWeight: 600 }}>{s.title}</span>
                   <span className={STATUS_CLASS[s.status]} style={{ fontSize: 10 }}>{STATUS_LABEL[s.status]}</span>
                 </div>
