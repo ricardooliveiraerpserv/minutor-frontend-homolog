@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
-import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone, ChevronDown, ChevronRight, Eye, Repeat, MoreVertical, Pencil, Trash2, UserPlus } from 'lucide-react'
+import { Plus, Link2, Users, Send, Copy, ClipboardList, Megaphone, ChevronDown, ChevronRight, Eye, Repeat, MoreVertical, Pencil, Trash2, UserPlus, CheckCircle, Ban } from 'lucide-react'
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{children}</label>
@@ -291,7 +291,7 @@ function EditSurveyModal({ survey, onClose, onDone }: { survey: SurveyCard; onCl
 
 /** Gerencia participantes de uma campanha interna: lista atuais (remove) + adiciona por grupo. */
 function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard; onClose: () => void; onChanged: () => void }) {
-  interface Inv { id: number; name: string | null; email: string | null; status: string }
+  interface Inv { id: number; name: string | null; email: string | null; status: string; disabled?: boolean }
   const [invites, setInvites] = useState<Inv[]>([])
   const [groups, setGroups] = useState<TargetGroup[]>([])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -322,7 +322,18 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
     groups.forEach(g => g.users.forEach(u => { if (u.email) m.set(u.email.toLowerCase(), u.id) }))
     return m
   }, [groups])
-  const isParticipant = (email: string | null) => !!email && emailToInvite.has(email.toLowerCase())
+  const emailDisabled = useMemo(() => {
+    const s = new Set<string>()
+    invites.forEach(i => { if (i.email && i.disabled) s.add(i.email.toLowerCase()) })
+    return s
+  }, [invites])
+  // Estado do e-mail: 'none' (não participa) | 'active' (participa) | 'disabled' (desabilitado)
+  const partState = (email: string | null): 'none' | 'active' | 'disabled' => {
+    if (!email) return 'none'
+    const e = email.toLowerCase()
+    if (!emailToInvite.has(e)) return 'none'
+    return emailDisabled.has(e) ? 'disabled' : 'active'
+  }
 
   // Categorias = grupos do backend + "Outros participantes" (convidados fora de qualquer grupo,
   // ex.: usuário desativado). Todos aparecem, com quem já participa marcado.
@@ -346,8 +357,9 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
   })
 
   const selEmails = Array.from(sel)
-  const toAdd = selEmails.filter(e => !emailToInvite.has(e) && emailToUserId.has(e))
-  const toRemove = selEmails.filter(e => emailToInvite.has(e))
+  const toAdd = selEmails.filter(e => partState(e) === 'none' && emailToUserId.has(e))
+  const toDisable = selEmails.filter(e => partState(e) === 'active')
+  const toEnable = selEmails.filter(e => partState(e) === 'disabled')
 
   async function doAdd() {
     if (toAdd.length === 0) return
@@ -359,15 +371,25 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
       setSel(new Set()); await reloadInvites(); onChanged()
     } catch { toast.error('Erro ao adicionar') } finally { setBusy(false) }
   }
-  async function doRemove() {
-    if (toRemove.length === 0) return
+  async function doDisable() {
+    if (toDisable.length === 0) return
     setBusy(true)
     try {
-      const ids = toRemove.map(e => emailToInvite.get(e)).filter((x): x is number => !!x)
+      const ids = toDisable.map(e => emailToInvite.get(e)).filter((x): x is number => !!x)
       const res = await api.post<{ removed: number }>(`/competencias/surveys/${survey.id}/invites/remove`, { invite_ids: ids })
-      toast.success(`${res.removed} removido(s)`)
+      toast.success(`${res.removed} desabilitado(s)`)
       setConfirmRem(false); setSel(new Set()); await reloadInvites(); onChanged()
-    } catch { toast.error('Erro ao remover') } finally { setBusy(false) }
+    } catch { toast.error('Erro ao desabilitar') } finally { setBusy(false) }
+  }
+  async function doEnable() {
+    if (toEnable.length === 0) return
+    setBusy(true)
+    try {
+      const ids = toEnable.map(e => emailToInvite.get(e)).filter((x): x is number => !!x)
+      const res = await api.post<{ enabled: number }>(`/competencias/surveys/${survey.id}/invites/enable`, { invite_ids: ids })
+      toast.success(`${res.enabled} habilitado(s)`)
+      setSel(new Set()); await reloadInvites(); onChanged()
+    } catch { toast.error('Erro ao habilitar') } finally { setBusy(false) }
   }
 
   return (
@@ -386,7 +408,7 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
                 const emails = g.users.map(u => u.email.toLowerCase())
                 const allSel = emails.length > 0 && emails.every(e => sel.has(e))
                 const someSel = emails.some(e => sel.has(e))
-                const nPart = g.users.filter(u => isParticipant(u.email)).length
+                const nPart = g.users.filter(u => partState(u.email) === 'active').length
                 return (
                   <div key={g.key} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                     <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'var(--surface-hover)' }}>
@@ -401,13 +423,14 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
                       <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                         {g.users.length === 0 && <div className="px-3 py-2" style={{ fontSize: 12, color: 'var(--text-light)' }}>Ninguém neste grupo.</div>}
                         {g.users.map(u => {
-                          const part = isParticipant(u.email)
+                          const st = partState(u.email)
                           return (
                             <label key={u.email || u.id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 12.5 }}>
                               <input type="checkbox" checked={sel.has(u.email.toLowerCase())} onChange={() => toggle(u.email)} />
                               <span style={{ color: 'var(--text)', flex: 1 }}>{u.name}</span>
                               <span style={{ color: 'var(--text-light)', fontSize: 11 }}>{u.email}</span>
-                              {part && <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>}
+                              {st === 'active' && <span className="ds-status-success" style={{ fontSize: 10 }}>Participa</span>}
+                              {st === 'disabled' && <span className="ds-status" style={{ fontSize: 10 }}>Desabilitado</span>}
                             </label>
                           )
                         })}
@@ -423,9 +446,15 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
       <ModalFooter className="!justify-between">
         <button className="ds-btn-secondary" onClick={onClose}>Fechar</button>
         <div className="flex items-center gap-2">
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy || toRemove.length === 0} onClick={() => setConfirmRem(true)}
-            style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: toRemove.length ? 'pointer' : 'not-allowed', opacity: toRemove.length ? 1 : 0.5 }}>
-            <Trash2 size={15} /> Remover ({toRemove.length})
+          {toEnable.length > 0 && (
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy} onClick={doEnable}
+              style={{ color: 'var(--success)', border: '1px solid var(--success)', background: 'none', cursor: 'pointer' }}>
+              <CheckCircle size={15} /> Habilitar ({toEnable.length})
+            </button>
+          )}
+          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg" disabled={busy || toDisable.length === 0} onClick={() => setConfirmRem(true)}
+            style={{ color: 'var(--danger)', border: '1px solid var(--danger)', background: 'none', cursor: toDisable.length ? 'pointer' : 'not-allowed', opacity: toDisable.length ? 1 : 0.5 }}>
+            <Ban size={15} /> Desabilitar ({toDisable.length})
           </button>
           <button className="ds-btn-primary flex items-center gap-2" disabled={busy || toAdd.length === 0} onClick={doAdd}><Send size={15} /> Adicionar ({toAdd.length})</button>
         </div>
@@ -433,12 +462,12 @@ function ParticipantsModal({ survey, onClose, onChanged }: { survey: SurveyCard;
     </Modal>
     {confirmRem && (
       <ConfirmModal
-        title="Remover participantes"
-        message={`Remover ${toRemove.length} participante(s) da campanha?`}
-        confirmLabel="Remover"
+        title="Desabilitar participantes"
+        message={`Desabilitar ${toDisable.length} participante(s)?\n\nEles saem da campanha (não contam nem recebem lembrete), mas ficam guardados e podem ser habilitados de volta.`}
+        confirmLabel="Desabilitar"
         busy={busy}
         onCancel={() => setConfirmRem(false)}
-        onConfirm={doRemove}
+        onConfirm={doDisable}
       />
     )}
     </>
