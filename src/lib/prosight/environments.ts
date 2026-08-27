@@ -95,12 +95,14 @@ export interface EnvironmentObserved {
   has_inventory: boolean
   stale_s: number | null // frescor do INVENTÁRIO (independente da presença)
   inventory: {
-    appservers: { ref: string; name: string; up: boolean; version: string | null; build: string | null; patch: string | null; uptime_s: number | null }[]
+    // C4.0: process_instance_id = incarnação opaca do processo (muda no restart do AppServer; estável se só o Conector reinicia).
+    appservers: { ref: string; name: string; up: boolean; version: string | null; build: string | null; patch: string | null; uptime_s: number | null; process_instance_id?: string | null }[]
     rest: { name: string; healthy: boolean; status_code?: number | null; latency_ms?: number | null }[]
     rpo: { appserver_ref: string; hash: string; version: string | null; size: number | null; mtime: number | null }[]
     collect_error: string | null
   } | null
   divergence: { appserver: string; field: string; cadastral: string | null; observed: string | null }[]
+  process_instance_capability?: boolean // C-4 exigirá esta capability p/ operar
 }
 
 /** Inventário observado + divergência (Cadastral × Observado). Read-only, sem secret. */

@@ -248,6 +248,8 @@ function ObservedSection({ observed, environmentId, canExecute, onRefreshObserve
             <div key={i} className="text-xs font-mono flex flex-wrap items-center gap-2" style={{ color: 'var(--text)' }}>
               <Badge variant={a.up ? 'success' : 'danger'}>{a.up ? 'up' : 'down'}</Badge>
               {a.name}{a.version ? ` · ${a.version}` : ''}{a.build ? ` · build ${a.build}` : ''}{a.patch ? ` · patch ${a.patch}` : ''}
+              {/* C4.0 — incarnação do processo (opaca); muda no restart do AppServer */}
+              {a.process_instance_id && <span style={{ color: 'var(--text-light)' }}>· inst {a.process_instance_id.slice(0, 8)}…</span>}
             </div>
           ))}
           {/* RPO observado (hash) */}
