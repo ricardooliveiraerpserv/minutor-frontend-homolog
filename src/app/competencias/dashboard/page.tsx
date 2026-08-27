@@ -11,8 +11,8 @@ import { ClipboardList, Users, TrendingUp, TrendingDown, Filter, ChevronRight, A
 import { useConfirm } from '@/components/ui/use-confirm'
 
 interface SkillRow { skill_id: number; name: string; category: string; avg_weight: number; answers: number; with_knowledge_pct: number }
-interface Respondent { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; partner_id: string; partner_name: string | null; empresa: string | null; valor: string | null; last_at: string; top_weight: number | null; top_level: string | null; matches: number | null }
-interface SkillRowDetail { respondent_id: number; name: string; classification: string | null; classification_label: string | null; blacklist: boolean; valor: string | null; module: string; category: string; level: string; weight: number }
+interface Respondent { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; partner_id: string; partner_name: string | null; empresa: string | null; valor: string | null; last_at: string; top_weight: number | null; top_level: string | null; matches: number | null }
+interface SkillRowDetail { respondent_id: number; name: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; valor: string | null; module: string; category: string; level: string; weight: number }
 interface Level { id: number; name: string; weight: number }
 interface Opt { value: string; label: string; category?: string }
 interface Summary {
@@ -272,13 +272,19 @@ export default function DashboardCompetenciasPage() {
                           <td className="py-2 pr-3">{r.module}</td>
                           <td className="py-2 pr-3"><span style={{ fontSize: 12, fontWeight: 600, color: levelColor(r.weight) }}>{r.level}</span></td>
                           <td className="py-2 pr-3">
-                            <select value={r.classification ?? ''} onChange={e => setClassificationFor(r.respondent_id, e.target.value)} className={classClass(r.classification)} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', background: 'transparent', cursor: 'pointer' }}>
-                              <option value="">—</option>
-                              {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                            </select>
+                            {r.from_cadastro ? (
+                              <span className={classClass(r.classification)} title="Conforme cadastro de usuário" style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, display: 'inline-block', fontWeight: 600 }}>{r.classification_label ?? '—'}</span>
+                            ) : (
+                              <select value={r.classification ?? ''} onChange={e => setClassificationFor(r.respondent_id, e.target.value)} className={classClass(r.classification)} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', background: 'transparent', cursor: 'pointer' }}>
+                                <option value="">—</option>
+                                {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                            )}
                           </td>
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>
-                            {editValor === r.respondent_id
+                            {r.from_cadastro
+                              ? <span title="Conforme cadastro de usuário" style={{ color: 'var(--text)' }}>{fmtValor(r.valor)}</span>
+                              : editValor === r.respondent_id
                               ? <input autoFocus className="ds-input" defaultValue={r.valor ?? ''} style={{ height: 28, width: 130, fontSize: 12, padding: '2px 6px' }}
                                   onBlur={e => saveValor(r.respondent_id, e.target.value)}
                                   onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); else if (e.key === 'Escape') setEditValor(null) }} />
@@ -317,10 +323,14 @@ export default function DashboardCompetenciasPage() {
                           <td className="py-2 pr-2"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSel(r.id)} /></td>
                           <td className="py-2 pr-3"><Link href={`/competencias/profissionais/${r.id}`} className="flex items-center gap-1.5" style={{ color: 'var(--text)', textDecoration: 'none' }}>{r.blacklist && <AlertTriangle size={12} style={{ color: 'var(--danger)' }} />}{r.name}</Link></td>
                           <td className="py-2 pr-3">
-                            <select value={r.classification ?? ''} onChange={e => setClassificationFor(r.id, e.target.value)} className={classClass(r.classification)} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', background: 'transparent', cursor: 'pointer' }}>
-                              <option value="">—</option>
-                              {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                            </select>
+                            {r.from_cadastro ? (
+                              <span className={classClass(r.classification)} title="Conforme cadastro de usuário" style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, display: 'inline-block', fontWeight: 600 }}>{r.classification_label ?? '—'}</span>
+                            ) : (
+                              <select value={r.classification ?? ''} onChange={e => setClassificationFor(r.id, e.target.value)} className={classClass(r.classification)} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', background: 'transparent', cursor: 'pointer' }}>
+                                <option value="">—</option>
+                                {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                              </select>
+                            )}
                           </td>
                           <td className="py-2 pr-3">
                             {r.classification === 'parceiro' ? (
@@ -331,7 +341,9 @@ export default function DashboardCompetenciasPage() {
                             ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                           </td>
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>
-                            {editValor === r.id
+                            {r.from_cadastro
+                              ? <span title="Conforme cadastro de usuário" style={{ color: 'var(--text)' }}>{fmtValor(r.valor)}</span>
+                              : editValor === r.id
                               ? <input autoFocus className="ds-input" defaultValue={r.valor ?? ''} style={{ height: 28, width: 130, fontSize: 12, padding: '2px 6px' }}
                                   onBlur={e => saveValor(r.id, e.target.value)}
                                   onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); else if (e.key === 'Escape') setEditValor(null) }} />

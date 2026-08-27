@@ -21,7 +21,7 @@ interface DiffTransition { submission_id: number; submitted_at: string; previous
 interface DiffResponse { baseline: { submission_id: number; submitted_at: string; skills_count: number } | null; evaluations: number; transitions: DiffTransition[] }
 interface Level { id: number; name: string; weight: number }
 interface Profile {
-  respondent: { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; partner_id: string; partner_name: string | null; email: string | null; phone: string | null; valor: string | null; empresa: string | null; cargo: string | null; cidade: string | null; estado: string | null; linkedin: string | null; idiomas: string | null; cadastral: Record<string, unknown> }
+  respondent: { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; partner_id: string; partner_name: string | null; email: string | null; phone: string | null; valor: string | null; empresa: string | null; cargo: string | null; cidade: string | null; estado: string | null; linkedin: string | null; idiomas: string | null; cadastral: Record<string, unknown> }
   latest: { id: number; survey: string; matrix_version: string | null; submitted_at: string } | null
   history: HistoryRow[]
   radar: RadarPoint[]
@@ -159,11 +159,17 @@ export default function PerfilProfissionalPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base" style={{ fontWeight: 700, color: 'var(--text)' }}>{r.name}</h2>
                 <span className="ds-status-info" style={{ fontSize: 10 }}>{TYPE_LABEL[r.type] ?? r.type}</span>
-                <select value={r.classification ?? ''} onChange={e => saveClassification(e.target.value)} title="Classificação (clique p/ alterar)"
-                  className={r.blacklist ? 'ds-status-danger' : 'ds-status'} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', background: 'transparent', cursor: 'pointer', fontWeight: 600 }}>
-                  <option value="">Classificar…</option>
-                  {p.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                {r.from_cadastro ? (
+                  <span title="Conforme cadastro de usuário"
+                    className={r.classification === 'blacklist' ? 'ds-status-danger' : r.classification === 'freelance' ? 'ds-status-warning' : 'ds-status-info'}
+                    style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{r.classification_label ?? '—'}</span>
+                ) : (
+                  <select value={r.classification ?? ''} onChange={e => saveClassification(e.target.value)} title="Classificação (clique p/ alterar)"
+                    className={r.blacklist ? 'ds-status-danger' : 'ds-status'} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', background: 'transparent', cursor: 'pointer', fontWeight: 600 }}>
+                    <option value="">Classificar…</option>
+                    {p.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                )}
                 {r.classification === 'parceiro' && (
                   <select value={r.partner_id ?? ''} onChange={e => savePartner(e.target.value)} title="Empresa parceira"
                     className="ds-status-info" style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 8px', background: 'transparent', cursor: 'pointer', fontWeight: 600 }}>
@@ -171,7 +177,7 @@ export default function PerfilProfissionalPage() {
                     {p.filters.partners.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
                   </select>
                 )}
-                {r.classification !== 'erpserv' && (
+                {!r.from_cadastro && r.classification !== 'erpserv' && (
                   <button className="ds-btn-primary flex items-center gap-1" style={{ padding: '4px 12px', fontSize: 12 }}
                     onClick={() => (r.type === 'partner' || r.classification === 'parceiro') ? setShowPartnerUser(true) : setConfirmHire(true)}>
                     <UserPlus size={13} /> Contratar
