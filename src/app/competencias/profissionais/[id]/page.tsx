@@ -32,6 +32,8 @@ interface Profile {
 
 const TYPE_LABEL: Record<string, string> = { internal: 'Interno', partner: 'Parceiro', candidate: 'Talento' }
 const LEVEL_COLOR = (w: number) => w >= 4 ? 'var(--success)' : w >= 3 ? 'var(--primary)' : w >= 2 ? 'var(--warning)' : 'var(--text-muted)'
+// Fundo tingido do badge de nível (mesma cor com baixa opacidade, theme-aware).
+const levelBg = (w: number) => `color-mix(in srgb, ${LEVEL_COLOR(w)} 14%, transparent)`
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 function fmtValor(v: string | null): string | null {
   if (!v) return null
@@ -117,7 +119,16 @@ export default function PerfilProfissionalPage() {
   const skillsByCat = useMemo(() => {
     const m = new Map<string, SkillRow[]>()
     p?.skills.forEach(s => { const a = m.get(s.category) ?? []; a.push(s); m.set(s.category, a) })
-    return Array.from(m.entries())
+    // Dentro da categoria, os mais fortes primeiro (Especialista→Sênior→Pleno→Júnior), depois A→Z.
+    return Array.from(m.entries()).map(([cat, items]) =>
+      [cat, [...items].sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name, 'pt-BR'))] as [string, SkillRow[]])
+  }, [p])
+
+  // Escala de níveis (nome↔peso) pra legenda, ordenada do maior pro menor.
+  const levelScale = useMemo(() => {
+    const seen = new Map<number, string>()
+    p?.skills.forEach(s => { if (!seen.has(s.weight)) seen.set(s.weight, s.level) })
+    return Array.from(seen.entries()).map(([weight, name]) => ({ weight, name })).sort((a, b) => b.weight - a.weight)
   }, [p])
 
   if (loading) return <AppLayout title="Perfil"><div className="ds-card ds-card-pad"><SectionLoader label="Carregando…" /></div></AppLayout>
@@ -241,16 +252,37 @@ export default function PerfilProfissionalPage() {
 
         {/* Competências declaradas */}
         <div className="ds-card ds-card-pad">
-          <h3 className="text-sm mb-3" style={{ fontWeight: 600, color: 'var(--text)' }}>Competências declaradas <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({p.skills.length})</span></h3>
+          <div className="flex items-center justify-between flex-wrap gap-x-4 gap-y-2 mb-3">
+            <h3 className="text-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>
+              Competências declaradas <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({p.skills.length})</span>
+            </h3>
+            {levelScale.length > 0 && (
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+                {levelScale.map(l => (
+                  <span key={l.weight} className="inline-flex items-center gap-1.5" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 3, background: LEVEL_COLOR(l.weight), display: 'inline-block' }} />
+                    {l.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           {p.skills.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma competência com conhecimento declarado.</p>}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {skillsByCat.map(([cat, items]) => (
               <div key={cat}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>{cat}</div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{cat}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-light)', fontWeight: 600 }}>{items.length}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   {items.map(s => (
-                    <span key={s.name} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, border: `1px solid var(--border)`, color: 'var(--text)' }}>
-                      {s.name} <span style={{ color: LEVEL_COLOR(s.weight), fontWeight: 600 }}>· {s.level}</span>
+                    <span key={s.name} className="inline-flex items-center gap-2"
+                      style={{ fontSize: 12.5, padding: '4px 6px 4px 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                      {s.name}
+                      <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 5, color: LEVEL_COLOR(s.weight), background: levelBg(s.weight), whiteSpace: 'nowrap' }}>
+                        {s.level}
+                      </span>
                     </span>
                   ))}
                 </div>
