@@ -18,6 +18,7 @@ import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, TextInpu
 import { useAuth } from '@/hooks/use-auth'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { SourceReposSection } from '@/components/customers/source-repos-section'
+import { RpoTopologyPanel } from './rpo-topology-panel'
 import { api, ApiError } from '@/lib/api'
 
 const ORIGIN_LABEL: Record<string, string> = {
@@ -83,10 +84,11 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
               <Server size={16} /> Integração RPO
             </h3>
             <Card>
-              <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <div className="flex items-start gap-2 text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
                 <Server size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--text-light)' }} />
-                <span>A integração RPO pertence ao <strong>ambiente</strong>, não à empresa — a publicação governada do RPO (promote/rollback) é operada por <strong>Ambiente</strong>, no console de <strong>Operações RPO</strong>. Aqui não há configuração de RPO por empresa (evita configuração intermediária sem correspondente real).</span>
+                <span>A integração RPO pertence ao <strong>ambiente</strong>, não à empresa. O Connector <strong>descobre</strong> a topologia física (AppServers/unidades) on-prem; aqui você <strong>revisa e confirma</strong> o Target. Publicação/rollback seguem em <strong>Operações RPO</strong>. Nenhum caminho/INI/segredo trafega.</span>
               </div>
+              <RpoTopologyPanel customerId={companyId} />
             </Card>
           </section>
 
