@@ -303,8 +303,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
             )}
 
             {/* Importar contato do cliente (busca por texto; clicar adiciona; copia p/ o contrato) */}
-            {customerContacts.length > 0 && (
-              <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
+            <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
                 <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Importar contato do cliente</p>
                 <input type="text" value={importSearch} onChange={e => setImportSearch(e.target.value)}
                   placeholder="Buscar por nome ou e-mail…" className="w-full text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
@@ -312,7 +311,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                   const q = importSearch.trim().toLowerCase()
                   const opts = customerContacts.filter(cc => !pendingImports.includes(cc.id)
                     && (!q || `${cc.name ?? ''} ${cc.email ?? ''}`.toLowerCase().includes(q)))
-                  if (!opts.length) return <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Nenhum contato encontrado.</p>
+                  if (!opts.length) return <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>{customerContacts.length === 0 ? 'Este cliente não tem contatos cadastrados para importar. Use “Cadastrar novo contato” ou “E-mail avulso” abaixo.' : 'Nenhum contato encontrado.'}</p>
                   return (
                     <div className="mt-1.5 max-h-40 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
                       {opts.map(cc => (
@@ -339,8 +338,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                     <span className="text-[11px] self-center" style={{ color: 'var(--text-muted)' }}>a copiar ao salvar</span>
                   </div>
                 )}
-              </div>
-            )}
+            </div>
 
             {/* Cadastrar novo contato (nome + e-mail) → vira contato do contrato */}
             <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
