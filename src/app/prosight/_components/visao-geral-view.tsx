@@ -155,7 +155,7 @@ export function VisaoGeralExecutivaView({
       ) : (
         <div className="flex flex-col gap-5">
           {/* 1 · SAÚDE GERAL (rollup) — só operação */}
-          {canOper && <SaudeGeralBlock state={op.state} snapshots={op.snapshots} onRetry={op.reload} />}
+          {canOper && <SaudeGeralBlock state={op.state} snapshots={op.snapshots} onRetry={op.reload} companyName={prosightCtx?.companyName ?? null} />}
 
           {/* 2 · AMBIENTES (compacto) — só operação */}
           {canOper && <AmbientesBlock state={op.state} snapshots={op.snapshots} onRetry={op.reload} />}
@@ -357,7 +357,7 @@ function BlockError({ onRetry, message }: { onRetry?: () => void; message?: stri
 }
 
 // 1 · SAÚDE GERAL — rollup compacto (nº ambientes · saudáveis · atenção · críticos)
-function SaudeGeralBlock({ state, snapshots, onRetry }: { state: BlockState; snapshots: EnvSnapshot[] | null; onRetry: () => void }) {
+function SaudeGeralBlock({ state, snapshots, onRetry, companyName }: { state: BlockState; snapshots: EnvSnapshot[] | null; onRetry: () => void; companyName: string | null }) {
   const roll = useMemo(() => {
     const s = snapshots ?? []
     // Contagem pela AUTORIDADE (state), não por texto de label.
@@ -378,7 +378,7 @@ function SaudeGeralBlock({ state, snapshots, onRetry }: { state: BlockState; sna
     <BlockShell
       icon={Gauge}
       title="Saúde geral"
-      subtitle={`Empresa ${COMPANY_JNG.name} · ambientes Protheus`}
+      subtitle={`${companyName ? `Empresa ${companyName}` : 'Todas as empresas'} · ambientes Protheus`}
       right={state === 'ready' ? (
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ background: overall.color }} />
