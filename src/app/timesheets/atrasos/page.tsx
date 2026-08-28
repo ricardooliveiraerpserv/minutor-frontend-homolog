@@ -2,7 +2,7 @@
 
 // Atrasos da Integração — apontamentos que chegaram pela integração Movidesk com data
 // em competência JÁ FECHADA. Ficam fora do período até aprovação: (a) entrar no período
-// (mantém a data) ou (b) mudar a data de inclusão (joga p/ mês aberto + trava a data).
+// (mantém a data) ou (b) mudar a data de digitação (joga p/ mês aberto + trava a data).
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -63,7 +63,7 @@ export default function AtrasosIntegracaoPage() {
         <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
           style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text-muted)' }}>
           <AlertTriangle size={14} style={{ color: 'var(--warning)', marginTop: 1 }} className="shrink-0" />
-          <span>Apontamentos que chegaram pela integração com data em <b>competência já fechada</b>. Eles não entram no período até você aprovar: <b>entrar no período</b> (mantém a data original) ou <b>mudar a data de inclusão</b> (joga para um mês aberto). A nova data fica travada — o reprocessamento da integração não a sobrescreve.</span>
+          <span>Apontamentos que chegaram pela integração com data em <b>competência já fechada</b>. Eles não entram no período até você aprovar: <b>entrar no período</b> (mantém a data original) ou <b>mudar a data de digitação</b> (joga para um mês aberto). A nova data fica travada — o reprocessamento da integração não a sobrescreve.</span>
         </div>
 
         {loading ? (
@@ -99,7 +99,7 @@ export default function AtrasosIntegracaoPage() {
                   <Td className="text-right tabular-nums">{fmtH(r.horas)}</Td>
                   <Td className="text-right">
                     <div className="inline-flex gap-1.5 justify-end">
-                      <Button size="sm" variant="secondary" icon={CalendarClock} disabled={busyId === r.id} onClick={() => setDateModal({ row: r, date: '' })}>Mudar data</Button>
+                      <Button size="sm" variant="secondary" icon={CalendarClock} disabled={busyId === r.id} onClick={() => setDateModal({ row: r, date: '' })}>Mudar data de digitação</Button>
                       <Button size="sm" variant="primary" icon={Check} loading={busyId === r.id} onClick={() => aprovar(r.id, 'keep')}>Entrar no período</Button>
                     </div>
                   </Td>
@@ -115,14 +115,14 @@ export default function AtrasosIntegracaoPage() {
           onClick={e => { if (e.target === e.currentTarget) setDateModal(null) }}>
           <div className="ds-card w-full max-w-md p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Mudar data de inclusão</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Mudar data de digitação</p>
               <button onClick={() => setDateModal(null)} style={{ color: 'var(--text-muted)' }} title="Fechar"><X size={18} /></button>
             </div>
             <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
               {dateModal.row.colaborador} · {dateModal.row.projeto} · {fmtH(dateModal.row.horas)}h<br />
               Data original: <b>{fmtDate(dateModal.row.date)}</b> (competência fechada)
             </p>
-            <label className="text-xs font-medium" style={{ color: 'var(--text-light)' }}>Nova data de inclusão</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-light)' }}>Nova data de digitação</label>
             <input type="date" value={dateModal.date} onChange={e => setDateModal(d => d ? { ...d, date: e.target.value } : d)} className="ds-input w-full mt-1 mb-1" />
             <p className="text-[11px] mb-4" style={{ color: 'var(--text-light)' }}>A data fica travada — o reprocessamento da integração não vai sobrescrevê-la.</p>
             <div className="flex justify-end gap-2">
