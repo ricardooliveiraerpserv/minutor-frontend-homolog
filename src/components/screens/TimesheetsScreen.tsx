@@ -1764,7 +1764,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                       }
                       {ts.is_paid && <Badge variant="success">Pago</Badge>}
                       {ts.consultant_pending_release && (
-                        <span title="Este apontamento em atraso conta para o cliente, mas ainda não para o seu pagamento. Fale com o seu coordenador para liberar as horas.">
+                        <span title="Apontamento inválido por estar em atraso — não reflete no seu pagamento. Fale com o seu coordenador para liberar as horas.">
                           <Badge variant="warning">Em atraso — fale com o coordenador</Badge>
                         </span>
                       )}

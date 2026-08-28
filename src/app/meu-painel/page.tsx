@@ -1305,7 +1305,7 @@ function TableSkeleton({ cols }: { cols: number }) {
 function StatusBadge({ status, display, reason, pendingRelease }: { status: string; display?: string; reason?: string | null; pendingRelease?: boolean }) {
   if (pendingRelease) {
     return (
-      <span title="Apontamento em atraso: conta para o cliente, mas NÃO reflete no seu fechamento/pagamento. Fale com o seu coordenador para liberar as horas."
+      <span title="Apontamento inválido por estar em atraso: não reflete no seu fechamento/pagamento. Fale com o seu coordenador para liberar as horas."
         className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap"
         style={{ background: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>
         Em atraso — fale com o coordenador
@@ -2977,7 +2977,7 @@ export default function MeuPainelPage() {
                     {ts.consultant_pending_release && (
                       <tr className="border-b border-[var(--border)] last:border-0" style={{ background: 'var(--danger-bg)' }}>
                         <td colSpan={11} className="px-4 pb-2.5 pt-0 text-[11px] leading-snug" style={{ color: 'var(--danger)', boxShadow: 'inset 3px 0 0 var(--danger)' }}>
-                          <strong>Em atraso</strong> — conta para o cliente, mas <strong>NÃO reflete no seu fechamento/pagamento</strong>. Fale com o seu coordenador para liberar as horas.
+                          <strong>Apontamento inválido por estar em atraso</strong> — não reflete no seu fechamento/pagamento. Fale com o seu coordenador para liberar as horas.
                         </td>
                       </tr>
                     )}
