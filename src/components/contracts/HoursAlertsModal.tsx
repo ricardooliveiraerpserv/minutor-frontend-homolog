@@ -84,6 +84,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const [pendingImports, setPendingImports] = useState<number[]>([])
   const [newEmail, setNewEmail] = useState('')
   const [importPick, setImportPick] = useState('')
+  const [importSearch, setImportSearch] = useState('')
   const [alerts, setAlerts] = useState<HoursAlert[]>([])
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [savingFlag, setSavingFlag] = useState(false)
@@ -96,7 +97,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
     setExtraEmails((r.extra_emails ?? []).map(x => x.email))
     setCustomerContacts(r.customer_contacts ?? [])
     setPendingImports([])
-    setNewEmail(''); setImportPick('')
+    setNewEmail(''); setImportPick(''); setImportSearch('')
   }
 
   const load = useCallback(async () => {
@@ -296,17 +297,26 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
             {customerContacts.length > 0 && (
               <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
                 <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Importar contato do cliente</p>
-                <div className="flex items-center gap-2">
-                  <select value={importPick} onChange={e => setImportPick(e.target.value)}
-                    className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                    <option value="">Selecione um contato…</option>
-                    {customerContacts.filter(cc => !pendingImports.includes(cc.id)).map(cc => (
-                      <option key={cc.id} value={cc.id}>{cc.name}{cc.email ? ` · ${cc.email}` : ''}</option>
-                    ))}
-                  </select>
-                  <button onClick={addImport} disabled={!importPick}
-                    className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Importar</button>
-                </div>
+                <input type="text" value={importSearch} onChange={e => setImportSearch(e.target.value)}
+                  placeholder="Buscar por nome ou e-mail…" className="w-full text-xs px-2 py-1.5 rounded-lg mb-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                {(() => {
+                  const q = importSearch.trim().toLowerCase()
+                  const opts = customerContacts.filter(cc => !pendingImports.includes(cc.id)
+                    && (!q || `${cc.name ?? ''} ${cc.email ?? ''}`.toLowerCase().includes(q)))
+                  return (
+                    <div className="flex items-center gap-2">
+                      <select value={importPick} onChange={e => setImportPick(e.target.value)}
+                        className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                        <option value="">{opts.length ? 'Selecione um contato…' : 'Nenhum contato encontrado'}</option>
+                        {opts.map(cc => (
+                          <option key={cc.id} value={cc.id}>{cc.name}{cc.email ? ` · ${cc.email}` : ''}</option>
+                        ))}
+                      </select>
+                      <button onClick={addImport} disabled={!importPick}
+                        className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Importar</button>
+                    </div>
+                  )
+                })()}
                 {pendingImports.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {pendingImports.map(id => {
