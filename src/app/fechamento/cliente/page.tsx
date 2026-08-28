@@ -107,6 +107,7 @@ interface DespesaRow {
   colaborador: string
   projeto: string
   valor: number
+  has_receipt?: boolean
 }
 
 // Apuração por Ticket (Vedamotors) — espelha /timesheets/summary-by-ticket.
@@ -277,6 +278,22 @@ export default function FechamentoClientePage() {
   const [avulsoDraft, setAvulsoDraft] = useState('')
   // Anexos extras (além do PDF + Excel) — só deste envio.
   const [anexos, setAnexos] = useState<File[]>([])
+  const [incluirComprovantes, setIncluirComprovantes] = useState(false)
+  const [viewingReceipt, setViewingReceipt] = useState<number | null>(null)
+
+  // Abre o comprovante de uma despesa (endpoint autenticado → blob → nova aba).
+  async function viewReceipt(expenseId: number) {
+    setViewingReceipt(expenseId)
+    try {
+      const res = await fetch(`/api/v1/expenses/${expenseId}/receipt`, { credentials: 'same-origin', headers: { Accept: '*/*' } })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch { toast.error('Não foi possível abrir o comprovante.') }
+    finally { setViewingReceipt(null) }
+  }
   const addAnexos = (files: FileList | null) => {
     if (!files?.length) return
     setAnexos(prev => {
@@ -586,6 +603,7 @@ export default function FechamentoClientePage() {
     setAvulsoEmails([])
     setAvulsoDraft('')
     setAnexos([])
+    setIncluirComprovantes(false)
     setCadastroSaved(false)
     setComposeOpen(true)
     void fetchEmailPreview() // primeiro fetch: sem mensagem → html + mensagem_padrao + e-mails
@@ -687,6 +705,7 @@ export default function FechamentoClientePage() {
       if (mode === 'servicos' && projetoFilter) fd.append('project_id', String(projetoFilter))
       emails.forEach(e => fd.append('emails[]', e))
       anexos.forEach(f => fd.append('anexos[]', f, f.name))
+      if (mode === 'despesa' && incluirComprovantes) fd.append('incluir_comprovantes', '1')
 
       const res = await fetch(
         `/api/v1/fechamento-cliente/${customerId}/${toYM}/enviar-email`,
@@ -2000,6 +2019,37 @@ export default function FechamentoClientePage() {
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
+
+              {/* Comprovantes das despesas — opção de anexar + visualizar (só no modo despesa) */}
+              {detailMode() === 'despesa' && despesas.some(d => d.has_receipt) && (
+                <div>
+                  <label className="block text-xs font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--text-light)' }}>
+                    Comprovantes
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={incluirComprovantes} onChange={e => setIncluirComprovantes(e.target.checked)} />
+                    <Paperclip size={14} style={{ color: 'var(--text-muted)' }} /> Anexar comprovantes das despesas ({despesas.filter(d => d.has_receipt).length})
+                  </label>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+                    Os comprovantes anexados às despesas do período vão junto no e-mail. Clique em “Ver” para conferir cada um antes de enviar.
+                  </p>
+                  <div className="flex flex-col gap-1 mt-2" style={{ maxHeight: 170, overflowY: 'auto' }}>
+                    {despesas.filter(d => d.has_receipt).map(d => (
+                      <div key={d.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        <FileText size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--text)', flex: 1, minWidth: 0 }} className="truncate">
+                          {d.data.split('-').reverse().join('/')} · {d.descricao}
+                        </span>
+                        <span style={{ color: 'var(--text-light)', flexShrink: 0 }}>{d.colaborador}</span>
+                        <button type="button" onClick={() => viewReceipt(d.id)} disabled={viewingReceipt === d.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded" style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+                          <Eye size={12} /> {viewingReceipt === d.id ? '…' : 'Ver'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Anexos extras — o relatório (PDF) e a planilha (Excel) já vão automaticamente */}
               <div>
