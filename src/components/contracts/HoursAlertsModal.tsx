@@ -34,12 +34,17 @@ interface AlertContact {
 interface PreviewField { label: string; value: string }
 interface Preview { band: number; fields: PreviewField[]; subject?: string; html?: string; recipients?: { to: string[]; cc: string[] } }
 
+interface ExtraEmail { id: number; email: string }
+interface CustomerContactOpt { id: number; name: string; email: string; cargo: string | null }
+
 interface Payload {
   enabled: boolean
   contract_id: number | null
   current: CurrentMetrics | null
   preview: Preview | null
   contacts: AlertContact[]
+  extra_emails?: ExtraEmail[]
+  customer_contacts?: CustomerContactOpt[]
   alerts: HoursAlert[]
 }
 
@@ -74,6 +79,11 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const [current, setCurrent] = useState<CurrentMetrics | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [contacts, setContacts] = useState<AlertContact[]>([])
+  const [extraEmails, setExtraEmails] = useState<string[]>([])
+  const [customerContacts, setCustomerContacts] = useState<CustomerContactOpt[]>([])
+  const [pendingImports, setPendingImports] = useState<number[]>([])
+  const [newEmail, setNewEmail] = useState('')
+  const [importPick, setImportPick] = useState('')
   const [alerts, setAlerts] = useState<HoursAlert[]>([])
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [savingFlag, setSavingFlag] = useState(false)
@@ -83,6 +93,10 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
 
   const apply = (r: Payload) => {
     setEnabled(!!r.enabled); setCurrent(r.current); setPreview(r.preview); setContacts(r.contacts ?? []); setAlerts(r.alerts ?? [])
+    setExtraEmails((r.extra_emails ?? []).map(x => x.email))
+    setCustomerContacts(r.customer_contacts ?? [])
+    setPendingImports([])
+    setNewEmail(''); setImportPick('')
   }
 
   const load = useCallback(async () => {
@@ -108,10 +122,31 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const toggleContact = (id: number) =>
     setContacts(cs => cs.map(c => c.id === id ? { ...c, recebe_alerta_consumo: !c.recebe_alerta_consumo } : c))
 
+  const addExtraEmail = () => {
+    const e = newEmail.trim()
+    if (!e) return
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast.error('E-mail inválido'); return }
+    if (extraEmails.some(x => x.toLowerCase() === e.toLowerCase())) { setNewEmail(''); return }
+    setExtraEmails(l => [...l, e]); setNewEmail('')
+  }
+  const removeExtraEmail = (e: string) => setExtraEmails(l => l.filter(x => x !== e))
+
+  const addImport = () => {
+    const id = Number(importPick)
+    if (!id) return
+    setPendingImports(l => l.includes(id) ? l : [...l, id])
+    setImportPick('')
+  }
+  const removeImport = (id: number) => setPendingImports(l => l.filter(x => x !== id))
+
   const saveContacts = async () => {
     setSavingContacts(true)
     try {
-      const r = await api.put<Payload>(`${base}/contacts`, { contacts: contacts.map(c => ({ id: c.id, recebe_alerta_consumo: c.recebe_alerta_consumo })) })
+      const r = await api.put<Payload>(`${base}/contacts`, {
+        contacts: contacts.map(c => ({ id: c.id, recebe_alerta_consumo: c.recebe_alerta_consumo })),
+        add_customer_contacts: pendingImports,
+        extra_emails: extraEmails,
+      })
       apply(r)
       toast.success('Destinatários atualizados')
     } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar destinatários')) }
@@ -242,8 +277,9 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                 {savingContacts ? 'Salvando…' : 'Salvar'}
               </button>
             </div>
+            {/* Contatos do contrato (toggle) */}
             {contacts.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum contato cadastrado no contrato. Cadastre em Kanban Contratos → editar contrato → Contatos.</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum contato no contrato ainda. Importe do cliente ou adicione um e-mail avulso abaixo.</p>
             ) : (
               <div className="space-y-1.5">
                 {contacts.map(c => (
@@ -253,9 +289,64 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                     <span style={{ color: 'var(--text-muted)' }}>{[c.cargo, c.email].filter(Boolean).join(' · ')}</span>
                   </label>
                 ))}
-                <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>O executivo de contas do cliente também recebe automaticamente.</p>
               </div>
             )}
+
+            {/* Importar contato do cliente (copia p/ o contrato) */}
+            {customerContacts.length > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
+                <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Importar contato do cliente</p>
+                <div className="flex items-center gap-2">
+                  <select value={importPick} onChange={e => setImportPick(e.target.value)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                    <option value="">Selecione um contato…</option>
+                    {customerContacts.filter(cc => !pendingImports.includes(cc.id)).map(cc => (
+                      <option key={cc.id} value={cc.id}>{cc.name}{cc.email ? ` · ${cc.email}` : ''}</option>
+                    ))}
+                  </select>
+                  <button onClick={addImport} disabled={!importPick}
+                    className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Importar</button>
+                </div>
+                {pendingImports.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {pendingImports.map(id => {
+                      const cc = customerContacts.find(x => x.id === id)
+                      return (
+                        <span key={id} className="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-md" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                          {cc?.name ?? cc?.email ?? id}
+                          <button onClick={() => removeImport(id)} className="hover:opacity-70"><X size={11} /></button>
+                        </span>
+                      )
+                    })}
+                    <span className="text-[11px] self-center" style={{ color: 'var(--text-muted)' }}>a copiar ao salvar</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* E-mail avulso (destinatário adicional; não vira contato) */}
+            <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>E-mail avulso (destinatário adicional)</p>
+              {extraEmails.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {extraEmails.map(e => (
+                    <span key={e} className="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+                      {e}
+                      <button onClick={() => removeExtraEmail(e)} className="hover:opacity-70"><X size={11} /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtraEmail() } }}
+                  placeholder="nome@empresa.com" className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                <button onClick={addExtraEmail} disabled={!newEmail.trim()}
+                  className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Adicionar</button>
+              </div>
+            </div>
+
+            <p className="text-[11px] mt-3" style={{ color: 'var(--text-muted)' }}>O executivo de contas do cliente também recebe automaticamente. Clique em <strong>Salvar</strong> para gravar importações e e-mails avulsos.</p>
           </div>
 
           {/* History */}
