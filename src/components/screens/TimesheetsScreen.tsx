@@ -1838,6 +1838,11 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                           )
                       }
                       {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                      {ts.consultant_pending_release && (
+                        <span title="Este apontamento em atraso conta para o cliente, mas ainda não para o seu pagamento. Fale com o seu coordenador para liberar as horas.">
+                          <Badge variant="warning">Em atraso — fale com o coordenador</Badge>
+                        </span>
+                      )}
                     </span>
                   </Td>
                   {(isAdmin || isCoordenador) && (
@@ -1987,6 +1992,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                       ? (<><Badge variant="internal">Ação Interna</Badge>{ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}</>)
                       : (<ReasonTooltip status={ts.status} reason={ts.rejection_reason}><Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge></ReasonTooltip>)}
                     {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                    {ts.consultant_pending_release && <Badge variant="warning">Em atraso — fale com o coordenador</Badge>}
                   </div>
                   {/* Linha 3: resumo (data · tempo · cliente · projeto) */}
                   <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--text-light)' }}>

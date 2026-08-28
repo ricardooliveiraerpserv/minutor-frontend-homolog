@@ -9,7 +9,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { Table, Thead, Th, Tbody, Tr, Td, Button, Badge, EmptyState, SkeletonTable } from '@/components/ds'
-import { AlertTriangle, Check, CalendarClock, X } from 'lucide-react'
+import { AlertTriangle, Check, CalendarClock, X, Lock } from 'lucide-react'
 
 interface AtrasoRow {
   id: number
@@ -23,35 +23,59 @@ interface AtrasoRow {
   horas: number
   observacao: string | null
   date_locked: boolean
+  consultant_released?: boolean
+  late_approved_at?: string | null
+  consultant_released_at?: string | null
 }
 
+type Tab = 'pendente' | 'consultor' | 'concluidos'
+type Counts = { pendente: number; consultor: number; concluidos: number }
+
 const fmtDate = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+const fmtDT = (iso?: string | null) => !iso ? '—' : new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const fmtH = (n: number) => (n ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function AtrasosIntegracaoPage() {
   const [rows, setRows] = useState<AtrasoRow[]>([])
+  const [counts, setCounts] = useState<Counts>({ pendente: 0, consultor: 0, concluidos: 0 })
+  const [tab, setTab] = useState<Tab>('pendente')
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [dateModal, setDateModal] = useState<{ row: AtrasoRow; date: string } | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
-    api.get<{ data: AtrasoRow[] }>('/timesheets/atrasos')
-      .then(r => setRows(r.data ?? []))
+    api.get<{ data: AtrasoRow[]; counts?: Counts }>(`/timesheets/atrasos?tab=${tab}`)
+      .then(r => { setRows(r.data ?? []); if (r.counts) setCounts(r.counts) })
       .catch(() => toast.error('Erro ao carregar atrasos'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [tab])
   useEffect(() => { load() }, [load])
 
   const aprovar = async (id: number, action: 'keep' | 'change_date', date?: string) => {
     setBusyId(id)
     try {
       await api.post(`/timesheets/${id}/aprovar-atraso`, { action, ...(date ? { date } : {}) })
-      toast.success(action === 'change_date' ? 'Atraso aprovado com a nova data' : 'Atraso aprovado — entrou no período')
+      toast.success(action === 'change_date' ? 'Atraso aprovado (cliente). Aguardando liberação do consultor.' : 'Atraso aprovado (cliente). Aguardando liberação do consultor.')
       setDateModal(null)
       setRows(rs => rs.filter(r => r.id !== id)) // update otimista
+      setCounts(c => ({ ...c, pendente: Math.max(0, c.pendente - 1), consultor: c.consultor + 1 }))
     } catch (e) {
       toast.error(apiMessage(e, 'Erro ao aprovar o atraso'))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const liberar = async (id: number) => {
+    setBusyId(id)
+    try {
+      await api.post(`/timesheets/${id}/liberar-consultor`, {})
+      toast.success('Horas do consultor liberadas — passam a contar no pagamento e no banco de horas.')
+      setRows(rs => rs.filter(r => r.id !== id)) // update otimista
+      setCounts(c => ({ ...c, consultor: Math.max(0, c.consultor - 1), concluidos: c.concluidos + 1 }))
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao liberar as horas do consultor'))
     } finally {
       setBusyId(null)
     }
@@ -60,16 +84,39 @@ export default function AtrasosIntegracaoPage() {
   return (
     <AppLayout title="Atrasos da Integração">
       <div className="flex-1 overflow-auto p-6">
+        {/* Abas */}
+        <div className="flex gap-1 mb-4">
+          {([
+            ['pendente', 'Pendente (cliente)'],
+            ['consultor', 'Aguardando consultor'],
+            ['concluidos', 'Concluídos'],
+          ] as [Tab, string][]).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)}
+              className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+              style={tab === k
+                ? { background: 'var(--primary)', color: '#fff' }
+                : { background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+              {label}{counts[k] > 0 ? <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: tab === k ? 'rgba(255,255,255,.25)' : 'var(--warning-bg)', color: tab === k ? '#fff' : 'var(--warning-border)' }}>{counts[k]}</span> : null}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
           style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text-muted)' }}>
           <AlertTriangle size={14} style={{ color: 'var(--warning)', marginTop: 1 }} className="shrink-0" />
-          <span>Apontamentos que chegaram pela integração com data em <b>competência já fechada</b>. Eles não entram no período até você aprovar: <b>entrar no período</b> (mantém a data original) ou <b>mudar a data de digitação</b> (joga para um mês aberto). A nova data fica travada — o reprocessamento da integração não a sobrescreve.</span>
+          {tab === 'pendente' ? (
+            <span>Apontamentos que chegaram pela integração com data em <b>competência já fechada</b>. Ao aprovar (<b>entrar no período</b> ou <b>mudar a data de digitação</b>), passam a contar <b>para o cliente</b> — mas ainda <b>não para o consultor</b>: vão para a aba <b>Aguardando consultor</b>, onde o coordenador/admin libera as horas.</span>
+          ) : tab === 'consultor' ? (
+            <span>Já contam <b>para o cliente</b>, mas <b>não</b> para o pagamento nem o banco de horas do consultor até você <b>liberar as horas</b>. Enquanto isso, o consultor vê o apontamento como "em atraso — fale com o coordenador".</span>
+          ) : (
+            <span>Apontamentos de atraso já <b>liberados para o consultor</b> — contam no pagamento e no banco de horas. Histórico.</span>
+          )}
         </div>
 
         {loading ? (
           <SkeletonTable rows={6} cols={7} />
         ) : rows.length === 0 ? (
-          <EmptyState icon={Check} title="Nenhum atraso pendente" description="Não há apontamentos da integração aguardando aprovação de atraso." />
+          <EmptyState icon={Check} title="Nada por aqui" description={tab === 'pendente' ? 'Não há atrasos aguardando aprovação.' : tab === 'consultor' ? 'Nenhum apontamento aguardando liberação do consultor.' : 'Nenhum apontamento liberado ainda.'} />
         ) : (
           <Table>
             <Thead>
@@ -80,7 +127,7 @@ export default function AtrasosIntegracaoPage() {
                 <Th>Projeto</Th>
                 <Th>Ticket</Th>
                 <Th className="text-right">Horas</Th>
-                <Th className="text-right">Ações</Th>
+                <Th className="text-right">{tab === 'concluidos' ? 'Liberado em' : 'Ações'}</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -98,10 +145,16 @@ export default function AtrasosIntegracaoPage() {
                   <Td>{r.ticket ?? '—'}</Td>
                   <Td className="text-right tabular-nums">{fmtH(r.horas)}</Td>
                   <Td className="text-right">
-                    <div className="inline-flex gap-1.5 justify-end">
-                      <Button size="sm" variant="secondary" icon={CalendarClock} disabled={busyId === r.id} onClick={() => setDateModal({ row: r, date: '' })}>Mudar data de digitação</Button>
-                      <Button size="sm" variant="primary" icon={Check} loading={busyId === r.id} onClick={() => aprovar(r.id, 'keep')}>Entrar no período</Button>
-                    </div>
+                    {tab === 'pendente' ? (
+                      <div className="inline-flex gap-1.5 justify-end">
+                        <Button size="sm" variant="secondary" icon={CalendarClock} disabled={busyId === r.id} onClick={() => setDateModal({ row: r, date: '' })}>Mudar data de digitação</Button>
+                        <Button size="sm" variant="primary" icon={Check} loading={busyId === r.id} onClick={() => aprovar(r.id, 'keep')}>Entrar no período</Button>
+                      </div>
+                    ) : tab === 'consultor' ? (
+                      <Button size="sm" variant="primary" icon={Lock} loading={busyId === r.id} onClick={() => liberar(r.id)}>Liberar horas do consultor</Button>
+                    ) : (
+                      <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtDT(r.consultant_released_at)}</span>
+                    )}
                   </Td>
                 </Tr>
               ))}
