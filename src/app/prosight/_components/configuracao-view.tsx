@@ -7,7 +7,7 @@
 //    o FE NUNCA recebe credencial.
 //  • Allowlist de extensões elegíveis → source_doc_inventory_settings (global→empresa→repo→system_default),
 //    com origem exibida e herança (remover override = voltar a herdar). Independente do custo de IA.
-//  • Integração RPO → NÃO é desta fase: será configurada por Ambiente na Fase C (estado explícito).
+//  • Integração RPO → NÃO é por empresa: publicação governada (promote/rollback) é operada por Ambiente (Operações RPO).
 // Segredos nunca em claro. Exclusões por glob (fixture antigo rpoExclusionPatterns) NÃO existem no backend.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
             <AllowlistEditor scope="company" customerId={companyId} companyName={companyName} />
           </section>
 
-          {/* ── RPO — Fase C ── */}
+          {/* ── RPO — por Ambiente (operado em Operações RPO), nunca por empresa ── */}
           <section>
             <h3 className="mb-2 flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
               <Server size={16} /> Integração RPO
@@ -85,7 +85,7 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
             <Card>
               <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
                 <Server size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--text-light)' }} />
-                <span>A integração RPO (compilação AdvPL) pertence ao <strong>ambiente</strong>, não à empresa — será configurada em <strong>Ambientes</strong> na próxima fase (Fase C). Aqui não há configuração de RPO por empresa (evita configuração intermediária sem correspondente real).</span>
+                <span>A integração RPO pertence ao <strong>ambiente</strong>, não à empresa — a publicação governada do RPO (promote/rollback) é operada por <strong>Ambiente</strong>, no console de <strong>Operações RPO</strong>. Aqui não há configuração de RPO por empresa (evita configuração intermediária sem correspondente real).</span>
               </div>
             </Card>
           </section>
