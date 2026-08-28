@@ -38,7 +38,7 @@ interface UserItem {
 }
 
 interface CustomerOption { id: number; name: string }
-interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null }
+interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null; folha_user_id?: number | null; folha_user?: { id: number; name: string } | null }
 
 // Permissões que podem ser concedidas como extras
 const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: string }[] = [
@@ -272,6 +272,8 @@ export function UserManagementTab() {
   const [users,     setUsers]     = useState<UserItem[]>([])
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
+  // Fluxo sensível: trocar o responsável pelos recebimentos do parceiro (1=pergunta, 2=confirmação).
+  const [receiverConfirm, setReceiverConfirm] = useState<1 | 2 | null>(null)
   const [loading,   setLoading]   = useState(true)
   const [search,        setSearch]        = useState('')
   const [filterEnabled, setFilterEnabled] = useState('')
@@ -379,11 +381,27 @@ export function UserManagementTab() {
     setModal({ open: true, item })
   }
 
-  const save = async () => {
+  // É um admin de parceiro (parceiro + executivo)? Info p/ o fluxo de "responsável pelos recebimentos".
+  const editingPartner = partners.find(p => p.id === Number(form.partner_id))
+  const isPartnerAdminForm = form.profiles.includes('parceiro_adm') && form.is_partner_adm && !!form.partner_id
+  // Conflito = já há um recebedor definido e é OUTRA pessoa (não o próprio usuário sendo editado).
+  const receiverConflict = isPartnerAdminForm
+    && !!editingPartner?.folha_user_id
+    && editingPartner.folha_user_id !== (modal.item?.id ?? -1)
+
+  const save = () => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
+    // Definindo outro admin com recebedor já existente → pergunta antes (double-confirm no 'Sim').
+    if (receiverConflict) { setReceiverConfirm(1); return }
+    doSave(false)
+  }
+
+  const doSave = async (setReceiver: boolean) => {
+    setReceiverConfirm(null)
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
+        set_as_partner_receiver: setReceiver,
         name: form.name, email: form.email, enabled: form.enabled,
         type: resolveTypeForBackend(form.profiles[0]),
         extra_permissions: form.extra_permissions.length > 0 ? form.extra_permissions : null,
@@ -411,6 +429,8 @@ export function UserManagementTab() {
       toast.success(modal.item ? 'Usuário atualizado' : 'Usuário criado')
       setModal({ open: false })
       load()
+      // Recarrega parceiros p/ refletir o novo responsável pelos recebimentos.
+      api.get<any>('/partners?pageSize=-1').then(r => setPartners(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
   }
@@ -977,6 +997,47 @@ export function UserManagementTab() {
         onClose={() => setDeleteConfirm({ open: false })}
         onConfirm={confirmDelete}
       />
+
+      {/* Fluxo sensível: trocar o responsável pelos recebimentos do parceiro */}
+      {receiverConfirm !== null && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            {receiverConfirm === 1 ? (
+              <>
+                <p className="text-sm font-semibold text-[var(--text)] mb-3">Responsável pelos recebimentos</p>
+                <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-5">
+                  O parceiro <b className="text-[var(--text)]">{editingPartner?.name}</b> já tem um responsável pelos recebimentos:{' '}
+                  <b className="text-[var(--text)]">{editingPartner?.folha_user?.name ?? '—'}</b>.<br />
+                  Deseja que <b className="text-[var(--text)]">{form.name || 'este usuário'}</b> passe a ser o responsável que recebe a apuração?
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => doSave(false)}
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Não, manter atual</Button>
+                  <Button onClick={() => setReceiverConfirm(2)}
+                    className="h-8 text-xs bg-[var(--warning)] hover:opacity-90 text-white">Sim, quero mudar</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--danger)' }}>⚠️ Confirmação — ação sensível</p>
+                <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-5">
+                  Ao confirmar, <b className="text-[var(--text)]">TODO o valor apurado</b> do parceiro{' '}
+                  <b className="text-[var(--text)]">{editingPartner?.name}</b> passará a ser pago a{' '}
+                  <b className="text-[var(--text)]">{form.name || 'este usuário'}</b> (deixa de ser{' '}
+                  <b className="text-[var(--text)]">{editingPartner?.folha_user?.name ?? '—'}</b>).<br />
+                  Esta troca afeta os pagamentos do parceiro. Confirma?
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => doSave(false)}
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar (manter atual)</Button>
+                  <Button onClick={() => doSave(true)} disabled={saving}
+                    className="h-8 text-xs text-white" style={{ background: 'var(--danger)' }}>Confirmar troca</Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
