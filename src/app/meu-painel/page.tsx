@@ -2742,7 +2742,7 @@ export default function MeuPainelPage() {
                   : timesheets.length === 0
                     ? <div className="px-5 py-8 text-center text-sm text-[var(--text-muted)]">Nenhum apontamento no período</div>
                     : timesheets.slice(0, 6).map(ts => (
-                        <div key={ts.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+                        <div key={ts.id} className="px-5 py-3.5 flex items-center justify-between gap-3" style={ts.consultant_pending_release ? { background: 'var(--danger-bg)', boxShadow: 'inset 3px 0 0 var(--danger)' } : undefined}>
                           <div className="min-w-0">
                             <div className="text-xs font-medium text-[var(--text)] truncate">
                               {ts.project?.name ?? '—'}
@@ -2908,8 +2908,9 @@ export default function MeuPainelPage() {
                     <tr key={ts.id}
                       {...hover.bind(ts)}
                       className={`border-b border-[var(--border)] transition-colors last:border-0 ${
-                        locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'
-                      }`}>
+                        ts.consultant_pending_release ? '' : (locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]')
+                      }`}
+                      style={ts.consultant_pending_release ? { background: 'var(--danger-bg)', boxShadow: 'inset 3px 0 0 var(--danger)' } : undefined}>
                       <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(ts.date)}</td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
                         {clientName ?? <span className="text-[var(--text-muted)]">—</span>}
