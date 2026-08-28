@@ -168,8 +168,9 @@ export default function PartnersPage() {
         pricing_type:  form.pricing_type,
         hourly_rate:   form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
         contract_type: form.contract_type || null,
-        // Recebedor da apuração (admin designado) — vale p/ Cooperado (folha) E PJ (fechamento/nota).
-        folha_user_id: (form.contract_type === 'cooperado' || form.contract_type === 'pj') ? (form.folha_user_id || null) : null,
+        // Responsável pelos recebimentos (admin designado) — independe do contrato; o pagamento
+        // apurado do parceiro é destinado a este admin (folha p/ cooperado, fechamento/nota p/ PJ).
+        folha_user_id: form.folha_user_id || null,
       }
       if (modal.item) {
         // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
@@ -363,13 +364,14 @@ export default function PartnersPage() {
                 </div>
                 <p className="text-[10px] text-[var(--text-light)] mt-1">Aplica a todos os consultores do parceiro.</p>
               </div>
-              {/* Recebedor da apuração — qual admin recebe TODO o valor dos recursos do parceiro.
-                  Vale p/ Cooperado (folha) e PJ (fechamento/nota). Precisa do parceiro já salvo. */}
-              {(form.contract_type === 'cooperado' || form.contract_type === 'pj') && modal.item && (() => {
+              {/* Responsável pelos recebimentos — o admin que recebe TODO o valor apurado dos
+                  recursos do parceiro. Pode haver vários admins, mas o pagamento é apurado num só.
+                  Precisa do parceiro já salvo (p/ carregar os admins). */}
+              {modal.item && (() => {
                 const admins = partnerUsers.filter(u => u.is_executive)
                 return (
                 <div>
-                  <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Recebedor da apuração {form.contract_type === 'cooperado' ? '(folha da cooperativa)' : '(PJ)'}</Label>
+                  <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Responsável pelos recebimentos</Label>
                   <select
                     value={form.folha_user_id ?? ''}
                     onChange={e => setForm(f => ({ ...f, folha_user_id: e.target.value ? Number(e.target.value) : null }))}
@@ -381,9 +383,11 @@ export default function PartnersPage() {
                     ))}
                   </select>
                   <p className="text-[10px] text-[var(--text-light)] mt-1">
-                    {admins.length > 1
-                      ? 'Este parceiro tem mais de um admin — escolha qual recebe a apuração consolidada de todos os consultores.'
-                      : 'A apuração de todos os consultores do parceiro é somada neste admin (o único recebedor).'}
+                    {admins.length === 0
+                      ? 'Cadastre um usuário admin (executivo) deste parceiro para escolher o responsável.'
+                      : admins.length > 1
+                        ? 'Este parceiro tem mais de um admin — escolha qual recebe a apuração consolidada de todos os consultores.'
+                        : 'A apuração de todos os consultores do parceiro é somada neste responsável (o único que recebe o pagamento).'}
                   </p>
                 </div>
                 )
