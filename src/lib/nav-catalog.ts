@@ -108,6 +108,9 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/ambientes-preview',   label: 'Cofre de Ambientes',    group: 'Cofre' },
   { key: '/ambientes/auditoria', label: 'Auditoria de Ambientes', group: 'Cofre' },
 
+  // Operações Protheus — publicação/rollback governado de RPO (Conector C5)
+  { key: '/operacoes-rpo', label: 'Operações RPO', group: 'Operações Protheus' },
+
   // Central de Fontes (catálogo de documentação de código-fonte)
   { key: '/central-fontes', label: 'Central de Fontes', group: 'Central de Fontes' },
   { key: '/central-fontes/busca', label: 'Busca Técnica', group: 'Central de Fontes' },
