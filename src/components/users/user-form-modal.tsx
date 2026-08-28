@@ -64,7 +64,7 @@ interface UserData {
 }
 
 interface CustomerOption { id: number; name: string }
-interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null }
+interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null; folha_user_id?: number | null; folha_user?: { id: number; name: string } | null }
 
 type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator' | 'administrativo'
 type ConsultantType = 'horista' | 'banco_de_horas' | 'fixo'
@@ -414,6 +414,9 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   // Vigência do novo valor-hora: quando o hourly_rate muda, perguntamos a partir de qual mês passa a valer.
   const [rateModalOpen, setRateModalOpen] = useState(false)
   const [rateEffectiveMonth, setRateEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  // Fluxo sensível: trocar o responsável pelos recebimentos do parceiro (1=pergunta, 2=confirmação).
+  const [receiverConfirm, setReceiverConfirm] = useState<1 | 2 | null>(null)
+  const receiverIntentRef = useRef(false)
 
   // Histórico de valores-hora (somente leitura) — GET /users/{id}/hourly-rate-history
   const [rateHistoryOpen, setRateHistoryOpen] = useState(false)
@@ -575,6 +578,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
         is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
         rate_type:    form.rate_type,
+        set_as_partner_receiver: receiverIntentRef.current, // troca do responsável pelos recebimentos (confirmada)
       }
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
@@ -683,6 +687,16 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   const hasRate       = isConsultor || isCoordenador || isParceiroAdm
   const needsPartner  = isParceiroAdm
   const selectedPartner = partners.find(p => p.id === Number(form.partner_id))
+  // Definindo um admin (parceiro executivo) p/ um parceiro que já tem OUTRO responsável pelos recebimentos?
+  const receiverConflict = form.profiles.includes('parceiro_adm') && form.is_partner_adm && !!form.partner_id
+    && !!selectedPartner?.folha_user_id
+    && selectedPartner.folha_user_id !== (editItem?.id ?? -1)
+
+  const onSaveClick = () => {
+    if (receiverConflict) { setReceiverConfirm(1); return }
+    receiverIntentRef.current = false
+    save()
+  }
   const partnerIsFixed  = selectedPartner?.pricing_type === 'fixed'
 
   // Trava: consultor vinculado a parceiro herda o contract_type do parceiro (read-only).
@@ -1308,7 +1322,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         <div className="flex gap-2 pt-1 justify-end">
           <Button variant="outline" onClick={onClose}
             className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-          <Button onClick={() => save()} disabled={saving || !canSave}
+          <Button onClick={() => onSaveClick()} disabled={saving || !canSave}
             className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
             {saving ? 'Salvando...' : 'Salvar'}
           </Button>
@@ -1401,6 +1415,47 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fluxo sensível: trocar o responsável pelos recebimentos do parceiro */}
+      {receiverConfirm !== null && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            {receiverConfirm === 1 ? (
+              <>
+                <p className="text-sm font-semibold text-[var(--text)] mb-3">Responsável pelos recebimentos</p>
+                <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-5">
+                  O parceiro <b className="text-[var(--text)]">{selectedPartner?.name}</b> já tem um responsável pelos recebimentos:{' '}
+                  <b className="text-[var(--text)]">{selectedPartner?.folha_user?.name ?? '—'}</b>.<br />
+                  Deseja que <b className="text-[var(--text)]">{form.name || 'este usuário'}</b> passe a ser o responsável que recebe a apuração?
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => { receiverIntentRef.current = false; setReceiverConfirm(null); save() }}
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Não, manter atual</Button>
+                  <Button onClick={() => setReceiverConfirm(2)}
+                    className="h-8 text-xs text-white" style={{ background: 'var(--warning)' }}>Sim, quero mudar</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--danger)' }}>⚠️ Confirmação — ação sensível</p>
+                <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-5">
+                  Ao confirmar, <b className="text-[var(--text)]">TODO o valor apurado</b> do parceiro{' '}
+                  <b className="text-[var(--text)]">{selectedPartner?.name}</b> passará a ser pago a{' '}
+                  <b className="text-[var(--text)]">{form.name || 'este usuário'}</b> (deixa de ser{' '}
+                  <b className="text-[var(--text)]">{selectedPartner?.folha_user?.name ?? '—'}</b>).<br />
+                  Esta troca afeta os pagamentos do parceiro. Confirma?
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => { receiverIntentRef.current = false; setReceiverConfirm(null); save() }}
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar (manter atual)</Button>
+                  <Button onClick={() => { receiverIntentRef.current = true; setReceiverConfirm(null); save() }} disabled={saving}
+                    className="h-8 text-xs text-white" style={{ background: 'var(--danger)' }}>Confirmar troca</Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
