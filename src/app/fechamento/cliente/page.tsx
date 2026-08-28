@@ -278,7 +278,8 @@ export default function FechamentoClientePage() {
   const [avulsoDraft, setAvulsoDraft] = useState('')
   // Anexos extras (além do PDF + Excel) — só deste envio.
   const [anexos, setAnexos] = useState<File[]>([])
-  const [incluirComprovantes, setIncluirComprovantes] = useState(false)
+  const [selectedReceipts, setSelectedReceipts] = useState<Set<number>>(new Set())
+  const toggleReceipt = (id: number) => setSelectedReceipts(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   const [viewingReceipt, setViewingReceipt] = useState<number | null>(null)
 
   // Abre o comprovante de uma despesa (endpoint autenticado → blob → nova aba).
@@ -603,7 +604,7 @@ export default function FechamentoClientePage() {
     setAvulsoEmails([])
     setAvulsoDraft('')
     setAnexos([])
-    setIncluirComprovantes(false)
+    setSelectedReceipts(new Set())
     setCadastroSaved(false)
     setComposeOpen(true)
     void fetchEmailPreview() // primeiro fetch: sem mensagem → html + mensagem_padrao + e-mails
@@ -705,7 +706,7 @@ export default function FechamentoClientePage() {
       if (mode === 'servicos' && projetoFilter) fd.append('project_id', String(projetoFilter))
       emails.forEach(e => fd.append('emails[]', e))
       anexos.forEach(f => fd.append('anexos[]', f, f.name))
-      if (mode === 'despesa' && incluirComprovantes) fd.append('incluir_comprovantes', '1')
+      if (mode === 'despesa') selectedReceipts.forEach(id => fd.append('comprovante_expense_ids[]', String(id)))
 
       const res = await fetch(
         `/api/v1/fechamento-cliente/${customerId}/${toYM}/enviar-email`,
@@ -2026,28 +2027,39 @@ export default function FechamentoClientePage() {
                   <label className="block text-xs font-medium uppercase tracking-wide mb-1.5" style={{ color: 'var(--text-light)' }}>
                     Comprovantes
                   </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
-                    <input type="checkbox" checked={incluirComprovantes} onChange={e => setIncluirComprovantes(e.target.checked)} />
-                    <Paperclip size={14} style={{ color: 'var(--text-muted)' }} /> Anexar comprovantes das despesas ({despesas.filter(d => d.has_receipt).length})
-                  </label>
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
-                    Os comprovantes anexados às despesas do período vão junto no e-mail. Clique em “Ver” para conferir cada um antes de enviar.
-                  </p>
-                  <div className="flex flex-col gap-1 mt-2" style={{ maxHeight: 170, overflowY: 'auto' }}>
-                    {despesas.filter(d => d.has_receipt).map(d => (
-                      <div key={d.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                        <FileText size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                        <span style={{ color: 'var(--text)', flex: 1, minWidth: 0 }} className="truncate">
-                          {d.data.split('-').reverse().join('/')} · {d.descricao}
-                        </span>
-                        <span style={{ color: 'var(--text-light)', flexShrink: 0 }}>{d.colaborador}</span>
-                        <button type="button" onClick={() => viewReceipt(d.id)} disabled={viewingReceipt === d.id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded" style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
-                          <Eye size={12} /> {viewingReceipt === d.id ? '…' : 'Ver'}
-                        </button>
+                  {(() => {
+                    const comDespesas = despesas.filter(d => d.has_receipt)
+                    const total = comDespesas.length
+                    const allSel = total > 0 && comDespesas.every(d => selectedReceipts.has(d.id))
+                    const someSel = comDespesas.some(d => selectedReceipts.has(d.id))
+                    const toggleAll = () => setSelectedReceipts(allSel ? new Set() : new Set(comDespesas.map(d => d.id)))
+                    return (<>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+                        <input type="checkbox" checked={allSel} ref={el => { if (el) el.indeterminate = !allSel && someSel }} onChange={toggleAll} />
+                        <Paperclip size={14} style={{ color: 'var(--text-muted)' }} /> Anexar comprovantes das despesas
+                        <span style={{ color: 'var(--text-light)' }}>({selectedReceipts.size}/{total})</span>
+                      </label>
+                      <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+                        {total > 1 ? 'Marque os comprovantes que quer enviar' : 'Marque para anexar o comprovante ao e-mail'} — clique em “Ver” para conferir cada um antes.
+                      </p>
+                      <div className="flex flex-col gap-1 mt-2" style={{ maxHeight: 170, overflowY: 'auto' }}>
+                        {comDespesas.map(d => (
+                          <label key={d.id} className="flex items-center gap-2 text-xs px-2 py-1 rounded cursor-pointer" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                            <input type="checkbox" checked={selectedReceipts.has(d.id)} onChange={() => toggleReceipt(d.id)} style={{ flexShrink: 0 }} />
+                            <FileText size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                            <span style={{ color: 'var(--text)', flex: 1, minWidth: 0 }} className="truncate">
+                              {d.data.split('-').reverse().join('/')} · {d.descricao}
+                            </span>
+                            <span style={{ color: 'var(--text-light)', flexShrink: 0 }}>{d.colaborador}</span>
+                            <button type="button" onClick={e => { e.preventDefault(); viewReceipt(d.id) }} disabled={viewingReceipt === d.id}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded" style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+                              <Eye size={12} /> {viewingReceipt === d.id ? '…' : 'Ver'}
+                            </button>
+                          </label>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>)
+                  })()}
                 </div>
               )}
 
