@@ -12,7 +12,7 @@ import { useConfirm } from '@/components/ui/use-confirm'
 
 interface SkillRow { skill_id: number; name: string; category: string; avg_weight: number; answers: number; with_knowledge_pct: number }
 interface Respondent { id: number; name: string; type: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; partner_id: string; partner_name: string | null; empresa: string | null; valor: string | null; last_at: string; top_weight: number | null; top_level: string | null; matches: number | null }
-interface SkillRowDetail { respondent_id: number; name: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; valor: string | null; module: string; category: string; level: string; weight: number }
+interface SkillRowDetail { respondent_id: number; name: string; classification: string | null; classification_label: string | null; blacklist: boolean; from_cadastro?: boolean; valor: string | null; partner_id: string; partner_name: string | null; module: string; category: string; level: string; weight: number }
 interface Level { id: number; name: string; weight: number }
 interface Opt { value: string; label: string; category?: string }
 interface Summary {
@@ -114,7 +114,7 @@ export default function DashboardCompetenciasPage() {
     setData(d => d ? {
       ...d,
       respondents: d.respondents.map(r => r.id === id ? { ...r, classification: value || null, blacklist: value === 'blacklist', classification_label: label, partner_id: keep ? r.partner_id : '', partner_name: keep ? r.partner_name : null } : r),
-      skill_rows: d.skill_rows.map(r => r.respondent_id === id ? { ...r, classification: value || null, blacklist: value === 'blacklist', classification_label: label } : r),
+      skill_rows: d.skill_rows.map(r => r.respondent_id === id ? { ...r, classification: value || null, blacklist: value === 'blacklist', classification_label: label, partner_id: keep ? r.partner_id : '', partner_name: keep ? r.partner_name : null } : r),
     } : d)
     try { await api.put(`/competencias/profissionais/${id}/classification`, { classification: value || null }) }
     catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao classificar')); load() }
@@ -122,7 +122,10 @@ export default function DashboardCompetenciasPage() {
 
   async function setPartnerFor(id: number, partnerId: string) {
     const name = data?.filters.partners.find(x => x.value === partnerId)?.label ?? null
-    setData(d => d ? { ...d, respondents: d.respondents.map(r => r.id === id ? { ...r, partner_id: partnerId, partner_name: name } : r) } : d)
+    setData(d => d ? { ...d,
+      respondents: d.respondents.map(r => r.id === id ? { ...r, partner_id: partnerId, partner_name: name } : r),
+      skill_rows: d.skill_rows.map(r => r.respondent_id === id ? { ...r, partner_id: partnerId, partner_name: name } : r),
+    } : d)
     try { await api.put(`/competencias/profissionais/${id}/classification`, { classification: 'parceiro', partner_id: partnerId || null }) }
     catch (e: unknown) { toast.error(apiMessage(e, 'Erro ao vincular parceiro')); load() }
   }
@@ -276,10 +279,18 @@ export default function DashboardCompetenciasPage() {
                             {r.from_cadastro ? (
                               <span className={classClass(r.classification)} title="Conforme cadastro de usuário" style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, display: 'inline-block', fontWeight: 600 }}>{r.classification_label ?? '—'}</span>
                             ) : (
+                            <div className="flex flex-col gap-1 items-start">
                               <select value={r.classification ?? ''} onChange={e => setClassificationFor(r.respondent_id, e.target.value)} className={classClass(r.classification)} style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', background: 'transparent', cursor: 'pointer' }}>
                                 <option value="">—</option>
                                 {data.filters.classifications.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                               </select>
+                              {r.classification === 'parceiro' && (
+                                <select value={r.partner_id ?? ''} onChange={e => setPartnerFor(r.respondent_id, e.target.value)} className="ds-status-info" style={{ fontSize: 10, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', background: 'transparent', cursor: 'pointer', maxWidth: 150 }} title="Parceiro ao qual pertence">
+                                  <option value="">Parceiro…</option>
+                                  {data.filters.partners.map(pt => <option key={pt.value} value={pt.value}>{pt.label}</option>)}
+                                </select>
+                              )}
+                            </div>
                             )}
                           </td>
                           <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>
