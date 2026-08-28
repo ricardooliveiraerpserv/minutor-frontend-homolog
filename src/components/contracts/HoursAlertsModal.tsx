@@ -83,8 +83,10 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   const [customerContacts, setCustomerContacts] = useState<CustomerContactOpt[]>([])
   const [pendingImports, setPendingImports] = useState<number[]>([])
   const [newEmail, setNewEmail] = useState('')
-  const [importPick, setImportPick] = useState('')
   const [importSearch, setImportSearch] = useState('')
+  const [newContacts, setNewContacts] = useState<{ name: string; email: string }[]>([])
+  const [ncName, setNcName] = useState('')
+  const [ncEmail, setNcEmail] = useState('')
   const [alerts, setAlerts] = useState<HoursAlert[]>([])
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [savingFlag, setSavingFlag] = useState(false)
@@ -97,7 +99,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
     setExtraEmails((r.extra_emails ?? []).map(x => x.email))
     setCustomerContacts(r.customer_contacts ?? [])
     setPendingImports([])
-    setNewEmail(''); setImportPick(''); setImportSearch('')
+    setNewEmail(''); setImportSearch(''); setNewContacts([]); setNcName(''); setNcEmail('')
   }
 
   const load = useCallback(async () => {
@@ -132,13 +134,19 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
   }
   const removeExtraEmail = (e: string) => setExtraEmails(l => l.filter(x => x !== e))
 
-  const addImport = () => {
-    const id = Number(importPick)
-    if (!id) return
-    setPendingImports(l => l.includes(id) ? l : [...l, id])
-    setImportPick('')
-  }
+  const queueImport = (id: number) => setPendingImports(l => l.includes(id) ? l : [...l, id])
   const removeImport = (id: number) => setPendingImports(l => l.filter(x => x !== id))
+
+  const addNewContact = () => {
+    const name = ncName.trim(), email = ncEmail.trim()
+    if (!name || !email) return
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast.error('E-mail inválido'); return }
+    const dup = newContacts.some(c => c.email.toLowerCase() === email.toLowerCase())
+      || contacts.some(c => (c.email || '').toLowerCase() === email.toLowerCase())
+    if (dup) { toast.error('E-mail já é destinatário'); return }
+    setNewContacts(l => [...l, { name, email }]); setNcName(''); setNcEmail('')
+  }
+  const removeNewContact = (email: string) => setNewContacts(l => l.filter(c => c.email !== email))
 
   const saveContacts = async () => {
     setSavingContacts(true)
@@ -146,6 +154,7 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
       const r = await api.put<Payload>(`${base}/contacts`, {
         contacts: contacts.map(c => ({ id: c.id, recebe_alerta_consumo: c.recebe_alerta_consumo })),
         add_customer_contacts: pendingImports,
+        new_contacts: newContacts,
         extra_emails: extraEmails,
       })
       apply(r)
@@ -293,27 +302,26 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
               </div>
             )}
 
-            {/* Importar contato do cliente (copia p/ o contrato) */}
+            {/* Importar contato do cliente (busca por texto; clicar adiciona; copia p/ o contrato) */}
             {customerContacts.length > 0 && (
               <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
                 <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Importar contato do cliente</p>
                 <input type="text" value={importSearch} onChange={e => setImportSearch(e.target.value)}
-                  placeholder="Buscar por nome ou e-mail…" className="w-full text-xs px-2 py-1.5 rounded-lg mb-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                  placeholder="Buscar por nome ou e-mail…" className="w-full text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
                 {(() => {
                   const q = importSearch.trim().toLowerCase()
                   const opts = customerContacts.filter(cc => !pendingImports.includes(cc.id)
                     && (!q || `${cc.name ?? ''} ${cc.email ?? ''}`.toLowerCase().includes(q)))
+                  if (!opts.length) return <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Nenhum contato encontrado.</p>
                   return (
-                    <div className="flex items-center gap-2">
-                      <select value={importPick} onChange={e => setImportPick(e.target.value)}
-                        className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                        <option value="">{opts.length ? 'Selecione um contato…' : 'Nenhum contato encontrado'}</option>
-                        {opts.map(cc => (
-                          <option key={cc.id} value={cc.id}>{cc.name}{cc.email ? ` · ${cc.email}` : ''}</option>
-                        ))}
-                      </select>
-                      <button onClick={addImport} disabled={!importPick}
-                        className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Importar</button>
+                    <div className="mt-1.5 max-h-40 overflow-y-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
+                      {opts.map(cc => (
+                        <button key={cc.id} type="button" onClick={() => queueImport(cc.id)}
+                          className="w-full text-left text-xs px-2.5 py-1.5 flex flex-col transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                          <span className="font-medium">{cc.name}</span>
+                          {cc.email && <span style={{ color: 'var(--text-muted)' }}>{cc.email}</span>}
+                        </button>
+                      ))}
                     </div>
                   )
                 })()}
@@ -333,6 +341,31 @@ export function HoursAlertsModal({ projectId, contractId, contractLabel, isAdmin
                 )}
               </div>
             )}
+
+            {/* Cadastrar novo contato (nome + e-mail) → vira contato do contrato */}
+            <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
+              <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Cadastrar novo contato</p>
+              {newContacts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {newContacts.map(c => (
+                    <span key={c.email} className="inline-flex items-center gap-1 text-[11px] pl-2 pr-1 py-0.5 rounded-md" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                      {c.name} · {c.email}
+                      <button onClick={() => removeNewContact(c.email)} className="hover:opacity-70"><X size={11} /></button>
+                    </span>
+                  ))}
+                  <span className="text-[11px] self-center" style={{ color: 'var(--text-muted)' }}>a criar ao salvar</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input type="text" value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Nome"
+                  className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                <input type="email" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="e-mail"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNewContact() } }}
+                  className="flex-1 text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                <button onClick={addNewContact} disabled={!ncName.trim() || !ncEmail.trim()}
+                  className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>Adicionar</button>
+              </div>
+            </div>
 
             {/* E-mail avulso (destinatário adicional; não vira contato) */}
             <div className="mt-3 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>
