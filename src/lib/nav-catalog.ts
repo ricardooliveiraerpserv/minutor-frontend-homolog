@@ -110,6 +110,7 @@ export const NAV_CATALOG: CatalogItem[] = [
 
   // Operações Protheus — publicação/rollback governado de RPO (Conector C5)
   { key: '/operacoes-rpo', label: 'Operações RPO', group: 'Operações Protheus' },
+  { key: '/compilacao', label: 'Compilação', group: 'Operações Protheus' },
 
   // Central de Fontes (catálogo de documentação de código-fonte)
   { key: '/central-fontes', label: 'Central de Fontes', group: 'Central de Fontes' },
