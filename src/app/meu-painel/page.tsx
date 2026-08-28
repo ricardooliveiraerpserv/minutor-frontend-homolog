@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext, Fragment } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { fetchAndOpenLegacyUrl } from '@/lib/attachments'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
@@ -2905,11 +2905,10 @@ export default function MeuPainelPage() {
                   const locked = isLocked(ts.status)
                   const clientName = ts.customer?.name ?? ts.project?.customer?.name
                   return (
-                    <tr key={ts.id}
+                    <Fragment key={ts.id}>
+                    <tr
                       {...hover.bind(ts)}
-                      className={`border-b border-[var(--border)] transition-colors last:border-0 ${
-                        ts.consultant_pending_release ? '' : (locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]')
-                      }`}
+                      className={`transition-colors ${ts.consultant_pending_release ? '' : `border-b border-[var(--border)] last:border-0 ${locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'}`}`}
                       style={ts.consultant_pending_release ? { background: 'var(--danger-bg)', boxShadow: 'inset 3px 0 0 var(--danger)' } : undefined}>
                       <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(ts.date)}</td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
@@ -2975,6 +2974,14 @@ export default function MeuPainelPage() {
                         ]} />
                       </td>
                     </tr>
+                    {ts.consultant_pending_release && (
+                      <tr className="border-b border-[var(--border)] last:border-0" style={{ background: 'var(--danger-bg)' }}>
+                        <td colSpan={11} className="px-4 pb-2.5 pt-0 text-[11px] leading-snug" style={{ color: 'var(--danger)', boxShadow: 'inset 3px 0 0 var(--danger)' }}>
+                          <strong>Em atraso</strong> — conta para o cliente, mas <strong>NÃO reflete no seu fechamento/pagamento</strong>. Fale com o seu coordenador para liberar as horas.
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   )
                 })}
               </tbody>
