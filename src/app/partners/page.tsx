@@ -168,8 +168,8 @@ export default function PartnersPage() {
         pricing_type:  form.pricing_type,
         hourly_rate:   form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
         contract_type: form.contract_type || null,
-        // Quem sobe pra Folha da Cooperativa — só faz sentido p/ parceiro cooperado.
-        folha_user_id: form.contract_type === 'cooperado' ? (form.folha_user_id || null) : null,
+        // Recebedor da apuração (admin designado) — vale p/ Cooperado (folha) E PJ (fechamento/nota).
+        folha_user_id: (form.contract_type === 'cooperado' || form.contract_type === 'pj') ? (form.folha_user_id || null) : null,
       }
       if (modal.item) {
         // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
@@ -363,24 +363,31 @@ export default function PartnersPage() {
                 </div>
                 <p className="text-[10px] text-[var(--text-light)] mt-1">Aplica a todos os consultores do parceiro.</p>
               </div>
-              {/* Usuário na Folha da Cooperativa — quem representa a apuração consolidada do
-                  parceiro (só cooperado; precisa do parceiro já salvo p/ ter os usuários). */}
-              {form.contract_type === 'cooperado' && modal.item && (
+              {/* Recebedor da apuração — qual admin recebe TODO o valor dos recursos do parceiro.
+                  Vale p/ Cooperado (folha) e PJ (fechamento/nota). Precisa do parceiro já salvo. */}
+              {(form.contract_type === 'cooperado' || form.contract_type === 'pj') && modal.item && (() => {
+                const admins = partnerUsers.filter(u => u.is_executive)
+                return (
                 <div>
-                  <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Usuário na folha da cooperativa</Label>
+                  <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Recebedor da apuração {form.contract_type === 'cooperado' ? '(folha da cooperativa)' : '(PJ)'}</Label>
                   <select
                     value={form.folha_user_id ?? ''}
                     onChange={e => setForm(f => ({ ...f, folha_user_id: e.target.value ? Number(e.target.value) : null }))}
                     className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-9 px-2"
                   >
-                    <option value="">Automático (usuário executivo)</option>
-                    {partnerUsers.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}{u.is_executive ? ' (executivo)' : ''}</option>
+                    <option value="">Automático (primeiro admin/executivo)</option>
+                    {admins.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>
-                  <p className="text-[10px] text-[var(--text-light)] mt-1">A apuração de todos os consultores do parceiro é somada nesta pessoa — a única que aparece na folha da cooperativa.</p>
+                  <p className="text-[10px] text-[var(--text-light)] mt-1">
+                    {admins.length > 1
+                      ? 'Este parceiro tem mais de um admin — escolha qual recebe a apuração consolidada de todos os consultores.'
+                      : 'A apuração de todos os consultores do parceiro é somada neste admin (o único recebedor).'}
+                  </p>
                 </div>
-              )}
+                )
+              })()}
               <div>
                 <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Tipo de precificação *</Label>
                 <div className="flex gap-2">

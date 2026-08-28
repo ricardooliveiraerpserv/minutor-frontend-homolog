@@ -45,6 +45,8 @@ interface ParceiroStatus {
   adicional?: number
   adicional_desc?: string | null
   recebimento?: number          // total_a_pagar − desconto − adiantamento + adicional
+  recebedor?: { id: number; name: string; designado: boolean } | null // admin que recebe a apuração
+  admins_count?: number         // qtd de admins do parceiro (avisa quando >1 sem designação)
 }
 
 interface ConsultorRow {
@@ -1131,6 +1133,12 @@ export default function FechamentoParceiroPage() {
                             >
                               {p.nome}
                             </button>
+                            {p.recebedor ? (
+                              <div className="text-[10px] mt-0.5" style={{ color: (p.admins_count ?? 0) > 1 && !p.recebedor.designado ? 'var(--warning)' : 'var(--text-light)' }}
+                                title={(p.admins_count ?? 0) > 1 && !p.recebedor.designado ? 'Mais de um admin — defina o recebedor no cadastro do parceiro' : 'Recebedor da apuração'}>
+                                Recebe: {p.recebedor.name}{(p.admins_count ?? 0) > 1 && !p.recebedor.designado ? ' ⚠︎' : ''}
+                              </div>
+                            ) : null}
                           </Td>
                           <Td className="text-center">{statusChip(p.status)}</Td>
                           <Td right className="tabular-nums text-xs" style={{ color: horas > 0 ? 'var(--text)' : 'var(--text-light)' }}>{fmtHoras(horas)}</Td>
