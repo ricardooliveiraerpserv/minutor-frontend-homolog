@@ -70,8 +70,9 @@ interface TimesheetItem {
   observation?: string
   ticket?: string
   ticket_subject?: string
-  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested'
+  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested' | 'late'
   status_display: string
+  consultant_pending_release?: boolean
   attachment_url?: string
   consultant_extra_pct?: number | null
   origin?: string | null
@@ -1301,7 +1302,16 @@ function TableSkeleton({ cols }: { cols: number }) {
   )
 }
 
-function StatusBadge({ status, display, reason }: { status: string; display?: string; reason?: string | null }) {
+function StatusBadge({ status, display, reason, pendingRelease }: { status: string; display?: string; reason?: string | null; pendingRelease?: boolean }) {
+  if (pendingRelease) {
+    return (
+      <span title="Apontamento em atraso: conta para o cliente, mas NÃO reflete no seu fechamento/pagamento. Fale com o seu coordenador para liberar as horas."
+        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap"
+        style={{ background: 'var(--danger-bg)', color: 'var(--danger)', borderColor: 'var(--danger-border)' }}>
+        Em atraso — fale com o coordenador
+      </span>
+    )
+  }
   if (status === 'approved') {
     return (
       <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-[var(--success-bg)] text-[var(--success)] border-green-500/25">
@@ -2238,7 +2248,8 @@ export default function MeuPainelPage() {
 
   const approvedTs  = timesheets.filter(t => t.status === 'approved').length
   const rejectedTs  = timesheets.filter(t => t.status === 'rejected').length
-  const notApprTs   = timesheets.length - approvedTs
+  const lateTs      = timesheets.filter(t => t.consultant_pending_release).length
+  const notApprTs   = timesheets.length - approvedTs - lateTs
   const approvedExp = expenses.filter(e => e.status === 'approved').length
   const rejectedExp = expenses.filter(e => e.status === 'rejected').length
   const notApprExp  = expenses.length - approvedExp
@@ -2742,7 +2753,7 @@ export default function MeuPainelPage() {
                             <span className="text-xs font-mono font-semibold text-[var(--text)]">
                               {ts.effort_hours}
                             </span>
-                            <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
+                            <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} pendingRelease={ts.consultant_pending_release} />
                           </div>
                         </div>
                       ))
@@ -2859,6 +2870,7 @@ export default function MeuPainelPage() {
               )}
               <span>Aprovados: <span className="text-[var(--success)] font-medium">{approvedTs}</span></span>
               <span>Pendentes: <span className="text-[var(--warning)] font-medium">{notApprTs}</span></span>
+              {lateTs > 0 && <span title="Apontamentos em atraso não liberados pelo coordenador — não contam no seu fechamento.">Em atraso: <span className="font-medium" style={{ color: 'var(--danger)' }}>{lateTs}</span></span>}
             </div>
           )}
 
@@ -2946,7 +2958,7 @@ export default function MeuPainelPage() {
                         {ts.observation ? previewText(ts.observation) : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
+                        <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} pendingRelease={ts.consultant_pending_release} />
                       </td>
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
