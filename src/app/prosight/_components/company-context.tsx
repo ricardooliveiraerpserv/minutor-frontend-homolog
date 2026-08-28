@@ -16,7 +16,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Building2 } from 'lucide-react'
+import { Building2, ServerCog } from 'lucide-react'
+import { Card, EmptyState } from '@/components/ds'
 import { api } from '@/lib/api'
 
 export interface ProsightCompany { id: number; name: string }
@@ -68,6 +69,29 @@ export function ProsightCompanyProvider({ children }: { children: ReactNode }) {
 /** Retorna o contexto de empresa do Prosight, ou null fora do provider (ex.: harness). */
 export function useProsightCompany(): Ctx | null {
   return useContext(ProsightCompanyContext)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEMONSTRAÇÃO (fixtures) — política de exibição. Enquanto o Prosight não conecta
+// à infraestrutura real, dados de demonstração só aparecem para a empresa INTERNA
+// (ERPSERV). Nas demais empresas NÃO se exibe fixture: ou há dado real conectado,
+// ou o estado honesto "não conectado" (ProsightNotConnected). Nunca número fake.
+// ─────────────────────────────────────────────────────────────────────────────
+export function isProsightDemoCompany(name: string | null | undefined): boolean {
+  return (name ?? '').trim().toUpperCase() === 'ERPSERV'
+}
+
+/** Estado honesto para empresas sem conexão real (nenhum dado de demonstração exibido). */
+export function ProsightNotConnected({ companyName }: { companyName?: string | null }) {
+  return (
+    <Card>
+      <EmptyState
+        icon={ServerCog}
+        title="Prosight não conectado a esta empresa"
+        description={`O Prosight ainda não está conectado à infraestrutura real${companyName ? ` de ${companyName}` : ''}. Fora da ERPSERV, nenhum dado de demonstração é exibido — os indicadores aparecem quando a conexão real estiver ativa.`}
+      />
+    </Card>
+  )
 }
 
 /** Seletor GLOBAL de empresa — vive na casca do Prosight (ao lado das abas). */

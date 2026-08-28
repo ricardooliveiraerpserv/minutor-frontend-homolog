@@ -19,7 +19,7 @@ import {
   Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { getProsightDataSource, prosightDataMode } from '@/lib/prosight/datasource'
-import { useProsightCompany } from './company-context'
+import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
 import type {
   InventoryScanOk, InventoryStatus, InventoryResultRow,
 } from '@/lib/prosight/types'
@@ -61,6 +61,7 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '', previ
   const company = useProsightCompany()
   const companyId = company?.companyId ?? previewCompanyId ?? null
   const companyName = company?.companyName ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
+  const demoAllowed = previewCompanyId != null || isProsightDemoCompany(company?.companyName ?? null)
 
   const load = useCallback(async (isRescan = false) => {
     if (isRescan) setRescanning(true)
@@ -171,6 +172,10 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '', previ
         }
       />
 
+      {!demoAllowed ? (
+        <ProsightNotConnected companyName={company?.companyName ?? null} />
+      ) : (
+        <>
       {prosightDataMode() === 'fixture' && (
         <div className="mb-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs"
           style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
@@ -362,6 +367,8 @@ export function InventarioView({ initialFilter = 'all', initialQuery = '', previ
           </div>
         </>
       ) : null}
+        </>
+      )}
     </>
   )
 }

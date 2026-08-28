@@ -20,7 +20,7 @@ import {
   Table, Tbody, Td, Th, Thead, Tr,
 } from '@/components/ds'
 import { getProsightDataSource, prosightDataMode } from '@/lib/prosight/datasource'
-import { useProsightCompany } from './company-context'
+import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
 import type { LicensingData, CustomRow, LicensingCustomsOk } from '@/lib/prosight/types'
 import {
   fmtDate, fmtYmd, inputToPt, toInputVal, addDays, CHART_PALETTE, CHART_TOOLTIP_STYLE,
@@ -37,6 +37,7 @@ export function LicenciamentoView({ autoLoadCustoms = false, previewCompanyId = 
   const company = useProsightCompany()
   const companyId = company?.companyId ?? previewCompanyId ?? null
   const companyName = company?.companyName ?? (previewCompanyId != null ? `Empresa #${previewCompanyId}` : null)
+  const demoAllowed = previewCompanyId != null || isProsightDemoCompany(company?.companyName ?? null)
   const [dtIni, setDtIni] = useState('')
   const [dtFim, setDtFim] = useState('')
   const [state, setState] = useState<State>('loading')
@@ -91,6 +92,10 @@ export function LicenciamentoView({ autoLoadCustoms = false, previewCompanyId = 
         }
       />
 
+      {!demoAllowed ? (
+        <ProsightNotConnected companyName={company?.companyName ?? null} />
+      ) : (
+        <>
       {prosightDataMode() === 'fixture' && (
         <div className="mb-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs"
           style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
@@ -143,6 +148,8 @@ export function LicenciamentoView({ autoLoadCustoms = false, previewCompanyId = 
           <CustomsSection ds={ds} companyId={companyId} dtIni={dtIni} dtFim={dtFim} autoLoad={autoLoadCustoms} />
         </>
       ) : null}
+        </>
+      )}
     </>
   )
 }

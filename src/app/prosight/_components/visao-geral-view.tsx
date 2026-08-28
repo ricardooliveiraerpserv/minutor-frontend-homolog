@@ -46,7 +46,7 @@ import {
   CHANGE_TYPE_META, FOLDER_LEVEL_META, fmtDateTime,
 } from '@/app/operacoes-protheus/_components/shared'
 import { STATUS_META as SRC_STATUS_META, inputToPt, toInputVal, addDays } from './shared'
-import { useProsightCompany } from './company-context'
+import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
 
 // Rótulos curtos por tipo de ambiente.
 const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
@@ -109,12 +109,17 @@ export function VisaoGeralExecutivaView({
     : user?.type === 'admin' || hasPermission('operacoes_protheus.view')
   const canLicensing = isPreview ? previewRole === 'admin' : user?.type === 'admin'
 
+  // ── Demonstração só na ERPSERV. Fora dela, em modo fixture, NÃO exibimos dados
+  //    (nem rodamos os loaders de demo): estado honesto "não conectado". ─────────
+  const demoAllowed = isPreview || isProsightDemoCompany(prosightCtx?.companyName ?? null)
+  const dataAllowed = operacoesDataMode() !== 'fixture' || demoAllowed
+
   // ── Domínio OPERAÇÃO (um fetch p/ todos os blocos operacionais) ─────────────
-  const op = useOperationalSnapshot(canOper, previewForceError === 'operacao')
+  const op = useOperationalSnapshot(canOper && dataAllowed, previewForceError === 'operacao')
   // ── Domínio FONTES (independente) ───────────────────────────────────────────
-  const fontes = useFontesScan(canFontes, companyId, previewForceError === 'fontes')
+  const fontes = useFontesScan(canFontes && dataAllowed, companyId, previewForceError === 'fontes')
   // ── Licenciamento (independente, admin) ─────────────────────────────────────
-  const lic = useLicensing(canLicensing, companyId)
+  const lic = useLicensing(canLicensing && dataAllowed, companyId)
 
   // Atenção consolida sinais REAIS dos domínios que o usuário pode ver.
   const attention = useMemo(
@@ -140,14 +145,16 @@ export function VisaoGeralExecutivaView({
         }
       />
 
-      {operacoesDataMode() === 'fixture' && (
+      {operacoesDataMode() === 'fixture' && demoAllowed && (
         <div className="mb-5 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
           <ServerCog size={14} />
           Dados de demonstração (fixtures) — Prosight ainda não conectado à infraestrutura real.
         </div>
       )}
 
-      {!anyVisible ? (
+      {!dataAllowed ? (
+        <ProsightNotConnected companyName={prosightCtx?.companyName ?? null} />
+      ) : !anyVisible ? (
         <Card>
           <EmptyState icon={ShieldCheck} title="Sem indicadores disponíveis"
             description="Seu perfil não tem acesso aos domínios consolidados nesta visão." />

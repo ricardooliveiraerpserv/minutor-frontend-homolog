@@ -24,7 +24,7 @@ import {
   AUTHORITY_META, CONFIDENCE_META, FAMILY_META, OUTCOME_META,
   type TimelineEvent, type TimelineFamily,
 } from '@/lib/timeline/types'
-import { useProsightCompany } from './company-context'
+import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
 
 type Role = 'admin' | 'coordenador' | 'operador'
 
@@ -62,6 +62,7 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
   // Empresa: alinhado ao seletor Prosight (como as demais telas reais). null = "Todas".
   const companyCtx = useProsightCompany()
   const companyId = companyCtx?.companyId ?? null
+  const demoAllowed = previewRole != null || isProsightDemoCompany(companyCtx?.companyName ?? null)
 
   const [events, setEvents] = useState<TimelineEvent[] | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -134,6 +135,10 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
         subtitle="Linha do tempo transversal — o que aconteceu, onde, quando, resultado, quem, origem e relação entre eventos."
         actions={<Button variant="primary" icon={RefreshCw} onClick={() => void reload()} disabled={state === 'loading'}>Atualizar</Button>} />
 
+      {!demoAllowed ? (
+        <ProsightNotConnected companyName={companyCtx?.companyName ?? null} />
+      ) : (
+        <>
       {timelineDataMode() === 'fixture' && (
         <div className="mb-3 flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning)' }}>
           <Boxes size={14} /> Dados de demonstração (fixtures) — read-model montado por adapters; ainda não conectado à infraestrutura real.
@@ -207,6 +212,8 @@ export function AtividadeView({ previewRole }: { previewRole?: Role }) {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </>
   )
