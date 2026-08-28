@@ -64,11 +64,12 @@ function Kpi({ label, value, sub, tone = 'default' }: { label: string; value: st
 
 // ─── SegmentedControl ────────────────────────────────────────────────────────────
 function Seg({ current, onChange, hideAprovacoes = false }: { current: View; onChange: (v: View) => void; hideAprovacoes?: boolean }) {
-  const items: { id: View; label: string; icon: React.ReactNode }[] = [
+  const allItems: { id: View; label: string; icon: React.ReactNode }[] = [
     { id: 'apontamentos', label: 'Apontamentos', icon: <Clock size={13} /> },
     { id: 'aprovacoes', label: 'Aprovações', icon: <ClipboardCheck size={13} /> },
     { id: 'despesas', label: 'Despesas', icon: <Receipt size={13} /> },
-  ].filter(it => !(hideAprovacoes && it.id === 'aprovacoes')) // consultor não vê Aprovações
+  ]
+  const items = allItems.filter(it => !(hideAprovacoes && it.id === 'aprovacoes')) // consultor não vê Aprovações
   return (
     <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 10, background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
       {items.map(it => {

@@ -52,9 +52,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  // Permite build em DEV mesmo com erros TS — corrigir tipos não é prioridade do ambiente de teste
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
+  // C5-FINAL: build ESTRITO — sem bypass de tipos (typescript.ignoreBuildErrors removido).
   turbopack: {
     root: __dirname,
   },

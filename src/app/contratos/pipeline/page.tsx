@@ -596,7 +596,7 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
       window.removeEventListener('resize', close)
     }
   }, [open])
-  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
+  const items = PROJECT_MENU_ITEMS.filter(item => (!(item as any).adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!open && btnRef.current) {

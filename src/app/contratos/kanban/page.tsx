@@ -80,6 +80,7 @@ interface ProjectCard {
   executivo_conta_name?: string
   contract_type?: string
   service_type?: string
+  project_value?: number | string | null
 }
 
 interface Coordinator { id: number; name: string; coordinator_type?: string | null }

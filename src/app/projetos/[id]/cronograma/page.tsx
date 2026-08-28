@@ -599,7 +599,7 @@ function InternalCronogramaPage() {
           </div>
         )}
         {view === 'conversa' && <ProjectConversation projectId={projectId} mode="team" />}
-        {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type} />}
+        {view === 'diary' && <ProjectMessages projectId={projectId} userRole={user?.type ?? undefined} />}
       </div>
       <style jsx>{`
         .cronograma-view-fade {

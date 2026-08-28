@@ -171,6 +171,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       start_time: '', end_time: '', total_hours: '',
       ticket: '', observation: '',
       is_billable_only: false,
+      stage_delivery_id: '',
     })
     setProjects([])
     setRealProjects([])
