@@ -102,8 +102,9 @@ export interface Timesheet {
   ticket_total_minutes?: number | null
   ticket_subject?: string
   ticket_solicitante?: { name?: string; email?: string; organization?: string } | null
-  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested' | 'internal' | 'released'
+  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested' | 'internal' | 'released' | 'late'
   status_display: string
+  consultant_pending_release?: boolean
   rejection_reason?: string
   reviewed_by?: number
   reviewedBy?: User
