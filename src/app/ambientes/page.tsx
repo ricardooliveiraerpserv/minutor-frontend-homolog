@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Folder, FolderOpen, FolderPlus, KeyRound, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Folder, FolderOpen, FolderPlus, KeyRound, LayoutGrid, List, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
@@ -45,6 +45,8 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [activeCustomers, setActiveCustomers] = useState<CustomerOpt[]>([])
   const [inactiveCustomers, setInactiveCustomers] = useState<CustomerOpt[]>([])
   const [tab, setTab] = useState<'ativos' | 'inativos'>('ativos')
+  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [filter, setFilter] = useState('')
   const [creatingId, setCreatingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
@@ -109,6 +111,8 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
 
   // Cliente → dados do cofre (vault_id, environments_count) quando já tem pasta.
   const vaultByCustomer = new Map(clients.map(c => [c.customer_id, c]))
+  const shownCustomers = (tab === 'ativos' ? activeCustomers : inactiveCustomers)
+    .filter(c => !filter.trim() || c.name.toLowerCase().includes(filter.trim().toLowerCase()))
 
   // Busca com debounce simples
   useEffect(() => {
@@ -243,9 +247,9 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
             )}
           </div>
 
-          {/* Tabs (Ativos/Inativos) + ações */}
+          {/* Tabs (Ativos/Inativos) + visão (grade/lista) + filtro + ações */}
           <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {(['ativos', 'inativos'] as const).map(t => (
                 <button key={t} type="button" onClick={() => setTab(t)}
                   className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
@@ -253,20 +257,58 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
                   {t === 'ativos' ? `Ativos (${activeCustomers.length})` : `Inativos (${inactiveCustomers.length})`}
                 </button>
               ))}
+              <div className="flex items-center rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                {(['grid', 'list'] as const).map(vw => (
+                  <button key={vw} type="button" onClick={() => setView(vw)} title={vw === 'grid' ? 'Grade' : 'Lista'}
+                    className="p-1.5" style={{ background: view === vw ? 'var(--primary-soft)' : 'transparent', color: view === vw ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    {vw === 'grid' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas dos clientes existentes</Button>
+            <div className="flex gap-2 items-center">
+              <div className="w-44"><TextInput icon={Search} placeholder="Filtrar cliente…" value={filter} onChange={e => setFilter(e.target.value)} /></div>
+              <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas</Button>
               <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
             </div>
           </div>
           {loading ? (
             <Skeleton className="h-40" />
-          ) : (tab === 'ativos' ? activeCustomers : inactiveCustomers).length === 0 ? (
-            <Card><EmptyState icon={Server} title={tab === 'ativos' ? 'Nenhum cliente ativo' : 'Nenhum cliente inativo'}
-              description={tab === 'ativos' ? "Crie um com 'Novo cliente'." : 'Clientes inativados aparecem aqui.'} /></Card>
+          ) : shownCustomers.length === 0 ? (
+            <Card><EmptyState icon={Server} title={filter.trim() ? 'Nada encontrado' : tab === 'ativos' ? 'Nenhum cliente ativo' : 'Nenhum cliente inativo'}
+              description={filter.trim() ? 'Tente outro termo.' : tab === 'ativos' ? "Crie um com 'Novo cliente'." : 'Clientes inativados aparecem aqui.'} /></Card>
+          ) : view === 'list' ? (
+            <Card padding="none" className="overflow-x-auto">
+              <table className="ds-table w-full">
+                <thead><tr><th>Cliente</th><th>Ambientes</th><th className="text-right">Ações</th></tr></thead>
+                <tbody>
+                  {shownCustomers.map(cust => {
+                    const v = vaultByCustomer.get(cust.id); const hasVault = !!v
+                    return (
+                      <tr key={cust.id}>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {hasVault ? <FolderOpen className="w-4 h-4" style={{ color: 'var(--primary)' }} /> : <Folder className="w-4 h-4" style={{ color: 'var(--text-light)' }} />}
+                            <span className="font-medium" style={{ color: hasVault ? 'var(--text)' : 'var(--text-muted)' }}>{cust.name}</span>
+                          </div>
+                        </td>
+                        <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{hasVault ? `${v?.environments_count ?? 0} ambiente(s)` : <span className="italic" style={{ color: 'var(--text-light)' }}>sem pasta</span>}</td>
+                        <td className="text-right whitespace-nowrap">
+                          {hasVault ? (
+                            <Link href={`/ambientes/${cust.id}`} className="inline-flex items-center gap-1 text-sm font-medium" style={{ color: 'var(--primary)' }}>Ver cadastro <ChevronRight className="w-4 h-4" /></Link>
+                          ) : tab === 'ativos' ? (
+                            <Button size="sm" icon={FolderPlus} loading={creatingId === cust.id} disabled={!!creatingId} onClick={() => void createVaultFor(cust.id)}>Criar pasta</Button>
+                          ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(tab === 'ativos' ? activeCustomers : inactiveCustomers).map(cust => {
+              {shownCustomers.map(cust => {
                 const v = vaultByCustomer.get(cust.id)
                 const hasVault = !!v
                 const inner = (
