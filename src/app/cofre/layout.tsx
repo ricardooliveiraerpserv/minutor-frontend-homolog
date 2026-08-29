@@ -1,9 +1,5 @@
-'use client'
-
-// Escopo do VaultProvider restrito ao módulo /cofre: as chaves destravadas
-// (memória) morrem ao navegar pra fora — menos superfície de exposição.
-import { VaultProvider } from '@/contexts/vault-context'
-
+// VaultProvider agora é app-wide (src/app/providers.tsx) → a chave persiste na navegação
+// entre Cofre e Ambientes. Este layout só repassa os filhos.
 export default function CofreLayout({ children }: { children: React.ReactNode }) {
-  return <VaultProvider>{children}</VaultProvider>
+  return <>{children}</>
 }
