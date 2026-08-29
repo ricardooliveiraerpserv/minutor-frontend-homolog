@@ -28,7 +28,6 @@ import { EnvLinkModal } from '@/components/environments/env-link-modal'
 import { EnvDocs } from '@/components/environments/env-docs'
 import { EnvPermissionsModal } from '@/components/environments/env-permissions-modal'
 import { EnvQuickAccess } from '@/components/environments/env-quick-access'
-import { EnvHubSection } from '@/components/environments/env-hub-section'
 
 interface EnvPerms { view: boolean; reveal: boolean; copy: boolean; manage: boolean; admin: boolean; source: string }
 interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; rdp_host: string | null; rdp_port: number | null; is_favorite?: boolean; permissions?: EnvPerms }
@@ -135,11 +134,7 @@ export default function AmbienteDetailPage() {
         <EnvQuickAccess env={env} creds={creds} dbs={dbs} apps={apps} vpns={vpns} links={links} vaultKey={vaultKey} perms={perms} />
       </div>
 
-      {/* ENV-HUB — jornada operacional (Connector · AppServers · RPO) */}
-      <div className="mb-4">
-        <EnvHubSection environmentId={Number(envId)} />
-      </div>
-
+      {/* Connector/operacional (ENV-HUB) MOVIDO para o Prosight (Configuração → Ambiente) — fora do Cofre. */}
       <div className="flex flex-col gap-4">
         {/* Credenciais */}
         <SectionCard icon={KeyRound} title="Credenciais" count={creds.length} onAdd={() => setModal('cred')} canManage={perms.manage}>

@@ -25,6 +25,7 @@ import {
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { useProsightEnvSelection } from '@/app/prosight/_components/env-selection-context'
 import { useAuth } from '@/contexts/auth-context'
+import { EnvHubSection } from '@/components/environments/env-hub-section'
 
 const TYPE_LABEL: Record<SafeEnvironmentConfig['environment']['type'], string> = {
   prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery',
@@ -157,6 +158,10 @@ function ConfigDetail({ config, presence, observed, companyName, environmentId, 
 
       {/* Conexão do Connector (Camada A) — enrollment/status/revogação */}
       <ConnectorConnection environmentId={environmentId} presence={presence} />
+
+      {/* ENV-HUB — jornada operacional (Connector · AppServers · RPO). Movido do Cofre para o
+          Prosight: aqui é por empresa/ambiente, fora do cofre de credenciais. */}
+      <EnvHubSection environmentId={environmentId} />
 
       {/* AppServers cadastrados */}
       <Section icon={ServerCog} title={`${config.appservers.length} AppServer${config.appservers.length === 1 ? '' : 's'} cadastrado${config.appservers.length === 1 ? '' : 's'}`}>
