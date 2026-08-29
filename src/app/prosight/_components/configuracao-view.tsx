@@ -12,13 +12,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
-import { Settings2, FolderGit2, Filter, Server, Globe2, Building2, ShieldAlert, Save, RotateCcw } from 'lucide-react'
+import { Settings2, FolderGit2, Filter, Server, Globe2, Building2, ShieldAlert, Save, RotateCcw, RadioTower } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { useAuth } from '@/hooks/use-auth'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { SourceReposSection } from '@/components/customers/source-repos-section'
 import { RpoTopologyPanel } from './rpo-topology-panel'
+import { EnvHubSection } from '@/components/environments/env-hub-section'
+import { ConnectorConnection } from '@/components/environments/connector-connection'
+import { fetchProsightEnvironments } from '@/lib/prosight/environments'
 import { api, ApiError } from '@/lib/api'
 
 const ORIGIN_LABEL: Record<string, string> = {
@@ -78,6 +81,17 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
             <AllowlistEditor scope="company" customerId={companyId} companyName={companyName} />
           </section>
 
+          {/* ── Connector — por Ambiente (base da operação: heartbeat, AppServers, RPO) ── */}
+          <section>
+            <h3 className="mb-2 flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
+              <RadioTower size={16} /> Connector (agente por ambiente)
+            </h3>
+            <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+              O Connector pertence ao <strong>ambiente</strong> (cada ambiente da empresa tem seu próprio agente). Escolha um ambiente para vincular/gerenciar o agente, ver AppServers detectados e a prontidão operacional. Fora do Cofre — nenhum segredo/INI/caminho trafega aqui.
+            </p>
+            <ConnectorSection key={companyId} customerId={companyId} />
+          </section>
+
           {/* ── RPO — por Ambiente (operado em Operações RPO), nunca por empresa ── */}
           <section>
             <h3 className="mb-2 flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
@@ -102,6 +116,44 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
         </div>
       )}
     </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Connector por empresa: lista os ambientes da empresa e, ao selecionar, mostra a
+// jornada operacional (EnvHubSection: Connector · AppServers · RPO). O agente é SEMPRE
+// por ambiente — aqui só damos o ponto de entrada por empresa, dentro do Prosight.
+// ─────────────────────────────────────────────────────────────────────────────
+function ConnectorSection({ customerId }: { customerId: number }) {
+  const [envs, setEnvs] = useState<{ id: number; name?: string; type?: string }[]>([])
+  const [envId, setEnvId] = useState<number | null>(null)
+
+  // Remonta por empresa (key={companyId} no render) → envId nasce null; aqui só busca a lista.
+  useEffect(() => {
+    void fetchProsightEnvironments(customerId)
+      .then((e) => setEnvs(e as { id: number; name?: string; type?: string }[]))
+      .catch(() => setEnvs([]))
+  }, [customerId])
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Select label="Ambiente" value={envId ?? ''} disabled={!envs.length}
+        onChange={(e) => setEnvId(Number(e.target.value) || null)}>
+        <option value="">Selecione…</option>
+        {envs.map((en) => <option key={en.id} value={en.id}>{en.name ?? `Ambiente ${en.id}`}{en.type ? ` (${en.type})` : ''}</option>)}
+      </Select>
+      {!envId ? (
+        <Card><EmptyState icon={RadioTower} title="Selecione um ambiente"
+          description="O Connector é por ambiente. Escolha o ambiente para vincular/gerenciar o agente e ver a prontidão operacional." /></Card>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* Vínculo do agente (gerar token / revogar) */}
+          <ConnectorConnection environmentId={envId} />
+          {/* Jornada operacional (readiness · AppServers · RPO) */}
+          <EnvHubSection environmentId={envId} customerId={customerId} />
+        </div>
+      )}
+    </div>
   )
 }
 
