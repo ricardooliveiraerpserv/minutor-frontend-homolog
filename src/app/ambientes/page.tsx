@@ -16,6 +16,7 @@ import { KpiCard } from '@/components/ui/kpi-card'
 import { SearchSelect } from '@/components/ui/search-select'
 import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
+import { useAuth } from '@/hooks/use-auth'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
 import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
 
@@ -31,6 +32,8 @@ const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homol
 // Conteúdo do Cofre de Ambientes SEM AppLayout — reutilizável dentro do Cofre de Senhas (mesmo cofre/cripto).
 export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = 'Gestão de infraestrutura por cliente — zero-knowledge nos segredos' }: { title?: string; subtitle?: string }) {
   const { status, publicKey, lock } = useVault()
+  const { user } = useAuth()
+  const isAdmin = user?.type === 'admin' // criar pasta/cliente é ação de admin
   const [clients, setClients] = useState<ClientRow[]>([])
   const [dash, setDash] = useState<Dashboard | null>(null)
   const [alerts, setAlerts] = useState<Alerts | null>(null)
@@ -280,8 +283,10 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
             </div>
             <div className="flex gap-2 items-center">
               <div className="w-44"><TextInput icon={Search} placeholder="Filtrar cliente…" value={filter} onChange={e => setFilter(e.target.value)} /></div>
-              <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas</Button>
-              <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
+              {isAdmin && <>
+                <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas</Button>
+                <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
+              </>}
             </div>
           </div>
           {loading ? (
@@ -312,7 +317,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
                         <td className="text-right whitespace-nowrap">
                           {hasVault ? (
                             <Link href={`/ambientes/${cust.id}`} className="inline-flex items-center gap-1 text-sm font-medium" style={{ color: 'var(--primary)' }}>Ver cadastro <ChevronRight className="w-4 h-4" /></Link>
-                          ) : tab === 'ativos' ? (
+                          ) : tab === 'ativos' && isAdmin ? (
                             <Button size="sm" icon={FolderPlus} loading={creatingId === cust.id} disabled={!!creatingId} onClick={() => void createVaultFor(cust.id)}>Criar pasta</Button>
                           ) : <span style={{ color: 'var(--text-light)' }}>—</span>}
                         </td>
@@ -343,7 +348,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
                         ) : (
                           <div className="text-sm italic" style={{ color: 'var(--text-light)' }}>Sem pasta</div>
                         )}
-                        {!hasVault && tab === 'ativos' && (
+                        {!hasVault && tab === 'ativos' && isAdmin && (
                           <Button size="sm" className="mt-2" icon={FolderPlus} loading={creatingId === cust.id} disabled={!!creatingId} onClick={() => void createVaultFor(cust.id)}>Criar pasta</Button>
                         )}
                       </div>
