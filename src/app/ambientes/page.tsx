@@ -41,17 +41,25 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [results, setResults] = useState<SearchResult | null>(null)
   // Backfill: criar pastas (cofres) dos clientes que ainda não têm.
   const [backfill, setBackfill] = useState<null | { missing: CustomerOpt[]; done: number; running: boolean }>(null)
+  // Todos os clientes por situação (ativo/inativo) — pasta pra CADA cliente, aba p/ inativos.
+  const [activeCustomers, setActiveCustomers] = useState<CustomerOpt[]>([])
+  const [inactiveCustomers, setInactiveCustomers] = useState<CustomerOpt[]>([])
+  const [tab, setTab] = useState<'ativos' | 'inativos'>('ativos')
+  const [creatingId, setCreatingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [c, d, al, fv] = await Promise.all([
+      const [c, d, al, fv, act, inact] = await Promise.all([
         api.get<ClientRow[]>('/environments/clients'),
         api.get<Dashboard>('/environments/dashboard'),
         api.get<Alerts>('/environments/alerts'),
         api.get<FavRow[]>('/environments/favorites'),
+        api.get<{ items: CustomerOpt[] }>('/customers?active=true&pageSize=500'),
+        api.get<{ items: CustomerOpt[] }>('/customers?active=false&pageSize=500'),
       ])
       setClients(c); setDash(d); setAlerts(al); setFavorites(fv)
+      setActiveCustomers(act.items ?? []); setInactiveCustomers(inact.items ?? [])
     } finally {
       setLoading(false)
     }
@@ -87,6 +95,20 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
     setBackfill(null)
     void load()
   }
+
+  // Cria o cofre de UM cliente (que ainda não tem pasta) — zero-knowledge, chave wrapada no client.
+  const createVaultFor = async (customerId: number) => {
+    if (!publicKey) { toast.error('Cofre bloqueado.'); return }
+    setCreatingId(customerId)
+    try {
+      await api.post('/environments/clients', { customer_id: customerId, encrypted_vault_key: await rsaWrap(publicKey, generateKey32()) })
+      toast.success('Pasta do cliente criada.'); await load()
+    } catch { toast.error('Falha ao criar a pasta do cliente.') }
+    finally { setCreatingId(null) }
+  }
+
+  // Cliente → dados do cofre (vault_id, environments_count) quando já tem pasta.
+  const vaultByCustomer = new Map(clients.map(c => [c.customer_id, c]))
 
   // Busca com debounce simples
   useEffect(() => {
@@ -221,44 +243,58 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
             )}
           </div>
 
-          <div className="flex justify-end gap-2 mb-4">
-            <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas dos clientes existentes</Button>
-            <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
+          {/* Tabs (Ativos/Inativos) + ações */}
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-1">
+              {(['ativos', 'inativos'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setTab(t)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: tab === t ? 'var(--primary-soft)' : 'transparent', color: tab === t ? 'var(--primary)' : 'var(--text-muted)' }}>
+                  {t === 'ativos' ? `Ativos (${activeCustomers.length})` : `Inativos (${inactiveCustomers.length})`}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas dos clientes existentes</Button>
+              <Button variant="primary" icon={Plus} onClick={() => setNewOpen(true)}>Novo cliente</Button>
+            </div>
           </div>
           {loading ? (
             <Skeleton className="h-40" />
-          ) : clients.length === 0 ? (
-            <Card><EmptyState icon={Server} title="Nenhum cliente com ambientes" description="Crie o primeiro com 'Novo cliente' — cada cliente vira um cofre dedicado." /></Card>
+          ) : (tab === 'ativos' ? activeCustomers : inactiveCustomers).length === 0 ? (
+            <Card><EmptyState icon={Server} title={tab === 'ativos' ? 'Nenhum cliente ativo' : 'Nenhum cliente inativo'}
+              description={tab === 'ativos' ? "Crie um com 'Novo cliente'." : 'Clientes inativados aparecem aqui.'} /></Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {clients.map(c => {
-                const empty = c.environments_count === 0
-                return (
-                  <Link key={c.customer_id} href={`/ambientes/${c.customer_id}`}>
-                    <Card
-                      className="hover:opacity-90 transition-opacity cursor-pointer h-full"
-                      style={empty ? { borderStyle: 'dashed', background: 'var(--surface-hover)' } : undefined}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: empty ? 'var(--surface)' : 'var(--primary-soft)' }}>
-                          {empty
-                            ? <Folder className="w-5 h-5" style={{ color: 'var(--text-light)' }} />
-                            : <FolderOpen className="w-5 h-5" style={{ color: 'var(--primary)' }} />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold truncate" style={{ color: empty ? 'var(--text-muted)' : 'var(--text)' }}>{c.customer_name}</div>
-                          {empty ? (
-                            <div className="text-sm italic" style={{ color: 'var(--text-light)' }}>Pasta vazia — sem ambientes</div>
-                          ) : (
-                            <div className="text-sm flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                              <Users className="w-3.5 h-3.5" /> {c.environments_count} ambiente(s)
-                            </div>
-                          )}
-                        </div>
+              {(tab === 'ativos' ? activeCustomers : inactiveCustomers).map(cust => {
+                const v = vaultByCustomer.get(cust.id)
+                const hasVault = !!v
+                const inner = (
+                  <Card className={hasVault ? 'hover:opacity-90 transition-opacity cursor-pointer h-full' : 'h-full'}
+                    style={hasVault ? undefined : { borderStyle: 'dashed', background: 'var(--surface-hover)' }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: hasVault ? 'var(--primary-soft)' : 'var(--surface)' }}>
+                        {hasVault ? <FolderOpen className="w-5 h-5" style={{ color: 'var(--primary)' }} /> : <Folder className="w-5 h-5" style={{ color: 'var(--text-light)' }} />}
                       </div>
-                    </Card>
-                  </Link>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold truncate" style={{ color: hasVault ? 'var(--text)' : 'var(--text-muted)' }}>{cust.name}</div>
+                        {hasVault ? (
+                          <div className="text-sm flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                            <Users className="w-3.5 h-3.5" /> {v?.environments_count ?? 0} ambiente(s)
+                          </div>
+                        ) : (
+                          <div className="text-sm italic" style={{ color: 'var(--text-light)' }}>Sem pasta</div>
+                        )}
+                        {!hasVault && tab === 'ativos' && (
+                          <Button size="sm" className="mt-2" icon={FolderPlus} loading={creatingId === cust.id} disabled={!!creatingId} onClick={() => void createVaultFor(cust.id)}>Criar pasta</Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
                 )
+                return hasVault
+                  ? <Link key={cust.id} href={`/ambientes/${cust.id}`}>{inner}</Link>
+                  : <div key={cust.id}>{inner}</div>
               })}
             </div>
           )}
