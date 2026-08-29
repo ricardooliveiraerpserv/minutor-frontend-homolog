@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Folder, FolderOpen, FolderPlus, KeyRound, Lock, Plus, Search, Server, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
+import { AlertTriangle, Folder, FolderOpen, FolderPlus, KeyRound, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
@@ -28,7 +28,8 @@ interface FavRow { id: number; name: string; type: string; status: string; custo
 
 const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 
-export default function AmbientesPage() {
+// Conteúdo do Cofre de Ambientes SEM AppLayout — reutilizável dentro do Cofre de Senhas (mesmo cofre/cripto).
+export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = 'Gestão de infraestrutura por cliente — zero-knowledge nos segredos' }: { title?: string; subtitle?: string }) {
   const { status, publicKey, lock } = useVault()
   const [clients, setClients] = useState<ClientRow[]>([])
   const [dash, setDash] = useState<Dashboard | null>(null)
@@ -97,13 +98,16 @@ export default function AmbientesPage() {
   }, [q, status])
 
   return (
-    <AppLayout>
+    <>
       <PageHeader
         icon={Server}
-        title="Cofre de Ambientes"
-        subtitle="Gestão de infraestrutura por cliente — zero-knowledge nos segredos"
+        title={title}
+        subtitle={subtitle}
         actions={status === 'unlocked' ? (
-          <Button icon={Lock} onClick={lock}>Travar</Button>
+          <div className="flex gap-2">
+            <Link href="/cofre/configuracao"><Button icon={Settings}>Configuração</Button></Link>
+            <Button icon={Lock} onClick={lock}>Travar</Button>
+          </div>
         ) : undefined}
       />
 
@@ -289,6 +293,15 @@ export default function AmbientesPage() {
           </div>
         </div>
       </Modal>
+    </>
+  )
+}
+
+// Página standalone (fallback "de fora"): Cofre de Ambientes com seu próprio AppLayout.
+export default function AmbientesPage() {
+  return (
+    <AppLayout>
+      <CofreAmbientesInner />
     </AppLayout>
   )
 }
