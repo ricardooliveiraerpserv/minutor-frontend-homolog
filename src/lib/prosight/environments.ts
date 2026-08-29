@@ -155,3 +155,34 @@ export function presenceLabel(p: EnvironmentPresence | undefined | null): { labe
     default: return { label: '—', variant: 'default' }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Conexão do Connector (Camada A) — enrollment/status/revogação. O TOKEN é exibido
+// UMA vez (só hash é guardado). O agente on-prem faz o enroll fora do Minutor.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface AgentStatus {
+  agent_id: string
+  fingerprint: string | null
+  agent_version: string | null
+  enrolled_at: string | null
+  revoked_at: string | null
+}
+export interface EnrollmentToken {
+  enrollment_token: string
+  environment_id: number
+  customer_id: number
+  expires_at: string
+}
+
+export async function fetchAgentStatus(environmentId: number): Promise<AgentStatus | null> {
+  const r = await api.get<{ data: AgentStatus | null }>(`/prosight/environments/${environmentId}/connector/agent`)
+  return r.data
+}
+export async function issueEnrollmentToken(environmentId: number): Promise<EnrollmentToken> {
+  const r = await api.post<{ data: EnrollmentToken }>(`/prosight/environments/${environmentId}/connector/enrollment-token`, {})
+  return r.data
+}
+export async function revokeAgent(agentId: string): Promise<{ agent_id: string; revoked_at: string | null }> {
+  const r = await api.delete<{ data: { agent_id: string; revoked_at: string | null } }>(`/prosight/connector/agents/${agentId}`)
+  return r.data
+}
