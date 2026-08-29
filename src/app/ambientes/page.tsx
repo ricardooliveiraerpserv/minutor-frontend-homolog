@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, ChevronRight, Folder, FolderOpen, FolderPlus, KeyRound, LayoutGrid, List, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Folder, FolderOpen, FolderPlus, KeyRound, LayoutGrid, List, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
@@ -47,6 +47,8 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [tab, setTab] = useState<'ativos' | 'inativos'>('ativos')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [filter, setFilter] = useState('')
+  const [sortKey, setSortKey] = useState<'name' | 'env'>('name')
+  const [sortAsc, setSortAsc] = useState(true)
   const [creatingId, setCreatingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
@@ -113,6 +115,16 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const vaultByCustomer = new Map(clients.map(c => [c.customer_id, c]))
   const shownCustomers = (tab === 'ativos' ? activeCustomers : inactiveCustomers)
     .filter(c => !filter.trim() || c.name.toLowerCase().includes(filter.trim().toLowerCase()))
+  const sortedCustomers = [...shownCustomers].sort((a, b) => {
+    const cmp = sortKey === 'name'
+      ? a.name.localeCompare(b.name, 'pt-BR')
+      : (vaultByCustomer.get(a.id)?.environments_count ?? 0) - (vaultByCustomer.get(b.id)?.environments_count ?? 0)
+    return sortAsc ? cmp : -cmp
+  })
+  const toggleSort = (k: 'name' | 'env') => { if (sortKey === k) setSortAsc(v => !v); else { setSortKey(k); setSortAsc(true) } }
+  const SortIcon = ({ k }: { k: 'name' | 'env' }) => sortKey !== k
+    ? <ArrowUpDown className="w-3.5 h-3.5 inline ml-1" style={{ opacity: 0.4 }} />
+    : sortAsc ? <ArrowUp className="w-3.5 h-3.5 inline ml-1" style={{ color: 'var(--primary)' }} /> : <ArrowDown className="w-3.5 h-3.5 inline ml-1" style={{ color: 'var(--primary)' }} />
 
   // Busca com debounce simples
   useEffect(() => {
@@ -280,9 +292,13 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
           ) : view === 'list' ? (
             <Card padding="none" className="overflow-x-auto">
               <table className="ds-table w-full">
-                <thead><tr><th>Cliente</th><th>Ambientes</th><th className="text-right">Ações</th></tr></thead>
+                <thead><tr>
+                  <th><button type="button" className="inline-flex items-center font-semibold" onClick={() => toggleSort('name')}>Cliente <SortIcon k="name" /></button></th>
+                  <th><button type="button" className="inline-flex items-center font-semibold" onClick={() => toggleSort('env')}>Ambientes <SortIcon k="env" /></button></th>
+                  <th className="text-right">Ações</th>
+                </tr></thead>
                 <tbody>
-                  {shownCustomers.map(cust => {
+                  {sortedCustomers.map(cust => {
                     const v = vaultByCustomer.get(cust.id); const hasVault = !!v
                     return (
                       <tr key={cust.id}>
@@ -308,7 +324,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {shownCustomers.map(cust => {
+              {sortedCustomers.map(cust => {
                 const v = vaultByCustomer.get(cust.id)
                 const hasVault = !!v
                 const inner = (
