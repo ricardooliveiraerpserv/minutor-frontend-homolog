@@ -12,9 +12,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
-import { Settings2, FolderGit2, Filter, Server, Globe2, Building2, ShieldAlert, Save, RotateCcw, RadioTower } from 'lucide-react'
+import { Settings2, FolderGit2, Filter, Server, Globe2, Building2, ShieldAlert, Save, RotateCcw, RadioTower, Plus, Loader2, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, Card, EmptyState, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { useAuth } from '@/hooks/use-auth'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { SourceReposSection } from '@/components/customers/source-repos-section'
@@ -124,25 +124,66 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
 // jornada operacional (EnvHubSection: Connector · AppServers · RPO). O agente é SEMPRE
 // por ambiente — aqui só damos o ponto de entrada por empresa, dentro do Prosight.
 // ─────────────────────────────────────────────────────────────────────────────
+const ENV_TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'Disaster Recovery' }
+
 function ConnectorSection({ customerId }: { customerId: number }) {
   const [envs, setEnvs] = useState<{ id: number; name?: string; type?: string }[]>([])
   const [envId, setEnvId] = useState<number | null>(null)
+  const [loadingEnvs, setLoadingEnvs] = useState(true)
 
-  // Remonta por empresa (key={companyId} no render) → envId nasce null; aqui só busca a lista.
-  useEffect(() => {
-    void fetchProsightEnvironments(customerId)
-      .then((e) => setEnvs(e as { id: number; name?: string; type?: string }[]))
-      .catch(() => setEnvs([]))
+  // Cadastro de ambiente inline (mesmo endpoint do Cofre; nada no Cofre é alterado).
+  const [createOpen, setCreateOpen] = useState(false)
+  const [nName, setNName] = useState(''); const [nType, setNType] = useState('prod')
+  const [creating, setCreating] = useState(false)
+  const [needVault, setNeedVault] = useState(false)
+
+  // Remonta por empresa (key={companyId} no render) → estado nasce limpo.
+  const loadEnvs = useCallback(async (selectId?: number) => {
+    setLoadingEnvs(true)
+    try {
+      const list = await fetchProsightEnvironments(customerId) as { id: number; name?: string; type?: string }[]
+      setEnvs(list)
+      if (selectId != null && list.some((e) => e.id === selectId)) setEnvId(selectId)
+    } catch { setEnvs([]) }
+    finally { setLoadingEnvs(false) }
   }, [customerId])
+
+  useEffect(() => { void loadEnvs() }, [loadEnvs])
+
+  const openCreate = () => { setNName(''); setNType('prod'); setNeedVault(false); setCreateOpen(true) }
+  const createEnv = async () => {
+    if (!nName.trim()) return
+    setCreating(true); setNeedVault(false)
+    try {
+      const r = await api.post<{ id?: number; data?: { id?: number } }>(`/environments/clients/${customerId}/environments`, { name: nName.trim(), type: nType })
+      const newId = r?.id ?? r?.data?.id
+      toast.success('Ambiente cadastrado.'); setCreateOpen(false)
+      await loadEnvs(newId)
+    } catch (e) {
+      // 404/403 = cliente sem vault OU usuário sem membership (zero-knowledge, bootstrapado no Cofre).
+      if (e instanceof ApiError && (e.status === 404 || e.status === 403)) setNeedVault(true)
+      else toast.error(e instanceof ApiError ? e.message : 'Falha ao cadastrar ambiente.')
+    } finally { setCreating(false) }
+  }
 
   return (
     <div className="flex flex-col gap-3">
-      <Select label="Ambiente" value={envId ?? ''} disabled={!envs.length}
-        onChange={(e) => setEnvId(Number(e.target.value) || null)}>
-        <option value="">Selecione…</option>
-        {envs.map((en) => <option key={en.id} value={en.id}>{en.name ?? `Ambiente ${en.id}`}{en.type ? ` (${en.type})` : ''}</option>)}
-      </Select>
-      {!envId ? (
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[220px]">
+          <Select label="Ambiente" value={envId ?? ''} disabled={!envs.length}
+            onChange={(e) => setEnvId(Number(e.target.value) || null)}>
+            <option value="">{loadingEnvs ? 'Carregando…' : (envs.length ? 'Selecione…' : 'Nenhum ambiente cadastrado')}</option>
+            {envs.map((en) => <option key={en.id} value={en.id}>{en.name ?? `Ambiente ${en.id}`}{en.type ? ` (${ENV_TYPE_LABEL[en.type] ?? en.type})` : ''}</option>)}
+          </Select>
+        </div>
+        <Button variant="primary" icon={Plus} onClick={openCreate}>Cadastrar ambiente</Button>
+      </div>
+
+      {!envs.length && !loadingEnvs ? (
+        <Card><EmptyState icon={RadioTower} title="Nenhum ambiente cadastrado"
+          description="Cadastre o primeiro ambiente desta empresa para vincular o Connector. A operação, AppServers e RPO ficam por ambiente — aqui no Prosight."
+          action={<Button icon={Plus} onClick={openCreate}>Cadastrar ambiente</Button>} /></Card>
+      ) : !envId ? (
         <Card><EmptyState icon={RadioTower} title="Selecione um ambiente"
           description="O Connector é por ambiente. Escolha o ambiente para vincular/gerenciar o agente e ver a prontidão operacional." /></Card>
       ) : (
@@ -153,6 +194,30 @@ function ConnectorSection({ customerId }: { customerId: number }) {
           <EnvHubSection environmentId={envId} customerId={customerId} />
         </div>
       )}
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Cadastrar ambiente">
+        {needVault ? (
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="flex items-start gap-2">
+              <KeyRound size={16} style={{ color: 'var(--warning)' }} />
+              <span>Esta empresa ainda não tem um <b>vault</b> zero-knowledge (ou você não é membro). O cadastro do ambiente exige o vault com chave distribuída — o bootstrap do vault é feito uma única vez no Cofre; depois tudo (ambientes, Connector, RPO) é operado aqui no Prosight.</span>
+            </div>
+            <div className="flex justify-end"><Button variant="ghost" onClick={() => setCreateOpen(false)}>Entendi</Button></div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <TextInput label="Nome do ambiente" value={nName} onChange={(e) => setNName(e.target.value)} placeholder="Produção" />
+            <Select label="Tipo" value={nType} onChange={(e) => setNType(e.target.value)}>
+              {Object.entries(ENV_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </Select>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Cadastro técnico do ambiente Protheus. AppServers, banco e conexão do Connector entram depois, na configuração do próprio ambiente.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button icon={creating ? Loader2 : Plus} disabled={creating || nName.trim().length < 2} onClick={createEnv}>Cadastrar</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
