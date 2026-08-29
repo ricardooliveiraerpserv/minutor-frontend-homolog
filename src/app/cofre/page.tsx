@@ -8,13 +8,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
-  AlertTriangle, Globe, KeyRound, Lock, Pencil, Plus, RefreshCw, Search,
-  Settings, ShieldCheck, Trash2, Users, Vault as VaultIcon,
+  AlertTriangle, Globe, KeyRound, Layers, Loader2, Lock, Pencil, PlugZap, Plus, RefreshCw, Search,
+  Server, Settings, ShieldCheck, Trash2, Users, Vault as VaultIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
+import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { useVault, type VaultSummary } from '@/contexts/vault-context'
@@ -42,6 +43,9 @@ export default function CofrePage() {
   const [rotationOpen, setRotationOpen] = useState(false)
   const [newVaultOpen, setNewVaultOpen] = useState(false)
   const [deleteItem, setDeleteItem] = useState<DecryptedRow | null>(null)
+  // Mapa cofre→empresa (client-vault). Deixa o card do cofre mostrar também os AMBIENTES da empresa.
+  const [clientMap, setClientMap] = useState<Record<number, { customerId: number; customerName: string }>>({})
+  const router = useRouter()
 
   const dCreate = isDenied('/cofre', 'create')
   const dEdit = isDenied('/cofre', 'edit')
@@ -53,6 +57,15 @@ export default function CofrePage() {
   )
   const vaultKey = selected ? getVaultKey(selected.id) : undefined
   const canWrite = !!selected && selected.role !== 'read' && !dEdit
+  const selectedCustomer = selected ? clientMap[selected.id] : undefined // empresa deste cofre (se for client-vault)
+
+  // Carrega o mapa cofre→empresa (client-vaults) uma vez ao destravar.
+  useEffect(() => {
+    if (status !== 'unlocked') return
+    void api.get<{ customer_id: number; customer_name: string; vault_id: number }[]>('/environments/clients')
+      .then(rows => setClientMap(Object.fromEntries(rows.map(r => [r.vault_id, { customerId: r.customer_id, customerName: r.customer_name }]))))
+      .catch(() => {})
+  }, [status])
 
   const loadItems = useCallback(async () => {
     if (!selected) return
@@ -150,8 +163,21 @@ export default function CofrePage() {
             )}
           </Card>
 
-          {/* ── Itens ── */}
+          {/* ── Conteúdo do cofre da empresa: Ambientes + Acessos ── */}
           <div className="flex flex-col gap-3 min-w-0">
+            {/* AMBIENTES da empresa (só para cofres de cliente) */}
+            {selectedCustomer && (
+              <AmbientesCard customerId={selectedCustomer.customerId} customerName={selectedCustomer.customerName} canWrite={canWrite} onOpenEnv={(id) => router.push(`/operacoes-protheus/configuracao?environmentId=${id}`)} />
+            )}
+
+            {selectedCustomer && (
+              <div className="flex items-center gap-2 mt-1">
+                <KeyRound className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Acessos</span>
+                <span className="text-xs" style={{ color: 'var(--text-light)' }}>credenciais deste cofre</span>
+              </div>
+            )}
+
             {selected?.pending_rotation && (
               <div className="flex items-center gap-2 rounded-xl p-3 text-sm" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
                 <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -337,5 +363,84 @@ function NewVaultModal({ open, onClose, onCreated }: { open: boolean; onClose: (
         </div>
       </div>
     </Modal>
+  )
+}
+
+// ── Ambientes da empresa (Etapa 1: Cofre de Ambientes DENTRO do Cofre de Senhas) ──
+// Cada cofre de cliente mostra também os AMBIENTES da empresa (registro cadastral). O Connector/operação
+// fica no Prosight (link por ambiente). Reusa o endpoint do Cofre de Ambientes (mesma cripto/membership).
+interface EnvRowC { id: number; name: string; type: string; status: string; credentials_count: number }
+const ENV_TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
+
+function AmbientesCard({ customerId, customerName, canWrite, onOpenEnv }: {
+  customerId: number; customerName: string; canWrite: boolean; onOpenEnv: (envId: number) => void
+}) {
+  const [envs, setEnvs] = useState<EnvRowC[]>([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(''); const [type, setType] = useState('prod'); const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await api.get<{ environments: EnvRowC[] }>(`/environments/clients/${customerId}/environments`)
+      setEnvs(r.environments ?? [])
+    } catch { setEnvs([]) } finally { setLoading(false) }
+  }, [customerId])
+  useEffect(() => { void load() }, [load])
+
+  const create = async () => {
+    if (name.trim().length < 2) return
+    setBusy(true)
+    try {
+      await api.post(`/environments/clients/${customerId}/environments`, { name: name.trim(), type })
+      toast.success('Ambiente cadastrado.'); setOpen(false); setName(''); setType('prod'); await load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao cadastrar ambiente.') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Ambientes</span>
+          <span className="text-xs" style={{ color: 'var(--text-light)' }}>{customerName}</span>
+        </div>
+        {canWrite && <Button size="sm" icon={Plus} onClick={() => setOpen(true)}>Novo ambiente</Button>}
+      </div>
+
+      {loading ? <Skeleton className="h-16 w-full" /> : envs.length === 0 ? (
+        <EmptyState icon={Server} title="Nenhum ambiente" description="Cadastre os ambientes Protheus desta empresa." />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {envs.map(e => (
+            <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl px-3 py-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Server className="w-4 h-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
+                <span className="font-medium truncate" style={{ color: 'var(--text)' }}>{e.name}</span>
+                <Badge variant="default">{ENV_TYPE_LABEL[e.type] ?? e.type}</Badge>
+                {e.credentials_count > 0 && <span className="text-xs" style={{ color: 'var(--text-light)' }}>{e.credentials_count} credencial(is)</span>}
+              </div>
+              <Button size="sm" variant="ghost" icon={PlugZap} onClick={() => onOpenEnv(e.id)}>Config / Connector</Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Novo ambiente">
+        <div className="flex flex-col gap-3">
+          <TextInput label="Nome do ambiente" value={name} onChange={ev => setName(ev.target.value)} placeholder="Produção" />
+          <Select label="Tipo" value={type} onChange={ev => setType(ev.target.value)}>
+            {Object.entries(ENV_TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </Select>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Cadastro técnico do ambiente. A conexão do Connector fica no Prosight (botão “Config / Connector”).</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button icon={busy ? Loader2 : Plus} disabled={busy || name.trim().length < 2} onClick={create}>Cadastrar</Button>
+          </div>
+        </div>
+      </Modal>
+    </Card>
   )
 }
