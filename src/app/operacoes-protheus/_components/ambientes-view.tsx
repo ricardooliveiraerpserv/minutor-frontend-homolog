@@ -13,10 +13,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Boxes, Building2, ChevronRight, Database, Layers, Link2, RefreshCw, Server, ServerCog, XCircle,
+  Boxes, Building2, ChevronRight, Database, KeyRound, Layers, Link2, Loader2, Plus, RefreshCw, Server, ServerCog, XCircle,
 } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ds'
-import { apiMessage } from '@/lib/api'
+import { toast } from 'sonner'
+import { Badge, Button, Card, EmptyState, Modal, PageHeader, Select, Skeleton, TextInput } from '@/components/ds'
+import { ApiError, api, apiMessage } from '@/lib/api'
 import {
   fetchEnvironmentsPresence, fetchProsightEnvironments, presenceLabel,
   type EnvironmentPresence, type SafeEnvironment,
@@ -61,6 +62,29 @@ export function AmbientesView() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Atalho: cadastrar ambiente aqui mesmo (reusa o endpoint do Cofre). Exige o cliente ter vault + o usuário
+  // ser membro (zero-knowledge). Se faltar, cai para o Cofre de Ambientes (onde a chave RSA é distribuída).
+  const [createOpen, setCreateOpen] = useState(false)
+  const [nName, setNName] = useState(''); const [nType, setNType] = useState('prod')
+  const [creating, setCreating] = useState(false)
+  const [needVault, setNeedVault] = useState(false)
+
+  const openCreate = () => { setNName(''); setNType('prod'); setNeedVault(false); setCreateOpen(true) }
+  const goCofre = () => router.push(companyId != null ? `/ambientes/${companyId}` : '/ambientes')
+
+  const createEnv = async () => {
+    if (companyId == null || !nName.trim()) return
+    setCreating(true); setNeedVault(false)
+    try {
+      await api.post(`/environments/clients/${companyId}/environments`, { name: nName.trim(), type: nType })
+      toast.success('Ambiente cadastrado.'); setCreateOpen(false); await load()
+    } catch (e) {
+      // 404/403 = cliente sem vault OU usuário sem membership → direcionar ao Cofre (setup com chave RSA).
+      if (e instanceof ApiError && (e.status === 404 || e.status === 403)) { setNeedVault(true) }
+      else { toast.error(e instanceof ApiError ? e.message : 'Falha ao cadastrar ambiente.') }
+    } finally { setCreating(false) }
+  }
+
   const load = useCallback(async () => {
     if (companyId == null) { setEnvs(null); return }
     setLoading(true); setError(null)
@@ -84,7 +108,10 @@ export function AmbientesView() {
         icon={Layers}
         title="Ambientes"
         subtitle="Registro técnico dos ambientes Protheus da empresa (Cofre). Operação e health ao vivo entram com o Conector."
-        actions={<Button variant="primary" icon={RefreshCw} onClick={() => void load()} disabled={loading || companyId == null}>Atualizar</Button>}
+        actions={<div className="flex gap-2">
+          {companyId != null && <Button variant="primary" icon={Plus} onClick={openCreate}>Cadastrar ambiente</Button>}
+          <Button variant={companyId != null ? 'secondary' : 'primary'} icon={RefreshCw} onClick={() => void load()} disabled={loading || companyId == null}>Atualizar</Button>
+        </div>}
       />
 
       {/* Empresa obrigatória — ambiente é contexto operacional; "Todas" não lista. */}
@@ -100,12 +127,41 @@ export function AmbientesView() {
           action={<Button variant="primary" icon={RefreshCw} onClick={() => void load()}>Tentar novamente</Button>} /></Card>
       ) : (envs ?? []).length === 0 ? (
         <Card><EmptyState icon={Layers} title="Nenhum ambiente cadastrado"
-          description={`${companyName ?? 'Esta empresa'} ainda não possui ambientes no Cofre. Cadastre pelo Cofre de Ambientes.`} /></Card>
+          description={`${companyName ?? 'Esta empresa'} ainda não possui ambientes no Cofre. Cadastre um agora.`}
+          action={<Button icon={Plus} onClick={openCreate}>Cadastrar ambiente</Button>} /></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {(envs ?? []).map((e) => <EnvironmentCard key={e.id} env={e} presence={presence[e.id]} onConfig={() => openConfig(e.id)} />)}
         </div>
       )}
+
+      {/* Atalho: cadastrar ambiente (reusa o Cofre). Fallback ao Cofre se faltar vault/membership. */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Cadastrar ambiente">
+        {needVault ? (
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="flex items-start gap-2">
+              <KeyRound size={16} style={{ color: 'var(--warning)' }} />
+              <span>Este cliente ainda não está no <b>Cofre de Ambientes</b> (ou você não é membro do vault). O ambiente exige um vault com chave distribuída (zero-knowledge) — isso é feito no Cofre.</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button icon={KeyRound} onClick={goCofre}>Abrir Cofre de Ambientes</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <TextInput label="Nome do ambiente" value={nName} onChange={(e) => setNName(e.target.value)} placeholder="Produção" />
+            <Select label="Tipo" value={nType} onChange={(e) => setNType(e.target.value)}>
+              {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </Select>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Cadastro técnico do ambiente Protheus (Cofre). AppServers, banco e conexão do Connector entram depois, na configuração do ambiente.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button icon={creating ? Loader2 : Plus} disabled={creating || nName.trim().length < 2} onClick={createEnv}>Cadastrar</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   )
 }
