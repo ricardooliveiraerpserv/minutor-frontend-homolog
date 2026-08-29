@@ -9,12 +9,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Database, KeyRound, Link2, Pencil, Plus, Server, ShieldAlert, ShieldCheck, Trash2, Wifi } from 'lucide-react'
+import { Database, KeyRound, Link2, Lock, Pencil, Plus, Server, ShieldAlert, ShieldCheck, Trash2, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Card, EmptyState, Modal, Select, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
-import { UnlockScreen } from '@/components/vault/unlock-screen'
+import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 import { EnvRevealField } from '@/components/environments/env-reveal-field'
 import { EnvCredentialModal } from '@/components/environments/env-credential-modal'
 import { EnvDatabaseModal } from '@/components/environments/env-database-modal'
@@ -114,7 +114,7 @@ export function EnvironmentConfigPanel({ envId }: { envId: number | string }) {
     } catch (err) { toast.error(err instanceof ApiError ? err.message : 'Falha ao excluir.') }
   }
 
-  if (status === 'locked') return <UnlockScreen />
+  if (status === 'locked') return <InlineUnlock />
   if (status !== 'unlocked' || loading) return <Skeleton className="h-64" />
   if (!env) return <Card><EmptyState icon={Server} title="Ambiente não encontrado" /></Card>
 
@@ -308,6 +308,61 @@ export function EnvironmentConfigPanel({ envId }: { envId: number | string }) {
         </div>
       </Modal>
     </div>
+  )
+}
+
+// Desbloqueio COMPACTO inline (sem link para o Cofre). As senhas do ambiente são
+// zero-knowledge → precisam da master password para (de)cifrar. Uma vez destravado,
+// vale para toda a sessão (VaultProvider é app-wide). Não redireciona a lugar nenhum.
+function InlineUnlock() {
+  const { unlock, profile } = useVault()
+  const isMs = profile?.second_factor === 'microsoft'
+  const [pw, setPw] = useState('')
+  const [totp, setTotp] = useState('')
+  const [busy, setBusy] = useState(false)
+  const canSubmit = !!pw && (isMs || totp.length >= 6)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit || busy) return
+    setBusy(true)
+    try {
+      if (isMs) await requestMicrosoftStepUp()
+      await unlock(pw, isMs ? '' : totp)
+      setPw(''); setTotp('')
+    } catch (err) {
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else if (err instanceof ApiError && err.status === 429) toast.error('Muitas tentativas — aguarde um minuto.')
+      else if (err instanceof Error && !(err instanceof ApiError) && err.message.includes('Microsoft')) toast.error(err.message)
+      else toast.error('Credenciais do cofre inválidas.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start gap-2.5 mb-3">
+        <Lock size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--primary)' }} />
+        <div>
+          <div className="font-semibold" style={{ color: 'var(--text)' }}>Destrave para editar credenciais</div>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            As senhas deste ambiente são zero-knowledge (cifradas com sua master password). Destrave uma vez — vale para toda a sessão. Nada é enviado em claro ao servidor.
+          </p>
+        </div>
+      </div>
+      <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[220px]">
+          <TextInput label="Master password" icon={KeyRound} type="password" autoComplete="off" value={pw} onChange={(e) => setPw(e.target.value)} />
+        </div>
+        {!isMs && (
+          <div className="w-32">
+            <TextInput label="Código" icon={ShieldCheck} inputMode="numeric" placeholder="000000" maxLength={6} value={totp} onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))} />
+          </div>
+        )}
+        <Button type="submit" variant="primary" loading={busy} disabled={!canSubmit}>
+          {isMs ? 'Verificar com Microsoft e destravar' : 'Destravar'}
+        </Button>
+      </form>
+    </Card>
   )
 }
 
