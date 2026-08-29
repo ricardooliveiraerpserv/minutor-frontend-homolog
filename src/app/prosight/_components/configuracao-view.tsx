@@ -21,6 +21,7 @@ import { SourceReposSection } from '@/components/customers/source-repos-section'
 import { RpoTopologyPanel } from './rpo-topology-panel'
 import { EnvHubSection } from '@/components/environments/env-hub-section'
 import { ConnectorConnection } from '@/components/environments/connector-connection'
+import { EnvironmentConfigPanel } from '@/components/environments/environment-config-panel'
 import { fetchProsightEnvironments } from '@/lib/prosight/environments'
 import { api, ApiError } from '@/lib/api'
 
@@ -192,6 +193,9 @@ function ConnectorSection({ customerId }: { customerId: number }) {
           <ConnectorConnection environmentId={envId} />
           {/* Jornada operacional (readiness · AppServers · RPO) */}
           <EnvHubSection environmentId={envId} customerId={customerId} />
+          {/* Configuração COMPLETA do ambiente — credenciais, banco, AppServer, VPN,
+              certificados, links, docs (com os modais de cadastro). */}
+          <EnvironmentConfigPanel envId={envId} />
         </div>
       )}
 
