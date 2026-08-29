@@ -71,6 +71,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Kill-switch do SW deve ser SEMPRE revalidado (senão o browser fica preso no SW antigo cacheado).
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+      {
         source: '/:path*',
         headers: securityHeaders,
       },
