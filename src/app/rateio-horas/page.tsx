@@ -1,19 +1,26 @@
 'use client'
 
-// Rateio de Horas — configura os projetos-servidor (is_rateio) e os destinos que recebem
-// as horas apontadas neles (com %). O fan-out em apontamentos-filhos é feito no backend.
+// Rateio de Horas — projetos-servidor (is_rateio) distribuem as horas apontadas neles para
+// destinos Cloud, POR PERÍODO de vigência (cada empresa entra numa data). O consultor NÃO vê
+// a divisão; a gestão (períodos, equipe e ajuste manual por apontamento) é feita aqui.
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
-import { Plus, Trash2, Split, Save, Server, X, UserPlus, Users } from 'lucide-react'
+import { Plus, Trash2, Split, Save, Server, X, UserPlus, Users, CalendarRange, ListChecks, Pencil } from 'lucide-react'
 
 interface TeamMember { id: number; name: string }
-interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; targets_count: number; consultants?: TeamMember[]; coordinator?: TeamMember | null }
+interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; plans_count?: number; consultants?: TeamMember[]; coordinator?: TeamMember | null }
 interface ProjOpt { id: number; name: string; code?: string | null; customer_id?: number | null }
-interface TargetRow { target_project_id: number | ''; projeto?: string; cliente?: string; percentual: number }
+interface TargetRow { target_project_id: number | ''; projeto?: string; percentual: number }
+interface PlanRow { id?: number; data_inicio: string; data_fim: string; semFim: boolean; targets: TargetRow[] }
+interface Aponta { id: number; date: string; consultor: string | null; effort_minutes: number; status: string; splits: { target_project_id: number; projeto: string | null; projeto_codigo: string | null; minutes: number }[] }
+interface OverrideRow { target_project_id: number | ''; projeto?: string; minutes: number }
+
+const fmtDate = (d?: string | null) => d ? d.split('-').reverse().join('/') : null
+const hh = (min: number) => (min / 60).toFixed(2) + 'h'
 
 export default function RateioHorasPage() {
   const [projects, setProjects] = useState<RateioProject[]>([])
@@ -29,10 +36,15 @@ export default function RateioHorasPage() {
   const [savingTeam, setSavingTeam] = useState(false)
   const [customers, setCustomers] = useState<Record<number, string>>({})
   const [selId, setSelId] = useState<number | null>(null)
-  const [rows, setRows] = useState<TargetRow[]>([])
+  const [plans, setPlans] = useState<PlanRow[]>([])
+  const [apontas, setApontas] = useState<Aponta[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [markPick, setMarkPick] = useState('')
+  // Ajuste manual da divisão de um apontamento.
+  const [overrideFor, setOverrideFor] = useState<Aponta | null>(null)
+  const [overrideRows, setOverrideRows] = useState<OverrideRow[]>([])
+  const [savingOverride, setSavingOverride] = useState(false)
 
   const loadProjects = useCallback(() => {
     setLoading(true)
@@ -60,13 +72,25 @@ export default function RateioHorasPage() {
     api.get<any>('/users?type=coordenador&pageSize=500').then(r => setCoordOpts(asList(r))).catch(() => {})
   }, [])
 
-  const loadTargets = useCallback((id: number) => {
-    api.get<{ targets: { target_project_id: number; projeto: string; projeto_codigo: string | null; cliente: string | null; percentual: number }[] }>(`/rateio-hours/projects/${id}/targets`)
-      .then(r => setRows((r.targets ?? []).map(t => ({ target_project_id: t.target_project_id, projeto: t.projeto, cliente: t.cliente ?? undefined, percentual: t.percentual }))))
-      .catch(e => toast.error(apiMessage(e, 'Erro ao carregar destinos')))
+  const loadPlans = useCallback((id: number) => {
+    api.get<{ plans: { id: number; data_inicio: string | null; data_fim: string | null; targets: { target_project_id: number; projeto: string; projeto_codigo: string | null; cliente: string | null; percentual: number }[] }[] }>(`/rateio-hours/projects/${id}/plans`)
+      .then(r => setPlans((r.plans ?? []).map(p => ({
+        id: p.id,
+        data_inicio: p.data_inicio ?? '',
+        data_fim: p.data_fim ?? '',
+        semFim: !p.data_fim,
+        targets: (p.targets ?? []).map(t => ({ target_project_id: t.target_project_id, projeto: t.projeto, percentual: t.percentual })),
+      }))))
+      .catch(e => toast.error(apiMessage(e, 'Erro ao carregar períodos')))
   }, [])
 
-  const selectProject = (id: number) => { setSelId(id); loadTargets(id) }
+  const loadTimesheets = useCallback((id: number) => {
+    api.get<{ data: Aponta[] }>(`/rateio-hours/projects/${id}/timesheets`)
+      .then(r => setApontas(r.data ?? []))
+      .catch(() => setApontas([]))
+  }, [])
+
+  const selectProject = (id: number) => { setSelId(id); loadPlans(id); loadTimesheets(id) }
 
   const markAsRateio = async () => {
     const id = Number(markPick)
@@ -79,41 +103,76 @@ export default function RateioHorasPage() {
   }
 
   const unmark = async (p: RateioProject) => {
-    if (!confirm(`Desfazer "${p.name}" como projeto de rateio? Os destinos configurados serão removidos.`)) return
+    if (!confirm(`Desfazer "${p.name}" como projeto de rateio? Os períodos e destinos serão removidos.`)) return
     try {
-      await api.put(`/rateio-hours/projects/${p.id}/targets`, { targets: [] })
+      await api.put(`/rateio-hours/projects/${p.id}/plans`, { plans: [] })
       await api.put(`/projects/${p.id}`, { is_rateio: false })
       toast.success('Projeto deixou de ser de rateio')
-      if (selId === p.id) { setSelId(null); setRows([]) }
+      if (selId === p.id) { setSelId(null); setPlans([]); setApontas([]) }
       loadProjects()
     } catch (e) { toast.error(apiMessage(e, 'Erro ao desfazer')) }
   }
 
-  const addRow = () => setRows(r => [...r, { target_project_id: '', percentual: 0 }])
-  const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
-  const setRow = (i: number, patch: Partial<TargetRow>) => setRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
-
-  const distribuir = () => {
-    const n = rows.length
-    if (n === 0) { toast.error('Adicione ao menos um destino.'); return }
+  // ── Períodos ──
+  const addPlan = () => setPlans(p => [...p, { data_inicio: '', data_fim: '', semFim: true, targets: [] }])
+  const removePlan = (pi: number) => setPlans(p => p.filter((_, i) => i !== pi))
+  const setPlanField = (pi: number, patch: Partial<PlanRow>) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, ...patch } : pl))
+  const addTarget = (pi: number) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: [...pl.targets, { target_project_id: '', percentual: 0 }] } : pl))
+  const removeTarget = (pi: number, ti: number) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: pl.targets.filter((_, j) => j !== ti) } : pl))
+  const setTarget = (pi: number, ti: number, patch: Partial<TargetRow>) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: pl.targets.map((t, j) => j === ti ? { ...t, ...patch } : t) } : pl))
+  const distribuirPlan = (pi: number) => setPlans(p => p.map((pl, i) => {
+    if (i !== pi) return pl
+    const n = pl.targets.length
+    if (n === 0) { toast.error('Adicione ao menos um destino no período.'); return pl }
     const base = Math.floor((100 / n) * 100) / 100
-    setRows(r => r.map((row, i) => ({ ...row, percentual: i === n - 1 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base })))
-  }
+    return { ...pl, targets: pl.targets.map((t, k) => ({ ...t, percentual: k === n - 1 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base })) }
+  }))
+  const planSoma = (pl: PlanRow) => Math.round(pl.targets.reduce((a, t) => a + (Number(t.percentual) || 0), 0) * 100) / 100
 
-  const soma = Math.round(rows.reduce((a, r) => a + (Number(r.percentual) || 0), 0) * 100) / 100
-  const somaOk = rows.length === 0 || Math.abs(soma - 100) < 0.01
-
-  const save = async () => {
+  const savePlans = async () => {
     if (!selId) return
-    if (!somaOk) { toast.error(`A soma dos percentuais deve ser 100% (atual: ${soma}%).`); return }
-    if (rows.some(r => !r.target_project_id)) { toast.error('Selecione o projeto de destino em todas as linhas.'); return }
+    for (const pl of plans) {
+      if (pl.targets.some(t => !t.target_project_id)) { toast.error('Selecione o destino em todas as linhas dos períodos.'); return }
+      if (pl.data_inicio && !pl.semFim && pl.data_fim && pl.data_inicio > pl.data_fim) { toast.error('Um período tem início depois do fim.'); return }
+    }
     setSaving(true)
     try {
-      await api.put(`/rateio-hours/projects/${selId}/targets`, { targets: rows.map(r => ({ target_project_id: Number(r.target_project_id), percentual: Number(r.percentual) })) })
-      toast.success('Destinos salvos')
-      loadProjects(); loadTargets(selId)
-    } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar destinos')) }
+      await api.put(`/rateio-hours/projects/${selId}/plans`, {
+        plans: plans.map(pl => ({
+          data_inicio: pl.data_inicio || null,
+          data_fim: pl.semFim ? null : (pl.data_fim || null),
+          targets: pl.targets.map(t => ({ target_project_id: Number(t.target_project_id), percentual: Number(t.percentual) })),
+        })),
+      })
+      toast.success('Períodos salvos')
+      loadProjects(); loadPlans(selId); loadTimesheets(selId)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao salvar períodos')) }
     finally { setSaving(false) }
+  }
+
+  // ── Ajuste manual de um apontamento ──
+  const openOverride = (a: Aponta) => {
+    setOverrideFor(a)
+    setOverrideRows(a.splits.length > 0
+      ? a.splits.map(s => ({ target_project_id: s.target_project_id, projeto: s.projeto ?? undefined, minutes: s.minutes }))
+      : [{ target_project_id: '', projeto: undefined, minutes: a.effort_minutes }])
+  }
+  const setOvRow = (i: number, patch: Partial<OverrideRow>) => setOverrideRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
+  const ovSum = overrideRows.reduce((a, r) => a + (Number(r.minutes) || 0), 0)
+  const ovOk = overrideFor ? ovSum === overrideFor.effort_minutes : false
+  const saveOverride = async () => {
+    if (!overrideFor || !selId) return
+    if (overrideRows.some(r => !r.target_project_id)) { toast.error('Selecione o destino em todas as linhas.'); return }
+    if (!ovOk) { toast.error(`A soma da divisão (${hh(ovSum)}) deve fechar o total (${hh(overrideFor.effort_minutes)}).`); return }
+    setSavingOverride(true)
+    try {
+      await api.put(`/rateio-hours/projects/${selId}/timesheets/${overrideFor.id}/override`, {
+        distribution: overrideRows.filter(r => Number(r.minutes) > 0).map(r => ({ target_project_id: Number(r.target_project_id), minutes: Number(r.minutes) })),
+      })
+      toast.success('Divisão ajustada')
+      setOverrideFor(null); loadTimesheets(selId)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao ajustar divisão')) }
+    finally { setSavingOverride(false) }
   }
 
   const openAlloc = (p: RateioProject) => {
@@ -145,7 +204,7 @@ export default function RateioHorasPage() {
         {/* Marcar projeto como rateio */}
         <div className="ds-card p-4">
           <p className="text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Projetos de rateio</p>
-          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Um projeto de rateio recebe apontamentos e distribui as horas para os destinos. Ele não aparece como card nos Kanbans.</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Um projeto de rateio recebe apontamentos e distribui as horas para os destinos Cloud, por período. Ele não aparece como card nos Kanbans, e o consultor não vê a divisão.</p>
           <div className="flex items-center gap-2 mb-3">
             <div className="flex-1 max-w-md"><SearchSelect value={markPick} onChange={setMarkPick} options={notRateioOptions} placeholder="Escolher projeto para tornar de rateio…" /></div>
             <button onClick={markAsRateio} disabled={!markPick} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-2 disabled:opacity-60"><Server size={13} /> Tornar projeto de rateio</button>
@@ -157,7 +216,7 @@ export default function RateioHorasPage() {
                 <span key={p.id} className="inline-flex items-center rounded-lg border transition-colors"
                   style={selId === p.id ? { background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' } : { borderColor: 'var(--border)', color: 'var(--text)' }}>
                   <button onClick={() => selectProject(p.id)} className="text-xs pl-3 pr-2 py-1.5">
-                    {p.code ? p.code + ' · ' : ''}{p.name}{p.cliente ? ` (${p.cliente})` : ''} · {p.targets_count} destino{p.targets_count !== 1 ? 's' : ''}
+                    {p.code ? p.code + ' · ' : ''}{p.name}{p.cliente ? ` (${p.cliente})` : ''} · {p.plans_count ?? 0} período{(p.plans_count ?? 0) !== 1 ? 's' : ''}
                   </button>
                   <button onClick={() => openAlloc(p)} title="Alocar consultores + coordenador (apontar/aprovar)" className="px-1.5 py-1.5 hover:opacity-70 inline-flex items-center gap-0.5 border-l" style={{ borderColor: selId === p.id ? 'rgba(255,255,255,0.35)' : 'var(--border)' }}>
                     <UserPlus size={12} />{(p.consultants?.length ?? 0) > 0 ? <span className="text-[10px] font-semibold">{p.consultants!.length}</span> : null}
@@ -169,39 +228,136 @@ export default function RateioHorasPage() {
           )}
         </div>
 
-        {/* Editor de destinos */}
+        {/* Editor de períodos */}
         {selId && (
           <div className="ds-card p-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Destinos e percentuais</p>
+              <p className="text-sm font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><CalendarRange size={15} /> Períodos de rateio</p>
               <div className="flex items-center gap-2">
-                <button onClick={distribuir} className="text-xs inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={13} /> Dividir igualmente</button>
-                <button onClick={addRow} className="text-xs inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={13} /> Adicionar destino</button>
-                <button onClick={save} disabled={saving} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {saving ? 'Salvando…' : 'Salvar'}</button>
+                <button onClick={addPlan} className="text-xs inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={13} /> Adicionar período</button>
+                <button onClick={savePlans} disabled={saving} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {saving ? 'Salvando…' : 'Salvar'}</button>
               </div>
             </div>
-            {rows.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum destino. Adicione os projetos que receberão as horas (podem ser de qualquer cliente).</p>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada empresa entra numa data. O apontamento cai no período da sua data e as horas são divididas entre os destinos daquele período (pesos normalizados p/ 100%). Datas dos períodos não podem se sobrepor.</p>
+            {plans.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum período. Adicione um período (início/fim) e os destinos Cloud que recebem as horas nessa faixa.</p>
             ) : (
-              <div className="space-y-2">
-                {rows.map((row, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={destOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino (Cloud)…" /></div>
-                    <input type="number" min={0} max={100} step="0.01" value={row.percentual} onChange={e => setRow(i, { percentual: Number(e.target.value) })}
-                      className="w-24 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
-                    <button onClick={() => removeRow(i)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+              <div className="space-y-3">
+                {plans.map((pl, pi) => {
+                  const somaP = planSoma(pl)
+                  return (
+                    <div key={pi} className="rounded-xl p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <div className="inline-flex items-center gap-1.5">
+                          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Início</span>
+                          <input type="date" value={pl.data_inicio} onChange={e => setPlanField(pi, { data_inicio: e.target.value })}
+                            className="text-xs px-2 py-1.5 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                        </div>
+                        <div className="inline-flex items-center gap-1.5">
+                          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Fim</span>
+                          <input type="date" value={pl.data_fim} disabled={pl.semFim} onChange={e => setPlanField(pi, { data_fim: e.target.value })}
+                            className="text-xs px-2 py-1.5 rounded-lg disabled:opacity-40" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                          <label className="text-[11px] inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                            <input type="checkbox" checked={pl.semFim} onChange={e => setPlanField(pi, { semFim: e.target.checked, data_fim: e.target.checked ? '' : pl.data_fim })} />
+                            sem data fim
+                          </label>
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                          <button onClick={() => distribuirPlan(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
+                          <button onClick={() => addTarget(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Destino</button>
+                          <button onClick={() => removePlan(pi)} title="Remover período" className="p-1 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                      {pl.targets.length === 0 ? (
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Sem destinos neste período.</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {pl.targets.map((t, ti) => {
+                            const efetivo = somaP > 0 ? Math.round((Number(t.percentual) || 0) / somaP * 1000) / 10 : 0
+                            return (
+                              <div key={ti} className="flex items-center gap-2">
+                                <div className="flex-1"><SearchSelect value={String(t.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setTarget(pi, ti, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
+                                  options={destOptions.filter(o => o.id !== selId && (o.id === t.target_project_id || !pl.targets.some((tt, tj) => tj !== ti && Number(tt.target_project_id) === o.id)))} placeholder="Projeto de destino (Cloud)…" /></div>
+                                <input type="number" min={0} max={100} step="0.01" value={t.percentual} onChange={e => setTarget(pi, ti, { percentual: Number(e.target.value) })}
+                                  className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                                <span className="text-[11px] w-14 text-right" style={{ color: 'var(--text-muted)' }} title="% efetivo (normalizado)">→ {efetivo}%</span>
+                                <button onClick={() => removeTarget(pi, ti)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                              </div>
+                            )
+                          })}
+                          <div className="flex items-center justify-end gap-2 pt-0.5 text-[11px]">
+                            <span style={{ color: 'var(--text-muted)' }}>Soma dos pesos: {somaP} {Math.abs(somaP - 100) > 0.01 ? '(normalizado p/ 100%)' : ''}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Apontamentos do servidor + ajuste manual */}
+        {selId && (
+          <div className="ds-card p-4">
+            <p className="text-sm font-semibold inline-flex items-center gap-1.5 mb-1" style={{ color: 'var(--text)' }}><ListChecks size={15} /> Apontamentos no servidor</p>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Horas lançadas neste projeto-servidor e como foram divididas. Clique em <b>Ajustar</b> para alterar a divisão manualmente naquele apontamento.</p>
+            {apontas.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum apontamento no servidor ainda.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {apontas.map(a => (
+                  <div key={a.id} className="flex items-start gap-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <div className="w-20 text-xs shrink-0" style={{ color: 'var(--text)' }}>{fmtDate(a.date)}</div>
+                    <div className="w-40 text-xs shrink-0 truncate" style={{ color: 'var(--text-muted)' }}>{a.consultor ?? '—'}</div>
+                    <div className="w-16 text-xs shrink-0 font-semibold" style={{ color: 'var(--text)' }}>{hh(a.effort_minutes)}</div>
+                    <div className="flex-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {a.splits.length === 0 ? <span style={{ color: 'var(--warning)' }}>Sem divisão (sem período nesta data)</span>
+                        : a.splits.map((s, i) => <span key={i} className="inline-block mr-2">{s.projeto_codigo ?? s.projeto}: <b style={{ color: 'var(--text)' }}>{hh(s.minutes)}</b></span>)}
+                    </div>
+                    <button onClick={() => openOverride(a)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Pencil size={11} /> Ajustar</button>
                   </div>
                 ))}
-                <div className="flex items-center justify-end gap-2 pt-1 text-xs">
-                  <span style={{ color: 'var(--text-muted)' }}>Soma:</span>
-                  <span className="font-semibold" style={{ color: somaOk ? 'var(--success)' : 'var(--danger)' }}>{soma}%</span>
-                </div>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Ajuste manual da divisão de um apontamento */}
+      {overrideFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setOverrideFor(null)}>
+          <div className="ds-card w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}><Pencil size={14} className="inline mr-1" /> Ajustar divisão</p>
+              <button onClick={() => setOverrideFor(null)} className="hover:opacity-70"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{fmtDate(overrideFor.date)} · {overrideFor.consultor ?? '—'} · total {hh(overrideFor.effort_minutes)}. Defina os minutos por destino — a soma deve fechar o total.</p>
+            <div className="space-y-1.5">
+              {overrideRows.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="flex-1"><SearchSelect value={String(r.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setOvRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
+                    options={destOptions.filter(o => o.id === r.target_project_id || !overrideRows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id))} placeholder="Destino (Cloud)…" /></div>
+                  <input type="number" min={0} step="0.25" value={r.minutes ? +(r.minutes / 60).toFixed(2) : 0} onChange={e => setOvRow(i, { minutes: Math.round((Number(e.target.value) || 0) * 60) })}
+                    className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>h</span>
+                  <button onClick={() => setOverrideRows(rows => rows.filter((_, idx) => idx !== i))} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                </div>
+              ))}
+              <button onClick={() => setOverrideRows(rows => [...rows, { target_project_id: '', minutes: 0 }])} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Adicionar destino</button>
+              <div className="flex items-center justify-end gap-2 pt-1 text-[11px]">
+                <span style={{ color: 'var(--text-muted)' }}>Distribuído:</span>
+                <span className="font-semibold" style={{ color: ovOk ? 'var(--success)' : 'var(--danger)' }}>{hh(ovSum)} / {hh(overrideFor.effort_minutes)}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button onClick={() => setOverrideFor(null)} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Cancelar</button>
+              <button onClick={saveOverride} disabled={savingOverride} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-2 disabled:opacity-60"><Save size={13} /> {savingOverride ? 'Salvando…' : 'Salvar divisão'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alocar equipe do servidor de rateio: consultores apontam + 1 coordenador aprova. */}
       {allocFor && (
