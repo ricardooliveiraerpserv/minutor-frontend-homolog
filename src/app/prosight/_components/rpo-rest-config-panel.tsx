@@ -23,6 +23,58 @@ const INV_STATUS: Record<RpoInvStatus, { label: string; variant: 'success' | 'wa
 }
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—')
 
+// Cores por status (para donut/cards) — hex fixos p/ SVG, alinhados aos badges.
+const INV_COLOR: Record<RpoInvStatus, string> = {
+  sincronizado: '#22c55e', recompilar: '#f59e0b', verificar_rpo: '#a855f7', nao_compilado: '#06b6d4', so_rpo: '#ef4444',
+}
+const INV_SUB: Record<RpoInvStatus, string> = {
+  sincronizado: 'em dia', recompilar: 'disco mais novo', verificar_rpo: 'RPO mais novo', nao_compilado: 'só no disco', so_rpo: 'sem fonte local',
+}
+const INV_ORDER: RpoInvStatus[] = ['sincronizado', 'recompilar', 'verificar_rpo', 'nao_compilado', 'so_rpo']
+type InvFilter = RpoInvStatus | 'all' | 'rest_api'
+
+function healthColor(pct: number) {
+  return pct >= 80 ? '#22c55e' : pct >= 60 ? '#3b82f6' : pct >= 30 ? '#f59e0b' : '#ef4444'
+}
+
+// Gauge circular de saúde (SVG).
+function HealthGauge({ pct, label, sync, total }: { pct: number; label: string; sync: number; total: number }) {
+  const r = 52, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, pct)) / 100)
+  const col = healthColor(pct)
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Índice de saúde</div>
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--border)" strokeWidth="12" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke={col} strokeWidth="12" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={off} transform="rotate(-90 70 70)" />
+        <text x="70" y="66" textAnchor="middle" fontSize="26" fontWeight="700" fill={col}>{pct}%</text>
+        <text x="70" y="88" textAnchor="middle" fontSize="12" fill="var(--text-muted)">{label}</text>
+      </svg>
+      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{sync} sincronizados de {total} fontes</div>
+    </div>
+  )
+}
+
+// Donut de distribuição (SVG) — segmentos por status.
+function StatusDonut({ counts, total }: { counts: Record<RpoInvStatus, number>; total: number }) {
+  const r = 52, sw = 22, c = 2 * Math.PI * r
+  const fracs = INV_ORDER.map((k) => ({ k, v: counts[k] || 0, frac: total > 0 ? (counts[k] || 0) / total : 0 }))
+  const segs = fracs.map((f, i) => {
+    const prev = fracs.slice(0, i).reduce((a, x) => a + x.frac, 0)
+    return { k: f.k, v: f.v, dash: f.frac * c, off: c * (1 - prev) }
+  }).filter((s) => s.v > 0)
+  return (
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
+      {segs.map((s) => (
+        <circle key={s.k} cx="70" cy="70" r={r} fill="none" stroke={INV_COLOR[s.k]} strokeWidth={sw}
+          strokeDasharray={`${s.dash} ${c - s.dash}`} strokeDashoffset={s.off} transform="rotate(-90 70 70)" />
+      ))}
+    </svg>
+  )
+}
+
 const TYPE_LABEL: Record<string, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
 
 export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
@@ -41,6 +93,8 @@ export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
 
   const [scanning, setScanning] = useState(false)
   const [inv, setInv] = useState<RpoInvResult | null>(null)
+  const [invFilter, setInvFilter] = useState<InvFilter>('all')
+  const [invSearch, setInvSearch] = useState('')
 
   useEffect(() => {
     void fetchProsightEnvironments(customerId)
@@ -92,7 +146,7 @@ export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
 
   const scan = async () => {
     if (!envId) return
-    setScanning(true); setInv(null)
+    setScanning(true); setInv(null); setInvFilter('all'); setInvSearch('')
     try {
       const r = await scanRpoInventory(envId)
       setInv(r)
@@ -151,52 +205,104 @@ export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
         </Card>
       )}
 
-      {/* Resultado do inventário Git × RPO */}
-      {envId && inv?.ok && inv.summary && (
-        <Card>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-semibold" style={{ color: 'var(--text)' }}>Inventário Git × RPO</h4>
-              <Badge variant={inv.summary.health_pct >= 80 ? 'success' : inv.summary.health_pct >= 60 ? 'default' : inv.summary.health_pct >= 30 ? 'warning' : 'danger'}>
-                Saúde {inv.summary.health_pct}% · {inv.summary.health_label}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {(['sincronizado', 'recompilar', 'verificar_rpo', 'nao_compilado', 'so_rpo'] as RpoInvStatus[]).map((k) => (
-                <span key={k} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <Badge variant={INV_STATUS[k].variant}>{INV_STATUS[k].label}</Badge> <b>{inv.summary!.counts[k] ?? 0}</b>
-                </span>
-              ))}
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                {inv.summary.total} programas · {inv.rpo?.count ?? 0} no RPO · {inv.summary.rest_api_count} REST
-              </span>
-            </div>
-            <div className="overflow-auto" style={{ maxHeight: 420 }}>
-              <table className="ds-table w-full">
-                <thead>
-                  <tr>
-                    {['Programa', 'Situação', 'Fonte (Git)', 'RPO', 'Status RPO'].map((h) => (
-                      <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)', boxShadow: 'inset 0 -1px 0 var(--border)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {inv.results!.slice(0, 500).map((r) => (
-                    <tr key={r.program}>
-                      <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{r.program}{r.is_rest_api && <Badge variant="default">REST</Badge>}</td>
-                      <td><Badge variant={INV_STATUS[r.status].variant}>{INV_STATUS[r.status].label}</Badge></td>
-                      <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.disk_date)}</td>
-                      <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.rpo_date)}</td>
-                      <td className="text-sm" style={{ color: 'var(--text-light)' }}>{r.rpo_status || '—'}</td>
+      {/* Dashboard do inventário Git × RPO */}
+      {envId && inv?.ok && inv.summary && (() => {
+        const s = inv.summary!
+        const pick = (f: InvFilter) => setInvFilter((cur) => (cur === f ? 'all' : f))
+        const q = invSearch.trim().toLowerCase()
+        const results = (inv.results ?? []).filter((r) => {
+          if (invFilter === 'rest_api') { if (!r.is_rest_api) return false }
+          else if (invFilter !== 'all') { if (r.status !== invFilter) return false }
+          if (q && !r.program.toLowerCase().includes(q)) return false
+          return true
+        })
+        const kpis: { key: InvFilter; label: string; value: number; sub: string; color: string }[] = [
+          { key: 'all', label: 'Total de fontes', value: s.total, sub: 'disco + RPO', color: 'var(--text)' },
+          ...INV_ORDER.map((k) => ({ key: k as InvFilter, label: INV_STATUS[k].label, value: s.counts[k] ?? 0, sub: INV_SUB[k], color: INV_COLOR[k] })),
+          { key: 'rest_api', label: 'APIs REST', value: s.rest_api_count, sub: 'programas', color: '#06b6d4' },
+        ]
+        return (
+          <Card>
+            <div className="flex flex-col gap-4">
+              {/* Gauge + Donut + legenda clicável */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl p-4 flex items-center justify-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <HealthGauge pct={s.health_pct} label={s.health_label} sync={s.counts.sincronizado} total={s.total} />
+                </div>
+                <div className="rounded-2xl p-4 flex items-center gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <StatusDonut counts={s.counts} total={s.total} />
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    {INV_ORDER.map((k) => {
+                      const v = s.counts[k] ?? 0, pct = s.total ? Math.round((v / s.total) * 1000) / 10 : 0
+                      return (
+                        <button key={k} onClick={() => pick(k)} className="flex items-center gap-2 text-sm rounded-md px-2 py-1 text-left"
+                          style={{ background: invFilter === k ? 'var(--surface-hover)' : 'transparent' }}>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: INV_COLOR[k] }} />
+                          <span className="flex-1" style={{ color: 'var(--text)' }}>{INV_STATUS[k].label}</span>
+                          <b style={{ color: INV_COLOR[k] }}>{v}</b>
+                          <span className="text-xs w-12 text-right" style={{ color: 'var(--text-light)' }}>{pct}%</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Cards clicáveis (KPIs) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                {kpis.map((k) => (
+                  <button key={k.key} onClick={() => k.key === 'all' ? setInvFilter('all') : pick(k.key)}
+                    className="rounded-xl p-3 text-left transition"
+                    style={{ background: 'var(--surface)', border: `1px solid ${invFilter === k.key ? k.color : 'var(--border)'}`, outline: invFilter === k.key ? `1px solid ${k.color}` : 'none' }}>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>{k.label}</div>
+                    <div className="text-2xl font-bold" style={{ color: k.color }}>{k.value}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{k.sub}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Busca + filtro ativo */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex-1 min-w-[200px]">
+                  <TextInput label="" placeholder="Buscar programa…" value={invSearch} onChange={(e) => setInvSearch(e.target.value)} />
+                </div>
+                {invFilter !== 'all' && (
+                  <Button variant="ghost" size="sm" onClick={() => setInvFilter('all')}>
+                    Filtro: {invFilter === 'rest_api' ? 'APIs REST' : INV_STATUS[invFilter].label} ✕
+                  </Button>
+                )}
+                <span className="text-xs" style={{ color: 'var(--text-light)' }}>{results.length} de {s.total}</span>
+              </div>
+
+              {/* Tabela filtrada */}
+              <div className="overflow-auto" style={{ maxHeight: 420 }}>
+                <table className="ds-table w-full">
+                  <thead>
+                    <tr>
+                      {['Programa', 'Situação', 'Fonte (Git)', 'RPO', 'Status RPO'].map((h) => (
+                        <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)', boxShadow: 'inset 0 -1px 0 var(--border)' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {results.slice(0, 500).map((r) => (
+                      <tr key={r.program}>
+                        <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{r.program}{r.is_rest_api && <Badge variant="default">REST</Badge>}</td>
+                        <td><Badge variant={INV_STATUS[r.status].variant}>{INV_STATUS[r.status].label}</Badge></td>
+                        <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.disk_date)}</td>
+                        <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(r.rpo_date)}</td>
+                        <td className="text-sm" style={{ color: 'var(--text-light)' }}>{r.rpo_status || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {results.length > 500 && <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mostrando 500 de {results.length}.</p>}
+              <p className="text-[11px] text-center" style={{ color: 'var(--text-light)' }}>Clique em qualquer status ou card para filtrar a lista.</p>
             </div>
-            {inv.results!.length > 500 && <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mostrando 500 de {inv.results!.length}.</p>}
-          </div>
-        </Card>
-      )}
+          </Card>
+        )
+      })()}
     </div>
   )
 }
