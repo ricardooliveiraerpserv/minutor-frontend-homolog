@@ -132,7 +132,7 @@ export default function RateioHorasPage() {
               <div className="space-y-2">
                 {rows.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = allProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={projOptions.filter(o => o.id !== selId)} placeholder="Projeto de destino…" /></div>
+                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = allProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={projOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino…" /></div>
                     <input type="number" min={0} max={100} step="0.01" value={row.percentual} onChange={e => setRow(i, { percentual: Number(e.target.value) })}
                       className="w-24 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
