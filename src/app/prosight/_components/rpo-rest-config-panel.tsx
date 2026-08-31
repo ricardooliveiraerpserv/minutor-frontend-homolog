@@ -171,9 +171,15 @@ export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
                 {inv.summary.total} programas · {inv.rpo?.count ?? 0} no RPO · {inv.summary.rest_api_count} REST
               </span>
             </div>
-            <div className="overflow-x-auto" style={{ maxHeight: 420 }}>
+            <div className="overflow-auto" style={{ maxHeight: 420 }}>
               <table className="ds-table w-full">
-                <thead><tr><th>Programa</th><th>Situação</th><th>Fonte (Git)</th><th>RPO</th><th>Status RPO</th></tr></thead>
+                <thead>
+                  <tr>
+                    {['Programa', 'Situação', 'Fonte (Git)', 'RPO', 'Status RPO'].map((h) => (
+                      <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)', boxShadow: 'inset 0 -1px 0 var(--border)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody>
                   {inv.results!.slice(0, 500).map((r) => (
                     <tr key={r.program}>
