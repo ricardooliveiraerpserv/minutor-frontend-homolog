@@ -8,7 +8,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
-import { Server, Save, PlugZap, RotateCcw, ScanSearch } from 'lucide-react'
+import { Server, Save, PlugZap, RotateCcw, ScanSearch, FileSpreadsheet } from 'lucide-react'
+import { exportRpoCsv } from './rpo-dashboard'
 import { toast } from 'sonner'
 import { Badge, Button, Card, EmptyState, Select, Skeleton, TextInput } from '@/components/ds'
 import { ApiError } from '@/lib/api'
@@ -271,6 +272,10 @@ export function RpoRestConfigPanel({ customerId }: { customerId: number }) {
                     Filtro: {invFilter === 'rest_api' ? 'APIs REST' : INV_STATUS[invFilter].label} ✕
                   </Button>
                 )}
+                <Button variant="secondary" size="sm" icon={FileSpreadsheet} disabled={!results.length}
+                  onClick={() => exportRpoCsv(results, `inventario-rpo-${new Date().toISOString().slice(0, 10)}.csv`)}>
+                  Exportar Excel
+                </Button>
                 <span className="text-xs" style={{ color: 'var(--text-light)' }}>{results.length} de {s.total}</span>
               </div>
 

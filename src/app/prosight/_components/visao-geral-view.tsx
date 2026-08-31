@@ -48,7 +48,8 @@ import {
 import { STATUS_META as SRC_STATUS_META, inputToPt, toInputVal, addDays } from './shared'
 import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
 import { fetchRpoCompanyOverview, fetchRpoCompanyResults, type RpoCompanyOverview, type RpoInvRow, type RpoInvStatus } from '@/lib/prosight/environments'
-import { RpoDashboardIndicators, type InvFilter } from './rpo-dashboard'
+import { RpoDashboardIndicators, exportRpoCsv, type InvFilter } from './rpo-dashboard'
+import { FileSpreadsheet } from 'lucide-react'
 
 // Rótulos curtos por tipo de ambiente.
 const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
@@ -785,7 +786,13 @@ function RpoOverviewBlock({ companyId }: { companyId: number }) {
               <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                 {filter === 'rest_api' ? 'APIs REST' : RPO_ROW_LABEL[filter]} <span className="text-xs font-normal" style={{ color: 'var(--text-light)' }}>({shown.length})</span>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setFilter('all')}>Limpar ✕</Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" icon={FileSpreadsheet} disabled={!shown.length}
+                  onClick={() => exportRpoCsv(shown, `inventario-rpo-${filter}-${new Date().toISOString().slice(0, 10)}.csv`)}>
+                  Exportar Excel
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setFilter('all')}>Limpar ✕</Button>
+              </div>
             </div>
             {rowsLoading ? <Skeleton className="h-40" /> : (
               <div className="overflow-auto" style={{ maxHeight: 360 }}>

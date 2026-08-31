@@ -7,7 +7,7 @@
 // (onPick) para filtrar; sem onPick, é só indicador.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { RpoInvStatus } from '@/lib/prosight/environments'
+import type { RpoInvStatus, RpoInvRow } from '@/lib/prosight/environments'
 
 export type InvFilter = RpoInvStatus | 'all' | 'rest_api'
 export interface RpoSummary {
@@ -31,6 +31,27 @@ export const INV_ORDER: RpoInvStatus[] = ['sincronizado', 'recompilar', 'verific
 
 export function healthColor(pct: number) {
   return pct >= 80 ? '#22c55e' : pct >= 60 ? '#3b82f6' : pct >= 30 ? '#f59e0b' : '#ef4444'
+}
+
+// Exporta as linhas do inventário para CSV que abre direto no Excel (pt-BR): separador ';' + BOM UTF-8.
+const fmtDay = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '')
+function csvCell(v: string): string {
+  const s = v ?? ''
+  return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+export function exportRpoCsv(rows: RpoInvRow[], filename: string) {
+  const headers = ['Programa', 'Situação', 'Fonte (Git)', 'RPO', 'Status RPO', 'REST']
+  const lines = [headers.join(';')]
+  for (const r of rows) {
+    lines.push([r.program, INV_LABEL[r.status], fmtDay(r.disk_date), fmtDay(r.rpo_date), r.rpo_status ?? '', r.is_rest_api ? 'Sim' : 'Não'].map(csvCell).join(';'))
+  }
+  const csv = '\uFEFF' + lines.join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click(); a.remove()
+  URL.revokeObjectURL(url)
 }
 
 function HealthGauge({ pct, label, sync, total }: { pct: number; label: string; sync: number; total: number }) {
