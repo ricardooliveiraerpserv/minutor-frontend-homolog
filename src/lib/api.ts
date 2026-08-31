@@ -110,6 +110,36 @@ function serialize(body: unknown): BodyInit | undefined {
   return JSON.stringify(body)
 }
 
+/**
+ * Baixa um arquivo autenticado (blob) e dispara o download no browser. Usa o mesmo esquema
+ * de auth por-aba do `request`. Para endpoints que devolvem bytes (não JSON), ex.: o agente Connector.
+ */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const sessionToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+  const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/octet-stream',
+      ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+      ...(typeof window !== 'undefined' ? { 'X-Screen-Path': window.location.pathname + window.location.search } : {}),
+    },
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(res.status, body.message ?? `Erro ${res.status}`)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestInit) => request<T>(path, options),
   post: <T>(path: string, body: unknown) =>

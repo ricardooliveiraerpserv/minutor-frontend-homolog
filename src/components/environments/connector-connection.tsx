@@ -10,15 +10,82 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
-import { Copy, KeyRound, PlugZap, RefreshCw, ShieldOff } from 'lucide-react'
+import { Copy, Download, KeyRound, MonitorDown, PlugZap, RefreshCw, ShieldOff, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Button, Modal, Skeleton } from '@/components/ds'
 import { ApiError } from '@/lib/api'
 import {
-  fetchAgentStatus, issueEnrollmentToken, presenceLabel, revokeAgent,
-  type AgentStatus, type EnrollmentToken, type EnvironmentPresence,
+  downloadConnectorAsset, downloadConnectorPackage, fetchAgentStatus, fetchConnectorReleases,
+  issueEnrollmentToken, presenceLabel, revokeAgent,
+  type AgentStatus, type ConnectorReleases, type EnrollmentToken, type EnvironmentPresence,
 } from '@/lib/prosight/environments'
 import { useAuth } from '@/contexts/auth-context'
+
+function fmtBytes(n: number): string {
+  if (!n) return ''
+  const mb = n / (1024 * 1024)
+  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`
+}
+
+/**
+ * Baixar o agente Connector direto do Minutor — o técnico do cliente não precisa acessar o GitHub.
+ * Pacote-fonte (Python, Windows/Linux) sempre disponível; binários compilados (.exe / Linux) quando
+ * o Release existir. Instruções: INSTALL-ONPREM.md (Windows) e INSTALL-LINUX.md (Linux), inclusas no zip.
+ */
+function ConnectorDownloadCard() {
+  const [rel, setRel] = useState<ConnectorReleases | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    fetchConnectorReleases().then(r => { if (alive) setRel(r) }).catch(() => { if (alive) setRel({ available: false }) })
+    return () => { alive = false }
+  }, [])
+
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setBusy(key)
+    try { await fn(); toast.success('Download iniciado.') }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao baixar.') }
+    finally { setBusy(null) }
+  }
+
+  const win = rel?.assets?.find(a => a.platform === 'windows')
+  const lin = rel?.assets?.find(a => a.platform === 'linux')
+
+  return (
+    <Section icon={Download} title="Baixar o agente Connector">
+      <div className="flex flex-col gap-3">
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Instale na máquina do Protheus (on-prem). O <b>pacote-fonte</b> roda com Python 3.8+ em
+          Windows e Linux; ou use o <b>executável</b> pronto. Instruções inclusas (Windows e Linux).
+        </span>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" icon={Download} disabled={busy !== null}
+            onClick={() => void run('src', downloadConnectorPackage)}>
+            Pacote-fonte (Python · Win/Linux)
+          </Button>
+          {win && (
+            <Button size="sm" variant="secondary" icon={MonitorDown} disabled={busy !== null}
+              onClick={() => void run('win', () => downloadConnectorAsset(win.name))}>
+              Windows (.exe){win.size ? ` · ${fmtBytes(win.size)}` : ''}
+            </Button>
+          )}
+          {lin && (
+            <Button size="sm" variant="secondary" icon={Terminal} disabled={busy !== null}
+              onClick={() => void run('lin', () => downloadConnectorAsset(lin.name))}>
+              Linux{lin.size ? ` · ${fmtBytes(lin.size)}` : ''}
+            </Button>
+          )}
+        </div>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+          {rel?.available
+            ? <>Executáveis da versão <b>{rel.version}</b>. Sem Python no servidor? Prefira o executável.</>
+            : <>Binários compilados ainda não publicados — use o pacote-fonte (Python). Os executáveis aparecem aqui quando o build do Release terminar.</>}
+        </span>
+      </div>
+    </Section>
+  )
+}
 
 function Section({ icon: Icon, title, children }: { icon: typeof PlugZap; title: string; children: React.ReactNode }) {
   return (
@@ -67,6 +134,7 @@ export function ConnectorConnection({ environmentId, presence = null }: { enviro
   const connected = !!agent && !agent.revoked_at
 
   return (
+    <div className="flex flex-col gap-4">
     <Section icon={PlugZap} title="Conexão do Connector">
       {loading ? <Skeleton className="h-16 w-full" /> : (
         <div className="flex flex-col gap-3">
@@ -126,5 +194,7 @@ export function ConnectorConnection({ environmentId, presence = null }: { enviro
         </div>
       </Modal>
     </Section>
+    <ConnectorDownloadCard />
+    </div>
   )
 }

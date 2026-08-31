@@ -5,7 +5,7 @@
 // Health/RPO ao vivo pertencem ao Conector (Bloco B) → sempre "aguardando_conector".
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { api } from '@/lib/api'
+import { api, downloadFile } from '@/lib/api'
 
 export interface SafeEnvironment {
   id: number
@@ -185,6 +185,30 @@ export async function issueEnrollmentToken(environmentId: number): Promise<Enrol
 export async function revokeAgent(agentId: string): Promise<{ agent_id: string; revoked_at: string | null }> {
   const r = await api.delete<{ data: { agent_id: string; revoked_at: string | null } }>(`/prosight/connector/agents/${agentId}`)
   return r.data
+}
+
+// ── Download do agente Connector (o cliente baixa direto do Minutor) ──
+export interface ConnectorReleaseAsset {
+  name: string
+  size: number
+  platform: 'windows' | 'linux' | 'source' | 'other'
+}
+export interface ConnectorReleases {
+  available: boolean
+  version?: string | null
+  published_at?: string | null
+  html_url?: string | null
+  assets?: ConnectorReleaseAsset[]
+}
+export async function fetchConnectorReleases(): Promise<ConnectorReleases> {
+  const r = await api.get<{ data: ConnectorReleases }>(`/prosight/connector/agent/releases`)
+  return r.data
+}
+export async function downloadConnectorPackage(): Promise<void> {
+  await downloadFile(`/prosight/connector/agent/package`, 'prosight-connector-agent.zip')
+}
+export async function downloadConnectorAsset(name: string): Promise<void> {
+  await downloadFile(`/prosight/connector/agent/download?asset=${encodeURIComponent(name)}`, name)
 }
 
 // ── Config REST AdvPL (RPO) por ambiente — paridade com o configurador do ProSight enviado ──
