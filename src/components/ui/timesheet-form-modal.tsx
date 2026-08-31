@@ -307,67 +307,6 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const selectedCustomer = customers.find(c => String(c.id) === form.customer_id) as any
   const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
 
-  // ── Rateio de horas: projeto-servidor distribui as horas para os destinos ──
-  const selProjTop = projects.find(p => String(p.id) === form.project_id) as any
-  const isRateio = !!selProjTop?.is_rateio
-  const totalMinutes = (() => {
-    if (useTotal) return parseHHMM(form.total_hours) ?? 0
-    const st = parseHHMM(form.start_time), en = parseHHMM(form.end_time)
-    if (st == null || en == null) return 0
-    return en >= st ? en - st : (24 * 60 - st + en)
-  })()
-  const [distRows, setDistRows] = useState<{ target_project_id: number; projeto: string; minutes: number }[]>([])
-  const [distTouched, setDistTouched] = useState(false)
-
-  useEffect(() => {
-    if (!isRateio || !form.project_id) { setDistRows([]); setDistTouched(false); return }
-    api.get<{ targets: { target_project_id: number; projeto: string; percentual: number }[] }>(`/rateio-hours/projects/${form.project_id}/targets`)
-      .then(r => {
-        const tgs = r.targets ?? []
-        setDistTouched(false)
-        setDistRows(tgs.map(t => ({ target_project_id: t.target_project_id, projeto: t.projeto, minutes: 0 })))
-      })
-      .catch(() => setDistRows([]))
-  }, [isRateio, form.project_id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Aplica o % padrão sobre o total (enquanto o usuário não editou manualmente).
-  useEffect(() => {
-    if (!isRateio || distTouched || distRows.length === 0 || totalMinutes <= 0) return
-    api.get<{ targets: { target_project_id: number; percentual: number }[] }>(`/rateio-hours/projects/${form.project_id}/targets`)
-      .then(r => {
-        const pct = new Map((r.targets ?? []).map(t => [t.target_project_id, Number(t.percentual)]))
-        let acc = 0
-        setDistRows(rows => rows.map((row, i) => {
-          const m = i === rows.length - 1 ? totalMinutes - acc : Math.floor(totalMinutes * (pct.get(row.target_project_id) ?? 0) / 100)
-          acc += i === rows.length - 1 ? 0 : m
-          return { ...row, minutes: m }
-        }))
-      }).catch(() => {})
-  }, [isRateio, totalMinutes, distRows.length, distTouched]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setDistHours = (i: number, hours: number) => {
-    setDistTouched(true)
-    setDistRows(rows => rows.map((r, idx) => idx === i ? { ...r, minutes: Math.round((hours || 0) * 60) } : r))
-  }
-  const distIgual = () => {
-    setDistTouched(true)
-    const n = distRows.length; if (!n || totalMinutes <= 0) return
-    let acc = 0
-    setDistRows(rows => rows.map((r, i) => { const m = i === n - 1 ? totalMinutes - acc : Math.floor(totalMinutes / n); acc += i === n - 1 ? 0 : m; return { ...r, minutes: m } }))
-  }
-  const distRestante = () => {
-    setDistTouched(true)
-    const fixed = distRows.filter(r => r.minutes > 0)
-    const empties = distRows.filter(r => r.minutes <= 0)
-    const rest = totalMinutes - fixed.reduce((a, r) => a + r.minutes, 0)
-    if (empties.length === 0 || rest <= 0) { toast.error('Deixe ao menos um destino zerado e horas sobrando para dividir.'); return }
-    const per = Math.floor(rest / empties.length)
-    let used = 0
-    setDistRows(rows => { let k = 0; return rows.map(r => { if (r.minutes > 0) return r; k++; const m = k === empties.length ? rest - used : per; used += k === empties.length ? 0 : m; return { ...r, minutes: m } }) })
-  }
-  const distSum = distRows.reduce((a, r) => a + r.minutes, 0)
-  const distOk = !isRateio || (distRows.length > 0 && distSum === totalMinutes && totalMinutes > 0)
-
   const save = async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     const selProj = projects.find(p => String(p.id) === form.project_id) as any
@@ -388,10 +327,6 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
-    if (isRateio) {
-      if (distRows.length === 0) { toast.error('Configure os destinos do rateio na tela Rateio de Horas.'); return }
-      if (!distOk) { toast.error(`A soma da distribuição deve ser igual ao total (${(totalMinutes / 60).toFixed(2)}h).`); return }
-    }
     setSaving(true)
     try {
       const body: Record<string, any> = {
@@ -407,7 +342,6 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
         observation: form.observation || null,
         ...(form.stage_delivery_id ? { stage_delivery_id: Number(form.stage_delivery_id) } : {}),
       }
-      if (isRateio) body.distribution = distRows.filter(r => r.minutes > 0).map(r => ({ target_project_id: r.target_project_id, minutes: r.minutes }))
       if (canActAsUser && form.user_id) body.user_id = Number(form.user_id)
       if (isAdmin && form.user_id && form.user_id !== String(currentUser?.id) && form.is_billable_only) {
         body.is_billable_only = true
@@ -540,39 +474,6 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 </div>
               )
             })()}
-
-            {/* Rateio de horas — quando o projeto é um projeto-servidor (is_rateio): distribui
-                as horas para os destinos configurados. % padrão pré-preenchido; dá pra ajustar. */}
-            {isRateio && (
-              <div className="rounded-xl p-3" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs text-[var(--text-muted)]">Rateio das horas ({(totalMinutes / 60).toFixed(2)}h) *</Label>
-                  <div className="flex items-center gap-1.5">
-                    <button type="button" onClick={distIgual} className="text-[10px] px-2 py-1 rounded border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Dividir igual</button>
-                    <button type="button" onClick={distRestante} className="text-[10px] px-2 py-1 rounded border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Dividir o restante</button>
-                  </div>
-                </div>
-                {distRows.length === 0 ? (
-                  <p className="text-[11px]" style={{ color: 'var(--warning)' }}>Nenhum destino configurado. Cadastre em Rateio de Horas.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {distRows.map((r, i) => (
-                      <div key={r.target_project_id} className="flex items-center gap-2">
-                        <span className="flex-1 text-xs truncate" style={{ color: 'var(--text)' }}>{r.projeto}</span>
-                        <input type="number" min={0} step="0.25" value={r.minutes ? +(r.minutes / 60).toFixed(2) : 0}
-                          onChange={e => setDistHours(i, Number(e.target.value))}
-                          className="w-20 text-xs px-2 py-1 rounded text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
-                        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>h</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-end gap-2 text-[11px] pt-0.5">
-                      <span style={{ color: 'var(--text-muted)' }}>Distribuído:</span>
-                      <span className="font-semibold" style={{ color: distOk ? 'var(--success)' : 'var(--danger)' }}>{(distSum / 60).toFixed(2)}h / {(totalMinutes / 60).toFixed(2)}h</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Atividade (cronograma) — aparece SÓ quando o dono da hora está alocado em
                 alguma atividade do projeto (lista filtrada por user_id no BE). Obrigatória. */}
