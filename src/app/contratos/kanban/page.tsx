@@ -747,13 +747,13 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="min-w-0">
-              <p className="text-title break-normal">{card.customer_name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-title truncate">{card.customer_name}</p>
               {card.project_name && (
                 <p className="kpi-sub break-normal">{card.project_name}</p>
               )}
               {card.gerou_aporte && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
                   title="Subprojeto faturado — gerou um aporte automático no projeto pai">
                   Gerou aporte
