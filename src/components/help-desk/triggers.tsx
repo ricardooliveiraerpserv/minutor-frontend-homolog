@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Plus, Trash2, Save, Pencil, Zap, ChevronLeft, Wand2, Eye, X, LayoutTemplate, Code2, ChevronDown } from 'lucide-react'
 import { EmailFrame } from '@/components/help-desk/email-frame'
+import { isHtmlBody, sanitizeEmail } from '@/lib/sanitize-html'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -113,7 +114,7 @@ export function Triggers() {
             <div className="max-h-[68vh] overflow-auto">
               {preview.mode === 'template' && preview.html
                 ? <EmailFrame html={preview.html} />
-                : <div className="p-4" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
+                : <div className="p-4" style={{ background: '#ffffff', color: '#1f2937' }}>{preview.body && isHtmlBody(preview.body) ? <div className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeEmail(preview.body) }} /> : <div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>}{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
             </div>
             <div className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-light)', borderTop: '1px solid var(--border)' }}>Renderizado com dados do chamado {preview.sample}</div>
           </div>
@@ -397,7 +398,7 @@ function SendEmailParams({ p, setMany, set, meta }: { p: Record<string, unknown>
         </div>
         {pv?.subject && <div className="px-3 py-1.5 text-[12px]" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>Assunto: <span style={{ color: 'var(--text)' }}>{pv.subject}</span></div>}
         {pv?.mode === 'template' && pv.html ? <EmailFrame html={pv.html} />
-          : <div className="p-3" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
+          : <div className="p-3" style={{ background: '#ffffff', color: '#1f2937' }}>{pv?.body && isHtmlBody(pv.body) ? <div className="text-sm" dangerouslySetInnerHTML={{ __html: sanitizeEmail(pv.body) }} /> : <div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>}{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
       </div>
     </div>
   )
