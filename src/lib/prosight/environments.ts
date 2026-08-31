@@ -252,3 +252,7 @@ export async function fetchRpoCompanyOverview(customerId: number): Promise<RpoCo
   const r = await api.get<{ data: RpoCompanyOverview }>(`/prosight/companies/${customerId}/rpo-overview`)
   return r.data
 }
+export async function fetchRpoCompanyResults(customerId: number): Promise<RpoInvRow[]> {
+  const r = await api.get<{ data: { results: RpoInvRow[] } }>(`/prosight/companies/${customerId}/rpo-inventory/results`)
+  return r.data.results
+}

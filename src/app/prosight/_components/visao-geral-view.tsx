@@ -47,8 +47,8 @@ import {
 } from '@/app/operacoes-protheus/_components/shared'
 import { STATUS_META as SRC_STATUS_META, inputToPt, toInputVal, addDays } from './shared'
 import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
-import { fetchRpoCompanyOverview, type RpoCompanyOverview } from '@/lib/prosight/environments'
-import { RpoDashboardIndicators } from './rpo-dashboard'
+import { fetchRpoCompanyOverview, fetchRpoCompanyResults, type RpoCompanyOverview, type RpoInvRow, type RpoInvStatus } from '@/lib/prosight/environments'
+import { RpoDashboardIndicators, type InvFilter } from './rpo-dashboard'
 
 // Rótulos curtos por tipo de ambiente.
 const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
@@ -728,20 +728,37 @@ function LicenciamentoBlock({ state, data }: { state: BlockState; data: Licensin
 }
 
 // ── Inventário RPO REAL da empresa (conexão de verdade; independe do modo fixture) ──
+const RPO_ROW_LABEL: Record<RpoInvStatus, string> = {
+  sincronizado: 'Sincronizado', recompilar: 'Recompilar', verificar_rpo: 'Verificar RPO', nao_compilado: 'Não compilado', so_rpo: 'Só no RPO',
+}
+const fmtDay = (s: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—')
 function RpoOverviewBlock({ companyId }: { companyId: number }) {
   // Remonta por empresa (key={companyId}) → loading nasce true; o effect só busca (setState async).
   const [ov, setOv] = useState<RpoCompanyOverview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<InvFilter>('all')
+  const [rows, setRows] = useState<RpoInvRow[] | null>(null)  // lazy: só carrega ao clicar num card
+  const [rowsLoading, setRowsLoading] = useState(false)
+
   useEffect(() => {
     let alive = true
     fetchRpoCompanyOverview(companyId).then((d) => { if (alive) { setOv(d); setLoading(false) } }).catch(() => { if (alive) { setOv(null); setLoading(false) } })
     return () => { alive = false }
   }, [companyId])
 
+  const pick = useCallback((f: InvFilter) => {
+    setFilter((cur) => (cur === f && f !== 'all' ? 'all' : f))
+    if (rows === null) {
+      setRowsLoading(true)
+      fetchRpoCompanyResults(companyId).then((r) => setRows(r)).catch(() => setRows([])).finally(() => setRowsLoading(false))
+    }
+  }, [companyId, rows])
+
   if (loading) return <Skeleton className="h-24 rounded-2xl mb-5" />
   if (!ov || ov.configured_count === 0) return null   // empresa sem RPO → não altera nada
 
   const roll = ov.rollup
+  const shown = (rows ?? []).filter((r) => filter === 'all' ? true : filter === 'rest_api' ? r.is_rest_api : r.status === filter)
   return (
     <Card className="mb-5">
       <div className="flex flex-col gap-3">
@@ -754,21 +771,44 @@ function RpoOverviewBlock({ companyId }: { companyId: number }) {
         </div>
 
         {roll ? (
-          <RpoDashboardIndicators summary={roll} />
+          <RpoDashboardIndicators summary={roll} activeFilter={filter} onPick={pick} />
         ) : (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
             RPO configurado em {ov.configured_count} ambiente(s). Gere o inventário na Configuração para ver a saúde.
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          {ov.environments.filter((e) => e.rpo_configured).map((e) => (
-            <span key={e.environment_id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <b style={{ color: 'var(--text)' }}>{e.name}</b>
-              {e.summary ? <span style={{ color: 'var(--text-muted)' }}>· saúde {e.summary.health_pct}%</span> : <span style={{ color: 'var(--text-light)' }}>· sem scan</span>}
-            </span>
-          ))}
-        </div>
+        {/* Drill-down: lista filtrada ao clicar num card/status */}
+        {filter !== 'all' && (
+          <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                {filter === 'rest_api' ? 'APIs REST' : RPO_ROW_LABEL[filter]} <span className="text-xs font-normal" style={{ color: 'var(--text-light)' }}>({shown.length})</span>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setFilter('all')}>Limpar ✕</Button>
+            </div>
+            {rowsLoading ? <Skeleton className="h-40" /> : (
+              <div className="overflow-auto" style={{ maxHeight: 360 }}>
+                <table className="ds-table w-full">
+                  <thead><tr>{['Programa', 'Situação', 'Fonte (Git)', 'RPO', 'Status RPO'].map((h) => (
+                    <th key={h} style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)', boxShadow: 'inset 0 -1px 0 var(--border)' }}>{h}</th>
+                  ))}</tr></thead>
+                  <tbody>
+                    {shown.slice(0, 500).map((r) => (
+                      <tr key={r.program}>
+                        <td className="text-sm font-mono" style={{ color: 'var(--text)' }}>{r.program}{r.is_rest_api && <Badge variant="default">REST</Badge>}</td>
+                        <td><span className="text-sm" style={{ color: 'var(--text)' }}>{RPO_ROW_LABEL[r.status]}</span></td>
+                        <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDay(r.disk_date)}</td>
+                        <td className="text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDay(r.rpo_date)}</td>
+                        <td className="text-sm" style={{ color: 'var(--text-light)' }}>{r.rpo_status || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   )
