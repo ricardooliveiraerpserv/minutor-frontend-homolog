@@ -767,40 +767,9 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
             ...(menuOpen ? { position: 'relative', zIndex: 50 } : {}),
           }}
         >
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-title truncate">{card.customer_name}</p>
-              {card.project_name && (
-                <p className="kpi-sub break-normal">{card.project_name}</p>
-              )}
-              {card.contract_code && (
-                <p className="text-[10px] font-mono font-semibold mt-0.5" style={{ color: card.is_linked ? LINK_COLOR : 'var(--text-muted)' }}>
-                  {card.is_linked && '🔗 '}{card.contract_code}
-                </p>
-              )}
-              {card.parent_contract_id && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
-                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
-                  title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
-                  🔗 vínculo {card.parent_contract_code ?? ''}
-                </span>
-              )}
-              {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
-                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
-                  title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
-                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
-                </span>
-              )}
-              {card.gerou_aporte && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
-                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
-                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
-                  Gerou aporte
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
+          <div className="mb-2">
+            {/* Status + menu no topo (linha própria) — não rouba largura do título. */}
+            <div className="flex items-center justify-end gap-1 mb-1">
               <span className="kpi-label px-1.5 py-0.5 rounded-full whitespace-nowrap font-semibold"
                 style={{ background: card.is_aditivo ? `${ADITIVO_COLOR}2e` : badge.bg, color: card.is_aditivo ? ADITIVO_COLOR : badge.color }}>
                 {card.is_aditivo ? '➕ ADITIVO' : badge.label}
@@ -835,6 +804,39 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+            {/* Título e códigos — largura total; nome completo e códigos numa linha só. */}
+            <div className="min-w-0">
+              <p className="text-title">{card.customer_name}</p>
+              {card.project_name && (
+                <p className="kpi-sub break-normal">{card.project_name}</p>
+              )}
+              {card.contract_code && (
+                <p className="text-[10px] font-mono font-semibold mt-0.5 whitespace-nowrap truncate" style={{ color: card.is_linked ? LINK_COLOR : 'var(--text-muted)' }}>
+                  {card.is_linked && '🔗 '}{card.contract_code}
+                </p>
+              )}
+              {card.parent_contract_id && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
+                  🔗 vínculo {card.parent_contract_code ?? ''}
+                </span>
+              )}
+              {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                  style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
+                  title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
+                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {card.gerou_aporte && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
+                  Gerou aporte
+                </span>
               )}
             </div>
           </div>
