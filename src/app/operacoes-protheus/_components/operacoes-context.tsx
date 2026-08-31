@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Building2, Layers } from 'lucide-react'
+import { Layers } from 'lucide-react'
 import { getOperacoesDataSource } from '@/lib/operacoes/datasource'
 import { COMPANY_JNG } from '@/lib/operacoes/fixtures'
 import type { OperacoesEnvironment } from '@/lib/operacoes/types'
@@ -104,14 +104,9 @@ export function useOperacoes(): Ctx | null {
 /** Contexto compacto EMPRESA · AMBIENTE + seletor de ambiente (vive na casca). */
 export function OperacoesEnvSelector() {
   const ctx = useOperacoes()
-  if (!ctx) return null
+  if (!ctx || ctx.environments.length === 0) return null
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
-        <Building2 size={15} style={{ color: 'var(--text-light)' }} />
-        <span>Empresa:</span>
-        <b style={{ color: 'var(--text)' }}>{ctx.companyName}</b>
-      </div>
       {ctx.environments.length > 0 && (
         <label className="flex items-center gap-2">
           <Layers size={15} style={{ color: 'var(--text-light)' }} />

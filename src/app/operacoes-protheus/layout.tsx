@@ -36,7 +36,12 @@ export default function OperacoesLayout({ children }: { children: ReactNode }) {
       <ProsightCompanyProvider>
         <ProsightEnvSelectionProvider>
           <OperacoesProvider>
-            <ProsightNav rightSlot={isProsightScoped ? <ProsightCompanySelect /> : <OperacoesEnvSelector />} />
+            {/* Seletor GLOBAL de empresa em TODAS as telas; nas telas operacionais soma o seletor de ambiente. */}
+            <ProsightNav rightSlot={
+              isProsightScoped
+                ? <ProsightCompanySelect />
+                : <div className="flex flex-wrap items-center gap-3"><ProsightCompanySelect /><OperacoesEnvSelector /></div>
+            } />
             {children}
           </OperacoesProvider>
         </ProsightEnvSelectionProvider>
