@@ -110,11 +110,27 @@ export function EnvHubSection({ environmentId, customerId }: { environmentId: nu
             </div>
           ))}
         </div>
-        {st.blocking_reasons.length > 0 && (
-          <div className="mt-2 text-xs" style={{ color: 'var(--warning)' }}>
-            Próxima etapa: <b>{BLOCK_LABEL[st.blocking_reasons[0]] ?? st.blocking_reasons[0]}</b>
-          </div>
-        )}
+        {st.blocking_reasons.length > 0 && (() => {
+          const reason = st.blocking_reasons[0]
+          const isConnector = reason === 'connector_not_enrolled' || reason === 'connector_offline' || reason === 'connector_revoked'
+          const goToConnector = () => {
+            const el = typeof document !== 'undefined' ? document.getElementById('connector-conexao-card') : null
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            else window.location.href = '/prosight/configuracao'
+          }
+          return (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--warning)' }}>
+              <span>Próxima etapa: <b>{BLOCK_LABEL[reason] ?? reason}</b></span>
+              {isConnector && (
+                <button type="button" onClick={goToConnector}
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  <RadioTower size={12} /> Ir para gerar token
+                </button>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Connector */}

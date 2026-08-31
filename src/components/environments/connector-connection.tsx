@@ -22,7 +22,7 @@ import { useAuth } from '@/contexts/auth-context'
 
 function Section({ icon: Icon, title, children }: { icon: typeof PlugZap; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div id="connector-conexao-card" className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center gap-1.5 mb-2">
         <Icon size={14} style={{ color: 'var(--text-light)' }} />
         <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{title}</span>
