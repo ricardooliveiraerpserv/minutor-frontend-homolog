@@ -234,10 +234,10 @@ function AdvancedForm({ trigger, meta, onBack, onSaved }: { trigger: Trigger | '
   }
 
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3 max-w-4xl">
       <button onClick={onBack} className="text-sm inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><ChevronLeft size={15} /> Voltar</button>
       <div className="ds-card p-4 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-full`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
           <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Quando (evento)</label>
             <select className={`${fieldCls} w-full`} style={inputStyle} value={event} onChange={e => setEvent(e.target.value)}>
@@ -280,12 +280,12 @@ function CondGroup({ title, hint, meta, conds, setConds }: { title: string; hint
       <div className="text-[12px] font-semibold" style={{ color: 'var(--text)' }}>{title}</div>
       <div className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>{hint}</div>
       {conds.map((c, i) => { const fld = meta.catalog.find(f => f.key === c.field); return (
-        <div key={i} className="flex items-center gap-1.5 mb-1.5">
+        <div key={i} className="flex flex-wrap items-center gap-1.5 mb-1.5">
           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Se</span>
-          <select className={`${fieldCls}`} style={inputStyle} value={c.field} onChange={e => { const nf = meta.catalog.find(f => f.key === e.target.value); setConds(cs => cs.map((x, j) => j === i ? { field: e.target.value, operator: nf?.operators[0] ?? 'eq', value: '' } : x)) }}>
+          <select className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={c.field} onChange={e => { const nf = meta.catalog.find(f => f.key === e.target.value); setConds(cs => cs.map((x, j) => j === i ? { field: e.target.value, operator: nf?.operators[0] ?? 'eq', value: '' } : x)) }}>
             <option value="">— campo —</option>{meta.catalog.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
-          <select className={`${fieldCls}`} style={inputStyle} value={c.operator} onChange={e => setConds(cs => cs.map((x, j) => j === i ? { ...x, operator: e.target.value } : x))}>
+          <select className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={c.operator} onChange={e => setConds(cs => cs.map((x, j) => j === i ? { ...x, operator: e.target.value } : x))}>
             {(fld?.operators ?? Object.keys(meta.operators)).map(k => <option key={k} value={k}>{meta.operators[k]}</option>)}
           </select>
           <CondValue fld={fld} opts={fld?.source ? sourceOf(meta, fld.source) : null} value={c.value} onChange={v => setConds(cs => cs.map((x, j) => j === i ? { ...x, value: v } : x))} />
@@ -298,14 +298,14 @@ function CondGroup({ title, hint, meta, conds, setConds }: { title: string; hint
 }
 
 function CondValue({ fld, opts, value, onChange }: { fld?: CatalogField; opts: Opt[] | null; value: unknown; onChange: (v: unknown) => void }) {
-  if (!fld) return <input className={`${fieldCls} flex-1`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value)} placeholder="valor" />
+  if (!fld) return <input className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value)} placeholder="valor" />
   if (fld.type === 'bool') return <span className="text-[11px] flex-1" style={{ color: 'var(--text-light)' }}>(definido pelo operador sim/não)</span>
-  if (fld.type === 'number') return <input type="number" className={`${fieldCls} flex-1`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))} placeholder="número" />
-  if (fld.type === 'text') return <input className={`${fieldCls} flex-1`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value)} placeholder="texto" />
+  if (fld.type === 'number') return <input type="number" className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value === '' ? '' : Number(e.target.value))} placeholder="número" />
+  if (fld.type === 'text') return <input className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value)} placeholder="texto" />
   // enum (string id) | select (numeric id)
   const numeric = fld.type === 'select'
   return (
-    <select className={`${fieldCls} flex-1`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value === '' ? '' : (numeric ? Number(e.target.value) : e.target.value))}>
+    <select className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(value ?? '')} onChange={e => onChange(e.target.value === '' ? '' : (numeric ? Number(e.target.value) : e.target.value))}>
       <option value="">—</option>
       {(opts ?? []).map(o => <option key={String(o.id)} value={String(o.id)}>{o.name ?? o.label}</option>)}
     </select>
@@ -415,13 +415,13 @@ function ActionParams({ action, meta, onChange }: { action: Action; meta: Meta; 
       <select className={`${fieldCls}`} style={inputStyle} value={String(p.field ?? '')} onChange={e => set('field', e.target.value)}>
         <option value="">— campo —</option><option value="team_id">Equipe</option><option value="category_id">Categoria</option><option value="priority">Urgência</option><option value="level">Nível</option>
       </select>
-      <input className={`${fieldCls} flex-1`} style={inputStyle} value={String(p.value ?? '')} onChange={e => set('value', e.target.value)} placeholder="valor (ID ou baixa/media/alta/urgente)" />
+      <input className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(p.value ?? '')} onChange={e => set('value', e.target.value)} placeholder="valor (ID ou baixa/media/alta/urgente)" />
     </div>
   )
   if (action.type === 'add_tag' || action.type === 'remove_tag') return <SelectOpt opts={meta.tags} value={p.tag_id} onChange={v => set('tag_id', v)} label="tag" />
   if (action.type === 'assign') return (
     <div className="flex items-center gap-1.5">
-      <input className={`${fieldCls} flex-1`} style={inputStyle} value={String(p.assignee_id ?? '')} onChange={e => set('assignee_id', e.target.value ? Number(e.target.value) : '')} placeholder="ID do responsável (opcional)" />
+      <input className={`${fieldCls} flex-1 min-w-0`} style={inputStyle} value={String(p.assignee_id ?? '')} onChange={e => set('assignee_id', e.target.value ? Number(e.target.value) : '')} placeholder="ID do responsável (opcional)" />
       <SelectOpt opts={meta.teams} value={p.team_id} onChange={v => set('team_id', v)} label="equipe" />
     </div>
   )
