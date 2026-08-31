@@ -47,7 +47,8 @@ import {
 } from '@/app/operacoes-protheus/_components/shared'
 import { STATUS_META as SRC_STATUS_META, inputToPt, toInputVal, addDays } from './shared'
 import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
-import { fetchRpoCompanyOverview, type RpoCompanyOverview, type RpoInvStatus } from '@/lib/prosight/environments'
+import { fetchRpoCompanyOverview, type RpoCompanyOverview } from '@/lib/prosight/environments'
+import { RpoDashboardIndicators } from './rpo-dashboard'
 
 // Rótulos curtos por tipo de ambiente.
 const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
@@ -727,12 +728,6 @@ function LicenciamentoBlock({ state, data }: { state: BlockState; data: Licensin
 }
 
 // ── Inventário RPO REAL da empresa (conexão de verdade; independe do modo fixture) ──
-const RPO_OV_COLOR: Record<RpoInvStatus, string> = {
-  sincronizado: '#22c55e', recompilar: '#f59e0b', verificar_rpo: '#a855f7', nao_compilado: '#06b6d4', so_rpo: '#ef4444',
-}
-const RPO_OV_LABEL: Record<RpoInvStatus, string> = {
-  sincronizado: 'Sincronizado', recompilar: 'Recompilar', verificar_rpo: 'Verificar RPO', nao_compilado: 'Não compilado', so_rpo: 'Só no RPO',
-}
 function RpoOverviewBlock({ companyId }: { companyId: number }) {
   // Remonta por empresa (key={companyId}) → loading nasce true; o effect só busca (setState async).
   const [ov, setOv] = useState<RpoCompanyOverview | null>(null)
@@ -747,7 +742,6 @@ function RpoOverviewBlock({ companyId }: { companyId: number }) {
   if (!ov || ov.configured_count === 0) return null   // empresa sem RPO → não altera nada
 
   const roll = ov.rollup
-  const healthCol = roll ? (roll.health_pct >= 80 ? '#22c55e' : roll.health_pct >= 60 ? '#3b82f6' : roll.health_pct >= 30 ? '#f59e0b' : '#ef4444') : 'var(--text-muted)'
   return (
     <Card className="mb-5">
       <div className="flex flex-col gap-3">
@@ -760,17 +754,7 @@ function RpoOverviewBlock({ companyId }: { companyId: number }) {
         </div>
 
         {roll ? (
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="text-3xl font-bold" style={{ color: healthCol }}>{roll.health_pct}%<span className="text-xs font-normal ml-1" style={{ color: 'var(--text-light)' }}>saúde</span></div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {(Object.keys(RPO_OV_LABEL) as RpoInvStatus[]).map((k) => (
-                <span key={k} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: RPO_OV_COLOR[k] }} /> {RPO_OV_LABEL[k]} <b>{roll.counts[k] ?? 0}</b>
-                </span>
-              ))}
-              <span className="inline-flex items-center rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{roll.total} programas</span>
-            </div>
-          </div>
+          <RpoDashboardIndicators summary={roll} />
         ) : (
           <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
             RPO configurado em {ov.configured_count} ambiente(s). Gere o inventário na Configuração para ver a saúde.
