@@ -81,6 +81,14 @@ export function EnvHubSection({ environmentId, customerId }: { environmentId: nu
     finally { setBusy(false) }
   }
 
+  // Registra o cadastral a partir do DETECTADO e já vincula (1 clique) — quando não há cadastral de mesmo nome.
+  const registerAndBind = async (name: string, ref: string) => {
+    setBusy(true)
+    try { await api.post(`/prosight/environments/${environmentId}/appservers/register-and-bind`, { name, appserver_ref: ref }); toast.success(`AppServer ${name} registrado e vinculado.`); void load() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao registrar/vincular.'); void load() }
+    finally { setBusy(false) }
+  }
+
   if (loading) return <Skeleton className="h-40 rounded-xl" />
   if (!st) return null
   const rd = READINESS[st.readiness] ?? READINESS.setup_required
@@ -167,9 +175,12 @@ export function EnvHubSection({ environmentId, customerId }: { environmentId: nu
             {observedUnbound.map((o) => (
               <div key={`o${o.appserver_ref}`} className="flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 mb-1" style={{ background: 'var(--surface)', border: '1px dashed var(--border)' }}>
                 <span className="text-sm"><b>{o.name}</b> · {o.appserver_ref?.slice(0, 8)} <Badge variant={o.observed_up ? 'success' : 'default'}>{o.observed_up ? 'online' : 'offline'}</Badge></span>
-                {canBind && o.suggestion?.env_appserver_id && (
+                {canBind && (o.suggestion?.env_appserver_id ? (
                   <Button size="sm" variant="secondary" icon={Link2} loading={busy} onClick={() => void bind(o.suggestion!.env_appserver_id!, o.appserver_ref!)}>Vincular a {o.suggestion.name}</Button>
-                )}
+                ) : (
+                  // Sem cadastral de mesmo nome → registra o cadastral a partir do detectado e já vincula.
+                  <Button size="sm" variant="secondary" icon={Link2} loading={busy} onClick={() => void registerAndBind(o.name ?? o.appserver_ref!.slice(0, 8), o.appserver_ref!)}>Registrar e vincular</Button>
+                ))}
               </div>
             ))}
           </div>
