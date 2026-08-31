@@ -154,7 +154,7 @@ export function VisaoGeralExecutivaView({
       )}
 
       {/* Inventário RPO REAL da empresa (independe do modo fixture — é conexão de verdade). */}
-      {companyId != null && <RpoOverviewBlock companyId={companyId} />}
+      {companyId != null && <RpoOverviewBlock key={companyId} companyId={companyId} />}
 
       {!dataAllowed ? (
         <ProsightNotConnected companyName={prosightCtx?.companyName ?? null} />
@@ -734,11 +734,11 @@ const RPO_OV_LABEL: Record<RpoInvStatus, string> = {
   sincronizado: 'Sincronizado', recompilar: 'Recompilar', verificar_rpo: 'Verificar RPO', nao_compilado: 'Não compilado', so_rpo: 'Só no RPO',
 }
 function RpoOverviewBlock({ companyId }: { companyId: number }) {
+  // Remonta por empresa (key={companyId}) → loading nasce true; o effect só busca (setState async).
   const [ov, setOv] = useState<RpoCompanyOverview | null>(null)
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let alive = true
-    setLoading(true)
     fetchRpoCompanyOverview(companyId).then((d) => { if (alive) { setOv(d); setLoading(false) } }).catch(() => { if (alive) { setOv(null); setLoading(false) } })
     return () => { alive = false }
   }, [companyId])
