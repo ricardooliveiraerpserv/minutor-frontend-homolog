@@ -828,7 +828,12 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
-                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
+                  🔗 {(() => {
+                    const codes = (card.linked_children ?? []).map(c => c.code).filter(Boolean)
+                    const n = card.linked_children!.length
+                    if (codes.length === 0) return `${n} ${n > 1 ? 'itens' : 'item'} vinculado${n > 1 ? 's' : ''}`
+                    return codes.length === 1 ? `item ${codes[0]}` : `${n} itens: ${codes.join(', ')}`
+                  })()}
                 </span>
               )}
               {card.gerou_aporte && (
@@ -1049,7 +1054,12 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
-                  🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
+                  🔗 {(() => {
+                    const codes = (card.linked_children ?? []).map(c => c.code).filter(Boolean)
+                    const n = card.linked_children!.length
+                    if (codes.length === 0) return `${n} ${n > 1 ? 'itens' : 'item'} vinculado${n > 1 ? 's' : ''}`
+                    return codes.length === 1 ? `item ${codes[0]}` : `${n} itens: ${codes.join(', ')}`
+                  })()}
                 </span>
               )}
               {/* SaaS: valor do projeto na capa (SaaS é só valor, sem horas). */}
