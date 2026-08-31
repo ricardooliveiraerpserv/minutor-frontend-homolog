@@ -21,6 +21,7 @@ import type {
   ChangeEntry, PromoteDestinations, SourcesInventory, SystemInfo,
 } from '@/lib/operacoes/types'
 import { useOperacoes } from './operacoes-context'
+import { ProsightNotConnected } from '@/app/prosight/_components/company-context'
 import { useOperations } from './operations'
 import { ChangeHistoryTable, SectionHead } from './sections'
 import { fmtDateTime } from './shared'
@@ -66,6 +67,10 @@ export function RpoView({ previewEnvironmentId = null, demoAdmin = false }: { pr
   const ops = useOperations(environmentId, () => { void load() })
 
   const pending = (inv?.summary.disco_mais_novo ?? 0) + (inv?.summary.apenas_disco ?? 0)
+
+  if (ctx && !ctx.demoAllowed) {
+    return <ProsightNotConnected companyName={ctx.companyName} />
+  }
 
   return (
     <>

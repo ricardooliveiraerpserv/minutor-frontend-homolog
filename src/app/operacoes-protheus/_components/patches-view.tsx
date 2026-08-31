@@ -15,6 +15,7 @@ import { Badge, Button, Card, EmptyState, Modal, Skeleton, Table, Tbody, Td, Th,
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useOperacoes } from './operacoes-context'
+import { ProsightNotConnected } from '@/app/prosight/_components/company-context'
 import { SectionHead } from './sections'
 
 interface Avail { simulated: { available: boolean; reason: string | null }; live: { available: boolean; reason: string | null } }
@@ -83,6 +84,10 @@ export function PatchesView({ previewEnvironmentId = null }: { previewEnvironmen
 
   const dispatch = (rq: Req) => act(() => api.post(`/prosight/patch/requests/${rq.id}/execute`, {}), 'Execução despachada (aguardando conector).')
   const doHandoff = (c: Cand) => act(async () => { await api.post(`/prosight/patch/candidates/${c.id}/handoff`, {}); setHandoffFor(null) }, 'Artefato registrado no C5.')
+
+  if (ctx && !ctx.demoAllowed) {
+    return <ProsightNotConnected companyName={ctx.companyName} />
+  }
 
   if (!environmentId) {
     return <Card><EmptyState icon={Package} title="Selecione um ambiente" description="A produção de patches é por ambiente. Escolha empresa e ambiente para começar." /></Card>

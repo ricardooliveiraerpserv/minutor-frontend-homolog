@@ -18,6 +18,7 @@ import { getOperacoesDataSource, operacoesDataMode } from '@/lib/operacoes/datas
 import { canOperacoes } from '@/lib/operacoes/permissions'
 import type { BuildSources, ChangeEntry, ExclusiveState, ServiceRow } from '@/lib/operacoes/types'
 import { useOperacoes } from './operacoes-context'
+import { ProsightNotConnected } from '@/app/prosight/_components/company-context'
 import { useOperations } from './operations'
 import { ChangeHistoryTable, SectionHead } from './sections'
 import { fmtDateTime } from './shared'
@@ -73,6 +74,10 @@ export function CompilacaoView({ previewEnvironmentId = null, demoAdmin = false 
     if (next.has(f)) next.delete(f); else next.add(f)
     return next
   })
+
+  if (ctx && !ctx.demoAllowed) {
+    return <ProsightNotConnected companyName={ctx.companyName} />
+  }
 
   return (
     <>

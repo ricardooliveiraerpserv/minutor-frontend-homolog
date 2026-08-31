@@ -15,6 +15,7 @@ import { Building2, Layers } from 'lucide-react'
 import { getOperacoesDataSource } from '@/lib/operacoes/datasource'
 import { COMPANY_JNG } from '@/lib/operacoes/fixtures'
 import type { OperacoesEnvironment } from '@/lib/operacoes/types'
+import { useProsightCompany, isProsightDemoCompany } from '@/app/prosight/_components/company-context'
 
 interface Ctx {
   companyId: string
@@ -23,6 +24,8 @@ interface Ctx {
   environmentLabel: string | null
   environments: OperacoesEnvironment[]
   setEnvironmentId: (id: string) => void
+  /** Demonstração (fixtures) só na empresa demo (ERPSERV). Fora dela: 'não conectado'. */
+  demoAllowed: boolean
 }
 
 const OperacoesContext = createContext<Ctx | null>(null)
@@ -39,22 +42,32 @@ function urlEnvironmentId(): string | null {
 
 export function OperacoesProvider({ children, forcedEnvironmentId }: { children: ReactNode; forcedEnvironmentId?: string | null }) {
   const ds = getOperacoesDataSource()
+  const prosight = useProsightCompany()
+  // Empresa do SELETOR GLOBAL (não mais o eixo fixo 'JNG'). No harness (forcedEnvironmentId) mantém demo.
+  const companyName = prosight?.companyName ?? (forcedEnvironmentId ? COMPANY_JNG.name : null)
+  const demoAllowed = !!forcedEnvironmentId || isProsightDemoCompany(companyName)
   const [environments, setEnvironments] = useState<OperacoesEnvironment[]>([])
   const [environmentId, setEnvironmentId] = useState<string | null>(forcedEnvironmentId ?? null)
 
   useEffect(() => {
     let cancelled = false
+    // Fixtures SÓ na empresa demo (ERPSERV). Fora dela: não busca (os valores expostos ficam vazios).
+    if (! demoAllowed) {
+      return
+    }
     void ds.getEnvironments(COMPANY_JNG.id).then((list) => {
       if (cancelled) return
       setEnvironments(list)
-      // Deep-link ?env= (vindo p.ex. da Visão Geral do Prosight) tem prioridade
-      // sobre o default list[0]; nunca sobrescreve uma escolha já feita (cur).
       const linked = urlEnvironmentId()
       const linkedValid = linked && list.some((e) => e.id === linked) ? linked : null
       setEnvironmentId((cur) => cur ?? forcedEnvironmentId ?? linkedValid ?? list[0]?.id ?? null)
     })
     return () => { cancelled = true }
-  }, [ds, forcedEnvironmentId])
+  }, [ds, forcedEnvironmentId, demoAllowed])
+
+  // Fora da empresa demo, expõe vazio (sem fixture) — sem resetar estado no effect (evita cascata).
+  const shownEnvironments = demoAllowed ? environments : []
+  const shownEnvironmentId = demoAllowed ? environmentId : null
 
   // Harness dev-only: permite forçar o ambiente por prop (screenshots).
   useEffect(() => {
@@ -62,19 +75,20 @@ export function OperacoesProvider({ children, forcedEnvironmentId }: { children:
   }, [forcedEnvironmentId])
 
   const environmentLabel = useMemo(
-    () => environments.find((e) => e.id === environmentId)?.label ?? null,
-    [environments, environmentId],
+    () => shownEnvironments.find((e) => e.id === shownEnvironmentId)?.label ?? null,
+    [shownEnvironments, shownEnvironmentId],
   )
 
   return (
     <OperacoesContext.Provider
       value={{
-        companyId: COMPANY_JNG.id,
-        companyName: COMPANY_JNG.name,
-        environmentId,
+        companyId: prosight?.companyId != null ? String(prosight.companyId) : COMPANY_JNG.id,
+        companyName: companyName ?? 'Selecione uma empresa',
+        environmentId: shownEnvironmentId,
         environmentLabel,
-        environments,
+        environments: shownEnvironments,
         setEnvironmentId,
+        demoAllowed,
       }}
     >
       {children}
@@ -98,20 +112,22 @@ export function OperacoesEnvSelector() {
         <span>Empresa:</span>
         <b style={{ color: 'var(--text)' }}>{ctx.companyName}</b>
       </div>
-      <label className="flex items-center gap-2">
-        <Layers size={15} style={{ color: 'var(--text-light)' }} />
-        <span className="sr-only">Ambiente</span>
-        <select
-          value={ctx.environmentId ?? ''}
-          onChange={(e) => ctx.setEnvironmentId(e.target.value)}
-          className="rounded-xl px-3 py-1.5 text-sm outline-none"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-        >
-          {ctx.environments.map((e) => (
-            <option key={e.id} value={e.id}>{e.label}</option>
-          ))}
-        </select>
-      </label>
+      {ctx.environments.length > 0 && (
+        <label className="flex items-center gap-2">
+          <Layers size={15} style={{ color: 'var(--text-light)' }} />
+          <span className="sr-only">Ambiente</span>
+          <select
+            value={ctx.environmentId ?? ''}
+            onChange={(e) => ctx.setEnvironmentId(e.target.value)}
+            className="rounded-xl px-3 py-1.5 text-sm outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          >
+            {ctx.environments.map((e) => (
+              <option key={e.id} value={e.id}>{e.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   )
 }

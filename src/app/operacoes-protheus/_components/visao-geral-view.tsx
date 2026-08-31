@@ -22,6 +22,7 @@ import { getOperacoesDataSource, operacoesDataMode } from '@/lib/operacoes/datas
 import { canOperacoes } from '@/lib/operacoes/permissions'
 import type { ExclusiveState, FolderStatus, ServiceRow, SystemInfo } from '@/lib/operacoes/types'
 import { useOperacoes } from './operacoes-context'
+import { ProsightNotConnected } from '@/app/prosight/_components/company-context'
 import { useOperations } from './operations'
 import {
   AppServersCard, ConsoleViewer, FolderMonitorCard, HealthStatCards, InfoCard,
@@ -97,6 +98,10 @@ export function VisaoGeralView({ previewEnvironmentId = null, demoAdmin = false,
   const notConfigured = !loading && !error && info != null && info.valid === false
   const health = computeHealth(services)
   const canBuild = (exclusive?.active ?? false) || debugActive
+
+  if (ctx && !ctx.demoAllowed) {
+    return <ProsightNotConnected companyName={ctx.companyName} />
+  }
 
   return (
     <>
