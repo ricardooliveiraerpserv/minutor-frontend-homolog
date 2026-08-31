@@ -17,6 +17,7 @@ interface TargetRow { target_project_id: number | ''; projeto?: string; cliente?
 export default function RateioHorasPage() {
   const [projects, setProjects] = useState<RateioProject[]>([])
   const [allProjects, setAllProjects] = useState<ProjOpt[]>([])
+  const [customers, setCustomers] = useState<Record<number, string>>({})
   const [selId, setSelId] = useState<number | null>(null)
   const [rows, setRows] = useState<TargetRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +36,9 @@ export default function RateioHorasPage() {
   useEffect(() => {
     api.get<{ items: ProjOpt[] }>('/projects?minimal=1&status=open&pageSize=2000')
       .then(r => setAllProjects((r.items ?? []).filter(p => p.id && p.name)))
+      .catch(() => {})
+    api.get<{ data?: { id: number; name: string }[] }>('/customers?pageSize=1000')
+      .then(r => { const list = (r as any).data ?? (r as any).items ?? []; const m: Record<number, string> = {}; list.forEach((c: any) => { if (c.id) m[c.id] = c.name }); setCustomers(m) })
       .catch(() => {})
   }, [])
 
@@ -83,7 +87,7 @@ export default function RateioHorasPage() {
     finally { setSaving(false) }
   }
 
-  const projOptions = allProjects.map(p => ({ id: p.id, name: `${p.code ? p.code + ' · ' : ''}${p.name}` }))
+  const projOptions = allProjects.map(p => { const cli = p.customer_id ? customers[p.customer_id] : undefined; return ({ id: p.id, name: `${cli ? cli + ' · ' : ''}${p.code ? p.code + ' · ' : ''}${p.name}` }) })
   const notRateioOptions = projOptions.filter(o => !projects.some(p => p.id === o.id))
 
   return (
