@@ -15,8 +15,8 @@
 // do Prosight e da Central de Fontes (que são árvores de layout distintas).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Building2, ServerCog } from 'lucide-react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Building2, ServerCog, ChevronDown, Search, Check } from 'lucide-react'
 import { Card, EmptyState } from '@/components/ds'
 import { api } from '@/lib/api'
 
@@ -95,24 +95,66 @@ export function ProsightNotConnected({ companyName }: { companyName?: string | n
 }
 
 /** Seletor GLOBAL de empresa — vive na casca do Prosight (ao lado das abas). */
+/** Seletor de empresa com BUSCA por texto (combobox) — a lista de clientes é grande. */
 export function ProsightCompanySelect() {
   const ctx = useProsightCompany()
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const boxRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    setTimeout(() => inputRef.current?.focus(), 0)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
   if (!ctx || ctx.companies.length === 0) return null
+  const current = ctx.companyId != null ? (ctx.companies.find((c) => c.id === ctx.companyId)?.name ?? '—') : 'Todas as empresas'
+  const q = query.trim().toLowerCase()
+  const filtered = q ? ctx.companies.filter((c) => c.name.toLowerCase().includes(q)) : ctx.companies
+
+  const pick = (id: number | null) => { ctx.setCompanyId(id); setOpen(false); setQuery('') }
+
   return (
-    <label className="flex items-center gap-2">
-      <Building2 size={15} style={{ color: 'var(--text-muted)' }} />
-      <span className="sr-only">Empresa</span>
-      <select
-        value={ctx.companyId ?? ''}
-        onChange={(e) => ctx.setCompanyId(e.target.value ? Number(e.target.value) : null)}
-        className="rounded-xl px-3 py-1.5 text-sm outline-none"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-      >
-        <option value="">Todas as empresas</option>
-        {ctx.companies.map((c) => (
-          <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-      </select>
-    </label>
+    <div className="relative" ref={boxRef}>
+      <button type="button" onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+        <Building2 size={15} style={{ color: 'var(--text-muted)' }} />
+        <span className="max-w-[220px] truncate">{current}</span>
+        <ChevronDown size={15} style={{ color: 'var(--text-light)' }} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-72 rounded-xl overflow-hidden shadow-lg"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <Search size={14} style={{ color: 'var(--text-light)' }} />
+            <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar empresa…"
+              className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text)' }} />
+          </div>
+          <div className="overflow-auto" style={{ maxHeight: 320 }}>
+            <button type="button" onClick={() => pick(null)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left" style={{ color: 'var(--text-muted)' }}>
+              <span className="w-4">{ctx.companyId == null && <Check size={14} style={{ color: 'var(--primary)' }} />}</span>
+              Todas as empresas
+            </button>
+            {filtered.map((c) => (
+              <button key={c.id} type="button" onClick={() => pick(c.id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-left ds-row-hover"
+                style={{ color: 'var(--text)', background: c.id === ctx.companyId ? 'var(--surface-hover)' : 'transparent' }}>
+                <span className="w-4">{c.id === ctx.companyId && <Check size={14} style={{ color: 'var(--primary)' }} />}</span>
+                <span className="truncate">{c.name}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="px-3 py-4 text-center text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma empresa encontrada.</div>}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
