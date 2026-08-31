@@ -8,15 +8,25 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
-import { Plus, Trash2, Split, Save, Server, X } from 'lucide-react'
+import { Plus, Trash2, Split, Save, Server, X, UserPlus, Users } from 'lucide-react'
 
-interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; targets_count: number }
+interface TeamMember { id: number; name: string }
+interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; targets_count: number; consultants?: TeamMember[]; coordinator?: TeamMember | null }
 interface ProjOpt { id: number; name: string; code?: string | null; customer_id?: number | null }
 interface TargetRow { target_project_id: number | ''; projeto?: string; cliente?: string; percentual: number }
 
 export default function RateioHorasPage() {
   const [projects, setProjects] = useState<RateioProject[]>([])
   const [allProjects, setAllProjects] = useState<ProjOpt[]>([])
+  // Destinos do rateio: só projetos com contrato tipo CLOUD (regra de negócio).
+  const [destProjects, setDestProjects] = useState<ProjOpt[]>([])
+  // Alocação de equipe do servidor de rateio (consultores apontam + coordenador aprova).
+  const [allocFor, setAllocFor] = useState<RateioProject | null>(null)
+  const [consultantOpts, setConsultantOpts] = useState<TeamMember[]>([])
+  const [coordOpts, setCoordOpts] = useState<TeamMember[]>([])
+  const [pickedConsultants, setPickedConsultants] = useState<number[]>([])
+  const [pickedCoord, setPickedCoord] = useState<string>('')
+  const [savingTeam, setSavingTeam] = useState(false)
   const [customers, setCustomers] = useState<Record<number, string>>({})
   const [selId, setSelId] = useState<number | null>(null)
   const [rows, setRows] = useState<TargetRow[]>([])
@@ -37,9 +47,17 @@ export default function RateioHorasPage() {
     api.get<{ items: ProjOpt[] }>('/projects?minimal=1&status=open&pageSize=2000')
       .then(r => setAllProjects((r.items ?? []).filter(p => p.id && p.name)))
       .catch(() => {})
+    // Destinos = só contratos tipo Cloud.
+    api.get<{ items: ProjOpt[] }>('/projects?minimal=1&status=open&contract_type_code=cloud&pageSize=2000')
+      .then(r => setDestProjects((r.items ?? []).filter(p => p.id && p.name)))
+      .catch(() => {})
     api.get<{ data?: { id: number; name: string }[] }>('/customers?pageSize=1000')
       .then(r => { const list = (r as any).data ?? (r as any).items ?? []; const m: Record<number, string> = {}; list.forEach((c: any) => { if (c.id) m[c.id] = c.name }); setCustomers(m) })
       .catch(() => {})
+    // Consultores que podem apontar + coordenadores que podem aprovar.
+    const asList = (r: any): TeamMember[] => ((r?.data ?? r?.items ?? r ?? []) as any[]).filter(u => u?.id).map(u => ({ id: u.id, name: u.name }))
+    api.get<any>('/users?type=consultor,parceiro_admin&pageSize=500').then(r => setConsultantOpts(asList(r))).catch(() => {})
+    api.get<any>('/users?type=coordenador&pageSize=500').then(r => setCoordOpts(asList(r))).catch(() => {})
   }, [])
 
   const loadTargets = useCallback((id: number) => {
@@ -98,8 +116,28 @@ export default function RateioHorasPage() {
     finally { setSaving(false) }
   }
 
-  const projOptions = allProjects.map(p => { const cli = p.customer_id ? customers[p.customer_id] : undefined; return ({ id: p.id, name: `${cli ? cli + ' · ' : ''}${p.code ? p.code + ' · ' : ''}${p.name}` }) })
-  const notRateioOptions = projOptions.filter(o => !projects.some(p => p.id === o.id))
+  const openAlloc = (p: RateioProject) => {
+    setAllocFor(p)
+    setPickedConsultants((p.consultants ?? []).map(c => c.id))
+    setPickedCoord(p.coordinator ? String(p.coordinator.id) : '')
+  }
+  const saveTeam = async () => {
+    if (!allocFor) return
+    setSavingTeam(true)
+    try {
+      await api.put(`/rateio-hours/projects/${allocFor.id}/team`, { consultant_ids: pickedConsultants, coordinator_id: pickedCoord ? Number(pickedCoord) : null })
+      toast.success('Equipe alocada.')
+      setAllocFor(null)
+      loadProjects()
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao alocar equipe')) }
+    finally { setSavingTeam(false) }
+  }
+
+  const labelOf = (p: ProjOpt) => { const cli = p.customer_id ? customers[p.customer_id] : undefined; return `${cli ? cli + ' · ' : ''}${p.code ? p.code + ' · ' : ''}${p.name}` }
+  // Seletor "tornar de rateio" = qualquer projeto (o servidor pode ser On Demand etc.).
+  const notRateioOptions = allProjects.map(p => ({ id: p.id, name: labelOf(p) })).filter(o => !projects.some(p => p.id === o.id))
+  // Seletor de DESTINO = só Cloud.
+  const destOptions = destProjects.map(p => ({ id: p.id, name: labelOf(p) }))
 
   return (
     <AppLayout title="Rateio de Horas">
@@ -120,6 +158,9 @@ export default function RateioHorasPage() {
                   style={selId === p.id ? { background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' } : { borderColor: 'var(--border)', color: 'var(--text)' }}>
                   <button onClick={() => selectProject(p.id)} className="text-xs pl-3 pr-2 py-1.5">
                     {p.code ? p.code + ' · ' : ''}{p.name}{p.cliente ? ` (${p.cliente})` : ''} · {p.targets_count} destino{p.targets_count !== 1 ? 's' : ''}
+                  </button>
+                  <button onClick={() => openAlloc(p)} title="Alocar consultores + coordenador (apontar/aprovar)" className="px-1.5 py-1.5 hover:opacity-70 inline-flex items-center gap-0.5 border-l" style={{ borderColor: selId === p.id ? 'rgba(255,255,255,0.35)' : 'var(--border)' }}>
+                    <UserPlus size={12} />{(p.consultants?.length ?? 0) > 0 ? <span className="text-[10px] font-semibold">{p.consultants!.length}</span> : null}
                   </button>
                   <button onClick={() => unmark(p)} title="Deixar de ser projeto de rateio" className="pr-2 pl-0.5 py-1.5 hover:opacity-70"><X size={12} /></button>
                 </span>
@@ -145,7 +186,7 @@ export default function RateioHorasPage() {
               <div className="space-y-2">
                 {rows.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = allProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={projOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino…" /></div>
+                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={destOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino (Cloud)…" /></div>
                     <input type="number" min={0} max={100} step="0.01" value={row.percentual} onChange={e => setRow(i, { percentual: Number(e.target.value) })}
                       className="w-24 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
@@ -161,6 +202,39 @@ export default function RateioHorasPage() {
           </div>
         )}
       </div>
+
+      {/* Alocar equipe do servidor de rateio: consultores apontam + 1 coordenador aprova. */}
+      {allocFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setAllocFor(null)}>
+          <div className="ds-card w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}><Users size={14} className="inline mr-1" /> Alocar equipe</p>
+              <button onClick={() => setAllocFor(null)} className="hover:opacity-70"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{allocFor.code ? allocFor.code + ' · ' : ''}{allocFor.name}. Os consultores poderão <b>apontar</b> horas neste projeto; o coordenador <b>aprova</b>.</p>
+
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Consultores (apontam)</p>
+            <SearchSelect value="" onChange={v => { const id = Number(v); if (id && !pickedConsultants.includes(id)) setPickedConsultants(c => [...c, id]) }}
+              options={consultantOpts.filter(o => !pickedConsultants.includes(o.id))} placeholder="Adicionar consultor…" />
+            <div className="flex flex-wrap gap-1.5 mt-2 mb-4">
+              {pickedConsultants.length === 0 && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum consultor.</span>}
+              {pickedConsultants.map(id => { const c = consultantOpts.find(o => o.id === id); return (
+                <span key={id} className="inline-flex items-center gap-1 text-xs rounded-lg border px-2 py-1" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
+                  {c?.name ?? `#${id}`}<button onClick={() => setPickedConsultants(cs => cs.filter(x => x !== id))} className="hover:opacity-70"><X size={11} /></button>
+                </span>
+              ) })}
+            </div>
+
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Coordenador (aprova)</p>
+            <SearchSelect value={pickedCoord} onChange={setPickedCoord} options={coordOpts.map(o => ({ id: o.id, name: o.name }))} placeholder="Escolher coordenador…" />
+
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button onClick={() => setAllocFor(null)} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Cancelar</button>
+              <button onClick={saveTeam} disabled={savingTeam} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-2 disabled:opacity-60"><Save size={13} /> {savingTeam ? 'Salvando…' : 'Salvar equipe'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
