@@ -16,7 +16,7 @@ interface RateioProject { id: number; name: string; code: string | null; cliente
 interface ProjOpt { id: number; name: string; code?: string | null; customer_id?: number | null }
 interface TargetRow { target_project_id: number | ''; projeto?: string; percentual: number }
 interface PlanRow { id?: number; data_inicio: string; data_fim: string; semFim: boolean; targets: TargetRow[] }
-interface Aponta { id: number; date: string; consultor: string | null; effort_minutes: number; status: string; splits: { target_project_id: number; projeto: string | null; projeto_codigo: string | null; minutes: number }[] }
+interface Aponta { id: number; date: string; consultor: string | null; effort_minutes: number; status: string; overridden?: boolean; splits: { target_project_id: number; projeto: string | null; projeto_codigo: string | null; minutes: number }[] }
 interface OverrideRow { target_project_id: number | ''; projeto?: string; minutes: number }
 
 const fmtDate = (d?: string | null) => d ? d.split('-').reverse().join('/') : null
@@ -120,6 +120,28 @@ export default function RateioHorasPage() {
   const addTarget = (pi: number) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: [...pl.targets, { target_project_id: '', percentual: 0 }] } : pl))
   const removeTarget = (pi: number, ti: number) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: pl.targets.filter((_, j) => j !== ti) } : pl))
   const setTarget = (pi: number, ti: number, patch: Partial<TargetRow>) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: pl.targets.map((t, j) => j === ti ? { ...t, ...patch } : t) } : pl))
+  // Ao editar o peso de um destino, redistribui o restante (100 - valor) entre os DEMAIS
+  // proporcionalmente aos pesos atuais deles (sobra no último), pra fechar sempre 100%.
+  const setTargetPct = (pi: number, ti: number, val: number) => setPlans(p => p.map((pl, i) => {
+    if (i !== pi) return pl
+    const v = Math.max(0, Math.min(100, isNaN(val) ? 0 : val))
+    const targets = pl.targets.map(t => ({ ...t }))
+    targets[ti].percentual = v
+    const others = targets.map((t, j) => ({ j, w: Number(t.percentual) || 0 })).filter(o => o.j !== ti)
+    if (others.length > 0) {
+      const remaining = Math.round((100 - v) * 100) / 100
+      const sumOthers = others.reduce((a, o) => a + o.w, 0)
+      let acc = 0
+      others.forEach((o, k) => {
+        const share = k === others.length - 1
+          ? Math.round((remaining - acc) * 100) / 100
+          : (sumOthers > 0 ? Math.round((o.w / sumOthers) * remaining * 100) / 100 : Math.round((remaining / others.length) * 100) / 100)
+        if (k !== others.length - 1) acc += share
+        targets[o.j].percentual = Math.max(0, share)
+      })
+    }
+    return { ...pl, targets }
+  }))
   const distribuirPlan = (pi: number) => setPlans(p => p.map((pl, i) => {
     if (i !== pi) return pl
     const n = pl.targets.length
@@ -173,6 +195,15 @@ export default function RateioHorasPage() {
       setOverrideFor(null); loadTimesheets(selId)
     } catch (e) { toast.error(apiMessage(e, 'Erro ao ajustar divisão')) }
     finally { setSavingOverride(false) }
+  }
+  const resetOverride = async (a: Aponta) => {
+    if (!selId) return
+    if (!confirm('Voltar a divisão automática (pelo período) deste apontamento? O ajuste manual será perdido.')) return
+    try {
+      await api.put(`/rateio-hours/projects/${selId}/timesheets/${a.id}/override`, { auto: true })
+      toast.success('Voltou ao automático')
+      loadTimesheets(selId)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao reverter')) }
   }
 
   const openAlloc = (p: RateioProject) => {
@@ -238,7 +269,7 @@ export default function RateioHorasPage() {
                 <button onClick={savePlans} disabled={saving} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {saving ? 'Salvando…' : 'Salvar'}</button>
               </div>
             </div>
-            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada empresa entra numa data. O apontamento cai no período da sua data e as horas são divididas entre os destinos daquele período (pesos normalizados p/ 100%). Datas dos períodos não podem se sobrepor.</p>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Cada empresa entra numa data. O apontamento cai no período da sua data e as horas são divididas entre os destinos daquele período (pesos normalizados p/ 100%). Datas dos períodos não podem se sobrepor. Ao <b>salvar</b>, os apontamentos já lançados são re-distribuídos pelos períodos — exceto os ajustados manualmente (✏).</p>
             {plans.length === 0 ? (
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum período. Adicione um período (início/fim) e os destinos Cloud que recebem as horas nessa faixa.</p>
             ) : (
@@ -278,7 +309,7 @@ export default function RateioHorasPage() {
                               <div key={ti} className="flex items-center gap-2">
                                 <div className="flex-1"><SearchSelect value={String(t.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setTarget(pi, ti, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
                                   options={destOptions.filter(o => o.id !== selId && (o.id === t.target_project_id || !pl.targets.some((tt, tj) => tj !== ti && Number(tt.target_project_id) === o.id)))} placeholder="Projeto de destino (Cloud)…" /></div>
-                                <input type="number" min={0} max={100} step="0.01" value={t.percentual} onChange={e => setTarget(pi, ti, { percentual: Number(e.target.value) })}
+                                <input type="number" min={0} max={100} step="0.01" value={t.percentual} onChange={e => setTargetPct(pi, ti, Number(e.target.value))}
                                   className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
                                 <span className="text-[11px] w-14 text-right" style={{ color: 'var(--text-muted)' }} title="% efetivo (normalizado)">→ {efetivo}%</span>
                                 <button onClick={() => removeTarget(pi, ti)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
@@ -313,9 +344,11 @@ export default function RateioHorasPage() {
                     <div className="w-40 text-xs shrink-0 truncate" style={{ color: 'var(--text-muted)' }}>{a.consultor ?? '—'}</div>
                     <div className="w-16 text-xs shrink-0 font-semibold" style={{ color: 'var(--text)' }}>{hh(a.effort_minutes)}</div>
                     <div className="flex-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {a.overridden && <span className="inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] font-semibold align-middle" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>✏ manual</span>}
                       {a.splits.length === 0 ? <span style={{ color: 'var(--warning)' }}>Sem divisão (sem período nesta data)</span>
                         : a.splits.map((s, i) => <span key={i} className="inline-block mr-2">{s.projeto_codigo ?? s.projeto}: <b style={{ color: 'var(--text)' }}>{hh(s.minutes)}</b></span>)}
                     </div>
+                    {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Auto</button>}
                     <button onClick={() => openOverride(a)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Pencil size={11} /> Ajustar</button>
                   </div>
                 ))}
