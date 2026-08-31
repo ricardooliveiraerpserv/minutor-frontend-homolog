@@ -215,3 +215,28 @@ export async function testRpoConfig(environmentId: number, input: RpoConfigInput
   const r = await api.post<{ data: { ok: boolean; message: string; status?: number; sample_count?: number } }>(`/prosight/environments/${environmentId}/rpo-config/test`, input)
   return r.data
 }
+
+// ── Inventário Git × RPO ──
+export type RpoInvStatus = 'sincronizado' | 'recompilar' | 'verificar_rpo' | 'nao_compilado' | 'so_rpo'
+export interface RpoInvRow {
+  program: string
+  disk_date: string | null
+  rpo_date: string | null
+  rpo_status: string | null
+  rpo_type: string | null
+  status: RpoInvStatus
+  is_rest_api: boolean
+}
+export interface RpoInvResult {
+  ok: boolean
+  error?: string
+  scanned_at?: string
+  git?: { owner: string; repository: string; branch: string; files: number }[]
+  rpo?: { url: string; count: number }
+  summary?: { counts: Record<RpoInvStatus, number>; total: number; health_pct: number; health_label: string; rest_api_count: number }
+  results?: RpoInvRow[]
+}
+export async function scanRpoInventory(environmentId: number): Promise<RpoInvResult> {
+  const r = await api.post<{ data: RpoInvResult }>(`/prosight/environments/${environmentId}/rpo-inventory/scan`, {})
+  return r.data
+}
