@@ -768,8 +768,8 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="min-w-0">
-              <p className="text-title break-normal">{card.customer_name}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-title truncate">{card.customer_name}</p>
               {card.project_name && (
                 <p className="kpi-sub break-normal">{card.project_name}</p>
               )}
@@ -779,21 +779,21 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 </p>
               )}
               {card.parent_contract_id && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
                   🔗 vínculo {card.parent_contract_code ?? ''}
                 </span>
               )}
               {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
                   🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
                 </span>
               )}
               {card.gerou_aporte && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
                   title="Subprojeto faturado — gerou um aporte automático no projeto pai">
                   Gerou aporte
@@ -1037,14 +1037,14 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 </p>
               )}
               {card.parent_contract_id && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Item vinculado ao contrato ${card.parent_contract_code ?? ''}`}>
                   🔗 vínculo {card.parent_contract_code ?? ''}
                 </span>
               )}
               {!card.parent_contract_id && (card.linked_children?.length ?? 0) > 0 && (
-                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                   style={{ background: `${LINK_COLOR}1f`, color: LINK_COLOR, border: `1px solid ${LINK_COLOR}59` }}
                   title={`Itens vinculados: ${(card.linked_children ?? []).map(c => c.code).filter(Boolean).join(', ')}`}>
                   🔗 {card.linked_children!.length} {card.linked_children!.length > 1 ? 'itens' : 'item'} vinculado{card.linked_children!.length > 1 ? 's' : ''}
