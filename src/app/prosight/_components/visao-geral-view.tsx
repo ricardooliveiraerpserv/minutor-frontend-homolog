@@ -47,6 +47,7 @@ import {
 } from '@/app/operacoes-protheus/_components/shared'
 import { STATUS_META as SRC_STATUS_META, inputToPt, toInputVal, addDays } from './shared'
 import { useProsightCompany, isProsightDemoCompany, ProsightNotConnected } from './company-context'
+import { fetchRpoCompanyOverview, type RpoCompanyOverview, type RpoInvStatus } from '@/lib/prosight/environments'
 
 // Rótulos curtos por tipo de ambiente.
 const KIND_LABEL: Record<OperacoesEnvironment['kind'], string> = {
@@ -151,6 +152,9 @@ export function VisaoGeralExecutivaView({
           Dados de demonstração (fixtures) — Prosight ainda não conectado à infraestrutura real.
         </div>
       )}
+
+      {/* Inventário RPO REAL da empresa (independe do modo fixture — é conexão de verdade). */}
+      {companyId != null && <RpoOverviewBlock companyId={companyId} />}
 
       {!dataAllowed ? (
         <ProsightNotConnected companyName={prosightCtx?.companyName ?? null} />
@@ -719,5 +723,69 @@ function LicenciamentoBlock({ state, data }: { state: BlockState; data: Licensin
         <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem dados de uso no período. Consulte o detalhe em Licenciamento.</div>
       )}
     </BlockShell>
+  )
+}
+
+// ── Inventário RPO REAL da empresa (conexão de verdade; independe do modo fixture) ──
+const RPO_OV_COLOR: Record<RpoInvStatus, string> = {
+  sincronizado: '#22c55e', recompilar: '#f59e0b', verificar_rpo: '#a855f7', nao_compilado: '#06b6d4', so_rpo: '#ef4444',
+}
+const RPO_OV_LABEL: Record<RpoInvStatus, string> = {
+  sincronizado: 'Sincronizado', recompilar: 'Recompilar', verificar_rpo: 'Verificar RPO', nao_compilado: 'Não compilado', so_rpo: 'Só no RPO',
+}
+function RpoOverviewBlock({ companyId }: { companyId: number }) {
+  const [ov, setOv] = useState<RpoCompanyOverview | null>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    fetchRpoCompanyOverview(companyId).then((d) => { if (alive) { setOv(d); setLoading(false) } }).catch(() => { if (alive) { setOv(null); setLoading(false) } })
+    return () => { alive = false }
+  }, [companyId])
+
+  if (loading) return <Skeleton className="h-24 rounded-2xl mb-5" />
+  if (!ov || ov.configured_count === 0) return null   // empresa sem RPO → não altera nada
+
+  const roll = ov.rollup
+  const healthCol = roll ? (roll.health_pct >= 80 ? '#22c55e' : roll.health_pct >= 60 ? '#3b82f6' : roll.health_pct >= 30 ? '#f59e0b' : '#ef4444') : 'var(--text-muted)'
+  return (
+    <Card className="mb-5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
+            <Server size={16} style={{ color: 'var(--primary)' }} /> Inventário RPO (REST AdvPL)
+            <Badge variant="success">Conectado</Badge>
+          </div>
+          <Link href="/prosight/configuracao"><Button size="sm" variant="ghost" icon={ScanSearch}>Abrir / gerar inventário</Button></Link>
+        </div>
+
+        {roll ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="text-3xl font-bold" style={{ color: healthCol }}>{roll.health_pct}%<span className="text-xs font-normal ml-1" style={{ color: 'var(--text-light)' }}>saúde</span></div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {(Object.keys(RPO_OV_LABEL) as RpoInvStatus[]).map((k) => (
+                <span key={k} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: RPO_OV_COLOR[k] }} /> {RPO_OV_LABEL[k]} <b>{roll.counts[k] ?? 0}</b>
+                </span>
+              ))}
+              <span className="inline-flex items-center rounded-full px-2.5 py-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{roll.total} programas</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            RPO configurado em {ov.configured_count} ambiente(s). Gere o inventário na Configuração para ver a saúde.
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {ov.environments.filter((e) => e.rpo_configured).map((e) => (
+            <span key={e.environment_id} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <b style={{ color: 'var(--text)' }}>{e.name}</b>
+              {e.summary ? <span style={{ color: 'var(--text-muted)' }}>· saúde {e.summary.health_pct}%</span> : <span style={{ color: 'var(--text-light)' }}>· sem scan</span>}
+            </span>
+          ))}
+        </div>
+      </div>
+    </Card>
   )
 }

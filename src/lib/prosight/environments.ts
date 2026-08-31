@@ -240,3 +240,15 @@ export async function scanRpoInventory(environmentId: number): Promise<RpoInvRes
   const r = await api.post<{ data: RpoInvResult }>(`/prosight/environments/${environmentId}/rpo-inventory/scan`, {})
   return r.data
 }
+
+export interface RpoCompanyOverview {
+  customer_id: number
+  environments: { environment_id: number; name: string; type: string; rpo_configured: boolean; last_scan_at: string | null; summary: { counts: Record<RpoInvStatus, number>; total: number; health_pct: number; health_label: string; rest_api_count: number } | null }[]
+  configured_count: number
+  scanned_count: number
+  rollup: { counts: Record<RpoInvStatus, number>; total: number; health_pct: number } | null
+}
+export async function fetchRpoCompanyOverview(customerId: number): Promise<RpoCompanyOverview> {
+  const r = await api.get<{ data: RpoCompanyOverview }>(`/prosight/companies/${customerId}/rpo-overview`)
+  return r.data
+}
