@@ -40,7 +40,7 @@ const fmtBR = (d: string) => { const [y, m, dd] = d.slice(0, 10).split('-'); ret
 const today = () => new Date().toISOString().slice(0, 10)
 const emptyForm = () => ({ user_id: '', date: today(), mode: 'time' as 'time' | 'total', start_time: '', end_time: '', total_hours: '', observation: '' })
 
-export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible, previstas = 0, showSummary = true, onChanged, onSummary }: {
+export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible, previstas = 0, showSummary = true, deliveryStatus, onChanged, onSummary }: {
   projectId: number
   stageId?: number | null
   deliveryId: number
@@ -50,6 +50,8 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   previstas?: number
   /** Mostra o resumo Disponível/Apontadas/Saldo aqui (quando já está no cabeçalho, false). */
   showSummary?: boolean
+  /** Status da atividade — usado pra ocultar saldo do CONSULTOR em atividade concluída c/ sobra. */
+  deliveryStatus?: string
   onChanged?: () => void
   /** Reporta o resumo de horas ao pai (pra decidir "devolver sobra ao banco"). */
   onSummary?: (s: { previstas: number; apontadas: number; saldo: number }) => void
@@ -192,6 +194,8 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   const saldo = Math.round((previstas - apontadas) * 100) / 100
   const overTs = apontadas > previstas + 0.001
   const pctTs = previstas > 0 ? Math.min(100, Math.round((apontadas / previstas) * 100)) : 0
+  // Consultor + atividade CONCLUÍDA + saldo positivo: não mostra Disponível/Saldo, só Apontadas.
+  const hideBalance = user?.type === 'consultor' && deliveryStatus === 'done' && saldo >= 0
 
   // Reporta o resumo ao pai (o painel usa o saldo pra habilitar "devolver sobra ao banco").
   useEffect(() => {
@@ -212,22 +216,28 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
       {showSummary && previstas > 0 && (
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 12, background: 'var(--surface)' }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={lbl}>Disponível</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{previstas}h</div>
-            </div>
+            {!hideBalance && (
+              <div style={{ flex: 1 }}>
+                <div style={lbl}>Disponível</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{previstas}h</div>
+              </div>
+            )}
             <div style={{ flex: 1 }}>
               <div style={lbl}>Apontadas</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{apontadas}h</div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={lbl}>Saldo</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: saldo < 0 ? 'var(--danger)' : 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>{saldo}h</div>
+            {!hideBalance && (
+              <div style={{ flex: 1 }}>
+                <div style={lbl}>Saldo</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: saldo < 0 ? 'var(--danger)' : 'var(--success)', fontVariantNumeric: 'tabular-nums' }}>{saldo}h</div>
+              </div>
+            )}
+          </div>
+          {!hideBalance && (
+            <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-hover)', overflow: 'hidden', marginTop: 8 }}>
+              <div style={{ height: '100%', width: `${pctTs}%`, background: overTs ? 'var(--danger)' : pctTs > 85 ? 'var(--warning)' : 'var(--success)', transition: 'width .2s ease' }} />
             </div>
-          </div>
-          <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-hover)', overflow: 'hidden', marginTop: 8 }}>
-            <div style={{ height: '100%', width: `${pctTs}%`, background: overTs ? 'var(--danger)' : pctTs > 85 ? 'var(--warning)' : 'var(--success)', transition: 'width .2s ease' }} />
-          </div>
+          )}
         </div>
       )}
 

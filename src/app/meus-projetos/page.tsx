@@ -23,6 +23,8 @@ interface MyProject {
   // por ele. É o que "Meus Projetos" deve mostrar — não o total do projeto.
   my_allocated_hours?: number | string | null
   my_consumed_hours?: number | string | null
+  // true quando TODAS as atividades do consultor neste projeto estão concluídas → só mostra Apontadas.
+  my_all_done?: boolean
 }
 
 function n(v: unknown): number {
@@ -207,9 +209,19 @@ export default function MeusProjetosPage() {
                     </div>
                   </div>
                   <div style={{ flex: '1 1 300px', minWidth: 210, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', display: 'flex', gap: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    <span title="Horas disponibilizadas a você (atividades sob sua responsabilidade)">Disponibilizadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(available)}</strong></span>
-                    <span title="Horas que você apontou neste projeto">Apontadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(logged)}</strong></span>
-                    <span title="Saldo = disponibilizadas − apontadas">Saldo <strong style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtHours(saldo)}</strong></span>
+                    {p.my_all_done ? (
+                      // Todas as atividades dele concluídas: sem saldo — só o que ele apontou.
+                      <>
+                        <span className="ds-status ds-status-success" style={{ fontSize: 10 }}>Concluído</span>
+                        <span title="Horas que você apontou neste projeto">Apontadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(logged)}</strong></span>
+                      </>
+                    ) : (
+                      <>
+                        <span title="Horas disponibilizadas a você (atividades sob sua responsabilidade)">Disponibilizadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(available)}</strong></span>
+                        <span title="Horas que você apontou neste projeto">Apontadas <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(logged)}</strong></span>
+                        <span title="Saldo = disponibilizadas − apontadas">Saldo <strong style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtHours(saldo)}</strong></span>
+                      </>
+                    )}
                   </div>
                   <ArrowRight size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                 </Link>

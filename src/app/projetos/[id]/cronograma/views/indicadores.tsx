@@ -45,11 +45,13 @@ const timeElapsedPct = (start?: string | null, end?: string | null) => {
 }
 
 /** Dashboard executivo do projeto — operacional (sem financeiro), variedade analítica de gráficos. */
-export function IndicadoresView({ project, stages, executive, teamLoad = [] }: {
+export function IndicadoresView({ project, stages, executive, teamLoad = [], recentActivity = [] }: {
   project: ProjectInfo
   stages: ScheduleStage[]
   executive?: ExecutiveSummary | null
   teamLoad?: TeamLoadItem[]
+  /** Feed completo de movimentações do cronograma (backend). Se vazio, cai no derivado das entregas. */
+  recentActivity?: { kind: string; user?: string | null; at?: string | null; title?: string | null; to?: string | null }[]
 }) {
   const ex = executive
   const allDeliveries = useMemo<StageDelivery[]>(() => stages.flatMap(s => s.deliveries ?? []), [stages])
@@ -135,15 +137,46 @@ export function IndicadoresView({ project, stages, executive, teamLoad = [] }: {
   }, [stages])
 
   // ── Atividade recente (timeline) ──
+  // Preferir o feed COMPLETO do backend (criação/edição/movimentação/conclusão/aprovação).
+  // Fallback: derivar de conclusões/aprovações das entregas (comportamento antigo).
   const recent = useMemo(() => {
     type Ev = { at: string; icon: 'done' | 'approve'; text: string }
+    if (recentActivity && recentActivity.length > 0) {
+      const who = (u?: string | null) => u ?? 'Alguém'
+      const q = (t?: string | null) => t ? `“${t}”` : 'a atividade'
+      return recentActivity
+        .filter(e => e.at)
+        .map<Ev>(e => {
+          const u = who(e.user)
+          let icon: 'done' | 'approve' = 'done'
+          let text: string
+          switch (e.kind) {
+            case 'delivery_created':   text = `${u} criou ${q(e.title)}`; break
+            case 'delivery_moved':     text = `${u} moveu ${q(e.title)}${e.to ? ` → ${e.to}` : ''}`; break
+            case 'delivery_completed': icon = 'approve'; text = `${u} concluiu ${q(e.title)}`; break
+            case 'approval_requested': text = `${u} solicitou aprovação de ${q(e.title)}`; break
+            case 'approval_approved':  icon = 'approve'; text = `Cliente aprovou ${q(e.title)}`; break
+            case 'approval_rejected':  text = `Cliente recusou ${q(e.title)}`; break
+            case 'client_involved':    text = `${u} envolveu o cliente em ${q(e.title)}`; break
+            case 'client_removed':     text = `${u} removeu o cliente de ${q(e.title)}`; break
+            case 'block_set':          text = `${u} bloqueou ${q(e.title)}`; break
+            case 'block_cleared':      text = `${u} desbloqueou ${q(e.title)}`; break
+            case 'hours_logged':       text = `${u} apontou horas em ${q(e.title)}`; break
+            case 'aporte_created':     text = `${u} lançou um aporte de horas`; break
+            case 'comment':            text = `${u} comentou em ${q(e.title)}`; break
+            default:                   text = `${u} atualizou ${q(e.title)}`
+          }
+          return { at: e.at as string, icon, text }
+        })
+        .slice(0, 8)
+    }
     const evs: Ev[] = []
     for (const d of allDeliveries) {
       if (d.status === 'done' && d.completed_at) evs.push({ at: d.completed_at, icon: 'done', text: `${d.responsible?.name ? d.responsible.name + ' concluiu' : 'Concluída'} “${d.title}”` })
       if (d.approval_status === 'approved' && d.approval_decided_at) evs.push({ at: d.approval_decided_at, icon: 'approve', text: `Cliente aprovou “${d.title}”` })
     }
     return evs.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 5)
-  }, [allDeliveries])
+  }, [recentActivity, allDeliveries])
   const lastUpdate = recent[0]?.at ?? allDeliveries.map(d => d.updated_at).filter(Boolean).sort().slice(-1)[0] ?? null
 
   // ── Alertas (mini-cards por severidade) ──

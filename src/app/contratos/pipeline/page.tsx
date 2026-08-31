@@ -9,7 +9,6 @@ import { ProjectStagesSidePanel } from '@/components/projects/project-stages-sid
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
-import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'

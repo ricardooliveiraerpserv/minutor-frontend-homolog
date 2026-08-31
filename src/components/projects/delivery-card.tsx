@@ -1,6 +1,7 @@
 'use client'
 
 import type { StageDelivery } from '@/lib/types/project-stage'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Props {
   delivery: StageDelivery
@@ -45,6 +46,13 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
   const saldo = disp - apont
   const overdue = delivery.due_date && new Date(delivery.due_date) < new Date() && delivery.status !== 'done'
   const due = formatDue(delivery.due_date)
+
+  // Regra do consultor: numa atividade CONCLUÍDA, se o saldo é positivo (sobrou hora
+  // planejada), não faz sentido mostrar "saldo a fazer" — mostra só o que ele apontou.
+  // Se o saldo é negativo (estourou), mantém Disp + Saldo pra evidenciar o excedente.
+  const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
+  const doneWithPositiveSaldo = isConsultor && delivery.status === 'done' && saldo >= 0
 
   return (
     <button
@@ -113,9 +121,15 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
         display: 'flex', gap: 10, marginTop: 8, fontSize: 10,
         color: 'var(--text-light)',
       }}>
-        <span>Disp <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(disp)}</b></span>
-        <span>Apont <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(apont)}</b></span>
-        <span>Saldo <b style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtH(saldo)}</b></span>
+        {doneWithPositiveSaldo ? (
+          <span>Apont <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(apont)}</b></span>
+        ) : (
+          <>
+            <span>Disp <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(disp)}</b></span>
+            <span>Apont <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(apont)}</b></span>
+            <span>Saldo <b style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtH(saldo)}</b></span>
+          </>
+        )}
       </div>
     </button>
   )

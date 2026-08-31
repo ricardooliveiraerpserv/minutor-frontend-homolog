@@ -51,6 +51,8 @@ export interface ScheduleResponse {
   stages: ScheduleStage[]
   /** Última movimentação do projeto: apontamento OU evento de atividade (mover/concluir). */
   last_movement?: LastMovement | null
+  /** Feed completo de movimentações do cronograma (últimos ~8 eventos) — aba Indicadores. */
+  recent_activity?: RecentActivityItem[]
 }
 
 export interface LastMovement {
@@ -60,6 +62,15 @@ export interface LastMovement {
   hours?: number   // só timesheet
   title?: string | null  // só eventos de atividade
   to?: string | null     // só delivery_moved (coluna destino)
+}
+
+export interface RecentActivityItem {
+  /** Tipo do StageActivityEvent (delivery_created/moved/completed, approval_*, client_*, block_*, …). */
+  kind: string
+  user?: string | null
+  at?: string | null
+  title?: string | null
+  to?: string | null
 }
 
 export interface ExecutiveSummary {
@@ -122,6 +133,7 @@ export function useProjectSchedule(projectId: number | null | undefined) {
     alerts: data?.alerts ?? [],
     teamLoad: data?.team_load ?? [],
     lastMovement: data?.last_movement ?? null,
+    recentActivity: data?.recent_activity ?? [],
     loading,
     error,
     refetch,

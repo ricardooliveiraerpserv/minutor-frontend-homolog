@@ -143,9 +143,11 @@ function PrazoStackCard({ projectId, expectedEndDate, canEdit, onChange }: {
   const [value, setValue] = useState(expectedEndDate ? expectedEndDate.slice(0, 10) : '')
   const [saving, setSaving] = useState(false)
   const hasDate = Boolean(expectedEndDate)
-  const isOverdue = hasDate && new Date(expectedEndDate as string) < new Date(new Date().toDateString())
-  const displayDate = hasDate ? new Date(expectedEndDate as string).toLocaleDateString('pt-BR') : '—'
-  const overdueDays = hasDate && isOverdue ? Math.floor((Date.now() - new Date(expectedEndDate as string).getTime()) / 86400000) : 0
+  // Parse como meia-noite LOCAL: 'YYYY-MM-DD' via new Date() é UTC e exibia a véspera no BR (UTC-3).
+  const endLocal = hasDate ? new Date((expectedEndDate as string).slice(0, 10) + 'T00:00:00') : null
+  const isOverdue = !!endLocal && endLocal < new Date(new Date().toDateString())
+  const displayDate = endLocal ? endLocal.toLocaleDateString('pt-BR') : '—'
+  const overdueDays = endLocal && isOverdue ? Math.floor((Date.now() - endLocal.getTime()) / 86400000) : 0
   async function save() {
     if (saving) return
     setSaving(true)
@@ -240,7 +242,7 @@ function InternalCronogramaPage() {
   // Linha do Tempo) são de gestão. Força operacao independentemente de ?view= / localStorage.
   const view: ViewMode = isConsultor ? 'operacao' : (normalizeView(searchParams.get('view')) ?? 'operacao')
 
-  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, loading, error, refetch } =
+  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, lastMovement, recentActivity, loading, error, refetch } =
     useProjectSchedule(projectId)
 
   // Consultor: tela ÚNICA — puxa a Descrição do projeto (Visão Geral) pra exibir junto da Operação.
@@ -472,7 +474,8 @@ function InternalCronogramaPage() {
             <div style={{ fontSize: 12, color: 'var(--text)', whiteSpace: 'nowrap' }}>Início: {fmtShortDate(project?.start_date)}<br />Previsto: {fmtShortDate(project?.expected_end_date)}</div>
           </div>
         )}
-        <PrazoStackCard projectId={projectId} expectedEndDate={project?.expected_end_date} canEdit={canEdit} onChange={refetch} />
+        {/* Prazo de entrega é DERIVADO da data mais distante do cronograma (backend) → só leitura. */}
+        <PrazoStackCard projectId={projectId} expectedEndDate={project?.expected_end_date} canEdit={false} onChange={refetch} />
         {!isConsultor && (
           <StackCard title="Horas" rows={[
             { label: 'Apontáveis', value: `${Math.round(appointableH)}h` },
@@ -820,7 +823,7 @@ function InternalCronogramaPage() {
         {view === 'indicadores' && (
           <div className="flex flex-col gap-3">
             <CronogramaEvmPanel projectId={projectId} canEdit={canEdit} />
-            <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} />
+            <IndicadoresView project={project} stages={stages} executive={executiveSummary} teamLoad={teamLoad} recentActivity={recentActivity} />
           </div>
         )}
         {view === 'equipe' && <EquipeView projectId={projectId} />}

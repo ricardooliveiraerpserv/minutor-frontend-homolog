@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
+import { DeliveryDiary } from './delivery-diary'
 import { ActivityTimesheets } from './activity-timesheets'
 import { ActivityAporteDialog } from './activity-aporte-dialog'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -52,6 +53,8 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
   const isConsultor = user?.type === 'consultor'
   const isOwn = String(delivery.responsible_user_id ?? '') === String(user?.id ?? '')
   const canFullEdit = !isConsultor && user?.type !== 'cliente'   // coord/admin: edita tudo
+  const isCliente = user?.type === 'cliente'
+  const [tab, setTab] = useState<'detalhes' | 'diario'>('detalhes')
   const canMoveStatus = canFullEdit || (isConsultor && isOwn)    // consultor alocado: só o STATUS da própria
 
   // Responsável da atividade: consultores + parceiros (alocar o responsável).
@@ -169,8 +172,34 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
           </button>
         </div>
 
-        {/* Form */}
+        {/* Abas: Detalhes | Diário (Diário é interno — cliente não vê a aba) */}
+        {!isCliente && (
+          <div style={{ display: 'flex', gap: 4, padding: '8px 18px 0', borderBottom: '1px solid var(--border)' }}>
+            {([['detalhes', 'Detalhes'], ['diario', 'Diário da Atividade']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: tab === key ? 600 : 500,
+                  color: tab === key ? 'var(--primary)' : 'var(--text-muted)',
+                  padding: '8px 6px', borderBottom: `2px solid ${tab === key ? 'var(--primary)' : 'transparent'}`,
+                  marginBottom: -1,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Corpo */}
         <div style={{ padding: 18, overflowY: 'auto', flex: 1 }}>
+          {tab === 'diario' && !isCliente ? (
+            <DeliveryDiary deliveryId={delivery.id} />
+          ) : (
+          <>
           <input
             className="ds-input"
             value={title}
@@ -325,6 +354,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               deliveryId={delivery.id}
               responsible={delivery.responsible ?? null}
               previstas={Number(hours) || 0}
+              deliveryStatus={status}
               onChanged={() => setTimelineKey(k => k + 1)}
               onSummary={setTsSummary}
             />
@@ -340,6 +370,8 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
             </div>
             <DeliveryTimeline key={timelineKey} deliveryId={delivery.id} />
           </div>
+          </>
+          )}
         </div>
       </aside>
       {aporteOpen && (
