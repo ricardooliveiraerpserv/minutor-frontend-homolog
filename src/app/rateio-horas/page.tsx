@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
-import { Plus, Trash2, Split, Save, Server } from 'lucide-react'
+import { Plus, Trash2, Split, Save, Server, X } from 'lucide-react'
 
 interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; targets_count: number }
 interface ProjOpt { id: number; name: string; code?: string | null; customer_id?: number | null }
@@ -60,6 +60,17 @@ export default function RateioHorasPage() {
     } catch (e) { toast.error(apiMessage(e, 'Erro ao marcar projeto')) }
   }
 
+  const unmark = async (p: RateioProject) => {
+    if (!confirm(`Desfazer "${p.name}" como projeto de rateio? Os destinos configurados serão removidos.`)) return
+    try {
+      await api.put(`/rateio-hours/projects/${p.id}/targets`, { targets: [] })
+      await api.put(`/projects/${p.id}`, { is_rateio: false })
+      toast.success('Projeto deixou de ser de rateio')
+      if (selId === p.id) { setSelId(null); setRows([]) }
+      loadProjects()
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao desfazer')) }
+  }
+
   const addRow = () => setRows(r => [...r, { target_project_id: '', percentual: 0 }])
   const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
   const setRow = (i: number, patch: Partial<TargetRow>) => setRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
@@ -105,11 +116,13 @@ export default function RateioHorasPage() {
             <div className="flex flex-wrap gap-2">
               {projects.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum projeto de rateio ainda.</p>}
               {projects.map(p => (
-                <button key={p.id} onClick={() => selectProject(p.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                <span key={p.id} className="inline-flex items-center rounded-lg border transition-colors"
                   style={selId === p.id ? { background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' } : { borderColor: 'var(--border)', color: 'var(--text)' }}>
-                  {p.code ? p.code + ' · ' : ''}{p.name}{p.cliente ? ` (${p.cliente})` : ''} · {p.targets_count} destino{p.targets_count !== 1 ? 's' : ''}
-                </button>
+                  <button onClick={() => selectProject(p.id)} className="text-xs pl-3 pr-2 py-1.5">
+                    {p.code ? p.code + ' · ' : ''}{p.name}{p.cliente ? ` (${p.cliente})` : ''} · {p.targets_count} destino{p.targets_count !== 1 ? 's' : ''}
+                  </button>
+                  <button onClick={() => unmark(p)} title="Deixar de ser projeto de rateio" className="pr-2 pl-0.5 py-1.5 hover:opacity-70"><X size={12} /></button>
+                </span>
               ))}
             </div>
           )}
