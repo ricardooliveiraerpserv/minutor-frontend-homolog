@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { SearchSelect } from '@/components/ui/search-select'
 import { CardsSkeleton, Skeleton } from '@/components/ui/loading'
 import {
-  Building2, Briefcase, Clock, Headphones, TrendingUp, ChevronDown,
+  Building2, Briefcase, Headphones, TrendingUp, ChevronDown,
 } from 'lucide-react'
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -73,11 +73,6 @@ interface CustomerOpt { id: number; name: string }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function fmtH(h: number | null | undefined) {
-  if (h === null || h === undefined) return '—'
-  return h.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'h'
-}
-
 const HEALTH_META: Record<Health, { label: string; color: string; bg: string }> = {
   ok:       { label: 'Saudável', color: '#10B981', bg: 'rgba(16,185,129,0.12)' },
   warning:  { label: 'Atenção',  color: '#F59E0B', bg: 'rgba(245,158,11,0.14)' },
@@ -125,18 +120,16 @@ function PortalHeroCard({
 function EvolutionTooltip({ active, payload, label, primary }: any) {
   if (!active || !payload?.length) return null
   const tickets = payload.find((p: any) => p.dataKey === 'tickets')?.value ?? 0
-  const horas   = payload.find((p: any) => p.dataKey === 'consumed_hours')?.value ?? 0
   return (
     <div className="px-3 py-2 rounded-lg shadow-xl text-[11px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="font-semibold mb-1" style={{ color: 'var(--text)' }}>{label}</p>
       <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: primary }} /><span style={{ color: 'var(--text-muted)' }}>{tickets} ticket{tickets === 1 ? '' : 's'}</span></div>
-      <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: '#A78BFA' }} /><span style={{ color: 'var(--text-muted)' }}>{Number(horas).toFixed(1)}h consumidas</span></div>
     </div>
   )
 }
 
 function MonthlyEvolution({ series }: { series: MonthlyPoint[] }) {
-  const hasAny = series.some(p => p.tickets > 0 || p.consumed_hours > 0)
+  const hasAny = series.some(p => p.tickets > 0)
   const primary = useThemePrimary()
   return (
     <div
@@ -149,11 +142,10 @@ function MonthlyEvolution({ series }: { series: MonthlyPoint[] }) {
     >
       <div className="mb-1">
         <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-          Evolução Mensal — Tickets e Consumo de Horas
+          Evolução Mensal — Tickets
         </h2>
       </div>
       <p className="text-[10px] mb-4" style={{ color: 'var(--text-light)' }}>
-        Horas referem-se apenas a apontamentos de <strong style={{ color: 'var(--text-muted)' }}>Sustentação</strong>.
         Histórico apurado a partir de <strong style={{ color: 'var(--text-muted)' }}>maio/2025</strong> (início do Minutor).
       </p>
       {!hasAny ? (
@@ -166,33 +158,18 @@ function MonthlyEvolution({ series }: { series: MonthlyPoint[] }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(125,125,125,0.18)" vertical />
                 <XAxis dataKey="label" tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis yAxisId="left"  orientation="left"  tick={{ fill: primary, fontSize: 11 }} tickLine={false} axisLine={false} label={{ value: 'Tickets', angle: -90, position: 'insideLeft', fill: primary, fontSize: 11 }} allowDecimals={false} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fill: '#A78BFA', fontSize: 11 }} tickLine={false} axisLine={false} label={{ value: 'Horas',   angle: 90,  position: 'insideRight', fill: '#A78BFA', fontSize: 11 }} tickFormatter={(v: number) => `${v}h`} />
                 <RTooltip content={<EvolutionTooltip primary={primary} />} cursor={{ stroke: 'rgba(125,125,125,0.25)' }} />
-                <Line yAxisId="right" type="monotone" dataKey="consumed_hours" stroke="#A78BFA" strokeWidth={2.5} dot={{ r: 4, fill: 'var(--surface)', strokeWidth: 2 }} activeDot={{ r: 6 }} />
                 <Line yAxisId="left"  type="monotone" dataKey="tickets"        stroke={primary}  strokeWidth={2.5} dot={{ r: 4, fill: 'var(--surface)', strokeWidth: 2, stroke: primary }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
           <div className="flex items-center justify-center gap-6 mt-2 text-[11px]">
-            <span className="flex items-center gap-1.5" style={{ color: '#A78BFA' }}>
-              <span className="w-3 h-0.5 rounded-full" style={{ background: '#A78BFA' }} />Horas consumidas
-            </span>
             <span className="flex items-center gap-1.5" style={{ color: primary }}>
               <span className="w-3 h-0.5 rounded-full" style={{ background: primary }} />Tickets
             </span>
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-function HealthBar({ pct }: { pct: number | null }) {
-  const p = pct ?? 0
-  const color = pct === null ? 'var(--text-light)' : pct >= 90 ? 'var(--danger-border)' : pct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
-  return (
-    <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, p)}%`, background: color }} />
     </div>
   )
 }
@@ -216,9 +193,6 @@ function ProjectTreeNode({
   // Fechado: cliente NÃO vê horas (sem controle de saldo/consumo).
   const isClosed = p.is_closed || (p.contract_type ?? '').toLowerCase().includes('fechad')
   const meta = isClosed ? (HEALTH_META.closed ?? HEALTH_META[p.status]) : HEALTH_META[p.status]
-  // Sem saúde (ex.: cliente não acompanha apontamento): neutro como Fechado, mas
-  // mostrando as horas contratadas — sem barra, sem saldo, sem % e sem chip de risco.
-  const noHealth = !isClosed && !isOnDemand && p.status === 'unknown'
 
   return (
     <>
@@ -246,36 +220,9 @@ function ProjectTreeNode({
               </span>
             )}
           </div>
-          {!isClosed && !isOnDemand && !noHealth && <HealthBar pct={p.percentage} />}
         </div>
 
-        <div className="text-right shrink-0">
-          {isClosed ? (
-            /* Cliente não vê horas em contrato Fechado — só o selo de status. */
-            null
-          ) : noHealth ? (
-            /* Sem saúde (cliente não acompanha): só as horas contratadas, neutro. */
-            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
-              {fmtH(p.sold_hours)}
-            </p>
-          ) : isOnDemand ? (
-            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
-              {fmtH(p.consumed_hours)} consumido
-            </p>
-          ) : (
-            <>
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
-                {fmtH(p.consumed_hours)} / {fmtH(p.sold_hours)}
-              </p>
-              {p.balance_hours !== null && (
-                <p className="text-[11px] font-semibold mt-0.5" style={{
-                  color: p.balance_hours < 0 ? '#EF4444' : p.balance_hours <= 0.1 * (p.sold_hours ?? 0) ? '#F59E0B' : '#10B981',
-                }}>
-                  Saldo: {fmtH(p.balance_hours)}
-                </p>
-              )}
-            </>
-          )}
+        <div className="shrink-0">
           {isOnDemand ? (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
               style={{ background: 'rgba(148,163,184,0.12)', color: '#94a3b8' }}>
@@ -284,7 +231,7 @@ function ProjectTreeNode({
           ) : (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
               style={{ background: meta.bg, color: meta.color }}>
-              {meta.label}{!isClosed && p.percentage !== null && ` · ${p.percentage.toFixed(0)}%`}
+              {meta.label}
             </span>
           )}
         </div>
@@ -437,7 +384,7 @@ export default function PortalClientePage() {
         {!error && summary && (
           <>
             {/* KPIs */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <PortalHeroCard
                 icon={Headphones}
                 label={`Tickets Abertos em ${summary.current_month_label}`}
@@ -445,7 +392,6 @@ export default function PortalClientePage() {
                 accent="amber"
               />
               <PortalHeroCard   icon={Briefcase}  label="Projetos"          value={String(summary.total_projects)} accent="primary" />
-              <PortalHeroCard   icon={Clock}      label="Horas Contratadas" value={fmtH(summary.total_sold_hours)} accent="purple" />
             </div>
 
             {/* Janela rolante de 12 meses terminando no mês atual — a série vem

@@ -29,9 +29,9 @@ function formatDue(iso: string | null): string | null {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
-function formatHours(planned: number, actual: number | undefined): string {
-  if (actual === undefined) return planned ? `${planned}h` : '—'
-  return `${actual.toFixed(1)}/${planned}h`
+function fmtH(v: number): string {
+  const n = Number(v) || 0
+  return `${Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 10) / 10}h`
 }
 
 export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
@@ -39,6 +39,10 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
   const actual = delivery.effort_minutes_sum !== undefined && delivery.effort_minutes_sum !== null
     ? Number(delivery.effort_minutes_sum) / 60
     : undefined
+  // Disponível ao consultor (planejadas) · Apontadas · Saldo.
+  const disp = planned
+  const apont = actual ?? 0
+  const saldo = disp - apont
   const overdue = delivery.due_date && new Date(delivery.due_date) < new Date() && delivery.status !== 'done'
   const due = formatDue(delivery.due_date)
 
@@ -99,12 +103,19 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>
           {delivery.responsible?.name ?? '—'}
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          {due && (
-            <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)' }}>{due}</span>
-          )}
-          <span>{formatHours(planned, actual)}</span>
+        <span style={{ color: overdue ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          Prazo: <b style={{ color: overdue ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{due ?? '—'}</b>
         </span>
+      </div>
+
+      {/* Horas do consultor na atividade: Disponível (planejadas), Apontadas e Saldo. */}
+      <div style={{
+        display: 'flex', gap: 10, marginTop: 8, fontSize: 10,
+        color: 'var(--text-light)',
+      }}>
+        <span>Disp <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(disp)}</b></span>
+        <span>Apont <b style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtH(apont)}</b></span>
+        <span>Saldo <b style={{ color: saldo < 0 ? 'var(--danger)' : 'var(--text)', fontWeight: 600 }}>{fmtH(saldo)}</b></span>
       </div>
     </button>
   )

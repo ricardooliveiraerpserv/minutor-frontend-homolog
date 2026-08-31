@@ -3,7 +3,8 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { CheckCircle, ChevronLeft, AlertCircle, Send, X, UserCheck, Mail } from 'lucide-react'
@@ -133,7 +134,6 @@ function NovaRequisicaoContent() {
   const isCliente = user?.type === 'cliente'
 
   const [submitted,   setSubmitted]   = useState(false)
-  const [saving,      setSaving]      = useState(false)
   const [customers,   setCustomers]   = useState<Customer[]>([])
   const [customerId,  setCustomerId]  = useState<string>('')
 
@@ -162,10 +162,6 @@ function NovaRequisicaoContent() {
   type CcEmail = { email: string; user: { id: number; name: string } | null; resolving?: boolean }
   const [ccEmails, setCcEmails] = useState<CcEmail[]>([])
   const [ccDraft, setCcDraft] = useState('')
-  // Autocomplete: contatos do cliente selecionado + consultores ERPSERV
-  type CcSug = { name: string; email: string; kind: 'cliente' | 'erpserv' }
-  const [ccSugs, setCcSugs] = useState<CcSug[]>([])
-  const [showCcSugs, setShowCcSugs] = useState(false)
 
   const effectiveCustomerId = isCliente ? null : (customerId ? Number(customerId) : null)
 
@@ -177,20 +173,20 @@ function NovaRequisicaoContent() {
       return
     }
     if (ccEmails.some(e => e.email === email)) return
-    // Resolve SEMPRE (mesmo sem cliente selecionado): usuários internos/parceiros (ERPSERV)
-    // são reconhecidos por e-mail independente do cliente. Clientes só entram com cliente selecionado.
-    setCcEmails(prev => [...prev, { email, user: null, resolving: true }])
-    api.post<{ results: { email: string; user: { id: number; name: string } | null }[] }>(
-      '/contract-requests/resolve-emails',
-      { emails: [email], ...(effectiveCustomerId ? { customer_id: effectiveCustomerId } : {}) }
-    )
-      .then(r => {
-        const found = r.results.find(x => x.email === email)
-        setCcEmails(prev => prev.map(e => e.email === email ? { email, user: found?.user ?? null, resolving: false } : e))
-      })
-      .catch(() => {
-        setCcEmails(prev => prev.map(e => e.email === email ? { ...e, resolving: false } : e))
-      })
+    setCcEmails(prev => [...prev, { email, user: null, resolving: !isCliente ? !!effectiveCustomerId : true }])
+    if (isCliente || effectiveCustomerId) {
+      api.post<{ results: { email: string; user: { id: number; name: string } | null }[] }>(
+        '/contract-requests/resolve-emails',
+        { emails: [email], ...(effectiveCustomerId ? { customer_id: effectiveCustomerId } : {}) }
+      )
+        .then(r => {
+          const found = r.results.find(x => x.email === email)
+          setCcEmails(prev => prev.map(e => e.email === email ? { email, user: found?.user ?? null, resolving: false } : e))
+        })
+        .catch(() => {
+          setCcEmails(prev => prev.map(e => e.email === email ? { ...e, resolving: false } : e))
+        })
+    }
   }
 
   const removeCcEmail = (email: string) => setCcEmails(prev => prev.filter(e => e.email !== email))
@@ -213,28 +209,6 @@ function NovaRequisicaoContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveCustomerId])
 
-  // Adiciona um contato sugerido (clique no dropdown do autocomplete).
-  const pickCcSug = (email: string) => { addCcEmail(email); setCcDraft(''); setCcSugs([]); setShowCcSugs(false) }
-
-  // Busca sugestões (debounce) enquanto digita: contatos do cliente + consultores ERPSERV.
-  useEffect(() => {
-    const term = ccDraft.trim()
-    if (term.length < 2 || (!isCliente && !effectiveCustomerId)) { setCcSugs([]); setShowCcSugs(false); return }
-    const t = setTimeout(() => {
-      const params = new URLSearchParams({ q: term })
-      if (effectiveCustomerId) params.set('customer_id', String(effectiveCustomerId))
-      api.get<{ data: CcSug[] }>(`/contract-requests/contact-suggestions?${params.toString()}`)
-        .then(r => {
-          const added = new Set(ccEmails.map(e => e.email))
-          setCcSugs((r.data ?? []).filter(s => !added.has(s.email.toLowerCase())).slice(0, 8))
-          setShowCcSugs(true)
-        })
-        .catch(() => { setCcSugs([]); setShowCcSugs(false) })
-    }, 220)
-    return () => clearTimeout(t)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ccDraft, effectiveCustomerId, isCliente, ccEmails])
-
   const set = (field: keyof typeof form) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
@@ -252,24 +226,21 @@ function NovaRequisicaoContent() {
     form.cenario_desejado.trim() &&
     (isCliente || !!customerId)
 
-  const handleSubmit = async () => {
+  // Portal Sub-1 · Requisições (create) — Cat B, nunca otimista. useAsyncAction + apiMessage.
+  // Sequência intacta: API → setSubmitted (tela de sucesso). payload/endpoint preservados.
+  const handleSubmitAction = useAsyncAction(async () => {
     if (!isValid) {
       toast.error('Preencha todos os campos obrigatórios antes de enviar.')
       return
     }
-    setSaving(true)
-    try {
-      const payload: any = { ...form }
-      if (!isCliente && customerId) payload.customer_id = Number(customerId)
-      if (ccEmails.length) payload.cc_emails = ccEmails.map(e => e.email)
-      await api.post('/contract-requests', payload)
-      setSubmitted(true)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao enviar requisição')
-    } finally {
-      setSaving(false)
-    }
-  }
+    const payload: any = { ...form }
+    if (!isCliente && customerId) payload.customer_id = Number(customerId)
+    if (ccEmails.length) payload.cc_emails = ccEmails.map(e => e.email)
+    await api.post('/contract-requests', payload)
+    setSubmitted(true)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar requisição')) })
+  const handleSubmit = () => handleSubmitAction.run()
+  const saving = handleSubmitAction.pending
 
   const resetForm = () => {
     setForm({ area_requisitante: '', project_name: '', product_owner: '', modulo_tecnologia: '', tipo_necessidade: '', tipo_necessidade_outro: '', nivel_urgencia: '', descricao: '', cenario_atual: '', cenario_desejado: '' })
@@ -361,7 +332,6 @@ function NovaRequisicaoContent() {
                   Quem não tem cadastro fica registrado, mas não recebe acesso.
                 </p>
 
-                <div className="relative">
                 <div className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 min-h-[42px]"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {ccEmails.map(e => {
@@ -394,44 +364,19 @@ function NovaRequisicaoContent() {
                   <input
                     value={ccDraft}
                     onChange={ev => setCcDraft(ev.target.value)}
-                    onFocus={() => { if (ccSugs.length) setShowCcSugs(true) }}
                     onKeyDown={ev => {
-                      if (ev.key === 'Enter') {
-                        ev.preventDefault()
-                        if (showCcSugs && ccSugs.length) pickCcSug(ccSugs[0].email)
-                        else if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') }
-                      } else if (ev.key === ',') {
+                      if (ev.key === 'Enter' || ev.key === ',' || ev.key === ' ') {
                         ev.preventDefault()
                         if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') }
-                      } else if (ev.key === 'Escape') {
-                        setShowCcSugs(false)
                       } else if (ev.key === 'Backspace' && !ccDraft && ccEmails.length) {
                         removeCcEmail(ccEmails[ccEmails.length - 1].email)
                       }
                     }}
-                    onBlur={() => { setTimeout(() => setShowCcSugs(false), 150); if (ccDraft.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ccDraft.trim())) { addCcEmail(ccDraft); setCcDraft('') } }}
-                    placeholder={ccEmails.length ? '' : 'Digite nome ou e-mail (cliente + ERPSERV)…'}
+                    onBlur={() => { if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') } }}
+                    placeholder={ccEmails.length ? '' : 'email@exemplo.com — Enter para adicionar'}
                     className="flex-1 min-w-[200px] bg-transparent outline-none text-sm px-1"
                     style={{ color: 'var(--text)' }}
                   />
-                </div>
-                {showCcSugs && ccSugs.length > 0 && (
-                  <div className="absolute z-30 left-0 right-0 mt-1 rounded-lg overflow-hidden shadow-lg max-h-64 overflow-y-auto"
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                    {ccSugs.map(s => (
-                      <button key={s.email} type="button"
-                        onMouseDown={ev => { ev.preventDefault(); pickCcSug(s.email) }}
-                        className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-[var(--surface-hover)]">
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold"
-                          style={{ background: s.kind === 'cliente' ? 'rgba(34,197,94,0.12)' : 'var(--primary-soft)', color: s.kind === 'cliente' ? '#16a34a' : 'var(--primary)' }}>
-                          {s.kind === 'cliente' ? 'Cliente' : 'ERPSERV'}
-                        </span>
-                        <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{s.name}</span>
-                        <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{s.email}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
                 </div>
                 {ccEmails.some(e => e.user === null && !e.resolving) && (
                   <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: '#eab308' }}>

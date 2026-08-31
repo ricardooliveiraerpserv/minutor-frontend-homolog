@@ -30,6 +30,7 @@ import {
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
+import { useProjectActionsMenu } from '@/components/projects/use-project-actions-menu'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ export default function OnDemandPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'maintenance' | 'expenses' | 'indicators'>('overview')
   // Modal reutilizável "Ver apontamentos" da aba Projetos.
   const [tsModalProject, setTsModalProject] = useState<ProjectItem | null>(null)
+  const { openMenu, menu } = useProjectActionsMenu()
 
   // Aba Projetos — lista os projetos-filho do contrato On Demand selecionado.
   const [projectsList, setProjectsList] = useState<ProjectItem[]>([])
@@ -514,7 +516,7 @@ export default function OnDemandPage() {
             {activeTab === 'projects' && (
               // Lista os projetos-filho do contrato On Demand selecionado (all-time,
               // ignora o filtro de data — igual ao BH Fixo).
-              <OnDemandProjectsTable items={projectsList} loading={loadingProjects} onViewTimesheets={setTsModalProject} />
+              <OnDemandProjectsTable items={projectsList} loading={loadingProjects} onViewTimesheets={setTsModalProject} onRowClick={p => openMenu(p.id, p.name, p.code)} />
             )}
 
             {/* ── SUSTENTAÇÃO ── */}
@@ -589,6 +591,7 @@ export default function OnDemandPage() {
           onClose={() => setTsModalProject(null)}
         />
       )}
+      {menu}
     </AppLayout>
   )
 }
@@ -754,7 +757,7 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
 }
 
 // Tabela dos projetos-filho do contrato On Demand (mesmo estilo do BH Fixo).
-function OnDemandProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectItem[]; loading: boolean; onViewTimesheets: (p: ProjectItem) => void }) {
+function OnDemandProjectsTable({ items, loading, onViewTimesheets, onRowClick }: { items: ProjectItem[]; loading: boolean; onViewTimesheets: (p: ProjectItem) => void; onRowClick?: (p: ProjectItem) => void }) {
   return (
     <div className="rounded-2xl overflow-x-auto overflow-y-clip mt-4" style={{ border: '1px solid var(--border)' }}>
       {loading ? (
@@ -779,7 +782,8 @@ function OnDemandProjectsTable({ items, loading, onViewTimesheets }: { items: Pr
               return (
                 <tr
                   key={p.id}
-                  className="transition-colors"
+                  onClick={() => onRowClick?.(p)}
+                  className={`transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
                   style={{ borderBottom: '1px solid var(--border)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -796,7 +800,7 @@ function OnDemandProjectsTable({ items, loading, onViewTimesheets }: { items: Pr
                   <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                   <td className="px-3 py-3.5 text-right">
                     <button
-                      onClick={() => onViewTimesheets(p)}
+                      onClick={(e) => { e.stopPropagation(); onViewTimesheets(p) }}
                       className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
                       style={{ color: 'var(--text-muted)' }}
                       title="Ver apontamentos"

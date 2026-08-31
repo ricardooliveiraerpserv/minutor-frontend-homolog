@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 import { ProjectConsolidatedTeam } from '@/components/projects/project-consolidated-team'
 import { Skeleton } from '@/components/ui/loading'
 
@@ -36,6 +37,8 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 export default function VisaoGeralPage() {
   const params = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
   const id = Number(params.id)
   const { data: project, loading } = useApiQuery<ProjectFull>(
     Number.isFinite(id) ? `/projects/${id}` : null
@@ -107,7 +110,7 @@ export default function VisaoGeralPage() {
         </Block>
       </div>
 
-      {isOperational && (
+      {isOperational && !isConsultor && (
         <div className="ds-card ds-card-pad">
           <ProjectConsolidatedTeam projectId={id} />
         </div>

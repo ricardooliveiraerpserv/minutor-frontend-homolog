@@ -257,6 +257,8 @@ const NAV: NavEntry[] = [
     type: 'group', module: 'servicos', catalogKey: 'projetos', label: 'Projetos', icon: FolderOpen,
     items: [
       { label: 'Demandas e Projetos',  href: '/contratos/pipeline',     icon: Layers },
+      { label: 'Indicadores de Projetos', href: '/projetos/indicadores', icon: BarChart2 },
+      { label: 'Equipe · Alocação & Apont.', href: '/projetos/equipe', icon: Users },
       { label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp },
     ],
   },
@@ -662,7 +664,11 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     // módulos servicos__coordenador_* / administrativo__administrativo). visibleNav vazio p/
     // não vazar item no home extraction — o menu real é o config.
     if (isCoordenador || isAdministrativo) {
-      return [] as NavEntry[]
+      // Cronograma (merge): injeta "Indicadores de Projetos" como home item alwaysVisible,
+      // pois o menu do coordenador/admin vem do Configurador (DB) e a config atual não o conhece.
+      return [
+        { type: 'item', label: 'Indicadores de Projetos', href: '/projetos/indicadores', icon: BarChart2, alwaysVisible: true },
+      ] as NavEntry[]
     }
     if (isCliente) {
       // Filtra dashboards pelos tipos de contrato que o cliente realmente possui
@@ -693,7 +699,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     // Consultor e Parceiro agora vêm 100% do CONFIGURADOR (moduleNav monta da árvore do
     // módulo do subtipo: consultor_horista/banco_de_horas/fixo, parceiro_gestor/simples).
     // visibleNav vazio p/ não vazar item no home extraction — o menu real é o config.
-    if (isConsultor || isParceiroAdmin) {
+    if (isConsultor) {
+      // Cronograma (merge): "Projetos" → /meus-projetos (cronogramas dos projetos onde está alocado).
+      return [
+        { type: 'item', label: 'Projetos', href: '/meus-projetos', icon: FolderOpen, alwaysVisible: true },
+      ] as NavEntry[]
+    }
+    if (isParceiroAdmin) {
       return [] as NavEntry[]
     }
     return NAV

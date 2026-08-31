@@ -1,11 +1,10 @@
 'use client'
 
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProjectHeaderExecutive } from '@/components/projects/project-header-executive'
-import { ProjectTabs } from '@/components/projects/project-tabs'
 import { useApiQuery } from '@/hooks/use-query'
 
 interface ProjectResponse {
@@ -23,8 +22,39 @@ interface ProjectResponse {
 }
 
 const BACK_MAP: Record<string, { href: string; label: string }> = {
-  pipeline:  { href: '/contratos/pipeline', label: 'Demandas e Projetos' },
-  gestao:    { href: '/gestao-projetos',    label: 'Gestão de Projetos' },
+  pipeline:       { href: '/contratos/pipeline', label: 'Demandas e Projetos' },
+  gestao:         { href: '/gestao-projetos',    label: 'Gestão de Projetos' },
+  'meus-projetos': { href: '/meus-projetos',     label: 'Meus Projetos' },
+}
+
+// Nav de módulos do projeto — alterna entre o Cronograma (Planejamento/Linha do Tempo/
+// Operação) e a Gestão Operacional (Apontamentos/Aprovações/Despesas), sem sair do projeto.
+function ProjectModuleNav({ projectId }: { projectId: number }) {
+  const pathname = usePathname()
+  const items = [
+    { label: 'Cronograma', href: `/projetos/${projectId}/cronograma`, match: '/cronograma' },
+    { label: 'Gestão Operacional', href: `/projetos/${projectId}/gestao-operacional`, match: '/gestao-operacional' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 6, padding: '0 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+      {items.map(it => {
+        const active = pathname.includes(it.match)
+        return (
+          <Link key={it.href} href={it.href}
+            style={{
+              padding: '11px 20px', fontSize: 14, fontWeight: active ? 700 : 500, textDecoration: 'none',
+              color: active ? 'var(--primary)' : 'var(--text-muted)',
+              background: active ? 'var(--primary-soft)' : 'transparent',
+              borderRadius: '8px 8px 0 0',
+              borderBottom: active ? '3px solid var(--primary)' : '3px solid transparent', marginBottom: -1,
+              transition: 'color .12s, background .12s',
+            }}>
+            {it.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
@@ -58,9 +88,9 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
   return (
     <AppLayout>
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', marginTop: -14 }}>
         <div style={{
-          padding: '8px 24px',
+          padding: '2px 24px 4px',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg)',
         }}>
@@ -75,10 +105,8 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           </Link>
         </div>
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
-        <div style={{ padding: '0 24px', background: 'var(--bg)' }}>
-          <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} />
-        </div>
-        <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
+        <ProjectModuleNav projectId={project.id} />
+        <div style={{ flex: 1, padding: '12px 24px', background: 'var(--bg)' }}>
           {children}
         </div>
       </div>

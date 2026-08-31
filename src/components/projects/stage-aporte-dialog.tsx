@@ -53,7 +53,9 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const sold = num(project?.sold_hours)
+  // Pool APONTÁVEL (liberado à gestão) — nunca a base comercial "Vendidas".
+  const coordPool = num((project as any)?.coordination_hours)
+  const sold = coordPool > 0 ? coordPool : num(project?.sold_hours)
   const allocated = useMemo(() => stages.reduce((s, st) => s + num(st.hours_planned), 0), [stages])
   const remaining = sold - allocated
   const aporteHours = Number(hours)
@@ -155,7 +157,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
                 {formatHours(remaining)}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>
-                {formatHours(sold)} vendidas − {formatHours(allocated)} alocadas
+                {formatHours(sold)} apontáveis − {formatHours(allocated)} alocadas
               </div>
             </div>
             {isValidAporteValue && (

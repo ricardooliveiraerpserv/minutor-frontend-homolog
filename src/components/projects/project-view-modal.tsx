@@ -87,6 +87,7 @@ interface ProjectEditForm {
   cobra_despesa_cliente: boolean
   observacoes_contrato: string
   observacoes_coordenador: string
+  nota_coordenador?: string | null
   max_expense_per_consultant: string
   timesheet_retroactive_limit_days: string
   allow_manual_timesheets: boolean; allow_negative_balance: boolean
@@ -129,6 +130,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   const [aporteDeleting, setAporteDeleting] = useState<any>(null)
   const [showEdit, setShowEdit] = useState(false)
   const [viewAttachments, setViewAttachments] = useState<any[]>([])
+  // Nota editável DO coordenador (visão Visualizar).
+  const [notaCoord, setNotaCoord] = useState('')
+  const [notaSaving, setNotaSaving] = useState(false)
+  const [notaSaved, setNotaSaved] = useState(false)
   const downloadViewAtt = async (att: any) => {
     const res = await fetch(`/api/v1/projects/${projectId}/attachments/${att.id}`, { credentials: 'same-origin' })
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
@@ -144,6 +149,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
       api.get<CostSummary>(`/projects/${projectId}/cost-summary`).catch(() => null),
     ]).then(([proj, cs]) => {
       setP(proj)
+      setNotaCoord((proj as any)?.nota_coordenador ?? '')
       setCostSummary(cs)
       setBreakdown(Array.isArray(cs?.consultant_breakdown) ? cs!.consultant_breakdown! : [])
     }).catch(() => toast.error('Erro ao carregar projeto'))
@@ -151,6 +157,17 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   }
 
   useEffect(() => { reload() }, [projectId])
+
+  const saveNota = async () => {
+    if (!p) return
+    setNotaSaving(true); setNotaSaved(false)
+    try {
+      await api.patch(`/projects/${p.id}/nota-coordenador`, { nota_coordenador: notaCoord || null })
+      setP(prev => prev ? ({ ...prev, nota_coordenador: notaCoord } as any) : prev)
+      setNotaSaved(true); setTimeout(() => setNotaSaved(false), 2500)
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar observação') }
+    finally { setNotaSaving(false) }
+  }
 
   useEffect(() => {
     if (tab === 'timesheets' && !tsLoaded) {
@@ -265,14 +282,15 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   const coordRaw = Number((p as any)?.coordination_hours ?? 0)
   const aporteHoras = Math.max(0, totalAvail - Number(p?.sold_hours ?? 0))
   const coordHoursBank = coordRaw > 0 ? coordRaw + aporteHoras : 0
-  // Cliente NUNCA vê a lente do coord: sempre o sold_hours original do contrato.
-  const isCoordViewer = !isClienteViewer && !!viewerUser?.id && !!p?.coordinators?.some((c: any) => c.id === viewerUser.id) && coordHoursBank > 0
   const coordConsumedVal = Number((p as any)?.coordination_consumed_hours ?? 0)
-  const cardVendidas = isCoordViewer ? coordHoursBank : (p?.sold_hours ?? 0)
-  const cardConsumed = isCoordViewer ? coordConsumedVal : consumed
-  const cardSaldo    = isCoordViewer ? Math.round((cardVendidas - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
-  const pct = isCoordViewer ? (cardVendidas > 0 ? (cardConsumed / cardVendidas) * 100 : 0)
-                            : (totalAvail > 0 ? (consumed / totalAvail) * 100 : 0)
+  // Perfis INTERNOS nunca veem horas VENDIDAS — só o banco APONTÁVEL (coordination_hours + aporte).
+  // Só o CLIENTE vê as vendidas do contrato (regra global apontáveis≠vendidas).
+  const internalLens = !isClienteViewer
+  const cardVendidas = internalLens ? coordHoursBank : (p?.sold_hours ?? 0)
+  const cardConsumed = internalLens ? coordConsumedVal : consumed
+  const cardSaldo    = internalLens ? Math.round((cardVendidas - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
+  const pct = internalLens ? (cardVendidas > 0 ? (cardConsumed / cardVendidas) * 100 : 0)
+                           : (totalAvail > 0 ? (consumed / totalAvail) * 100 : 0)
   const bar = healthColor(pct)
   const sc = p ? (statusColors[p.status] ?? statusColors.awaiting_start) : statusColors.awaiting_start
   const totalBreakdownHours = breakdown.reduce((s, c) => s + c.total_hours, 0)
@@ -416,7 +434,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
               <div className="space-y-5">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
+                    { label: internalLens ? 'Horas Apontáveis' : 'Horas Vendidas',
                       value: fmt(cardVendidas, 1) + 'h',  color: 'var(--text)', bg: 'var(--surface-hover)' },
                     { label: 'Horas Consumidas', value: fmt(cardConsumed, 1) + 'h',       color: 'var(--text-muted)', bg: 'var(--surface-hover)' },
                     { label: 'Saldo',            value: fmt(cardSaldo, 1) + 'h',
@@ -440,32 +458,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: bar }} />
                   </div>
                 </div>
-
-                {/* Horas de Coordenação — visível pro admin/governança (quando há banco explícito).
-                    Pro coordenador, o swap dos KPIs já mostra esses números, então omite aqui. */}
-                {!isCoordViewer && !isClienteViewer && coordHoursBank > 0 && (() => {
-                  const cBank = coordHoursBank
-                  const cCons = coordConsumedVal
-                  const cSaldo = Math.round((cBank - cCons) * 100) / 100
-                  const cPct = cBank > 0 ? (cCons / cBank) * 100 : 0
-                  const cBar = cPct > 100 ? 'var(--danger-border)' : cPct >= 91 ? 'var(--danger-border)' : cPct >= 71 ? 'var(--warning-border)' : 'var(--success-border)'
-                  return (
-                    <div className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: `1px solid ${cBar}33` }}>
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas Apontáveis</span>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: cBar }}>{cBank > 0 ? `${Math.round(cPct)}% consumido` : 'Sem horas'}</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Vendidas</p><p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmt(cBank, 1)}h</p></div>
-                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Consumidas</p><p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>{fmt(cCons, 1)}h</p></div>
-                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo</p><p className="text-sm font-bold" style={{ color: cSaldo < 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>{fmt(cSaldo, 1)}h</p></div>
-                      </div>
-                      <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cPct, 100)}%`, background: cBar }} />
-                      </div>
-                    </div>
-                  )
-                })()}
 
                 {alerts.length > 0 && (
                   <div className="space-y-2">
@@ -525,6 +517,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         )}
                       </div>
                     </div>
+
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Equipe</p>
@@ -555,6 +548,31 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     </div>
                   </div>
                 </div>
+
+                {/* Observação editável PELO coordenador (só interno) — largura total, destaque. */}
+                {internalLens && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>✍️ Observação do Coordenador</p>
+                    <div className="rounded-xl p-3" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                      <textarea
+                        value={notaCoord}
+                        onChange={e => setNotaCoord(e.target.value)}
+                        placeholder="Escreva aqui sua observação sobre o projeto…"
+                        rows={3}
+                        className="w-full resize-y rounded-lg px-3 py-2 text-sm outline-none"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', minHeight: 72 }}
+                      />
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        {notaSaved && <span className="text-[11px]" style={{ color: 'var(--success)' }}>Salvo ✓</span>}
+                        <button onClick={saveNota} disabled={notaSaving || notaCoord === ((p as any).nota_coordenador ?? '')}
+                          className="text-xs font-semibold px-4 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                          {notaSaving ? 'Salvando…' : 'Salvar observação'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Contatos do cliente */}
                 <CustomerContactsSection customerId={p.customer?.id} customerName={p.customer?.name} />

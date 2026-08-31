@@ -12,7 +12,8 @@ interface Tab {
 
 const TABS: Tab[] = [
   { label: 'Visão Geral', segment: 'visao-geral' },
-  // Etapas (cronograma) removida de prod — rotina em teste só no dev. NÃO reativar em prod.
+  // Cronograma: rotina em teste SÓ no dev (removida de prod). NÃO reativar em prod. — tombamento dev2.
+  { label: 'Cronograma',  segment: 'cronograma' },
   { label: 'Horas',       segment: 'horas' },
   { label: 'Financeiro',  segment: 'financeiro' },
   { label: 'Arquivos',    segment: 'arquivos' },

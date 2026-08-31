@@ -6,9 +6,15 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
+import { ActivityTimesheets } from './activity-timesheets'
+import { ActivityAporteDialog } from './activity-aporte-dialog'
+import { SearchSelect } from '@/components/ui/search-select'
+import { useAuth } from '@/hooks/use-auth'
+import { Undo2 } from 'lucide-react'
 
 interface Props {
   delivery: StageDelivery
+  projectId: number
   onClose: () => void
   onUpdated: (d: StageDelivery) => void
   onDeleted: (id: number) => void
@@ -28,15 +34,36 @@ const PRIORITY_OPTIONS: { value: DeliveryPriority; label: string }[] = [
   { value: 'high', label: 'Alta' },
 ]
 
-export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: Props) {
+export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onDeleted }: Props) {
   const [title, setTitle] = useState(delivery.title)
   const [description, setDescription] = useState(delivery.description ?? '')
   const [hours, setHours] = useState(String(delivery.hours_planned ?? ''))
   const [priority, setPriority] = useState<DeliveryPriority>(delivery.priority)
   const [status, setStatus] = useState<DeliveryStatus>(delivery.status)
   const [due, setDue] = useState(delivery.due_date ?? '')
+  const [respId, setRespId] = useState<string>(delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')
+  const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [timelineKey, setTimelineKey] = useState(0)
+  const [tsSummary, setTsSummary] = useState<{ previstas: number; apontadas: number; saldo: number } | null>(null)
+  const [aporteOpen, setAporteOpen] = useState(false)
+  const [aporteInitial, setAporteInitial] = useState<{ hours?: number; reason?: string }>({})
+  const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
+  const isOwn = String(delivery.responsible_user_id ?? '') === String(user?.id ?? '')
+  const canFullEdit = !isConsultor && user?.type !== 'cliente'   // coord/admin: edita tudo
+  const canMoveStatus = canFullEdit || (isConsultor && isOwn)    // consultor alocado: só o STATUS da própria
+
+  // Responsável da atividade: consultores + parceiros (alocar o responsável).
+  useEffect(() => {
+    let cancel = false
+    api.get<any>('/users?type=consultor,parceiro,parceiro_admin&pageSize=200').then(u => {
+      if (cancel) return
+      const items = Array.isArray(u?.items) ? u.items : Array.isArray(u?.data) ? u.data : []
+      setRespOpts(items.filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
+    }).catch(() => {})
+    return () => { cancel = true }
+  }, [])
 
   // Reset state quando troca de delivery
   useEffect(() => {
@@ -46,6 +73,9 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
     setPriority(delivery.priority)
     setStatus(delivery.status)
     setDue(delivery.due_date ?? '')
+    setRespId(delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')
+    setTsSummary(null)
+    setAporteOpen(false)
   }, [delivery.id])
 
   // Esc fecha
@@ -58,14 +88,21 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
   async function handleSave() {
     setSaving(true)
     try {
-      const updated = await api.patch<StageDelivery>(`/deliveries/${delivery.id}`, {
-        title: title.trim(),
-        description: description.trim() || null,
-        hours_planned: hours ? Number(hours) : 0,
-        priority,
-        status,
-        due_date: due || null,
-      })
+      let updated: StageDelivery
+      if (canFullEdit) {
+        updated = await api.patch<StageDelivery>(`/deliveries/${delivery.id}`, {
+          title: title.trim(),
+          description: description.trim() || null,
+          hours_planned: hours ? Number(hours) : 0,
+          priority,
+          status,
+          due_date: due || null,
+          responsible_user_id: respId ? Number(respId) : null,
+        })
+      } else {
+        // Consultor alocado: só muda o STATUS da própria atividade — via /move (permitido; não exige projects.update).
+        updated = await api.post<StageDelivery>(`/deliveries/${delivery.id}/move`, { status })
+      }
       onUpdated(updated)
       setTimelineKey(k => k + 1)
       toast.success('Entrega atualizada')
@@ -92,13 +129,13 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0,
+          position: 'fixed', top: 'var(--env-banner-h, 0px)', left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.35)', zIndex: 40,
         }}
       />
       <aside
         style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0,
+          position: 'fixed', top: 'var(--env-banner-h, 0px)', right: 0, bottom: 0,
           width: 'min(480px, 100vw)',
           background: 'var(--bg)',
           borderLeft: '1px solid var(--border)',
@@ -138,6 +175,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
             className="ds-input"
             value={title}
             onChange={e => setTitle(e.target.value)}
+            disabled={!canFullEdit}
             placeholder="Título"
             style={{ width: '100%', fontSize: 16, fontWeight: 500, padding: '10px 12px' }}
           />
@@ -145,11 +183,24 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
+            disabled={!canFullEdit}
             placeholder="Descrição (opcional)"
             rows={3}
             className="ds-input"
             style={{ width: '100%', marginTop: 10, padding: 10, resize: 'vertical', fontFamily: 'inherit' }}
           />
+
+          <div style={{ marginTop: 14 }}>
+            <SearchSelect
+              label="Responsável"
+              value={respId}
+              onChange={setRespId}
+              options={respOpts}
+              disabled={!canFullEdit}
+              placeholder="Sem responsável"
+              fullWidth
+            />
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
             <Field label="Status">
@@ -157,6 +208,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
                 className="ds-input"
                 value={status}
                 onChange={e => setStatus(e.target.value as DeliveryStatus)}
+                disabled={!canMoveStatus}
                 style={{ width: '100%' }}
               >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -168,6 +220,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
                 className="ds-input"
                 value={priority}
                 onChange={e => setPriority(e.target.value as DeliveryPriority)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               >
                 {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -180,6 +233,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
                 className="ds-input"
                 value={hours}
                 onChange={e => setHours(e.target.value)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               />
             </Field>
@@ -190,6 +244,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
                 className="ds-input"
                 value={due}
                 onChange={e => setDue(e.target.value)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               />
             </Field>
@@ -200,12 +255,12 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
               type="button"
               className="ds-btn-primary"
               onClick={handleSave}
-              disabled={saving || !title.trim()}
+              disabled={saving || !canMoveStatus || (canFullEdit && !title.trim())}
               style={{ fontSize: 13, padding: '8px 16px' }}
             >
               {saving ? 'Salvando…' : 'Salvar'}
             </button>
-            <button
+            {canFullEdit && <button
               type="button"
               onClick={handleDelete}
               style={{
@@ -217,7 +272,62 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
               }}
             >
               Excluir
-            </button>
+            </button>}
+          </div>
+
+          {/* Apontamentos da própria atividade: consultor aponta aqui, coord/admin
+              aprova aqui, e o resumo/barra de progresso de horas (previstas vs
+              apontadas) vive nesta seção. */}
+          <div style={{ marginTop: 28 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              marginBottom: 8,
+            }}>
+              <div style={{
+                fontSize: 11, color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '.04em',
+              }}>
+                Horas apontadas
+              </div>
+              {canFullEdit && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {tsSummary && tsSummary.saldo > 0.05 && (
+                    <button
+                      type="button"
+                      className="ds-btn-primary"
+                      onClick={() => {
+                        setAporteInitial({
+                          hours: -tsSummary.saldo,
+                          reason: 'Devolução de sobra de horas ao banco do projeto',
+                        })
+                        setAporteOpen(true)
+                      }}
+                      title="Devolve as horas planejadas não usadas ao pool do projeto, liberando-as para outra etapa/atividade."
+                      style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Undo2 size={13} /> Devolver sobra ao banco ({tsSummary.saldo % 1 === 0 ? tsSummary.saldo : tsSummary.saldo.toFixed(1)}h)
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setAporteInitial({}); setAporteOpen(true) }}
+                    title="Aportar ou devolver horas desta atividade (ajuste manual com justificativa)."
+                    style={{ fontSize: 12, padding: '5px 8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: 6, cursor: 'pointer' }}
+                  >
+                    Aporte
+                  </button>
+                </div>
+              )}
+            </div>
+            <ActivityTimesheets
+              projectId={projectId}
+              stageId={delivery.stage_id}
+              deliveryId={delivery.id}
+              responsible={delivery.responsible ?? null}
+              previstas={Number(hours) || 0}
+              onChanged={() => setTimelineKey(k => k + 1)}
+              onSummary={setTsSummary}
+            />
           </div>
 
           <div style={{ marginTop: 28 }}>
@@ -232,6 +342,23 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
           </div>
         </div>
       </aside>
+      {aporteOpen && (
+        <ActivityAporteDialog
+          deliveryId={delivery.id}
+          deliveryName={delivery.title}
+          deliveryHoursPlanned={Number(hours) || 0}
+          projectId={projectId}
+          initialHours={aporteInitial.hours}
+          initialReason={aporteInitial.reason}
+          onClose={() => setAporteOpen(false)}
+          onCreated={(newPlanned) => {
+            setHours(String(newPlanned))
+            onUpdated({ ...delivery, hours_planned: newPlanned })
+            setTimelineKey(k => k + 1)
+            setAporteOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }

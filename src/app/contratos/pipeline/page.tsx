@@ -2,19 +2,20 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { uploadDirect } from '@/lib/upload'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
+import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
-import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, Pin } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen, Pin } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -74,8 +75,6 @@ interface ProjectCard {
   delivery_percentage?: number | null
   coordinator_ids?: number[]
   coordinators?: string[]
-  // Nome do coordenador efetivo (override do Kanban) — precede coordinators[0] na exibição do card.
-  kanban_coordinator_override_name?: string | null
   executivo_conta_name?: string
   coordination_hours?: number | null
   coordination_consumed_hours?: number
@@ -305,15 +304,25 @@ function ContractKanbanCard({
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const menuPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      if (menuBtnRef.current?.contains(e.target as Node) || menuPanelRef.current?.contains(e.target as Node)) return
+      setMenuOpen(false)
     }
+    const close = () => setMenuOpen(false)
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
   }, [menuOpen])
 
   return (
@@ -365,17 +374,23 @@ function ContractKanbanCard({
                 {card.project_id ? 'Projeto' : isIncomplete ? 'Incompleto' : 'Completo'}
               </span>
               {onAction && (
-                <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
+                <div className="relative" onClick={e => e.stopPropagation()}>
                   <button
-                    onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                    ref={menuBtnRef}
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (!menuOpen && menuBtnRef.current) setMenuPos(anchoredDropdownPos(menuBtnRef.current.getBoundingClientRect(), 176))
+                      setMenuOpen(v => !v)
+                    }}
                     className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
                     style={{ color: 'var(--text-light)' }}
                   >
                     <MoreVertical size={12} />
                   </button>
-                  {menuOpen && (
-                    <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  {menuOpen && menuPos && createPortal(
+                    <div ref={menuPanelRef} className="fixed z-[9999] w-44 rounded-xl shadow-2xl"
+                      style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={e => e.stopPropagation()}>
                       {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
                         const Icon = item.icon
                         return (
@@ -388,7 +403,8 @@ function ContractKanbanCard({
                           </button>
                         )
                       })}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
               )}
@@ -473,7 +489,7 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void; onDelete?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -532,13 +548,6 @@ function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCa
               <MessageSquare size={11} />
             </button>
           )}
-          {onDelete && (
-            <button onClick={onDelete}
-              className="p-1 rounded-md hover:bg-[var(--danger-bg)] transition-colors" title="Excluir requisição"
-              style={{ color: 'var(--danger)' }}>
-              <Trash2 size={11} />
-            </button>
-          )}
           <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
             {new Date(card.created_at).toLocaleDateString('pt-BR')}
           </span>
@@ -548,52 +557,32 @@ function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCa
   )
 }
 
-// ─── List view action menu ────────────────────────────────────────────────────
-
-function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
-  const { user: viewerUser } = useAuth()
-  const { isDenied } = useDeniedActions()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [open])
-  return (
-    <div ref={ref} className="relative inline-block">
-      <button onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
-        className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-        style={{ color: 'var(--text-light)' }}>
-        <MoreVertical size={14} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-7 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
-            const Icon = item.icon
-            return (
-              <button key={item.action}
-                onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: item.action === 'delete' ? '#f87171' : 'var(--text)' }}>
-                <Icon size={13} style={{ color: item.action === 'delete' ? '#f87171' : 'var(--text-light)' }} />
-                {item.label}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
+// ─── Dropdown ancorado à prova de viewport (flip + scroll) ─────────────────────
+// Antes: menus de linha/card abriam SEMPRE pra baixo, com altura livre e sem scroll.
+// Perto do rodapé (banner "Vendo como…") ou dentro das colunas do Kanban (overflow),
+// as últimas opções ficavam cortadas e inacessíveis. Agora posicionamos via portal
+// (position: fixed, escapa de qualquer overflow): abre pra baixo; se não couber e
+// sobrar mais espaço acima, vira pra cima; e limita a altura habilitando scroll
+// interno quando ainda assim faltar espaço. Alinhado à direita do botão (right-0).
+type MenuPos = { left: number; top?: number; bottom?: number; maxHeight: number }
+function anchoredDropdownPos(anchor: DOMRect, width: number): MenuPos {
+  const MARGIN = 8, GAP = 4, BOTTOM_RESERVED = 72
+  const vw = window.innerWidth, vh = window.innerHeight
+  const left = Math.max(MARGIN, Math.min(anchor.right - width, vw - width - MARGIN))
+  const spaceBelow = vh - anchor.bottom - GAP - BOTTOM_RESERVED
+  const spaceAbove = anchor.top - GAP - MARGIN
+  if (spaceBelow < 220 && spaceAbove > spaceBelow)
+    return { left, bottom: Math.round(vh - anchor.top + GAP), maxHeight: Math.max(180, Math.floor(spaceAbove)) }
+  return { left, top: Math.round(anchor.bottom + GAP), maxHeight: Math.max(180, Math.floor(spaceBelow)) }
 }
 
-function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: string) => void; canWrite?: boolean }) {
+// ─── List view action menu ────────────────────────────────────────────────────
+
+function ListActionMenu({ onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const [pos, setPos] = useState<MenuPos | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -612,35 +601,29 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
       window.removeEventListener('resize', close)
     }
   }, [open])
-  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      // Menu w-48 (192px): abre abaixo do botão, alinhado à esquerda, sem estourar a viewport.
-      setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 192 - 8) })
-    }
+    if (!open && btnRef.current) setPos(anchoredDropdownPos(btnRef.current.getBoundingClientRect(), 176))
     setOpen(v => !v)
   }
   return (
-    <>
+    <div className="relative inline-block">
       <button ref={btnRef} onClick={toggle}
         className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
         style={{ color: 'var(--text-light)' }}>
         <MoreVertical size={14} />
       </button>
       {open && pos && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-xl overflow-hidden shadow-2xl"
-          style={{ top: pos.top, left: pos.left, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {items.map(item => {
+        <div ref={menuRef} className="fixed z-[9999] w-44 rounded-xl shadow-2xl"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
             const Icon = item.icon
-            const isDanger = (item as any).danger
             return (
               <button key={item.action}
                 onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: isDanger ? '#f87171' : 'var(--text)' }}>
-                <Icon size={13} style={{ color: isDanger ? '#f87171' : 'var(--text-light)' }} />
+                style={{ color: item.action === 'delete' ? '#f87171' : 'var(--text)' }}>
+                <Icon size={13} style={{ color: item.action === 'delete' ? '#f87171' : 'var(--text-light)' }} />
                 {item.label}
               </button>
             )
@@ -648,9 +631,12 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
         </div>,
         document.body
       )}
-    </>
+    </div>
   )
 }
+
+// (ListProjectActionMenu removido: a lista de projetos agora usa o menu duplo
+//  primário/secundário no nível da linha, igual ao card do Kanban — ver rowMenu.)
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
@@ -662,17 +648,24 @@ const CONTRACT_MENU_ITEMS = [
   { action: 'delete',  label: 'Excluir',    icon: Trash2,    adminOnly: true },
 ]
 
-const PROJECT_MENU_ITEMS = [
-  { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: false },
-  { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
-  // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
-  { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
-  // 'Custo' removido: esta tela não exibe valor financeiro (só horas).
-  { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,         clientVisible: false },
-  // 'Aportes' removido do menu de linha (2026-05-28): aporte se cria via "É aporte?" no Novo Contrato.
-  { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
-  { action: 'delete',     label: 'Excluir',           icon: Trash2,        clientVisible: false, danger: true, adminOnly: true },
+// Menu PRIMÁRIO (abre ao clicar no card): abrir o projeto, diário interno e comentários (com o cliente).
+const PROJECT_PRIMARY_ITEMS = [
+  { action: 'view',     label: 'Gestão de Projetos', icon: Eye,           clientVisible: true },
+  { action: 'diary',    label: 'Diário do Projeto',  icon: BookOpen,      clientVisible: false }, // interno — cliente não vê
+  { action: 'comments', label: 'Comentários',        icon: MessageSquare, clientVisible: true, accent: true, legend: 'O cliente participa' },
+  { action: 'documentos', label: 'Documentos',       icon: Paperclip,     clientVisible: false },
 ]
+// Menu SECUNDÁRIO (⋮): demais ações de gestão.
+const PROJECT_SECONDARY_ITEMS = [
+  { action: 'card',       label: 'Visualizar',        icon: Eye,     clientVisible: false },
+  { action: 'edit',       label: 'Editar',            icon: Pencil,  clientVisible: false, adminOnly: true },
+  { action: 'status',     label: 'Alterar Status',    icon: Layers,  clientVisible: false },
+  { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,   clientVisible: false },
+  { action: 'team',       label: 'Selecionar Equipe', icon: Users,   clientVisible: false },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,  clientVisible: false, danger: true, adminOnly: true },
+]
+// Combinado (usado pela lista).
+const PROJECT_MENU_ITEMS = [...PROJECT_PRIMARY_ITEMS, ...PROJECT_SECONDARY_ITEMS]
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
   const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
@@ -683,32 +676,52 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 }
 
 function ProjectKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
-}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
+  card, index, canDrag, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
+}: { card: ProjectCard; index: number; canDrag: boolean; onClick?: () => void; onAction: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [openMenu, setOpenMenu] = useState<null | 'primary' | 'secondary'>(null)
+  const [menuPos, setMenuPos] = useState<MenuPos | null>(null)
+  const menuAnchorRef = useRef<HTMLDivElement>(null)
+  const menuPanelRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
 
   useEffect(() => {
-    if (!menuOpen) return
+    if (!openMenu) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      if (menuAnchorRef.current?.contains(e.target as Node) || menuPanelRef.current?.contains(e.target as Node)) return
+      setOpenMenu(null)
     }
+    const close = () => setOpenMenu(null)
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [menuOpen])
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [openMenu])
+
+  // Posiciona o menu (w-60=240px) à prova de viewport, ancorado ao canto sup. direito
+  // do card — vale tanto pro primário (clique no card) quanto pro ⋮ (secundário).
+  const openProjMenu = (kind: 'primary' | 'secondary') => {
+    if (menuAnchorRef.current) setMenuPos(anchoredDropdownPos(menuAnchorRef.current.getBoundingClientRect(), 240))
+    setOpenMenu(kind)
+  }
+
+  const filterMenu = (items: any[]) => items.filter(item =>
+    (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)
+    && (!item.coordHidden || viewerUser?.type !== 'coordenador')
+    && !isDenied('/contratos/pipeline', item.action))
+  const primaryItems = filterMenu(PROJECT_PRIMARY_ITEMS)
+  const secondaryItems = filterMenu(PROJECT_SECONDARY_ITEMS)
 
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
     liberado_para_testes: '#f59e0b', finished: '#f59e0b', paused: '#f97316', cancelled: '#ef4444',
   }
   const color = statusColor[card.status] ?? '#94a3b8'
-
-  // Ações disponíveis pra ESTE viewer. Se vazio (ex.: cliente — todos clientVisible:false),
-  // não renderiza o botão/menu (senão o dropdown vazio vira uma "linha" inútil).
-  const projMenuItems = PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
 
   return (
     <Draggable draggableId={uniqueCardId(card)} index={index} isDragDisabled={!canDrag}>
@@ -717,7 +730,7 @@ function ProjectKanbanCard({
           ref={prov.innerRef}
           {...prov.draggableProps}
           {...prov.dragHandleProps}
-          onClick={onClick}
+          onClick={() => openProjMenu('primary')}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
             background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'var(--primary-soft)' : 'var(--surface)',
@@ -748,37 +761,48 @@ function ProjectKanbanCard({
                 style={{ background: `${color}20`, color }}>
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
-              {/* Context menu — só quando há ações pra este viewer */}
-              {projMenuItems.length > 0 && (
-              <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
-                <button
-                  onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
-                  style={{ color: 'var(--text-light)' }}
-                >
-                  <MoreVertical size={12} />
-                </button>
-                {menuOpen && (
-                  <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
-                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                    {projMenuItems.map(item => {
+              {/* Menu: clique no card = primário; ⋮ = demais opções */}
+              <div ref={menuAnchorRef} className="relative" onClick={e => e.stopPropagation()}>
+                {secondaryItems.length > 0 && (
+                  <button
+                    onClick={e => { e.stopPropagation(); if (openMenu === 'secondary') setOpenMenu(null); else openProjMenu('secondary') }}
+                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
+                    style={{ color: 'var(--text-light)' }}
+                    title="Mais opções"
+                  ><MoreVertical size={12} /></button>
+                )}
+                {openMenu && menuPos && createPortal(
+                  <div ref={menuPanelRef} className="fixed z-[9999] w-60 rounded-xl shadow-2xl"
+                    style={{ top: menuPos.top, bottom: menuPos.bottom, left: menuPos.left, maxHeight: menuPos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+                    onClick={e => e.stopPropagation()}>
+                    {(openMenu === 'primary' ? primaryItems : secondaryItems).map(item => {
                       const Icon = item.icon
+                      // Cliente: "Comentários" só o nome — sem destaque vermelho nem legenda "O cliente participa".
+                      const accent = (item as any).accent && !isCliente
+                      const legend = isCliente ? undefined : (item as any).legend
+                      const danger = (item as any).danger
+                      // accent = Comentários (cliente participa) → destaque em VERMELHO.
+                      const c = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text)'
+                      const ic = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text-light)'
                       return (
                         <button
                           key={item.action}
-                          onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
-                          style={{ color: 'var(--text)' }}
+                          onClick={e => { e.stopPropagation(); setOpenMenu(null); onAction(item.action) }}
+                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ color: c }}
                         >
-                          <Icon size={13} style={{ color: 'var(--text-light)' }} />
-                          {item.label}
+                          <Icon size={14} style={{ color: ic, marginTop: 1, flexShrink: 0 }} />
+                          <span className="flex flex-col">
+                            <span style={{ fontWeight: accent ? 600 : 500 }}>{item.label}</span>
+                            {legend && <span className="text-[10px]" style={{ color: 'var(--danger)', opacity: 0.95, fontWeight: 600 }}>{legend}</span>}
+                          </span>
                         </button>
                       )
                     })}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
-              )}
             </div>
           </div>
 
@@ -824,18 +848,17 @@ function ProjectKanbanCard({
             // Visão do CLIENTE: se o projeto não tem o acompanhamento de horas ligado
             // (client_follows_timesheets = false), NÃO mostrar horas/progresso no card.
             if (isCliente && card.client_follows_timesheets === false) return null
-            // NESTA TELA (Demandas e Projetos): perfil interno NUNCA vê horas vendidas nem
-            // cálculo sobre elas — só o banco apontável (coordination_hours). Sem banco não
-            // há número legítimo: não mostra barra (nunca cai pras vendidas). Exceção:
+            // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
+            // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
+            // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
             // CLIENTE continua vendo as horas contratadas. (Demais telas: regra antiga.)
-            const bank = Number(card.coordination_hours ?? 0)
-            if (!isCliente && bank <= 0) return null
-            const total = isCliente ? Number(card.sold_hours ?? 0) : bank
-            const consumed = Number(card.consumed_hours ?? 0)
-            const pct = total > 0 ? Math.min(100, Math.round((consumed / total) * 100)) : 0
+            const isCoordViewer = !isCliente && Number(card.coordination_hours ?? 0) > 0
+            const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
+            const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
+            const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
             const barColor = pct >= 100 ? '#ef4444' : pct >= 90 ? '#f97316' : pct >= 70 ? '#eab308' : '#22c55e'
             const consultantCount = card.consultants?.length ?? 0
-            if (total <= 0 && consumed <= 0) return null
+            if (sold <= 0 && consumed <= 0) return null
             return (
               <div className="mt-2 mb-1">
                 <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
@@ -843,7 +866,7 @@ function ProjectKanbanCard({
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
-                    {Math.round(consumed)}h / {Math.round(total)}h
+                    {Math.round(consumed)}h / {Math.round(sold)}h
                   </span>
                   <span className="text-[10px]" style={{ color: barColor }}>{pct}%</span>
                 </div>
@@ -856,9 +879,9 @@ function ProjectKanbanCard({
           })()}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
             <div className="flex flex-col gap-0.5 min-w-0">
-              {(card.kanban_coordinator_override_name || (card.coordinators && card.coordinators.length > 0)) && (
+              {card.coordinators && card.coordinators.length > 0 && (
                 <span className="text-[10px] truncate" style={{ color: 'var(--text-light)' }}>
-                  👤 {card.kanban_coordinator_override_name ?? card.coordinators![0]}
+                  👤 {card.coordinators[0]}
                 </span>
               )}
               {card.executivo_conta_name && (
@@ -916,13 +939,13 @@ function GenerateProjectModal({
   onClose: () => void
   onGenerate: (contractId: number, coordinatorId: number | null) => Promise<void>
 }) {
+  const [coordId, setCoordId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
     setLoading(true)
     try {
-      // Coordenação é definida só no Kanban de Contratos — projeto nasce sem coordenador (fila Alocado).
-      await onGenerate(card.id, null)
+      await onGenerate(card.id, coordId)
       onClose()
     } finally {
       setLoading(false)
@@ -944,13 +967,24 @@ function GenerateProjectModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-4 space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            O projeto será criado automaticamente com os dados do contrato e ficará na fila <strong>Alocado</strong>.
+            Selecione o coordenador responsável. O projeto será criado automaticamente com os dados do contrato.
           </p>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-light)' }}>
-            🔒 O coordenador é definido no Kanban de Contratos, arrastando o card para a coluna do coordenador.
-          </p>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-light)' }}>COORDENADOR (OPCIONAL)</label>
+            <select
+              value={coordId ?? ''}
+              onChange={e => setCoordId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              <option value="">Sem coordenador por agora</option>
+              {coordinators.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
@@ -1132,7 +1166,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
         })
         .finally(() => setLogsLoading(false))
     }
-    if (tab === 'req' && !reqLoaded && card.contract_request_id) {
+    if ((tab === 'req' || tab === 'comments') && !reqLoaded && card.contract_request_id) {
       setReqLoading(true)
       api.get<ContractRequestDetail>(`/projects/${card.id}/contract-request`)
         .then(r => { setReqData(r); setReqLoaded(true) })
@@ -1147,6 +1181,32 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   }
   const color = statusColor[card.status] ?? '#94a3b8'
   const hasReq = !!card.contract_request_id
+
+  const fetchAttachmentBlob = async (msgId: number, attId: number) => {
+    const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${attId}/download`, {
+      credentials: 'same-origin',
+    })
+    if (!res.ok) throw new Error()
+    return res.blob()
+  }
+
+  const downloadReqAttachment = async (msgId: number, att: { id: number; original_name: string }) => {
+    try {
+      const blob = await fetchAttachmentBlob(msgId, att.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = att.original_name; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Erro ao baixar arquivo') }
+  }
+
+  const viewReqAttachment = async (msgId: number, att: { id: number; original_name: string }) => {
+    try {
+      const blob = await fetchAttachmentBlob(msgId, att.id)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   const isCliente = userRole === 'cliente'
   const tabs = [
@@ -1278,14 +1338,59 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
             )}
           </div>
         ) : tab === 'comments' ? (
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            {/* Canal do cliente CONTINUA vivo no projeto — equipe e cliente interagem. */}
-            {(card.contract_request_id || card.id) ? (
-              <ReqChatPanel requestId={card.contract_request_id || undefined} projectId={card.contract_request_id ? undefined : card.id} visibility="client" />
+          <div className="flex-1 overflow-y-auto">
+            {reqLoading ? (
+              <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+            ) : reqData && reqData.messages && reqData.messages.length > 0 ? (
+              <div className="px-6 py-5">
+                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
+                </div>
+                <div className="space-y-3">
+                  {reqData.messages.map(msg => (
+                    <div key={msg.id} className="rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)' }}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold" style={{ color: '#a78bfa' }}>{msg.author?.name ?? '—'}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {msg.attachments.map(att => (
+                            <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
+                              style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
+                              <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
+                                <Paperclip size={9} />
+                                <span className="max-w-[160px] truncate">{att.original_name}</span>
+                              </span>
+                              <button
+                                onClick={() => viewReqAttachment(msg.id, att)}
+                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                                title="Visualizar"
+                              >
+                                <ExternalLink size={10} />
+                              </button>
+                              <button
+                                onClick={() => downloadReqAttachment(msg.id, att)}
+                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                                title="Baixar"
+                              >
+                                <Download size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 gap-1">
                 <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem requisição vinculada — nenhum canal de comentários</p>
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
               </div>
             )}
           </div>
@@ -1857,15 +1962,16 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
   onClose: () => void
   onDone: (updatedCard: RequestCard) => void
 }) {
+  const [coordId, setCoordId] = useState<number | null>(card.linked_coordinator_id ?? null)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
+    if (!coordId) { toast.error('Defina o coordenador antes de gerar.'); return }
     setLoading(true)
     try {
-      // Coordenação é definida só no Kanban de Contratos — projeto vai pro Backlog sem coordenador.
-      await api.post(`/contract-requests/${card.id}/finalize`, { coordinator_id: null })
-      toast.success('🚀 Projeto gerado no Backlog!')
-      onDone({ ...card, kanban_column: 'req_em_andamento' })
+      await api.post(`/contract-requests/${card.id}/finalize`, { coordinator_id: coordId })
+      toast.success('🚀 Coordenador definido e projeto gerado no Backlog!')
+      onDone({ ...card, kanban_column: 'req_em_andamento', linked_coordinator_id: coordId })
       onClose()
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao gerar o projeto')
@@ -1883,23 +1989,34 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
               <Rocket size={16} style={{ color: '#eab308' }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Gerar Projeto</p>
+              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Definir coordenador e gerar</p>
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>{card.customer_name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
         </div>
-        <div className="px-6 py-5 space-y-3">
+        <div className="px-6 py-5 space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Ao confirmar, o projeto é gerado e o card vai para o <strong>Backlog</strong>.
+            Selecione o coordenador responsável. Ao confirmar, o projeto é gerado e o card vai para o Backlog.
           </p>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-light)' }}>
-            🔒 O coordenador é definido no Kanban de Contratos, arrastando o card para a coluna do coordenador.
-          </p>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-light)' }}>COORDENADOR</label>
+            <select
+              value={coordId ?? ''}
+              onChange={e => setCoordId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              <option value="">Selecione o coordenador…</option>
+              {coordinators.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-          <button onClick={handleConfirm} disabled={loading}
+          <button onClick={handleConfirm} disabled={loading || !coordId}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             style={{ background: '#eab308', color: '#000' }}>
             <Rocket size={13} /> {loading ? 'Gerando...' : 'Gerar Projeto'}
@@ -2058,8 +2175,6 @@ interface ProjectFull {
   consultant_groups?: { id: number; name: string; consultants?: { id: number; name: string }[] }[]
   approvers?: { id: number; name: string; email: string }[]
   executivo_conta?: { id: number; name: string } | null
-  // Coordenador efetivo (override do Kanban de Contratos) — precede coordinators M2M.
-  kanban_override_coordinator?: { id: number; name: string } | null
 }
 
 interface ConsultantBreakdown {
@@ -2090,6 +2205,98 @@ interface TimesheetEntry {
   user?: { id: number; name: string }
 }
 
+// Documentos do projeto — portado do prod (aba Documentos do ProjectViewModal).
+// Anexos do projeto (exclui source 'contract'); visível a todos, inclusive cliente.
+function ProjectDocsModal({ projectId, projectName, onClose }: { projectId: number; projectName?: string | null; onClose: () => void }) {
+  const [docs, setDocs] = useState<{ id: number; original_name: string; source?: string }[]>([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const load = () => {
+    setLoading(true)
+    api.get<any>(`/projects/${projectId}/attachments`)
+      .then(r => setDocs((Array.isArray(r) ? r : []).filter((a: any) => a.source !== 'contract')))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const upload = async (file: File) => {
+    setUploading(true)
+    try {
+      const fd = new FormData(); fd.append('file', file); fd.append('type', 'outro')
+      await uploadDirect(`/projects/${projectId}/attachments`, fd)
+      toast.success('Documento enviado'); load()
+    } catch { toast.error('Erro ao enviar documento') }
+    finally { setUploading(false); if (inputRef.current) inputRef.current.value = '' }
+  }
+  const download = async (d: { id: number; original_name: string }) => {
+    const res = await fetch(`/api/v1/projects/${projectId}/attachments/${d.id}`, { credentials: 'same-origin' })
+    if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
+    const url = URL.createObjectURL(await res.blob())
+    const a = document.createElement('a'); a.href = url; a.download = d.original_name; a.click(); URL.revokeObjectURL(url)
+  }
+  const remove = async (d: { id: number; source?: string }) => {
+    if (d.source === 'contract') { toast.error('Anexo do contrato — gerencie na Gestão de Contratos.'); return }
+    if (!confirm('Remover este documento?')) return
+    try { await api.delete(`/projects/${projectId}/attachments/${d.id}`); toast.success('Documento removido'); load() }
+    catch { toast.error('Erro ao remover documento') }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} className="rounded-2xl w-full" style={{ maxWidth: 560, background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh', overflow: 'auto' }}>
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Documentos do projeto</p>
+            {projectName && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{projectName}</p>}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Anexos documentais do projeto. Visível ao cliente.</p>
+            <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+              <Paperclip size={13} /> {uploading ? 'Enviando…' : 'Anexar documento'}
+            </button>
+            <input ref={inputRef} type="file" className="hidden"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
+              onChange={e => { const f = e.target.files?.[0]; if (f) upload(f) }} />
+          </div>
+          {loading ? (
+            <p className="text-xs text-center py-6" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+          ) : docs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <Paperclip size={22} style={{ color: 'var(--text-light)' }} />
+              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Nenhum documento anexado ainda.</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {docs.map(d => (
+                <div key={`${d.source}-${d.id}`} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                  <button type="button" onClick={() => download(d)} className="flex items-center gap-2 min-w-0 text-left">
+                    <Paperclip size={14} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
+                    <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{d.original_name}</span>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button type="button" onClick={() => download(d)} title="Baixar" className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}><Download size={14} /></button>
+                    {d.source !== 'contract' && (
+                      <button type="button" onClick={() => remove(d)} title="Remover" className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projectId: number; onClose: () => void; userRole?: string; initialTab?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
@@ -2109,7 +2316,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const [aportesList, setAportesList] = useState<any[]>([])
   const [aportesLoading, setAportesLoading] = useState(false)
   const [aportesLoaded, setAportesLoaded]   = useState(false)
-  // Comentários = canal do cliente (via ReqChatPanel, que carrega/posta sozinho).
+  // Comentários = histórico read-only do canal do cliente (trazido da requisição vinculada).
+  const [reqComments, setReqComments]           = useState<ContractRequestDetail | null>(null)
+  const [reqCommentsLoaded, setReqCommentsLoaded]   = useState(false)
+  const [reqCommentsLoading, setReqCommentsLoading] = useState(false)
 
   const reload = () => {
     setLoading(true)
@@ -2211,6 +2421,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   }
   const docsSorted = [...docs].sort((a, b) => (b.pinned_at ? 1 : 0) - (a.pinned_at ? 1 : 0))
 
+  useEffect(() => {
+    if (tab === 'comments' && !reqCommentsLoaded && p?.contract_request_id) {
+      setReqCommentsLoading(true)
+      api.get<ContractRequestDetail>(`/projects/${projectId}/contract-request`)
+        .then(r => { setReqComments(r); setReqCommentsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setReqCommentsLoading(false))
+    }
+  }, [tab, projectId, reqCommentsLoaded, p?.contract_request_id])
+
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
   const fmtDate = (d?: string | null) => d ? d.slice(0,10).split('-').reverse().join('/') : '—'
@@ -2246,8 +2466,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const isClienteViewer = viewerUser?.type === 'cliente'
   const consumed = p?.consumed_hours ?? 0
   const totalAvail = p?.total_available_hours ?? ((p?.sold_hours ?? 0) + (p?.hour_contribution ?? 0))
-  // Lente do coordenador (swap KPIs/risco) — coordenador do projeto + banco explícito.
-  // NUNCA aplica pra cliente: cliente vê sempre o sold_hours original do contrato.
+  // Lente de coordenação (swap KPIs/risco). NESTA TELA vale pra TODOS os perfis internos
+  // — inclusive admin — quando há banco de coordenação: mostra só as horas disponibilizadas
+  // pra coordenação. NUNCA aplica pra cliente (cliente vê sempre o sold_hours do contrato).
   // Banco apontável = Horas Apontáveis informadas + APORTE (aporte soma com as contratadas).
   const coordRaw = Number((p as any)?.coordination_hours ?? 0)
   const coordHoursBank = coordRaw > 0 ? coordRaw + Math.max(0, totalAvail - Number(p?.sold_hours ?? 0)) : 0
@@ -2552,20 +2773,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           </span>
                         </div>
                       )}
-                      {(() => {
-                        // Coordenador efetivo: override do Kanban vence sobre a lista M2M.
-                        const effCoords = p.kanban_override_coordinator ? [p.kanban_override_coordinator] : (p.coordinators ?? [])
-                        return effCoords.length > 0 && (
-                          <div>
-                            <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
-                            <div className="flex flex-wrap gap-1.5">{effCoords.map(u => (
-                              <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                                {u.name}
-                              </span>
-                            ))}</div>
-                          </div>
-                        )
-                      })()}
+                      {(p.coordinators?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
+                          <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => (
+                            <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                              {u.name}
+                            </span>
+                          ))}</div>
+                        </div>
+                      )}
                       {(p.consultants?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Consultores Alocados</p>
@@ -2586,20 +2803,12 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           <div className="flex flex-wrap gap-1.5">{p.approvers!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b' }}>{u.name}</span>)}</div>
                         </div>
                       )}
-                      {!p.kanban_override_coordinator && (p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
+                      {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
                         <p className="text-xs text-center py-3" style={{ color: 'var(--text-light)' }}>Sem equipe cadastrada</p>
                       )}
                     </div>
                   </div>
                 </div>
-
-                {/* Observações para o Coordenador — campo dedicado, visível a todos os perfis (inclui coordenador). */}
-                {(p as any).observacoes_coordenador && (
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Observações para o Coordenador</p>
-                    <div className="rounded-xl p-4 text-xs leading-relaxed whitespace-pre-wrap" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{(p as any).observacoes_coordenador}</div>
-                  </div>
-                )}
 
                 {/* Contatos do cliente */}
                 <CustomerContactsSection customerId={p.customer?.id} customerName={p.customer?.name} />
@@ -2649,6 +2858,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         { label: 'Consultores',    value: String(breakdown.length),                                          color: '#a78bfa' },
                         { label: 'Total Horas',    value: fmt(totalBreakdownHours, 1) + 'h',                                 color: 'var(--text)' },
                         { label: 'Aprovadas',      value: fmt(breakdown.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: '#22c55e' },
+                        { label: 'Custo Total',    value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)),                color: 'var(--primary)' },
                       ].map(it => (
                         <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                           <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
@@ -2676,9 +2886,13 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                             <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface-sunken)' }}>
                               <div className="h-full rounded-full" style={{ width: `${share}%`, background: col }} />
                             </div>
-                            <div className="grid gap-2 text-[10px] grid-cols-2">
+                            <div className={`grid gap-2 text-[10px] ${isCoordRole ? 'grid-cols-2' : 'grid-cols-4'}`}>
                               <div><span style={{ color: 'var(--text-light)' }}>Aprovadas</span><br/><span style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h</span></div>
                               <div><span style={{ color: 'var(--text-light)' }}>Pendentes</span><br/><span style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</span></div>
+                              {!isCoordRole && <>
+                              <div><span style={{ color: 'var(--text-light)' }}>Taxa/h</span><br/><span style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
+                              <div><span style={{ color: 'var(--text-light)' }}>Custo</span><br/><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
+                              </>}
                             </div>
                           </div>
                         )
@@ -2690,7 +2904,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.25)' }}>
                           <tr style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--border)' }}>
-                            {['#','Consultor','Total','Aprov.','Pend.','% do Total'].map(h => (
+                            {['#','Consultor','Total','Aprov.','Pend.','% do Total','Taxa/h','Custo'].map(h => (
                               <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                             ))}
                           </tr>
@@ -2706,6 +2920,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-muted)' }}>{Math.round(share)}%</td>
+                                <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</td>
+                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</td>
                               </tr>
                             )
                           })}
@@ -3026,14 +3242,39 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             )}
 
             {tab === 'comments' && !isClienteViewer && (
-              <div className="-m-6 h-[60vh] min-h-[360px]">
-                {/* Canal do cliente CONTINUA vivo no projeto — equipe responde o cliente aqui. */}
-                {(p?.contract_request_id || p?.id) ? (
-                  <ReqChatPanel requestId={p.contract_request_id || undefined} projectId={p.contract_request_id ? undefined : p.id} visibility="client" />
+              <div>
+                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
+                </div>
+                {reqCommentsLoading ? (
+                  <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+                ) : (reqComments?.messages?.length ?? 0) > 0 ? (
+                  <div className="space-y-3">
+                    {reqComments!.messages!.map(msg => (
+                      <div key={msg.id} className="rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>{msg.author?.name ?? '—'}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {msg.attachments.map(att => (
+                              <button key={att.id}
+                                onClick={async () => { try { const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' }); if (!res.ok) throw new Error(); window.open(URL.createObjectURL(await res.blob()), '_blank') } catch { toast.error('Erro ao abrir arquivo') } }}
+                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] hover:bg-[var(--surface-hover)]" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                                <Paperclip size={9} /><span className="max-w-[160px] truncate">{att.original_name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full gap-1">
+                  <div className="flex flex-col items-center justify-center py-16 gap-1">
                     <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem requisição vinculada — nenhum canal de comentários</p>
+                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
                   </div>
                 )}
               </div>
@@ -3551,6 +3792,9 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
+  // Projeto operacional (tipo "Projeto"): equipe é alocada por atividade do
+  // cronograma, não direto aqui. Vem do append is_operational (BE).
+  const [isOperational, setIsOperational] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -3558,6 +3802,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
       api.get<any>('/users?type=consultor,parceiro_admin&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
     ]).then(([proj, usrs, grps]) => {
+      setIsOperational(!!proj?.is_operational)
       setAllConsultants(usrs?.items ?? usrs?.data ?? [])
       setAllGroups(Array.isArray(grps?.items) ? grps.items : Array.isArray(grps?.data) ? grps.data : [])
       const direct: any[] = proj?.consultants ?? []
@@ -3576,6 +3821,10 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   const filteredGroups   = allGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
 
   const handleSave = async () => {
+    if (isOperational) {
+      toast.error('Projeto do tipo "Projeto": aloque a equipe pela atividade do cronograma.')
+      return
+    }
     setSaving(true)
     try {
       await api.put(`/projects/${projectId}`, { consultant_ids: Array.from(selectedIds), consultant_group_ids: Array.from(selectedGroupIds) })
@@ -3587,7 +3836,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
       )
       toast.success('Equipe atualizada')
       onSaved()
-    } catch { toast.error('Erro ao salvar equipe') }
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar equipe') }
     finally { setSaving(false) }
   }
 
@@ -3598,7 +3847,20 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Selecionar Equipe</p><h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>{projectName}</h3></div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
-        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p></div> : (
+        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p></div> : isOperational ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-8 py-12">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>
+              <Users size={22} />
+            </div>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Alocação é feita por atividade</h3>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Este é um projeto do tipo <strong style={{ color: 'var(--text)' }}>Projeto</strong>. A equipe não é definida aqui — cada consultor é alocado diretamente na <strong style={{ color: 'var(--text)' }}>atividade</strong> do cronograma.
+            </p>
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-light)' }}>
+              Abra o projeto → <strong>Cronograma</strong> → escolha a <strong>atividade</strong> → <strong>Alocar consultor</strong>.
+            </p>
+          </div>
+        ) : (
           <div className="flex flex-col flex-1 overflow-hidden px-5 pt-4">
             {projectConsultants.length > 0 && (
               <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
@@ -3664,10 +3926,16 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
           </div>
         )}
         <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Salvando...' : 'Salvar Equipe'}
-          </button>
+          {isOperational ? (
+            <button onClick={onClose} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>Entendi</button>
+          ) : (
+            <>
+              <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Salvando...' : 'Salvar Equipe'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -3677,37 +3945,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
 // Painel de chat da Requisição, reutilizado nas duas abas:
 //  - visibility='client'   → Comentários (canal do cliente)
 //  - visibility='internal' → Diário (equipe; cliente não vê)
-// Visão do CLIENTE num card de projeto: SÓ os Comentários (canal do cliente, que continua
-// vivo após virar projeto). Nenhum outro dado do projeto é exposto.
-function ClientProjectCommentsModal({ card, onClose }: { card: ProjectCard; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
-      <div className="w-full max-w-xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--surface)', border: '1px solid rgba(99,102,241,0.3)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b shrink-0 flex items-start justify-between gap-3" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
-          <div className="min-w-0">
-            <p className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>{card.project_name || card.customer_name}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</p>
-          </div>
-          <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          {(card.contract_request_id || card.id) ? (
-            <ReqChatPanel requestId={card.contract_request_id || undefined} projectId={card.contract_request_id ? undefined : card.id} visibility="client" />
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 gap-1">
-              <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-              <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comentários para este projeto</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
-  requestId?: number
-  projectId?: number
+function ReqChatPanel({ requestId, visibility, readOnly }: {
+  requestId: number
   visibility: 'client' | 'internal'
   readOnly?: boolean
 }) {
@@ -3725,22 +3964,16 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Canal: requisição (Demanda) OU nativo do projeto (projetos sem Demanda).
-  const listUrl    = requestId != null ? `/contract-requests/${requestId}/messages?visibility=${visibility}` : `/projects/${projectId}/comments?visibility=${visibility}`
-  const mentionUrl = requestId != null ? `/contract-requests/${requestId}/mentionable-users?visibility=${visibility}` : `/projects/${projectId}/comments/mentionable-users?visibility=${visibility}`
-  const postUrl    = (base: string) => requestId != null ? `${base}/contract-requests/${requestId}/messages` : `${base}/projects/${projectId}/comments`
-  const dlUrl      = (mid: number, aid: number) => requestId != null ? `/api/v1/req-messages/${mid}/attachments/${aid}/download` : `/api/v1/project-comments/${mid}/attachments/${aid}/download`
-
   useEffect(() => {
-    api.get<ReqMsg[]>(listUrl)
+    api.get<ReqMsg[]>(`/contract-requests/${requestId}/messages?visibility=${visibility}`)
       .then(r => { setMsgs(Array.isArray(r) ? r : []); setLoaded(true) })
       .catch(() => { setLoaded(true); toast.error('Erro ao carregar mensagens') })
     if (!readOnly) {
-      api.get<MentionUser[]>(mentionUrl)
+      api.get<MentionUser[]>(`/contract-requests/${requestId}/mentionable-users?visibility=${visibility}`)
         .then(r => setMentionUsers(Array.isArray(r) ? r : []))
         .catch(() => {})
     }
-  }, [requestId, projectId, visibility, readOnly])
+  }, [requestId, visibility, readOnly])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
 
@@ -3790,7 +4023,7 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
       const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
         ? 'https://api.minutor.com.br/api/v1'
         : '/api/v1'
-      const res = await fetch(postUrl(uploadBase), {
+      const res = await fetch(`${uploadBase}/contract-requests/${requestId}/messages`, {
         method: 'POST',
         credentials: 'include',
         headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
@@ -3811,7 +4044,7 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
   const downloadAttachment = async (msgId: number, att: ReqAttachment) => {
     try {
       const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
-      const res = await fetch(dlUrl(msgId, att.id), {
+      const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${att.id}/download`, {
         credentials: 'same-origin',
         headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
       })
@@ -3889,7 +4122,7 @@ function ReqChatPanel({ requestId, projectId, visibility, readOnly }: {
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch(dlUrl(msg.id, att.id), { credentials: 'same-origin' })
+                            const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
                             if (!res.ok) throw new Error()
                             const blob = await res.blob()
                             window.open(URL.createObjectURL(blob), '_blank')
@@ -4136,7 +4369,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
 
 function KanbanColumn({
   col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
-  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onRequestDelete, onProjectAction, onContractAction,
+  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
@@ -4155,7 +4388,6 @@ function KanbanColumn({
   onRequestClick?: (card: RequestCard) => void
   onRequestView?: (card: RequestCard) => void
   onRequestChat?: (card: RequestCard) => void
-  onRequestDelete?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
   onContractMove?: (card: ContractCard, toCol: string) => void
@@ -4266,7 +4498,6 @@ function KanbanColumn({
                       card={card}
                       onView={onRequestView ? e => { e.stopPropagation(); onRequestView(card) } : undefined}
                       onChat={onRequestChat ? e => { e.stopPropagation(); onRequestChat(card) } : undefined}
-                      onDelete={onRequestDelete ? e => { e.stopPropagation(); onRequestDelete(card) } : undefined}
                     />
                   </div>
                 )}
@@ -4337,6 +4568,7 @@ function KanbanContent() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
+  const { isDenied } = useDeniedActions()
 
   const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
   const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
@@ -4365,14 +4597,12 @@ function KanbanContent() {
   const [contractCreateForDecision, setContractCreateForDecision] = useState<ContractCard | null>(null)
   const [selectedProject,       setSelectedProject]       = useState<ProjectCard | null>(null)
   const [stagesPanelProject,   setStagesPanelProject]   = useState<ProjectCard | null>(null)
-  // Cliente NÃO abre o card do projeto — só um modal de Comentários (novo + histórico).
-  const [clientCommentsProject, setClientCommentsProject] = useState<ProjectCard | null>(null)
   const [generateTarget,       setGenerateTarget]       = useState<ContractCard | null>(null)
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
-  const delReasonRef = useRef<HTMLTextAreaElement>(null) // motivo da exclusão (vai pro log)
-  const [showDelLog, setShowDelLog] = useState(false)    // visualizador do log de exclusões
-  const [showColHist, setShowColHist] = useState(false)  // histórico de dias por coluna
-  const [delRequest, setDelRequest] = useState<RequestCard | null>(null) // requisição a excluir (com log)
+  // Menu da LISTA de projetos igual ao Kanban: clique na linha = primário
+  // (Gestão de Projetos/Diário/Comentários/Documentos); ⋮ = secundário (demais ações).
+  const [rowMenu, setRowMenu] = useState<{ card: ProjectCard; kind: 'primary' | 'secondary'; pos: MenuPos } | null>(null)
+  const rowMenuRef = useRef<HTMLDivElement>(null)
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
@@ -4388,7 +4618,7 @@ function KanbanContent() {
   // Coordenador: chip "Meus projetos / Todos". Default 'meus' — filtra pelos projetos
   // onde o coordenador logado está em `coordinator_ids`. Esconde de outros perfis.
   const [coordScope,          setCoordScope]          = useState<'meus' | 'todos'>('meus')
-  type SortKey = 'customer' | 'project' | 'contract_type' | 'service_type' | 'phase' | 'apontaveis' | 'consumed' | 'saldo' | 'saude' | 'status'
+  type SortKey = 'customer' | 'project' | 'contract_type' | 'service_type' | 'phase' | 'vendidas' | 'consumed' | 'saldo' | 'saude' | 'coord' | 'status'
   const [sortKey,             setSortKey]             = useState<SortKey | ''>('')
   const [sortDir,             setSortDir]             = useState<'asc' | 'desc'>('asc')
   const toggleSort = (k: SortKey) => { setSortKey(prev => prev === k ? k : k); setSortDir(prev => sortKey === k ? (prev === 'asc' ? 'desc' : 'asc') : 'asc') }
@@ -4404,6 +4634,37 @@ function KanbanContent() {
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
   const isCoord     = userRole === 'coordenador'
+
+  // Itens visíveis do menu de projeto pra ESTE viewer (mesma regra do card do Kanban).
+  const filterProjMenu = (items: any[]) => items.filter(item =>
+    (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)
+    && (!item.coordHidden || user?.type !== 'coordenador')
+    && !isDenied('/contratos/pipeline', item.action))
+  // Roteamento das ações do menu de projeto (idêntico ao Kanban): 'view' navega pra
+  // Gestão de Projetos; o resto abre o modal correspondente via projectAction.
+  const runProjectMenuAction = (card: ProjectCard, action: string) => {
+    if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return }
+    setProjectAction({ card, action })
+  }
+  // Fecha o menu da linha em clique externo / scroll / resize.
+  useEffect(() => {
+    if (!rowMenu) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (rowMenuRef.current?.contains(t)) return
+      if (t instanceof Element && t.closest('[data-row-menu-btn]')) return
+      setRowMenu(null)
+    }
+    const close = () => setRowMenu(null)
+    document.addEventListener('mousedown', onDown)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [rowMenu])
 
   const markProjectSeen = (projectId: number) => {
     setSeenProjectIds(prev => {
@@ -4484,6 +4745,7 @@ function KanbanContent() {
     if (card) {
       const wantsChat = searchParams.get('tab') === 'chat'
         || (typeof window !== 'undefined' && window.location.hash === '#chat')
+      if (isCliente && !wantsChat) { router.push(`/portal-cliente/projetos/${card.id}`); return }
       setProjectAction({ card, action: wantsChat ? 'chat' : 'view' })
       const url = new URL(window.location.href)
       url.searchParams.delete('project')
@@ -4726,34 +4988,23 @@ function KanbanContent() {
     finally { setSavingCell(false) }
   }
 
-  // ── Horas em Demandas e Projetos ────────────────────────────────────────────
-  // Perfil INTERNO (todos, inclusive admin/coordenador) NUNCA vê horas vendidas nem
-  // cálculo derivado delas: só o banco apontável (coordination_hours) × consumidas ×
-  // saldo. Sem banco apontável não existe número legítimo -> null (renderiza "—"),
-  // nunca cai pras vendidas. CLIENTE é a exceção: mantém a visão contratual intacta.
-  // Fonte única — tabela e export Excel consomem daqui pra não divergirem.
-  const rowApontaveis = (p: ProjectCard): number | null =>
-    isCliente ? (p.sold_hours ?? null) : (Number(p.coordination_hours ?? 0) > 0 ? Number(p.coordination_hours) : null)
-  const rowConsumidas = (p: ProjectCard): number | null => p.consumed_hours ?? null
-  const rowSaldoHoras = (p: ProjectCard): number | null => {
-    if (isCliente) return p.general_hours_balance ?? null
-    const bank = rowApontaveis(p)
-    return bank == null ? null : bank - Number(p.consumed_hours ?? 0)
-  }
-  const rowHealthOf = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
-    const base = Number(rowApontaveis(p) ?? 0)
-    const pct = base > 0 ? (Number(p.consumed_hours ?? 0) / base) * 100 : 0
-    return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
-  }
-
   // Exportação Excel da lista de Projetos (respeita os filtros aplicados). Disponível a todos os perfis.
   const handleExportProjetos = () => {
-    const rowHealth = rowHealthOf
+    const rowHealth = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
+      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+      const sold = isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
+      const cons = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
+      const pct = sold > 0 ? (cons / sold) * 100 : 0
+      return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
+    }
     const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
     const sq = filterSearch.trim().toLowerCase()
     const list = projectCards
-      .filter(p => !isCoord || !isSustType(p.service_type))
-      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
+      // Mesmo universo da lista/Indicadores: só tipo "Projeto" e em execução (sem
+      // encerrados/cancelados, salvo filtro de status explícito).
+      .filter(p => (p.service_type ?? '').trim().toLowerCase() === 'projeto')
+      .filter(p => filterStatuses.length > 0 || (p.status !== 'finished' && p.status !== 'cancelled'))
+      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => {
@@ -4768,11 +5019,14 @@ function KanbanContent() {
     if (list.length === 0) { toast.info('Nenhum projeto para exportar.'); return }
 
     const rows: ProjetoExportRow[] = list.map(p => {
-      const rowHoras    = rowApontaveis(p)
-      const rowConsumed = rowConsumidas(p)
-      const rowSaldo    = rowSaldoHoras(p)
+      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+      const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
+      const rowConsumed = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : (p.consumed_hours ?? null)
+      const rowSaldo    = isCoordRow ? (Number(rowVendidas) - Number(rowConsumed)) : (p.general_hours_balance ?? null)
       const onDemand = isOnDemand(p)
       const saude = rowHealth(p)
+      const cBank = Number(p.coordination_hours ?? 0)
+      const cCons = Number(p.coordination_consumed_hours ?? 0)
       return {
         cliente:      p.customer_name ?? '',
         projeto:      p.project_name ?? '',
@@ -4780,10 +5034,11 @@ function KanbanContent() {
         tipoContrato: p.contract_type ?? '',
         tipoServico:  p.service_type ?? '',
         fase:         PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto',
-        horas:        rowHoras != null ? String(rowHoras) : '',
+        horas:        rowVendidas != null ? `${rowVendidas}${isCoordRow ? ' *' : ''}` : '',
         consumidas:   rowConsumed != null ? Number(rowConsumed).toFixed(1) : '',
         saldo:        onDemand ? '—' : rowSaldo != null ? Number(rowSaldo).toFixed(1) : '',
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
+        coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
       }
     })
@@ -4799,7 +5054,7 @@ function KanbanContent() {
       .filter(p => !p.contract_id || !kanbanBornNotAllocatedIds.has(p.contract_id))
       .filter(p => !isCoord || !isSustType(p.service_type))
       // Chip "Meus projetos / Todos" — coordenador logado em coordinator_ids
-      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
+      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => passesClientScope(p.customer_id, 'project'))
@@ -4929,7 +5184,8 @@ function KanbanContent() {
 
   const handleProjectMove = async (cardId: number, toCol: string) => {
     // Cada coluna mapeia 1:1 para um status (Planejamento/Andamento/Homologação/Produção separados).
-    // Em homolog o cronograma reajusta automaticamente; aqui o move é manual (prod e demais).
+    // Em homolog o cronograma reajusta automaticamente no próximo evento de etapa/entrega;
+    // aqui o move é manual (prod e demais) e ajusta na hora.
     const newStatus = PROJECT_COL_TO_STATUS[toCol]
     if (!newStatus) return
     setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))
@@ -5094,22 +5350,6 @@ function KanbanContent() {
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.borderColor = 'var(--primary-hover)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}>
                 <Plus size={13} /> Nova Requisição
-              </button>
-            )}
-            {user?.type === 'admin' && (
-              <button onClick={() => setShowDelLog(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Log de exclusões de requisições/contratos">
-                <Clock size={13} /> Log de exclusões
-              </button>
-            )}
-            {(user?.type === 'admin' || user?.type === 'coordenador' || user?.type === 'administrativo') && (
-              <button onClick={() => setShowColHist(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                title="Histórico de dias por coluna de cada projeto">
-                <Clock size={13} /> Dias por Coluna
               </button>
             )}
             {/* Exportar Excel — todos os perfis; exporta a lista de projetos com os filtros aplicados */}
@@ -5290,9 +5530,14 @@ function KanbanContent() {
               return true
             })
           const allProjects = projectCards
-            .filter(p => !isCoord || !isSustType(p.service_type))
+            // "Projetos em Execução" = MESMO universo dos Indicadores: só tipo "Projeto"
+            // (exclui Sustentação/Cloud/Bizify) e sem encerrados/cancelados por padrão.
+            // Assim a contagem da lista bate com os Indicadores. (Investimento já não vem
+            // do backend.) Se o usuário filtrar status explicitamente, respeita a escolha.
+            .filter(p => (p.service_type ?? '').trim().toLowerCase() === 'projeto')
+            .filter(p => filterStatuses.length > 0 || (p.status !== 'finished' && p.status !== 'cancelled'))
             // Chip "Meus projetos / Todos" — coordenador logado em coordinator_ids
-            .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && ((p as any).kanban_coordinator_override_id != null ? (p as any).kanban_coordinator_override_id === user.id : (p.coordinator_ids ?? []).includes(user.id))))
+            .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
             .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
             .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
             .filter(p => filterStatuses.length === 0 || filterStatuses.includes(p.status))
@@ -5346,23 +5591,35 @@ function KanbanContent() {
               {/* Tab: Projetos */}
               {listTab === 'projetos' && (() => {
                 // Helpers do row p/ saúde + on-demand
-                const rowHealth = rowHealthOf
+                const rowHealth = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
+                  const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+                  const sold = isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
+                  const cons = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
+                  const pct = sold > 0 ? (cons / sold) * 100 : 0
+                  return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
+                }
                 const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
                 // Aplica saudeFilter + sort
                 let rows = allProjects
                 if (saudeFilter) rows = rows.filter(p => rowHealth(p) === saudeFilter)
                 if (sortKey) {
                   const getVal = (p: ProjectCard): string | number => {
+                    const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
                     switch (sortKey) {
                       case 'customer':      return (p.customer_name ?? '').toLowerCase()
                       case 'project':       return (p.project_name ?? '').toLowerCase()
                       case 'contract_type': return (p.contract_type ?? '').toLowerCase()
                       case 'service_type':  return (p.service_type ?? '').toLowerCase()
                       case 'phase':         return (PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto').toLowerCase()
-                      case 'apontaveis':    return rowApontaveis(p) ?? -1
-                      case 'consumed':      return Number(rowConsumidas(p) ?? 0)
-                      case 'saldo':         return isOnDemand(p) ? -Infinity : (rowSaldoHoras(p) ?? -Infinity)
+                      case 'vendidas':      return isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
+                      case 'consumed':      return isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
+                      case 'saldo':         return isOnDemand(p) ? -Infinity : (isCoordRow ? (Number(p.coordination_hours ?? 0) - Number(p.coordination_consumed_hours ?? 0)) : Number(p.general_hours_balance ?? 0))
                       case 'saude':         return rowHealth(p) === 'green' ? 0 : rowHealth(p) === 'yellow' ? 1 : 2
+                      case 'coord':         {
+                                              const bank = Number(p.coordination_hours ?? 0)
+                                              if (bank <= 0) return -1
+                                              return (Number(p.coordination_consumed_hours ?? 0) / bank) * 100
+                                            }
                       case 'status':        return (p.status ?? '')
                     }
                   }
@@ -5388,10 +5645,11 @@ function KanbanContent() {
                         <SortTh k="contract_type" label="Tipo Contrato" />
                         <SortTh k="service_type" label="Tipo Serviço" />
                         <SortTh k="phase" label="Fase" />
-                        <SortTh k="apontaveis" label={isCliente ? 'Horas' : 'HS Apontáveis'} align="center" />
+                        <SortTh k="vendidas" label="Horas" align="center" />
                         {!isCliente && <SortTh k="consumed" label="HS Consumidas" align="center" />}
                         {!isCliente && <SortTh k="saldo" label="Saldo" align="center" />}
                         {!isCliente && <SortTh k="saude" label="Saúde" align="center" />}
+                        {!isCliente && <SortTh k="coord" label="Coord." align="center" />}
                         <SortTh k="status" label="Status" align="center" />
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Urgência</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Início</th>
@@ -5401,23 +5659,41 @@ function KanbanContent() {
                     </thead>
                     <tbody>
                       {rows.length === 0 && (
-                        <tr><td colSpan={isCliente ? 11 : 15} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
+                        <tr><td colSpan={isCliente ? 11 : 16} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
                       )}
                       {rows.map(p => {
                         const isClosed  = p.status === 'finished' || p.status === 'cancelled'
                         const hideHours = isCliente && isClosed
                         const onDemand  = isOnDemand(p)
-                        const rowHoras    = rowApontaveis(p)
-                        const rowConsumed = rowConsumidas(p)
-                        const rowSaldo    = rowSaldoHoras(p)
+                        // Lente do coordenador: swap Horas/HS Consumidas/Saldo p/ banco de coordenação
+                        // quando o usuário logado é coordenador do projeto + banco explícito.
+                        const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+                        const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
+                        const rowConsumed = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : (p.consumed_hours ?? null)
+                        const rowSaldo    = isCoordRow ? (Number(rowVendidas) - Number(rowConsumed)) : (p.general_hours_balance ?? null)
                         const saude       = rowHealth(p)
                         const saudeColor  = saude === 'red' ? 'var(--danger-border)' : saude === 'yellow' ? 'var(--warning-border)' : 'var(--success-border)'
                         return (
-                          <tr key={`p-${p.id}`} onClick={() => { if (isCliente) setClientCommentsProject(p); else setSelectedProject(p) }} className="cursor-pointer hover:bg-[var(--surface-hover)] transition-colors group/row"
+                          <tr key={`p-${p.id}`}
+                            onClick={e => {
+                              if (isCliente) return
+                              const btn = (e.currentTarget.querySelector('[data-row-menu-btn]') as HTMLElement | null)
+                              if (btn) setRowMenu({ card: p, kind: 'primary', pos: anchoredDropdownPos(btn.getBoundingClientRect(), 240) })
+                            }}
+                            className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-[var(--surface-hover)] transition-colors group/row`}
                             style={{ borderTop: '1px solid var(--border)' }}>
                             {!isCliente && (
                               <td className="px-2 py-3 w-10" onClick={e => e.stopPropagation()}>
-                                <ListProjectActionMenu onAction={action => setProjectAction({ card: p, action })} canWrite={canWrite} />
+                                <button data-row-menu-btn
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    const r = e.currentTarget.getBoundingClientRect()
+                                    setRowMenu(prev => prev?.card.id === p.id && prev.kind === 'secondary' ? null : { card: p, kind: 'secondary', pos: anchoredDropdownPos(r, 200) })
+                                  }}
+                                  className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
+                                  style={{ color: 'var(--text-light)' }}>
+                                  <MoreVertical size={14} />
+                                </button>
                               </td>
                             )}
                             <td className="px-4 py-3 text-[var(--text)] font-medium">{p.customer_name}</td>
@@ -5428,8 +5704,8 @@ function KanbanContent() {
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.contract_type ?? '—'}</td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.service_type ?? '—'}</td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto'}</td>
-                            <td className="px-4 py-3 text-center text-[var(--text)]" title={isCliente ? undefined : 'Horas Apontáveis (banco de coordenação)'}>
-                              {rowHoras != null ? `${rowHoras}h` : '—'}
+                            <td className="px-4 py-3 text-center text-[var(--text)]" title={isCoordRow ? 'Horas de Coordenação' : undefined}>
+                              {rowVendidas != null ? `${rowVendidas}h${isCoordRow ? ' *' : ''}` : '—'}
                             </td>
                             {!isCliente && (
                               <td className="px-4 py-3 text-center text-[var(--text)]">
@@ -5447,6 +5723,28 @@ function KanbanContent() {
                                 <span className="inline-block w-3 h-3 rounded-full" style={{ background: saudeColor }} title={saude === 'red' ? 'Crítico (>90%)' : saude === 'yellow' ? 'Atenção (70–90%)' : 'Saudável (<70%)'} />
                               </td>
                             )}
+                            {!isCliente && (() => {
+                              const cBank = Number(p.coordination_hours ?? 0)
+                              if (cBank <= 0) return <td className="px-4 py-3 text-center text-[var(--text-muted)] text-xs">—</td>
+                              const cCons = Number(p.coordination_consumed_hours ?? 0)
+                              const cPct  = (cCons / cBank) * 100
+                              const cColor = cPct >= 90 ? 'var(--danger-border)' : cPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
+                              const cSaldo = cBank - cCons
+                              return (
+                                <td className="px-4 py-3 min-w-[140px]"
+                                  title={`Coordenação: ${cCons.toFixed(1)}h de ${cBank.toFixed(1)}h (${Math.round(cPct)}%) · saldo ${cSaldo.toFixed(1)}h`}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cPct, 100)}%`, background: cColor }} />
+                                    </div>
+                                    <span className="text-[10px] tabular-nums font-semibold shrink-0" style={{ color: cColor }}>{Math.round(cPct)}%</span>
+                                  </div>
+                                  <div className="text-[9px] mt-0.5 tabular-nums" style={{ color: 'var(--text-light)' }}>
+                                    {cCons.toFixed(1)}h / {cBank.toFixed(1)}h
+                                  </div>
+                                </td>
+                              )
+                            })()}
                             <td className="px-4 py-3 text-center">
                               {(() => { const b = STATUS_BADGE[p.status] ?? { label: p.status, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }; return (
                                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
@@ -5676,8 +5974,8 @@ function KanbanContent() {
                   unreadContractIds={unreadContractIds}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
-                  onProjectClick={(card) => { if (isCliente) setClientCommentsProject(card); else setSelectedProject(card) }}
-                  onProjectAction={(card, action) => setProjectAction({ card, action })}
+                  onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
+                  onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
                       ? setPlanDecisionCard(card)
@@ -5685,7 +5983,6 @@ function KanbanContent() {
                   }
                   onRequestView={setSelectedRequest}
                   onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
-                  onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                   onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
                   getContractCols={getAvailableContractCols}
                 />
@@ -5726,11 +6023,10 @@ function KanbanContent() {
                       }
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
-                    onProjectClick={(card) => { if (isCliente) setClientCommentsProject(card); else setSelectedProject(card) }}
-                    onProjectAction={(card, action) => setProjectAction({ card, action })}
+                    onProjectClick={(card) => { if (isCliente) router.push(`/portal-cliente/projetos/${card.id}`); else setStagesPanelProject(card) }}
+                    onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
-                    onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
                     getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
                     />
@@ -5752,11 +6048,11 @@ function KanbanContent() {
                   newProjectIds={col.id === 'em_andamento' ? newProjectIds : undefined}
                   onContractClick={setSelectedContract}
                   onProjectClick={card => {
-                    if (isCliente) { setClientCommentsProject(card); return }
+                    if (isCliente) { router.push(`/portal-cliente/projetos/${card.id}`); return }
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
-                    setSelectedProject(card)
+                    setStagesPanelProject(card)
                   }}
-                  onProjectAction={(card, action) => setProjectAction({ card, action })}
+                  onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                   onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
                   getProjectCols={getAvailableProjectCols}
                 />
@@ -5802,15 +6098,13 @@ function KanbanContent() {
       {selectedProject && (
         <ProjectViewModal projectId={selectedProject.id} onClose={() => setSelectedProject(null)} userRole={userRole} initialTab="overview" />
       )}
-      {clientCommentsProject && (
-        <ClientProjectCommentsModal card={clientCommentsProject} onClose={() => setClientCommentsProject(null)} />
-      )}
       {stagesPanelProject && (
         <ProjectStagesSidePanel
           projectId={stagesPanelProject.id}
           projectName={stagesPanelProject.project_name}
           customerName={stagesPanelProject.customer_name}
           onClose={() => setStagesPanelProject(null)}
+          onViewCard={() => { setSelectedProject(stagesPanelProject); setStagesPanelProject(null) }}
         />
       )}
       {selectedRequest && (
@@ -5964,10 +6258,39 @@ function KanbanContent() {
       )}
 
       {/* ── Project action modals ── */}
+      {/* Menu da LISTA de projetos (primário = clique na linha; secundário = ⋮) */}
+      {rowMenu && createPortal(
+        <div ref={rowMenuRef} className="fixed z-[9999] rounded-xl shadow-2xl"
+          style={{ width: rowMenu.kind === 'primary' ? 240 : 200, top: rowMenu.pos.top, bottom: rowMenu.pos.bottom, left: rowMenu.pos.left, maxHeight: rowMenu.pos.maxHeight, overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--border)' }}
+          onClick={e => e.stopPropagation()}>
+          {filterProjMenu(rowMenu.kind === 'primary' ? PROJECT_PRIMARY_ITEMS : PROJECT_SECONDARY_ITEMS).map(item => {
+            const Icon = item.icon
+            const accent = (item as any).accent && !isCliente
+            const legend = isCliente ? undefined : (item as any).legend
+            const danger = (item as any).danger
+            const c  = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text)'
+            const ic = accent ? 'var(--danger)' : danger ? 'var(--danger)' : 'var(--text-light)'
+            return (
+              <button key={item.action}
+                onClick={() => { const card = rowMenu.card; setRowMenu(null); runProjectMenuAction(card, item.action) }}
+                className="w-full flex items-start gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: c }}>
+                <Icon size={14} style={{ color: ic, marginTop: 1, flexShrink: 0 }} />
+                <span className="flex flex-col">
+                  <span style={{ fontWeight: accent ? 600 : 500 }}>{item.label}</span>
+                  {legend && <span className="text-[10px]" style={{ color: 'var(--danger)', opacity: 0.95, fontWeight: 600 }}>{legend}</span>}
+                </span>
+              </button>
+            )
+          })}
+        </div>,
+        document.body
+      )}
+
       {projectAction && (() => {
         const { card, action } = projectAction
         const close = () => setProjectAction(null)
-        if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="overview" />
+        if (action === 'view' || action === 'card') return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="overview" />
         if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
         if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="consultants" />
@@ -5976,6 +6299,37 @@ function KanbanContent() {
         if (action === 'aportes')    return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="aportes" />
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
+        if (action === 'comments')   return (
+          <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(680px, 100%)', height: 'min(620px, 88vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--danger)', borderTop: '4px solid var(--danger)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.project_name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>Comentários{card.code ? ` · ${card.code}` : ''}</div>
+                </div>
+                <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, borderTop: '1px solid var(--border)', paddingTop: 8 }}><ProjectConversation projectId={card.id} /></div>
+            </div>
+          </div>
+        )
+        if (action === 'diary')      return (
+          <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: 'min(720px, 100%)', height: 'min(660px, 90vh)', display: 'flex', flexDirection: 'column', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,.35)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.project_name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Diário do Projeto{card.code ? ` · ${card.code}` : ''} · interno</div>
+                </div>
+                <button onClick={close} aria-label="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                <ProjectMessages projectId={card.id} userRole={userRole} />
+              </div>
+            </div>
+          </div>
+        )
+        if (action === 'documentos') return <ProjectDocsModal projectId={card.id} projectName={card.project_name} onClose={close} />
         return null
       })()}
 
@@ -6017,13 +6371,12 @@ function KanbanContent() {
                   <Trash2 size={20} className="text-[var(--danger)]" />
                   <p className="font-semibold text-[var(--text)]">Excluir Contrato</p>
                 </div>
-                <p className="text-sm text-[var(--text-muted)]">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita e ficará <strong className="text-[var(--text)]">registrada no log</strong>.</p>
-                <textarea ref={delReasonRef} placeholder="Motivo da exclusão (opcional) — registrado no log" className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--text)', minHeight: 56 }} />
+                <p className="text-sm text-[var(--text-muted)]">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>
                 <div className="flex gap-2 justify-end">
                   <button onClick={close} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
                   <button onClick={async () => {
                     try {
-                      await api.delete(`/contracts/${card.id}`, { reason: delReasonRef.current?.value?.trim() || undefined })
+                      await api.delete(`/contracts/${card.id}`)
                       toast.success('Contrato excluído.')
                       close()
                       load()
@@ -6041,213 +6394,12 @@ function KanbanContent() {
         }
         return null
       })()}
-      {showDelLog && <DeletionLogModal onClose={() => setShowDelLog(false)} />}
-      {showColHist && <ColumnHistoryModal onClose={() => setShowColHist(false)} />}
-      {delRequest && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setDelRequest(null)}>
-          <div className="rounded-2xl p-6 flex flex-col gap-3 w-96 max-w-full" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3"><Trash2 size={20} className="text-[var(--danger)]" /><p className="font-semibold text-[var(--text)]">Excluir Requisição</p></div>
-            <p className="text-sm text-[var(--text-muted)]">Excluir esta requisição? Esta ação não pode ser desfeita e ficará <strong className="text-[var(--text)]">registrada no log</strong>.</p>
-            <textarea ref={delReasonRef} placeholder="Motivo da exclusão (opcional) — registrado no log" className="w-full text-sm rounded-lg px-3 py-2 outline-none" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--text)', minHeight: 56 }} />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setDelRequest(null)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
-              <button onClick={async () => {
-                const id = delRequest.id
-                try {
-                  await api.delete(`/contract-requests/${id}`, { reason: delReasonRef.current?.value?.trim() || undefined })
-                  toast.success('Requisição excluída.')
-                  setDelRequest(null); load()
-                } catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir requisição'); setDelRequest(null) }
-              }} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
-                <Trash2 size={14} /> Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AppLayout>
   )
 }
 
-// Modal admin: log de exclusões de requisições/contratos (auditoria).
-// Histórico de dias por coluna: tabela projeto × colunas (dias) + total.
-function ColumnHistoryModal({ onClose }: { onClose: () => void }) {
-  interface ColDef { key: string; label: string }
-  interface Row { project_id: number; code: string | null; name: string | null; customer: string; coordinator?: string; executive?: string; created_at?: string | null; current: string; current_label?: string; days_by_column: Record<string, number>; total: number }
-  const [columns, setColumns] = useState<ColDef[]>([])
-  const [rows, setRows] = useState<Row[]>([])
-  const [loading, setLoading] = useState(true)
-  const [fCliente, setFCliente] = useState<string[]>([])
-  const [fProjeto, setFProjeto] = useState<string[]>([])
-  const [fCoord, setFCoord] = useState<string[]>([])
-  const [fStatus, setFStatus] = useState<string[]>([])
-  const [fExec, setFExec] = useState<string[]>([])
-
-  useEffect(() => {
-    api.get<{ columns: ColDef[]; rows: Row[] }>('/projects/kanban-column-history')
-      .then(r => { setColumns(r.columns ?? []); setRows(r.rows ?? []) })
-      .catch(() => toast.error('Erro ao carregar histórico'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const fmtD = (d?: number) => d == null || d === 0 ? '—' : `${Number(d).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}`
-  const fmtDay = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—'
-  // Listas para os filtros (derivadas dos dados).
-  const uniqSorted = (vals: (string | undefined)[]) => Array.from(new Set(vals.filter((v): v is string => !!v && v !== '—'))).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const clientes = uniqSorted(rows.map(r => r.customer))
-  const coords = uniqSorted(rows.map(r => r.coordinator))
-  const execs = uniqSorted(rows.map(r => r.executive))
-  const statuses = uniqSorted(rows.map(r => r.current_label))
-  const projetos = rows.filter(r => fCliente.length === 0 || fCliente.includes(r.customer))
-    .map(r => ({ id: String(r.project_id), label: `${r.code ?? ''} · ${r.name ?? ''}` }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  const filtered = rows.filter(r =>
-    (fCliente.length === 0 || fCliente.includes(r.customer)) &&
-    (fProjeto.length === 0 || fProjeto.includes(String(r.project_id))) &&
-    (fCoord.length === 0   || fCoord.includes(r.coordinator ?? '')) &&
-    (fExec.length === 0    || fExec.includes(r.executive ?? '')) &&
-    (fStatus.length === 0  || fStatus.includes(r.current_label ?? '')))
-  // Ordenação por coluna (clique no cabeçalho). Default: total desc.
-  const [sortKey, setSortKey] = useState<string>('total')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const clickSort = (k: string) => { if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(k); setSortDir(k === 'name' || k === 'customer' || k === 'current' ? 'asc' : 'desc') } }
-  const sortVal = (r: Row, k: string): number | string => {
-    if (k === 'total') return r.total
-    if (k === 'name') return `${r.code ?? ''} ${r.name ?? ''}`.toLowerCase()
-    if (k === 'customer') return r.customer.toLowerCase()
-    if (k === 'coordinator') return (r.coordinator ?? '').toLowerCase()
-    if (k === 'executive') return (r.executive ?? '').toLowerCase()
-    if (k === 'created_at') return r.created_at ? new Date(r.created_at).getTime() : 0
-    if (k === 'current') return (r.current_label ?? r.current).toLowerCase()
-    return r.days_by_column[k] ?? 0   // coluna de dias
-  }
-  // Exporta a tabela (respeitando filtros/ordem) p/ CSV (abre no Excel).
-  const exportCsv = () => {
-    const head = ['Projeto', 'Cliente', 'Coordenador', 'Executivo', 'Criado em', 'Status atual', ...columns.map(c => c.label), 'Total (dias)']
-    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
-    const lines = sorted.map(r => [
-      `${r.code ?? ''} ${r.name ?? ''}`.trim(), r.customer, r.coordinator ?? '—', r.executive ?? '—',
-      fmtDay(r.created_at), r.current_label ?? r.current,
-      ...columns.map(c => r.days_by_column[c.key] ?? 0), r.total,
-    ].map(esc).join(';'))
-    const csv = '﻿' + [head.map(esc).join(';'), ...lines].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dias-por-coluna.csv'; a.click(); URL.revokeObjectURL(a.href)
-  }
-  const sorted = [...filtered].sort((a, b) => {
-    const va = sortVal(a, sortKey), vb = sortVal(b, sortKey)
-    const c = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt-BR')
-    return sortDir === 'asc' ? c : -c
-  })
-  const arrow = (k: string) => sortKey === k ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
-      <div className="rounded-2xl w-full max-w-6xl max-h-[85vh] flex flex-col overflow-hidden" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div>
-            <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Dias por Coluna — histórico</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Quanto tempo cada projeto passou em cada coluna do pipeline (coluna atual conta até hoje).</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <div className="w-40"><MultiSelect value={fCliente} onChange={v => { setFCliente(v); setFProjeto([]) }}
-              options={clientes.map(c => ({ id: c, name: c }))} placeholder="Todos os clientes" wide /></div>
-            <div className="w-48"><MultiSelect value={fProjeto} onChange={setFProjeto}
-              options={projetos.map(p => ({ id: p.id, name: p.label }))} placeholder="Todos os projetos" wide /></div>
-            <div className="w-40"><MultiSelect value={fCoord} onChange={setFCoord}
-              options={coords.map(c => ({ id: c, name: c }))} placeholder="Todos coordenadores" wide /></div>
-            <div className="w-40"><MultiSelect value={fExec} onChange={setFExec}
-              options={execs.map(e => ({ id: e, name: e }))} placeholder="Todos executivos" wide /></div>
-            <div className="w-40"><MultiSelect value={fStatus} onChange={setFStatus}
-              options={statuses.map(s => ({ id: s, name: s }))} placeholder="Todos os status" wide /></div>
-            <button onClick={exportCsv} title="Exportar Excel" className="inline-flex items-center gap-1.5 h-9 px-3 text-sm rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}><Download size={14} /> Excel</button>
-            <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto">
-          {loading ? <p className="p-6 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
-            <table className="w-full text-xs border-collapse">
-              <thead className="sticky top-0" style={{ background: 'var(--surface-sunken)' }}>
-                <tr>
-                  <th onClick={() => clickSort('name')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Projeto{arrow('name')}</th>
-                  <th onClick={() => clickSort('customer')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Cliente{arrow('customer')}</th>
-                  <th onClick={() => clickSort('coordinator')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Coordenador{arrow('coordinator')}</th>
-                  <th onClick={() => clickSort('executive')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Executivo{arrow('executive')}</th>
-                  <th onClick={() => clickSort('created_at')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Criado em{arrow('created_at')}</th>
-                  <th onClick={() => clickSort('current')} className="text-left px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>Status atual{arrow('current')}</th>
-                  {columns.map(c => <th key={c.key} onClick={() => clickSort(c.key)} className="text-right px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--text-muted)' }}>{c.label}{arrow(c.key)}</th>)}
-                  <th onClick={() => clickSort('total')} className="text-right px-3 py-2 font-semibold whitespace-nowrap cursor-pointer select-none" style={{ color: 'var(--primary)' }}>Total (dias){arrow('total')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((r, i) => (
-                  <tr key={r.project_id} className="border-t" style={{ borderColor: 'var(--border)', background: i % 2 ? 'var(--bg)' : 'transparent' }}>
-                    <td className="px-3 py-2" style={{ color: 'var(--text)' }}><span style={{ color: 'var(--primary)' }}>{r.code ?? '—'}</span> · {r.name ?? '—'}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{r.customer}</td>
-                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{r.coordinator ?? '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{r.executive ?? '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDay(r.created_at)}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="text-[10px] px-2 py-0.5 rounded-full"
-                        style={r.current === 'cancelled'
-                          ? { background: 'var(--danger-bg)', color: 'var(--danger)' }
-                          : r.current === 'finished'
-                          ? { background: 'var(--success-bg)', color: 'var(--success)' }
-                          : { background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-                        {r.current_label ?? r.current}
-                      </span>
-                    </td>
-                    {columns.map(c => <td key={c.key} className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{fmtD(r.days_by_column[c.key])}</td>)}
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtD(r.total)}</td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && <tr><td colSpan={columns.length + 7} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum projeto.</td></tr>}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <div className="px-5 py-2 border-t text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>{filtered.length} projeto(s)</div>
-      </div>
-    </div>
-  )
-}
-
-function DeletionLogModal({ onClose }: { onClose: () => void }) {
-  const [logs, setLogs] = useState<{ id: number; contract_name: string | null; customer_name: string | null; kanban_status: string | null; deleted_by_name: string | null; reason: string | null; deleted_at: string | null }[]>([])
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    api.get<{ data: { id: number; contract_name: string | null; customer_name: string | null; kanban_status: string | null; deleted_by_name: string | null; reason: string | null; deleted_at: string | null }[] }>('/contracts/deletion-logs')
-      .then(r => setLogs(r?.data ?? [])).catch(() => {}).finally(() => setLoading(false))
-  }, [])
-  const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
-        <div className="px-5 py-4 flex items-center gap-2" style={{ background: 'var(--danger-bg)', borderBottom: '1px solid var(--border)' }}>
-          <Trash2 size={18} style={{ color: 'var(--danger)' }} />
-          <span className="text-sm font-bold" style={{ color: 'var(--danger)' }}>Log de exclusões</span>
-          <button onClick={onClose} className="ml-auto" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
-        </div>
-        <div className="overflow-y-auto flex-1 px-5 py-2">
-          {loading && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Carregando…</p>}
-          {!loading && logs.length === 0 && <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Nenhuma exclusão registrada.</p>}
-          {!loading && logs.map(l => (
-            <div key={l.id} className="py-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{l.contract_name ?? '—'}{l.customer_name ? <span className="text-[11px] font-normal ml-1.5" style={{ color: 'var(--text-light)' }}>· {l.customer_name}</span> : null}</span>
-                <span className="text-[11px] shrink-0" style={{ color: 'var(--text-light)' }}>{fmt(l.deleted_at)}</span>
-              </div>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Excluído por <b>{l.deleted_by_name ?? '—'}</b>{l.kanban_status ? ` · fase ${l.kanban_status}` : ''}</p>
-              {l.reason && <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-light)' }}>Motivo: {l.reason}</p>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function KanbanPage() {
+  // useSearchParams (deep-link ?req=/?project=) exige Suspense no build de produção (next build/Render).
   return (
     <Suspense fallback={null}>
       <KanbanContent />
