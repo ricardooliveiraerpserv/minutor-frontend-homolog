@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useProsightCompany } from '@/app/prosight/_components/company-context'
 import { SourceReposSection } from '@/components/customers/source-repos-section'
 import { RpoTopologyPanel } from './rpo-topology-panel'
+import { RpoRestConfigPanel } from './rpo-rest-config-panel'
 import { EnvHubSection } from '@/components/environments/env-hub-section'
 import { ConnectorConnection } from '@/components/environments/connector-connection'
 import { EnvironmentConfigPanel } from '@/components/environments/environment-config-panel'
@@ -105,6 +106,17 @@ export function ConfiguracaoView({ demoAdmin = false }: { demoAdmin?: boolean })
               </div>
               <RpoTopologyPanel customerId={companyId} />
             </Card>
+          </section>
+
+          {/* ── RPO via REST AdvPL (por ambiente) — paridade com o configurador do ProSight enviado ── */}
+          <section>
+            <h3 className="mb-2 flex items-center gap-2 font-semibold" style={{ color: 'var(--text)' }}>
+              <Server size={16} /> Integração RPO (REST AdvPL)
+            </h3>
+            <p className="mb-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Endpoint e credenciais do RPO por ambiente. O inventário consulta o RPO diretamente via REST AdvPL (PROSIGHTREST). Os fontes vêm do <strong>Git</strong> (acima); aqui é o lado do RPO compilado.
+            </p>
+            <RpoRestConfigPanel key={companyId} customerId={companyId} />
           </section>
 
           {/* Allowlist GLOBAL do sistema (admin) — ação separada, não confundir com a da empresa. */}

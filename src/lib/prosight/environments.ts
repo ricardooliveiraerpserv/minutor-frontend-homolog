@@ -186,3 +186,32 @@ export async function revokeAgent(agentId: string): Promise<{ agent_id: string; 
   const r = await api.delete<{ data: { agent_id: string; revoked_at: string | null } }>(`/prosight/connector/agents/${agentId}`)
   return r.data
 }
+
+// ── Config REST AdvPL (RPO) por ambiente — paridade com o configurador do ProSight enviado ──
+export interface RpoConfig {
+  environment_id: number
+  rpo_api_url: string | null
+  rpo_api_user: string | null
+  rpo_api_password_set: boolean
+  rpo_exclusion_patterns: string
+  allow_insecure_tls: boolean
+}
+export interface RpoConfigInput {
+  rpo_api_url?: string
+  rpo_api_user?: string
+  rpo_api_password?: string   // vazio = manter a senha atual
+  rpo_exclusion_patterns?: string
+  allow_insecure_tls?: boolean
+}
+export async function fetchRpoConfig(environmentId: number): Promise<RpoConfig> {
+  const r = await api.get<{ data: RpoConfig }>(`/prosight/environments/${environmentId}/rpo-config`)
+  return r.data
+}
+export async function saveRpoConfig(environmentId: number, input: RpoConfigInput): Promise<{ saved: boolean; rpo_api_password_set: boolean }> {
+  const r = await api.put<{ data: { saved: boolean; rpo_api_password_set: boolean } }>(`/prosight/environments/${environmentId}/rpo-config`, input)
+  return r.data
+}
+export async function testRpoConfig(environmentId: number, input: RpoConfigInput): Promise<{ ok: boolean; message: string; status?: number; sample_count?: number }> {
+  const r = await api.post<{ data: { ok: boolean; message: string; status?: number; sample_count?: number } }>(`/prosight/environments/${environmentId}/rpo-config/test`, input)
+  return r.data
+}
