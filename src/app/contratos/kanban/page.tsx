@@ -1333,14 +1333,14 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
               {card.bh_mensal_item && (
                 <div className="rounded-xl p-4 text-sm font-bold leading-snug"
                   style={{ background: '#f973161f', color: '#c2410c', border: '1px solid #f9731666' }}>
-                  💰 O faturamento deste Banco de Horas Mensal será no contrato principal de Cloud nº {card.parent_contract_code ?? '—'} — fatura única.
+                  💰 O faturamento deste contrato é feito no contrato principal nº {card.parent_contract_code ?? '—'} — fatura única.
                 </div>
               )}
               {card.has_bh_mensal_items && card.combined_billing_value != null && (
                 <div className="rounded-xl p-4 text-sm font-bold leading-snug"
                   style={{ background: '#0e74901f', color: '#0e7490', border: '1px solid #0e749066' }}>
                   💰 Fatura única: {Number(card.combined_billing_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  <span className="block font-medium mt-0.5">Inclui a mensalidade + o(s) item(ns) de Banco de Horas Mensal (uma única nota).</span>
+                  <span className="block font-medium mt-0.5">Inclui este contrato + o(s) item(ns) vinculado(s) — uma única nota.</span>
                 </div>
               )}
               {/* Aditivo: visão objetiva do que foi alterado (pro administrativo cobrar) */}
