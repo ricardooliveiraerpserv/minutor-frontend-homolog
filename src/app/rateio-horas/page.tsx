@@ -17,6 +17,8 @@ interface TargetRow { target_project_id: number | ''; projeto?: string; cliente?
 export default function RateioHorasPage() {
   const [projects, setProjects] = useState<RateioProject[]>([])
   const [allProjects, setAllProjects] = useState<ProjOpt[]>([])
+  // Destinos do rateio: só projetos com contrato tipo CLOUD (regra de negócio).
+  const [destProjects, setDestProjects] = useState<ProjOpt[]>([])
   const [customers, setCustomers] = useState<Record<number, string>>({})
   const [selId, setSelId] = useState<number | null>(null)
   const [rows, setRows] = useState<TargetRow[]>([])
@@ -36,6 +38,10 @@ export default function RateioHorasPage() {
   useEffect(() => {
     api.get<{ items: ProjOpt[] }>('/projects?minimal=1&status=open&pageSize=2000')
       .then(r => setAllProjects((r.items ?? []).filter(p => p.id && p.name)))
+      .catch(() => {})
+    // Destinos = só contratos tipo Cloud.
+    api.get<{ items: ProjOpt[] }>('/projects?minimal=1&status=open&contract_type_code=cloud&pageSize=2000')
+      .then(r => setDestProjects((r.items ?? []).filter(p => p.id && p.name)))
       .catch(() => {})
     api.get<{ data?: { id: number; name: string }[] }>('/customers?pageSize=1000')
       .then(r => { const list = (r as any).data ?? (r as any).items ?? []; const m: Record<number, string> = {}; list.forEach((c: any) => { if (c.id) m[c.id] = c.name }); setCustomers(m) })
@@ -98,8 +104,11 @@ export default function RateioHorasPage() {
     finally { setSaving(false) }
   }
 
-  const projOptions = allProjects.map(p => { const cli = p.customer_id ? customers[p.customer_id] : undefined; return ({ id: p.id, name: `${cli ? cli + ' · ' : ''}${p.code ? p.code + ' · ' : ''}${p.name}` }) })
-  const notRateioOptions = projOptions.filter(o => !projects.some(p => p.id === o.id))
+  const labelOf = (p: ProjOpt) => { const cli = p.customer_id ? customers[p.customer_id] : undefined; return `${cli ? cli + ' · ' : ''}${p.code ? p.code + ' · ' : ''}${p.name}` }
+  // Seletor "tornar de rateio" = qualquer projeto (o servidor pode ser On Demand etc.).
+  const notRateioOptions = allProjects.map(p => ({ id: p.id, name: labelOf(p) })).filter(o => !projects.some(p => p.id === o.id))
+  // Seletor de DESTINO = só Cloud.
+  const destOptions = destProjects.map(p => ({ id: p.id, name: labelOf(p) }))
 
   return (
     <AppLayout title="Rateio de Horas">
@@ -145,7 +154,7 @@ export default function RateioHorasPage() {
               <div className="space-y-2">
                 {rows.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = allProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={projOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino…" /></div>
+                    <div className="flex-1"><SearchSelect value={String(row.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }} options={destOptions.filter(o => o.id !== selId && (o.id === row.target_project_id || !rows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id)))} placeholder="Projeto de destino (Cloud)…" /></div>
                     <input type="number" min={0} max={100} step="0.01" value={row.percentual} onChange={e => setRow(i, { percentual: Number(e.target.value) })}
                       className="w-24 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
