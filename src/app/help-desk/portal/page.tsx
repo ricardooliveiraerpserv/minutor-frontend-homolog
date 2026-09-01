@@ -573,14 +573,17 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-6">
-      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary" title="Voltar para meus chamados">
-        <ArrowLeft size={16} /> Voltar
-      </button>
-      {hasUpdate && (
-        <button onClick={() => { load(); ackPresence() }} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-primary" title="O chamado foi atualizado — clique para ver">
+      <div className="flex items-center justify-between gap-2">
+        <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary" title="Voltar para meus chamados">
+          <ArrowLeft size={16} /> Voltar
+        </button>
+        {/* Atualizar SEMPRE disponível; destaca (primário + pulso) quando há novidade detectada. */}
+        <button onClick={() => { load(); ackPresence() }}
+          className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ${hasUpdate ? 'ds-btn-primary hd-pulse' : 'ds-btn-secondary'}`}
+          title={hasUpdate ? 'O chamado foi atualizado — clique para ver' : 'Atualizar o chamado'}>
           <RefreshCw size={15} /> Atualizar
         </button>
-      )}
+      </div>
 
       {/* 1º — HEADER limpo: nº, título, status e metadados essenciais */}
       <div className="space-y-2">
