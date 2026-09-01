@@ -121,6 +121,7 @@ export interface Timesheet {
   origin?: string
   is_billable_only?: boolean
   is_internal_action?: boolean
+  rateio_source_timesheet_id?: number | null
   client_extra_pct?: number | null
   consultant_extra_pct?: number | null
   movidesk_appointment_id?: number | null
