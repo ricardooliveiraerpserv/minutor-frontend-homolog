@@ -572,7 +572,7 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
   const rot = 'text-[11px] uppercase tracking-wide font-medium'
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6">
+    <div className="w-full max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between gap-2">
         <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary" title="Voltar para meus chamados">
           <ArrowLeft size={16} /> Voltar
@@ -586,16 +586,18 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
       </div>
 
       {/* 1º — HEADER limpo: nº, título, status e metadados essenciais */}
-      <div className="space-y-2">
-        <div className="font-mono text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>{t.numero ?? `#${t.id}`}</div>
-        {t.assunto && <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
-        {t.status && (
-          <div className="inline-flex items-center gap-2 text-base font-semibold" style={{ color: statusCor }}>
-            <span className="w-2.5 h-2.5 rounded-full" style={{ background: statusCor }} /> {t.status.label}
-          </div>
-        )}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>{t.numero ?? `#${t.id}`}</span>
+          {t.status && (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: statusCor }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: statusCor }} /> {t.status.label}
+            </span>
+          )}
+        </div>
+        {t.assunto && <h1 className="text-xl font-bold leading-tight" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
         {/* Metadados do chamado — todos no padrão do cabeçalho (rótulo em cima, valor embaixo). */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-3 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1.5 pt-1">
           {t.solicitante && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Solicitante</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.solicitante}</div></div>}
           <div><div className={rot} style={{ color: 'var(--text-light)' }}>Atendido por</div><div className="text-sm font-semibold truncate" style={{ color: atendente ? 'var(--text)' : 'var(--text-light)' }}>{atendente || 'Aguardando atribuição'}</div></div>
           {t.cliente && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Cliente</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.cliente}</div></div>}
@@ -636,14 +638,13 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
       )}
 
       {/* 2º — CARD DE STATUS horizontal: estado + explicação em linguagem simples + previsão */}
-      <div className="ds-card p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="ds-card p-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className={`${rot} mb-1`} style={{ color: 'var(--text-light)' }}>Status</div>
-            <div className="inline-flex items-center gap-2 text-lg font-bold" style={{ color: statusCor }}>
-              <span className="w-3 h-3 rounded-full" style={{ background: statusCor }} /> {t.status?.label ?? '—'}
+            <div className="inline-flex items-center gap-2 text-base font-bold" style={{ color: statusCor }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: statusCor }} /> {t.status?.label ?? '—'}
             </div>
-            <p className="text-sm mt-1.5" style={{ color: 'var(--text-muted)' }}>{statusMessage(t)}</p>
+            <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>{statusMessage(t)}</p>
           </div>
           <div className="flex gap-6 shrink-0 sm:border-l sm:pl-6" style={{ borderColor: 'var(--border)' }}>
             <div><div className={rot} style={{ color: 'var(--text-light)' }}>Atualizado</div><div className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text)' }}>{relativeTime(t.atualizado_em) || '—'}</div></div>
