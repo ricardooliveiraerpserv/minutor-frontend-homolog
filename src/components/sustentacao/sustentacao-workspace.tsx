@@ -17,7 +17,7 @@ import {
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, Users, DollarSign,
   Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw, Wrench, Gauge,
-  ChevronDown, Check, CheckSquare, X as CloseIcon, Eye, FileText,
+  ChevronDown, Check, CheckSquare, X as CloseIcon, Eye, FileText, LayoutDashboard,
 } from 'lucide-react'
 import { TimesheetsScreen }            from '@/components/screens/TimesheetsScreen'
 import { ExpensesScreen }              from '@/components/screens/ExpensesScreen'
@@ -199,6 +199,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const TABS = [
+  { id: 'resumo',       label: 'Resumo Executivo',  icon: LayoutDashboard },
   { id: 'status',       label: 'Status de Suporte', icon: Gauge },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
@@ -793,7 +794,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     if (!isAdmin && !isSustentacaoCoord) router.replace('/dashboard')
   }, [user, router])
 
-  const [tab, setTab]         = useState(show === 'indicadores' ? 'status' : '')
+  const [tab, setTab]         = useState(show === 'indicadores' ? 'resumo' : '')
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -896,8 +897,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       } else if (t === 'indicadores' && !indicadores) {
         const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
-      } else if (t === 'status') {
+      } else if (t === 'status' || t === 'resumo') {
         // compare=yoy: backend calcula current+previous+variation com a MESMA regra.
+        // 'resumo' (one-pager executivo) reusa exatamente os mesmos dados do Status.
         const r = await api.get<{ status: StatusData }>(`/sustentacao/executive?${params}&compare=yoy`)
         setStatus(r.status)
         // REUSO dos endpoints existentes para Top-5 e tendência (nada duplicado).
@@ -985,9 +987,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     fetchContextStats(queueFilterResp, queueFilterCliente, from, to)
   }, [queueFilterResp, queueFilterCliente, from, to])
 
-  // Recarrega o Status de Suporte quando o período muda (é unguarded no load).
+  // Recarrega o Status de Suporte / Resumo quando o período muda (é unguarded no load).
   useEffect(() => {
-    if (tab === 'status') { setStatus(null); load('status') }
+    if (tab === 'status' || tab === 'resumo') { setStatus(null); load(tab) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to])
 
@@ -1135,6 +1137,98 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
         )}
 
         {/* STATUS DE SUPORTE — cockpit executivo (regra canônica; drill-down p/ abas) */}
+        {!routineTab && tab === 'resumo' && status && (() => {
+          const s = status
+          const cur = s.current, v = s.variation
+          const fmtH = (h: number | null) => h == null ? '—' : `${h.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h`
+          const slaRate = cur.sla.rate
+          const slaColor = slaRate == null ? 'var(--text-light)' : slaRate >= 90 ? GREEN : slaRate >= 70 ? YELLOW : RED
+          const prevMed = s.previous?.resolution_median_hours
+          const tempoHasHist = prevMed != null && prevMed > 0
+          const servico = s.distribution.by_servico
+          const hoursHasHist = !!s.previous && (s.previous.hours ?? 0) > 0
+          const topConsultores = (productivity?.by_consultant ?? []).slice(0, 5).map(c => ({
+            label: c.owner_name ?? c.owner_email ?? '—',
+            value: c.tickets_resolved,
+            valueLabel: String(c.tickets_resolved),
+            right: c.total_minutes_worked ? `${Math.round(c.total_minutes_worked / 60)}h` : '—',
+          }))
+          const topClientes = (clients?.by_client ?? []).slice()
+            .sort((a, b) => b.total_period - a.total_period).slice(0, 5).map(c => ({
+              label: c.customer?.name ?? `#${c.customer_id}`,
+              value: c.total_period,
+              valueLabel: String(c.total_period),
+              right: c.sla_den > 0 ? `${Math.round((c.sla_num / c.sla_den) * 100)}%` : '—',
+            }))
+          return (
+            <div className="space-y-5">
+              {/* Núcleo: SLA (gauge) + KPIs com comparação anual */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="rounded-xl border p-4 flex items-center justify-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <SlaGauge rate={slaRate} num={cur.sla.num} den={cur.sla.den} color={slaColor} />
+                </div>
+                <div className="lg:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiAA label="Tickets Criados" value={cur.created} variation={v?.created_pct} unit="%" good="neutral" />
+                  <KpiAA label="Tickets Resolvidos" value={cur.resolved} valueColor={GREEN} variation={v?.resolved_pct} unit="%" good="up" />
+                  <KpiAA label="Tempo de Resolução" value={fmtH(cur.resolution_median_hours)} sub="mediana"
+                    variation={tempoHasHist ? (v?.resolution_hours_abs ?? null) : null} unit="h" good="down" />
+                  <KpiAA label="Horas apontadas" value={fmtH(cur.hours)} sub="sustentação · no período"
+                    variation={hoursHasHist ? (v?.hours_pct ?? null) : undefined} unit="%" good="neutral" />
+                </div>
+              </div>
+
+              {/* Módulo (servico) + Tipo de Atendimento (categoria) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <SectionLabel>Tickets por Módulo (Top {servico.top.length})</SectionLabel>
+                  <HBarTopN items={servico.top} others={servico.others} othersCount={servico.others_count} barColor={CYAN} onSeeAll={() => setTab('distribution')} />
+                </div>
+                <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <SectionLabel>Tipos de Atendimento</SectionLabel>
+                  <DonutTipo items={s.distribution.by_categoria} palette={PIE_COLORS} />
+                </div>
+              </div>
+
+              {/* Rankings: consultores × clientes */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <SectionLabel>Ranking de Consultores · resolvidos (horas)</SectionLabel>
+                  {topConsultores.length ? <RankBars items={topConsultores} barColor={PURPLE} />
+                    : <p className="text-xs text-[var(--text-muted)]">Carregando…</p>}
+                  <button onClick={() => setTab('productivity')} className="text-[11px] font-medium mt-2" style={{ color: 'var(--primary)' }}>Ver produtividade →</button>
+                </div>
+                <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <SectionLabel>Ranking de Clientes · tickets (SLA)</SectionLabel>
+                  {topClientes.length ? <RankBars items={topClientes} barColor={BLUE} />
+                    : <p className="text-xs text-[var(--text-muted)]">Carregando…</p>}
+                  <button onClick={() => setTab('clients')} className="text-[11px] font-medium mt-2" style={{ color: 'var(--primary)' }}>Ver por cliente →</button>
+                </div>
+              </div>
+
+              {/* Comparativo com o mesmo período do ano anterior */}
+              <div className="rounded-xl border p-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <SectionLabel>Comparativo com o mesmo período do ano anterior</SectionLabel>
+                <CompareRow label="Tickets Criados" prev={s.previous?.created ?? null} cur={cur.created}
+                  prevLabel={`${s.previous?.created ?? 0}`} curLabel={`${cur.created}`}
+                  variation={v?.created_pct ?? null} unit="%" good="neutral" noHistory={!s.previous} />
+                <CompareRow label="Tickets Resolvidos" prev={s.previous?.resolved ?? null} cur={cur.resolved}
+                  prevLabel={`${s.previous?.resolved ?? 0}`} curLabel={`${cur.resolved}`}
+                  variation={v?.resolved_pct ?? null} unit="%" good="up" noHistory={!s.previous} />
+                <CompareRow label="SLA de Solução" prev={s.previous?.sla.rate ?? null} cur={slaRate ?? 0}
+                  prevLabel={s.previous?.sla.rate != null ? `${s.previous.sla.rate}%` : '—'} curLabel={slaRate != null ? `${slaRate}%` : '—'}
+                  variation={v?.sla_pp ?? null} unit="pp" good="up" noHistory={!s.previous || s.previous.sla.rate == null} />
+                <CompareRow label="Tempo de Resolução (mediana)" prev={prevMed ?? null} cur={cur.resolution_median_hours ?? 0}
+                  prevLabel={fmtH(prevMed ?? null)} curLabel={fmtH(cur.resolution_median_hours)}
+                  variation={tempoHasHist ? (v?.resolution_pct ?? null) : null} unit="%" good="down" noHistory={!tempoHasHist} />
+                <CompareRow label="Horas apontadas" prev={s.previous?.hours ?? null} cur={cur.hours}
+                  prevLabel={fmtH(s.previous?.hours ?? null)} curLabel={fmtH(cur.hours)}
+                  variation={v?.hours_pct ?? null} unit="%" good="neutral" noHistory={!hoursHasHist} />
+                <p className="text-[10px] text-[var(--text-light)] mt-2">Horas de sustentação existem só a partir de 2026 — sem base anterior antes disso.</p>
+              </div>
+            </div>
+          )
+        })()}
+
         {!routineTab && tab === 'status' && status && (() => {
           const s = status
           const cur = s.current, v = s.variation, st = s.state
