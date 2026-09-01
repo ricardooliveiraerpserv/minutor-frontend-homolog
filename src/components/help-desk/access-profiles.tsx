@@ -164,15 +164,14 @@ export function AccessProfiles() {
       <div className="ds-card overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
-            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de</th><th className="px-3 py-2">Padrão</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil.</td></tr>}
             {rows.map(p => (
               <tr key={p.id} className="border-t ds-row-hover" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-3 py-2"><button className="inline-flex items-center gap-1.5 text-left" style={{ color: 'var(--text)' }} onClick={() => setEditing(p)}><ShieldCheck size={14} style={{ color: 'var(--primary)' }} />{p.name}</button></td>
                 <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.kind === 'agent' ? 'Agente' : 'Cliente'}</td>
-                <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.is_default ? 'Sim' : 'Não'}</td>
                 <td className="px-3 py-2"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: p.enabled ? 'var(--success-bg)' : 'var(--surface-sunken)', color: p.enabled ? 'var(--success-border)' : 'var(--text-muted)' }}>{p.enabled ? 'Sim' : 'Não'}</span></td>
                 <td className="px-3 py-2 text-right whitespace-nowrap"><button className="mr-2" title="Copiar (duplicar perfil)" onClick={() => dup(p)}><Copy size={14} style={{ color: 'var(--text-muted)' }} /></button><button className="mr-2" title="Editar" onClick={() => setEditing(p)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button><button title="Excluir" onClick={() => del(p)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button></td>
               </tr>
@@ -188,7 +187,6 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
   const p = profile === 'new' ? null : profile
   const [name, setName] = useState(p?.name ?? '')
   const [kind, setKind] = useState<Kind>(p?.kind ?? 'agent')
-  const [isDefault, setIsDefault] = useState(p?.is_default ?? false)
   const [enabled, setEnabled] = useState(p?.enabled ?? true)
   const [perms, setPerms] = useState<Record<string, unknown>>(() => ({ ...defaultsFor(p?.kind ?? 'agent'), ...(p?.permissions ?? {}) }))
   const [tab, setTab] = useState(SCHEMA[p?.kind ?? 'agent'][0].id)
@@ -200,7 +198,7 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
   const save = async () => {
     if (!name.trim()) return toast.error('Informe o nome.')
     setSaving(true)
-    const body = { name: name.trim(), kind, is_default: isDefault, enabled, permissions: perms }
+    const body = { name: name.trim(), kind, enabled, permissions: perms }
     try {
       if (p) await api.put(`/help-desk/access-profiles/${p.id}`, body); else await api.post('/help-desk/access-profiles', body)
       toast.success('Perfil salvo'); onSaved()
@@ -223,7 +221,6 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text)' }}><input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} /> Usar este perfil por padrão ao cadastrar novas pessoas <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>(apenas 1 por tipo)</span></label>
         <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text)' }}>
           <label className="flex items-center gap-1.5"><input type="radio" checked={enabled} onChange={() => setEnabled(true)} /> Habilitado</label>
           <label className="flex items-center gap-1.5"><input type="radio" checked={!enabled} onChange={() => setEnabled(false)} /> Desabilitado</label>

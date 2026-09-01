@@ -72,8 +72,9 @@ export default function ClientesPage() {
   const [filterExecutive, setFilterExecutive] = useState('')
   const [filterStatus, setFilterStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos')
   const [executives, setExecutives] = useState<Executive[]>([])
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string }[]>([])
   const [modal, setModal] = useState<{ open: boolean; item?: CustomerFull }>({ open: false })
-  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
+  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
   const [novoCgcCli, setNovoCgcCli] = useState('')
   const addCgcCli = () => {
     const c = novoCgcCli.replace(/\D/g, '')
@@ -102,6 +103,9 @@ export default function ClientesPage() {
       const arr = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(arr)
     }).catch(() => {})
+    // Perfis de acesso HD de CLIENTE (para o "perfil padrão" por cliente).
+    api.get<{ data: { id: number; name: string; enabled: boolean }[] }>('/help-desk/access-profiles?all=1&kind=cliente')
+      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name })))).catch(() => {})
   }, [])
 
   const load = useCallback(async () => {
@@ -153,7 +157,7 @@ export default function ClientesPage() {
   }
 
   const openCreate = () => {
-    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
+    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
     setNovoEmailCli('')
     setModal({ open: true })
   }
@@ -166,6 +170,7 @@ export default function ClientesPage() {
       code_prefix: item.code_prefix ?? '',
       active: item.active,
       has_contract: item.has_contract ?? false,
+      helpdesk_default_access_profile_id: (item as CustomerFull & { helpdesk_default_access_profile_id?: number | null }).helpdesk_default_access_profile_id ? String((item as CustomerFull & { helpdesk_default_access_profile_id?: number | null }).helpdesk_default_access_profile_id) : '',
       executive_id: item.executive_id ? String(item.executive_id) : '',
       executive_bizify_id: item.executive_bizify_id ? String(item.executive_bizify_id) : '',
       emails_administrativos: (item as CustomerFull & { emails_administrativos?: string[] }).emails_administrativos ?? [],
@@ -182,6 +187,7 @@ export default function ClientesPage() {
         ...form,
         executive_id: form.executive_id ? Number(form.executive_id) : null,
         executive_bizify_id: form.executive_bizify_id ? Number(form.executive_bizify_id) : null,
+        helpdesk_default_access_profile_id: form.helpdesk_default_access_profile_id ? Number(form.helpdesk_default_access_profile_id) : null,
         code_prefix: form.code_prefix || null,
         // Nova inclusão com Bizify ativo já nasce como cliente Bizify (aparece na lista).
         ...(isBizify && !modal.item ? { is_bizify_customer: true } : {}),
@@ -417,6 +423,18 @@ export default function ClientesPage() {
                     <option value="">Sem executivo</option>
                     {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
                   </select>
+                </div>
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Perfil de acesso HD padrão</Label>
+                  <select
+                    value={form.helpdesk_default_access_profile_id}
+                    onChange={e => setForm(f => ({ ...f, helpdesk_default_access_profile_id: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
+                  >
+                    <option value="">Nenhum (definir na pessoa)</option>
+                    {hdProfiles.map(pr => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                  </select>
+                  <p className="text-[10px] mt-1 text-[var(--text-light)]">Aplicado às novas pessoas-cliente deste cliente (quando não houver regra de associação).</p>
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">E-mails administrativos</Label>
