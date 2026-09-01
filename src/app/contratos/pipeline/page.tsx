@@ -4785,6 +4785,7 @@ function KanbanContent() {
         saldo:        onDemand ? '—' : rowSaldo != null ? Number(rowSaldo).toFixed(1) : '',
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
+        deliveryPct:  p.delivery_percentage != null ? `${Math.round(Number(p.delivery_percentage))}%` : '',
       }
     })
 
