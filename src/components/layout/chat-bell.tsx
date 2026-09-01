@@ -7,7 +7,7 @@ import { MessageCircle, Volume2, VolumeX, Play } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { listConversations } from '@/lib/inbox'
-import { isChatSoundOn, setChatSoundOn, playChatSound } from '@/lib/chat-prefs'
+import { isChatSoundOn, setChatSoundOn, playChatSound, isMeetingSoundOn, setMeetingSoundOn } from '@/lib/chat-prefs'
 import { useAuth } from '@/hooks/use-auth'
 import type { ConversationSummary } from '@/types/inbox'
 
@@ -29,14 +29,20 @@ export function ChatBell() {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [soundOn, setSoundOn] = useState(true)
+  const [meetingSoundOn, setMeetingSoundOnState] = useState(true)
   const wrapRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { setSoundOn(isChatSoundOn()) }, [open])
+  useEffect(() => { setSoundOn(isChatSoundOn()); setMeetingSoundOnState(isMeetingSoundOn()) }, [open])
 
   const toggleSound = () => {
     const next = !soundOn
     setSoundOn(next)
     setChatSoundOn(next)
+  }
+  const toggleMeetingSound = () => {
+    const next = !meetingSoundOn
+    setMeetingSoundOnState(next)
+    setMeetingSoundOn(next)
   }
 
   const { data } = useQuery({
@@ -114,6 +120,20 @@ export function ChatBell() {
                 {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
               </button>
             </div>
+          </div>
+
+          <div className="px-3 py-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Alertas de reunião</span>
+            <button
+              type="button"
+              onClick={toggleMeetingSound}
+              title={meetingSoundOn ? 'Beep ligado — clique para silenciar (o pop-up continua aparecendo)' : 'Beep desligado — clique para ativar'}
+              aria-label={meetingSoundOn ? 'Silenciar beep dos alertas de reunião' : 'Ativar beep dos alertas de reunião'}
+              className="p-1 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+              style={{ color: meetingSoundOn ? 'var(--primary)' : 'var(--text-light)' }}
+            >
+              {meetingSoundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </button>
           </div>
 
           <div className="max-h-80 overflow-y-auto">
