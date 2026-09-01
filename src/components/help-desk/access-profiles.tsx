@@ -290,7 +290,7 @@ export function HelpDeskPeople() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkProfile, setBulkProfile] = useState('')
   const load = useCallback(() => {
-    api.get<{ data: Person[] }>(`/help-desk/people?kind=${kind}`).then(r => {
+    api.get<{ data: Person[] }>(`/help-desk/people?kind=${kind}${q.trim() ? `&search=${encodeURIComponent(q.trim())}` : ''}`).then(r => {
       const ppl = r?.data ?? []
       setPeople(ppl)
       if (kind === 'cliente') {
@@ -304,8 +304,10 @@ export function HelpDeskPeople() {
       }
     }).catch(() => {})
     api.get<{ data: AccessProfile[] }>(`/help-desk/access-profiles?all=1&kind=${kind}`).then(r => setProfiles((r?.data ?? []).filter(p => p.enabled))).catch(() => {})
-  }, [kind])
-  useEffect(() => { load(); setSelected(new Set()); setTypeFilter('') }, [load])
+  }, [kind, q])
+  // Troca de tipo zera seleção/filtro; a busca dispara o reload (server-side) com debounce.
+  useEffect(() => { setSelected(new Set()); setTypeFilter('') }, [kind])
+  useEffect(() => { const t = setTimeout(() => load(), 300); return () => clearTimeout(t) }, [load])
   const setProfile = async (userId: number, profileId: string) => {
     try {
       await api.patch(`/help-desk/people/${userId}/access-profile`, { access_profile_id: profileId ? Number(profileId) : null })
@@ -319,7 +321,8 @@ export function HelpDeskPeople() {
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao vincular departamento') }
   }
   const types = Array.from(new Set(people.map(p => p.type))).sort()
-  const filtered = people.filter(p => p.name.toLowerCase().includes(q.trim().toLowerCase()) && (!typeFilter || p.type === typeFilter))
+  // A busca (q) já é aplicada no BACKEND (nome ou empresa, antes do limite) — aqui só o filtro de tipo.
+  const filtered = people.filter(p => (!typeFilter || p.type === typeFilter))
 
   const toggleOne = (id: number) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id))
