@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, ShieldCheck, Search } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, ShieldCheck, Search, Copy } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -151,6 +151,7 @@ export function AccessProfiles() {
   const load = useCallback(() => { api.get<{ data: AccessProfile[] }>('/help-desk/access-profiles?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
   const del = async (p: AccessProfile) => { if (!confirm(`Excluir "${p.name}"?`)) return; try { await api.delete(`/help-desk/access-profiles/${p.id}`); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
+  const dup = async (p: AccessProfile) => { try { await api.post(`/help-desk/access-profiles/${p.id}/duplicate`, {}); toast.success('Perfil duplicado'); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao duplicar') } }
 
   if (editing) return <AccessProfileForm profile={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />
 
@@ -173,7 +174,7 @@ export function AccessProfiles() {
                 <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.kind === 'agent' ? 'Agente' : 'Cliente'}</td>
                 <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.is_default ? 'Sim' : 'Não'}</td>
                 <td className="px-3 py-2"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: p.enabled ? 'var(--success-bg)' : 'var(--surface-sunken)', color: p.enabled ? 'var(--success-border)' : 'var(--text-muted)' }}>{p.enabled ? 'Sim' : 'Não'}</span></td>
-                <td className="px-3 py-2 text-right whitespace-nowrap"><button className="mr-2" title="Editar" onClick={() => setEditing(p)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button><button title="Excluir" onClick={() => del(p)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button></td>
+                <td className="px-3 py-2 text-right whitespace-nowrap"><button className="mr-2" title="Copiar (duplicar perfil)" onClick={() => dup(p)}><Copy size={14} style={{ color: 'var(--text-muted)' }} /></button><button className="mr-2" title="Editar" onClick={() => setEditing(p)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button><button title="Excluir" onClick={() => del(p)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button></td>
               </tr>
             ))}
           </tbody>
