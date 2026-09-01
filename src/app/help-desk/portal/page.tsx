@@ -76,8 +76,6 @@ export default function HelpDeskPortalPage() {
   )
 }
 
-const isResolved = (t: PortalTicket) => !!t.sla?.resolvido_em
-
 // Pílula de prioridade colorida (igual ao Kanban do agente).
 const PRIO_MAP: Record<string, { label: string; color: string; bg: string }> = {
   baixa:   { label: 'Baixa',   color: '#16a34a', bg: 'rgba(22,163,74,.16)' },
@@ -338,36 +336,14 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   }))
   const orderedColumns = colOrder.map(l => columns.find(c => c.label === l)).filter(Boolean) as typeof columns
 
-  // Cards-resumo (topo): quantidade por coluna + contagens de SLA.
-  // Contagem do resumo vem da base (sem o clique) → os cards não zeram ao selecionar uma coluna.
+  // Cards-resumo (topo): quantidade por COLUNA (sem o clique → não zeram ao selecionar uma coluna)
+  // + um contador único de chamados que reflete o filtro atual (inclui o clique na coluna).
   const statColumns = orderedColumns.map(c => ({ label: c.label, cor: c.cor, count: baseFiltered.filter(t => colLabelOf(t) === c.label).length }))
-  const sc = { g: 0, y: 0, r: 0, p: 0, res: 0 }
-  filteredRows.forEach(t => {
-    if (isResolved(t)) { sc.res++; return }
-    if (t.sla?.em_pausa) { sc.p++; return }
-    const p = t.sla?.previsao_resolucao
-    if (!p) { sc.g++; return }
-    const d = new Date(p).getTime() - Date.now()
-    if (d < 0) sc.r++; else if (d < 24 * 3600 * 1000) sc.y++; else sc.g++
-  })
-  // Indicadores = métricas que NÃO duplicam as colunas (Resolvido/Pausado/Agendados já são colunas).
-  const abertos = filteredRows.filter(t => !t.status?.is_terminal && !t.status?.is_resolved).length
-  const totalT = filteredRows.length
-  // % SLA = chamados NÃO estourados sobre o total (cor por saúde).
-  const pctSla = totalT > 0 ? Math.round(((totalT - sc.r) / totalT) * 100) : 100
-  const slaCor = pctSla >= 90 ? '#16a34a' : pctSla >= 70 ? '#f59e0b' : '#ef4444'
-  const statMetrics = [
-    { label: 'Total', value: totalT, cor: '#64748b' },
-    { label: 'Abertos', value: abertos, cor: '#3b82f6' },
-    { label: '% SLA no prazo', value: `${pctSla}%`, hint: `${totalT - sc.r} de ${totalT} no prazo`, cor: slaCor },
-    { label: 'Vencendo', value: sc.y, cor: '#f59e0b' },
-    { label: 'Estourado', value: sc.r, cor: '#ef4444' },
-  ]
 
   return (
     <div className="space-y-4">
-      {/* Cards-resumo no TOPO — quantidade por coluna + SLA */}
-      {rows.length > 0 && <KanbanStats columns={statColumns} metrics={statMetrics} activeColumn={fCol} onColumnClick={(l) => setFCol(prev => prev === l ? '' : l)} />}
+      {/* Faixa por coluna (clicável) + contador único que muda conforme o filtro */}
+      {rows.length > 0 && <KanbanStats columns={statColumns} total={filteredRows.length} activeColumn={fCol} onColumnClick={(l) => setFCol(prev => prev === l ? '' : l)} />}
 
       {/* Filtros: busca geral, por ticket, solicitante e responsável */}
       {rows.length > 0 && (
