@@ -8,19 +8,26 @@ export interface KanbanMetric { label: string; value: string | number; hint?: st
  * (total de abertos, % de SLA no prazo, vencendo/estourado, agendados, etc.). Reutilizado nos 3
  * perfis (cliente/consultor/admin); cada tela calcula seus números.
  */
-export function KanbanStats({ columns, metrics }: { columns: KanbanStat[]; metrics: KanbanMetric[] }) {
+export function KanbanStats({ columns, metrics, activeColumn, onColumnClick }: { columns: KanbanStat[]; metrics: KanbanMetric[]; activeColumn?: string; onColumnClick?: (label: string) => void }) {
+  const clickable = !!onColumnClick
   return (
     <div className="space-y-2.5">
       {columns.length > 0 && (
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--text-light)' }}>Chamados por coluna</div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--text-light)' }}>Chamados por coluna{clickable ? ' · clique para filtrar' : ''}</div>
           <div className="flex flex-wrap gap-2">
-            {columns.map((s, i) => (
-              <div key={i} className="ds-card px-3 py-2 flex items-center gap-2.5 min-w-[104px]" style={{ borderLeft: `3px solid ${s.cor ?? 'var(--border)'}` }}>
-                <span className="text-lg font-bold leading-none" style={{ color: 'var(--text)' }}>{s.count}</span>
-                <span className="text-[11px] leading-tight" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
-              </div>
-            ))}
+            {columns.map((s, i) => {
+              const active = !!activeColumn && activeColumn === s.label
+              return (
+                <button key={i} type="button" disabled={!clickable} onClick={() => onColumnClick?.(s.label)}
+                  title={clickable ? (active ? 'Remover filtro' : `Filtrar: ${s.label}`) : undefined}
+                  className={`ds-card appearance-none text-left px-3 py-2 flex items-center gap-2.5 min-w-[104px] transition ${clickable ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
+                  style={{ borderLeft: `3px solid ${s.cor ?? 'var(--border)'}`, ...(active ? { boxShadow: `0 0 0 2px ${s.cor ?? 'var(--primary)'}`, background: `${(s.cor ?? '#64748b')}14` } : {}) }}>
+                  <span className="text-lg font-bold leading-none" style={{ color: 'var(--text)' }}>{s.count}</span>
+                  <span className="text-[11px] leading-tight" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

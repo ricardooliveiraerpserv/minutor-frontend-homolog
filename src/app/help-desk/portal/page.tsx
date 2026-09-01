@@ -243,6 +243,7 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   const [fSolic, setFSolic] = useState('')   // filtro solicitante
   const [fResp, setFResp] = useState('')     // filtro responsável (agente)
   const [fStatus, setFStatus] = useState('') // filtro status (por key)
+  const [fCol, setFCol] = useState('')       // filtro por COLUNA/grupo (clique no card do resumo)
   // Filtro de data de abertura — padrão do sistema (Mês/Ano ou Período), igual ao admin.
   const [dateMode, setDateMode] = useState<'month' | 'period'>('month')
   const [refMonth, setRefMonth] = useState<number | null>(null)
@@ -297,7 +298,8 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
     if (dateTo && tm > new Date(`${dateTo}T23:59:59`).getTime()) return false
     return true
   }
-  const filteredRows = rows.filter(t => {
+  // Base: todos os filtros MENOS o clique na coluna (mantém as contagens do resumo cheias).
+  const baseFiltered = rows.filter(t => {
     if (fSolic && t.solicitante !== fSolic) return false
     if (fResp && t.agente !== fResp) return false
     if (fStatus && (t.status?.key ?? '') !== fStatus) return false
@@ -306,8 +308,19 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
     if (!matchesDate(t.criado_em)) return false
     return true
   })
+  // Coluna/grupo a que o chamado pertence (mesma regra do Kanban: agendado > status > fallback).
+  const _schedLabel = cfg.find(c => c.rule === 'scheduled')?.label ?? null
+  const colLabelOf = (t: PortalTicket) => {
+    if (_schedLabel && t.agendamento) return _schedLabel
+    const k = t.status?.key ?? ''
+    const hit = cfg.find(c => c.rule !== 'scheduled' && c.statuses.includes(k))
+    if (hit) return hit.label
+    return cfg.find(c => c.fallback)?.label ?? null
+  }
+  // Linhas exibidas: aplica também o clique na coluna do resumo.
+  const filteredRows = fCol ? baseFiltered.filter(t => colLabelOf(t) === fCol) : baseFiltered
   const dateActive = dateMode === 'month' ? (refMonth != null) : !!(dateFrom || dateTo)
-  const hasFilter = !!(q || qTicket || fSolic || fResp || fStatus || dateActive)
+  const hasFilter = !!(q || qTicket || fSolic || fResp || fStatus || fCol || dateActive)
 
   // Colunas do Kanban = config global. Coluna 'scheduled' captura todo chamado com agendamento
   // (independente do status) e tem precedência: o agendado fica SÓ nela. As demais casam por key do
@@ -326,7 +339,8 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   const orderedColumns = colOrder.map(l => columns.find(c => c.label === l)).filter(Boolean) as typeof columns
 
   // Cards-resumo (topo): quantidade por coluna + contagens de SLA.
-  const statColumns = orderedColumns.map(c => ({ label: c.label, cor: c.cor, count: c.items.length }))
+  // Contagem do resumo vem da base (sem o clique) → os cards não zeram ao selecionar uma coluna.
+  const statColumns = orderedColumns.map(c => ({ label: c.label, cor: c.cor, count: baseFiltered.filter(t => colLabelOf(t) === c.label).length }))
   const sc = { g: 0, y: 0, r: 0, p: 0, res: 0 }
   filteredRows.forEach(t => {
     if (isResolved(t)) { sc.res++; return }
@@ -353,7 +367,7 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   return (
     <div className="space-y-4">
       {/* Cards-resumo no TOPO — quantidade por coluna + SLA */}
-      {rows.length > 0 && <KanbanStats columns={statColumns} metrics={statMetrics} />}
+      {rows.length > 0 && <KanbanStats columns={statColumns} metrics={statMetrics} activeColumn={fCol} onColumnClick={(l) => setFCol(prev => prev === l ? '' : l)} />}
 
       {/* Filtros: busca geral, por ticket, solicitante e responsável */}
       {rows.length > 0 && (
@@ -388,7 +402,7 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
             <option value="">Status: todos</option>
             {statusOpts.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
-          {hasFilter && <button onClick={() => { setQ(''); setQTicket(''); setFSolic(''); setFResp(''); setFStatus(''); setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }} className="text-xs px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>}
+          {hasFilter && <button onClick={() => { setQ(''); setQTicket(''); setFSolic(''); setFResp(''); setFStatus(''); setFCol(''); setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }} className="text-xs px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>}
         </div>
       )}
 
