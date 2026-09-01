@@ -389,6 +389,14 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
           />
         )}
         <input
+          // Desliga autofill do navegador e dos gerenciadores de senha por padrão
+          // (sobrescrevível via props). Ver componente ui/input.
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          data-1p-ignore=""
+          data-lpignore="true"
+          data-form-type="other"
           className={cn(
             'w-full rounded-xl text-sm transition-colors outline-none',
             Icon ? 'pl-9 pr-4 py-2.5' : 'px-4 py-2.5',
