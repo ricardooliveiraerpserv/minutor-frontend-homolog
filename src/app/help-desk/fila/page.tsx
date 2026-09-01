@@ -31,6 +31,7 @@ interface TicketRow {
   updated_at?: string | null; last_activity_at?: string | null; resolution_due_at?: string | null
   last_agent_activity_at?: string | null // última interação DA EQUIPE (nota/resposta interna)
   dias_sem_interacao?: number | null // dias úteis sem interação da equipe (0 = interagiu hoje)
+  interactions_count?: number | null // qtd de interações (comentários reais) — só na visão do admin
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -361,6 +362,7 @@ export default function HelpDeskFilaPage() {
   const listCols: { key: string; label: string; num?: boolean; get: (t: TicketRow) => number | string }[] = [
     { key: 'ticket', label: 'Nº', num: true, get: t => Number(t.ticket_number) || t.id },
     { key: 'subject', label: 'Assunto', get: t => (t.subject || '').toLowerCase() },
+    { key: 'interacoes', label: 'Interações', num: true, get: t => t.interactions_count ?? 0 },
     { key: 'customer', label: 'Cliente', get: t => (t.customer?.name || '').toLowerCase() },
     { key: 'solicitante', label: 'Solicitante', get: t => (t.solicitante_nome || '').toLowerCase() },
     { key: 'assignee', label: 'Responsável', get: t => (t.assignee?.name || '').toLowerCase() },
@@ -665,6 +667,7 @@ export default function HelpDeskFilaPage() {
                       </td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                       <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-center"><span className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} title="Interações no chamado">💬 {t.interactions_count ?? 0}</span></td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: t.assignee ? 'var(--text-muted)' : 'var(--text-light)' }}>{t.assignee?.name ?? 'Não atribuído'}</td>
@@ -716,6 +719,7 @@ export default function HelpDeskFilaPage() {
                                   {/* 1 — Código (protagonista) + badge de SLA à direita */}
                                   <div className="flex items-center gap-2">
                                     <span className="font-mono text-[16px] font-bold leading-none" style={{ color: 'var(--text)' }}>{t.ticket_number ?? `#${t.id}`}</span>
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1 py-0.5 rounded shrink-0" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} title="Interações no chamado">💬 {t.interactions_count ?? 0}</span>
                                     <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: sla.color, background: sla.bg }}>{sla.icon} {sla.label}</span>
                                   </div>
                                   {/* 2 — Título */}
