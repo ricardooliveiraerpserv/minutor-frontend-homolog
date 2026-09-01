@@ -9,6 +9,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
+import { useConfirm } from '@/components/ui/use-confirm'
 import { Plus, Trash2, Split, Save, Server, X, UserPlus, Users, CalendarRange, ListChecks, Pencil } from 'lucide-react'
 
 interface TeamMember { id: number; name: string }
@@ -47,6 +48,7 @@ export default function RateioHorasPage() {
   const [editingId, setEditingId] = useState<number | null>(null)  // apontamento em modo edição
   const [openPlans, setOpenPlans] = useState<number[]>([])          // índices de períodos expandidos
   const togglePlan = (pi: number) => setOpenPlans(o => o.includes(pi) ? o.filter(x => x !== pi) : [...o, pi])
+  const { confirm: askConfirm, confirmDialog } = useConfirm()
 
   const loadProjects = useCallback(() => {
     setLoading(true)
@@ -105,7 +107,7 @@ export default function RateioHorasPage() {
   }
 
   const unmark = async (p: RateioProject) => {
-    if (!confirm(`Desfazer "${p.name}" como projeto de rateio? Os períodos e destinos serão removidos.`)) return
+    if (!(await askConfirm({ title: 'Desfazer projeto de rateio', danger: true, confirmLabel: 'Desfazer', message: <>Desfazer <b>{p.name}</b> como projeto de rateio? Os períodos e destinos configurados serão removidos.</> }))) return
     try {
       await api.put(`/rateio-hours/projects/${p.id}/plans`, { plans: [] })
       await api.put(`/projects/${p.id}`, { is_rateio: false })
@@ -234,7 +236,7 @@ export default function RateioHorasPage() {
   }
   const resetOverride = async (a: Aponta) => {
     if (!selId) return
-    if (!confirm('Voltar a divisão automática (pelo período) deste apontamento? O ajuste manual será perdido.')) return
+    if (!(await askConfirm({ title: 'Voltar ao automático', confirmLabel: 'Voltar ao automático', message: 'Voltar à divisão automática (pelo período) deste apontamento? O ajuste manual será perdido.' }))) return
     try {
       await api.put(`/rateio-hours/projects/${selId}/timesheets/${a.id}/override`, { auto: true })
       toast.success('Voltou ao automático')
@@ -243,7 +245,12 @@ export default function RateioHorasPage() {
   }
   const deleteApont = async (a: Aponta) => {
     if (!selId) return
-    if (!confirm(`Excluir o apontamento de ${fmtDate(a.date)} (${hh(a.effort_minutes)}) e estornar os rateios? Soft-delete (recuperável pelo suporte).`)) return
+    if (!(await askConfirm({
+      title: 'Excluir apontamento',
+      danger: true,
+      confirmLabel: 'Excluir e estornar',
+      message: <>Excluir o apontamento de <b>{fmtDate(a.date)}</b> ({hh(a.effort_minutes)}) e <b>estornar</b> os rateios?<br /><span style={{ color: 'var(--text-muted)' }}>Não some do banco — é arquivado (soft-delete) e pode ser recuperado pelo suporte.</span></>,
+    }))) return
     try {
       await api.delete(`/rateio-hours/projects/${selId}/timesheets/${a.id}`)
       toast.success('Apontamento excluído e rateios estornados')
@@ -507,6 +514,7 @@ export default function RateioHorasPage() {
           </div>
         </div>
       )}
+      {confirmDialog}
     </AppLayout>
   )
 }
