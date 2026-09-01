@@ -1763,7 +1763,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                 <Fragment key={ts.id}>
                 <Tr
                   key={ts.id}
-                  baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'var(--warning-bg)' : undefined}
+                  baseBackground={ts.rateio_source_timesheet_id ? 'rgba(99,102,241,0.10)' : ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'var(--warning-bg)' : undefined}
                   onClick={() => openView(ts)}
                   {...hover.bind(ts)}
                 >
@@ -1887,6 +1887,13 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                       clientExtraPct={ts.client_extra_pct}
                       consultantExtraPct={ts.consultant_extra_pct}
                     />
+                    {ts.rateio_source_timesheet_id && (
+                      <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold whitespace-nowrap"
+                        style={{ background: 'rgba(99,102,241,0.15)', color: '#6366F1' }}
+                        title={`Apontamento de rateio (origem #${ts.rateio_source_timesheet_id})`}>
+                        🔗 Rateio
+                      </span>
+                    )}
                   </Td>
                   {!(isAdmin || isCoordenador) && (
                     <Td muted>{ts.user?.name ?? '—'}</Td>

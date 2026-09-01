@@ -44,6 +44,9 @@ export default function RateioHorasPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [editRows, setEditRows] = useState<{ target_project_id: number | ''; projeto?: string; percentual: number }[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)  // apontamento em modo edição
+  const [openPlans, setOpenPlans] = useState<number[]>([])          // índices de períodos expandidos
+  const togglePlan = (pi: number) => setOpenPlans(o => o.includes(pi) ? o.filter(x => x !== pi) : [...o, pi])
 
   const loadProjects = useCallback(() => {
     setLoading(true)
@@ -113,7 +116,7 @@ export default function RateioHorasPage() {
   }
 
   // ── Períodos ──
-  const addPlan = () => setPlans(p => [...p, { data_inicio: '', data_fim: '', semFim: true, targets: [] }])
+  const addPlan = () => setPlans(p => { setOpenPlans(o => [...o, p.length]); return [...p, { data_inicio: '', data_fim: '', semFim: true, targets: [] }] })
   const removePlan = (pi: number) => setPlans(p => p.filter((_, i) => i !== pi))
   const setPlanField = (pi: number, patch: Partial<PlanRow>) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, ...patch } : pl))
   const addTarget = (pi: number) => setPlans(p => p.map((pl, i) => i === pi ? { ...pl, targets: [...pl.targets, { target_project_id: '', percentual: 0 }] } : pl))
@@ -173,14 +176,19 @@ export default function RateioHorasPage() {
 
   // ── Ajuste manual de um apontamento ──
   // Expandir um apontamento: carrega os destinos atuais como PERCENTUAL (editável).
+  // Expandir = só VER (read-only). A edição é destravada pelo botão "Editar".
   const toggleExpand = (a: Aponta) => {
-    if (expandedId === a.id) { setExpandedId(null); return }
-    setExpandedId(a.id)
+    if (expandedId === a.id) { setExpandedId(null); setEditingId(null); return }
+    setExpandedId(a.id); setEditingId(null)
+  }
+  const startEdit = (a: Aponta) => {
+    setEditingId(a.id)
     const total = a.effort_minutes || 1
     setEditRows(a.splits.length > 0
       ? a.splits.map(s => ({ target_project_id: s.target_project_id, projeto: s.projeto ?? undefined, percentual: Math.round(s.minutes / total * 10000) / 100 }))
       : [])
   }
+  const cancelEdit = () => { setEditingId(null); setEditRows([]) }
   const addEditRow = () => setEditRows(r => [...r, { target_project_id: '', percentual: 0 }])
   const removeEditRow = (i: number) => setEditRows(r => r.filter((_, idx) => idx !== i))
   const setEditRow = (i: number, patch: Partial<{ target_project_id: number | ''; projeto?: string; percentual: number }>) => setEditRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
@@ -220,7 +228,7 @@ export default function RateioHorasPage() {
     try {
       await api.put(`/rateio-hours/projects/${selId}/timesheets/${a.id}/override`, { distribution: dist })
       toast.success('Divisão ajustada')
-      setExpandedId(null); loadTimesheets(selId)
+      setEditingId(null); loadTimesheets(selId)
     } catch (e) { toast.error(apiMessage(e, 'Erro ao ajustar divisão')) }
     finally { setSavingEdit(false) }
   }
@@ -305,9 +313,11 @@ export default function RateioHorasPage() {
               <div className="space-y-3">
                 {plans.map((pl, pi) => {
                   const somaP = planSoma(pl)
+                  const openP = openPlans.includes(pi)
                   return (
-                    <div key={pi} className="rounded-xl p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
-                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <div key={pi} className="rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
+                      <div className="flex flex-wrap items-center gap-3 p-3">
+                        <button onClick={() => togglePlan(pi)} title={openP ? 'Recolher' : 'Expandir'} className="text-xs" style={{ color: 'var(--text-light)' }}>{openP ? '▾' : '▸'}</button>
                         <div className="inline-flex items-center gap-1.5">
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Início</span>
                           <input type="date" value={pl.data_inicio} onChange={e => setPlanField(pi, { data_inicio: e.target.value })}
@@ -322,11 +332,13 @@ export default function RateioHorasPage() {
                             sem data fim
                           </label>
                         </div>
-                        <div className="ml-auto flex items-center gap-2">
-                          <button onClick={() => distribuirPlan(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
-                          <button onClick={() => addTarget(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Destino</button>
-                          <button onClick={() => removePlan(pi)} title="Remover período" className="p-1 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
-                        </div>
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{pl.targets.length} destino{pl.targets.length !== 1 ? 's' : ''} · soma {somaP}</span>
+                        <button onClick={() => removePlan(pi)} title="Remover período" className="ml-auto p-1 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                      </div>
+                      {openP && (<div className="px-3 pb-3">
+                      <div className="flex items-center justify-end gap-2 mb-2">
+                        <button onClick={() => distribuirPlan(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
+                        <button onClick={() => addTarget(pi)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Destino</button>
                       </div>
                       {pl.targets.length === 0 ? (
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Sem destinos neste período.</p>
@@ -350,6 +362,7 @@ export default function RateioHorasPage() {
                           </div>
                         </div>
                       )}
+                      </div>)}
                     </div>
                   )
                 })}
@@ -384,34 +397,63 @@ export default function RateioHorasPage() {
                       </button>
                       {open && (
                         <div className="px-3 pb-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Divisão do apontamento ({hh(a.effort_minutes)}) — por percentual</span>
-                            <div className="flex items-center gap-2">
-                              {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Voltar ao automático</button>}
-                              <button onClick={editDistribuir} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
-                              <button onClick={addEditRow} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Contrato</button>
-                            </div>
-                          </div>
-                          {editRows.length === 0 ? (
-                            <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>Sem destinos. Adicione os contratos que recebem estas horas.</p>
-                          ) : (
-                            <div className="space-y-1.5">
-                              {editRows.map((r, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <div className="flex-1"><SearchSelect value={String(r.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setEditRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
-                                    options={destOptions.filter(o => o.id === r.target_project_id || !editRows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id))} placeholder="Contrato (Cloud)…" /></div>
-                                  <input type="number" min={0} max={100} step="0.01" value={r.percentual} onChange={e => setEditPct(i, Number(e.target.value))}
-                                    className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
-                                  <span className="text-[11px] w-16 text-right" style={{ color: 'var(--text-muted)' }}>{hh(Math.round(a.effort_minutes * (Number(r.percentual) || 0) / 100))}</span>
-                                  <button onClick={() => removeEditRow(i)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                          {editingId !== a.id ? (
+                            <>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Divisão do apontamento ({hh(a.effort_minutes)})</span>
+                                <div className="flex items-center gap-2">
+                                  {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Voltar ao automático</button>}
+                                  <button onClick={() => startEdit(a)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}><Pencil size={12} /> Editar</button>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                              {a.splits.length === 0 ? (
+                                <p className="text-[11px]" style={{ color: 'var(--warning)' }}>Sem divisão (sem período nesta data).</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {a.splits.map((s, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-xs py-0.5">
+                                      <span className="flex-1 truncate" style={{ color: 'var(--text)' }}>{s.projeto_codigo ? s.projeto_codigo + ' · ' : ''}{s.projeto}</span>
+                                      <span className="w-12 text-right" style={{ color: 'var(--text-muted)' }}>{a.effort_minutes ? Math.round(s.minutes / a.effort_minutes * 100) : 0}%</span>
+                                      <span className="w-16 text-right font-semibold" style={{ color: 'var(--text)' }}>{hh(s.minutes)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Editar divisão ({hh(a.effort_minutes)}) — por percentual</span>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={editDistribuir} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
+                                  <button onClick={addEditRow} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Contrato</button>
+                                </div>
+                              </div>
+                              {editRows.length === 0 ? (
+                                <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>Sem destinos. Adicione os contratos que recebem estas horas.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {editRows.map((r, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <div className="flex-1"><SearchSelect value={String(r.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setEditRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
+                                        options={destOptions.filter(o => o.id === r.target_project_id || !editRows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id))} placeholder="Contrato (Cloud)…" /></div>
+                                      <input type="number" min={0} max={100} step="0.01" value={r.percentual} onChange={e => setEditPct(i, Number(e.target.value))}
+                                        className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                                      <span className="text-[11px] w-16 text-right" style={{ color: 'var(--text-muted)' }}>{hh(Math.round(a.effort_minutes * (Number(r.percentual) || 0) / 100))}</span>
+                                      <button onClick={() => removeEditRow(i)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between mt-3">
+                                <span className="text-[11px]" style={{ color: Math.abs(editSum - 100) > 0.01 ? 'var(--warning)' : 'var(--text-muted)' }}>Soma: {editSum}%{Math.abs(editSum - 100) > 0.01 ? ' (será normalizada p/ 100%)' : ''}</span>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={cancelEdit} className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Cancelar</button>
+                                  <button onClick={() => saveEdit(a)} disabled={savingEdit} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {savingEdit ? 'Salvando…' : 'Salvar divisão'}</button>
+                                </div>
+                              </div>
+                            </>
                           )}
-                          <div className="flex items-center justify-between mt-3">
-                            <span className="text-[11px]" style={{ color: Math.abs(editSum - 100) > 0.01 ? 'var(--warning)' : 'var(--text-muted)' }}>Soma: {editSum}%{Math.abs(editSum - 100) > 0.01 ? ' (será normalizada p/ 100%)' : ''}</span>
-                            <button onClick={() => saveEdit(a)} disabled={savingEdit} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {savingEdit ? 'Salvando…' : 'Salvar divisão'}</button>
-                          </div>
                         </div>
                       )}
                     </div>
