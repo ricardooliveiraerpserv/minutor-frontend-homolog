@@ -631,8 +631,8 @@ export default function HelpDeskFilaPage() {
         )}
 
         {view === 'lista' ? (
-          <div className="ds-card">
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+          <div className="ds-card overflow-x-auto">
+            <table className="w-full text-sm min-w-[900px]" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr className="text-left" style={{ color: 'var(--text-light)' }}>
                   <th className="px-3 py-2 border-b w-8 sticky -top-4 md:-top-8 z-20" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
