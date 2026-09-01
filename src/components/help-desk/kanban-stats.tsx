@@ -30,7 +30,7 @@ export function KanbanStats({ columns, activeColumn, onColumnClick, total }: { c
                 <button key={i} type="button" disabled={!clickable} onClick={() => onColumnClick?.(s.label)}
                   title={clickable ? (active ? 'Remover filtro' : `Filtrar: ${s.label}`) : undefined}
                   className={`ds-card appearance-none text-left shrink-0 px-2.5 py-2 flex items-center gap-2 min-w-max transition ${clickable ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
-                  style={{ borderLeft: `3px solid ${s.cor ?? 'var(--border)'}`, ...(active ? { boxShadow: `0 0 0 2px ${s.cor ?? 'var(--primary)'}`, background: `${(s.cor ?? '#64748b')}14` } : {}) }}>
+                  style={{ borderLeft: `3px solid ${s.cor ?? 'var(--border)'}`, ...(active ? { boxShadow: `inset 0 0 0 2px ${s.cor ?? 'var(--primary)'}`, background: `${(s.cor ?? '#64748b')}14` } : {}) }}>
                   <span className="text-lg font-bold leading-none" style={{ color: 'var(--text)' }}>{s.count}</span>
                   <span className="text-[11px] leading-tight whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{s.label}</span>
                 </button>
