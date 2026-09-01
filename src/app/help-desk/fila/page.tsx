@@ -394,8 +394,6 @@ export default function HelpDeskFilaPage() {
     { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', highlight: true, hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
-    // Total = contagem EXIBIDA (reflete todos os filtros, inclusive chips de status/pendência) — igual ao contador do cliente.
-    { label: 'Total', value: listRows.length, cor: '#64748b', hint: (pendFilter || statusSel.length) ? 'clique para ver todos' : undefined, onClick: () => { setPendFilter(''); setStatusSel([]) } },
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
     { label: 'Agendados', value: agendados, cor: '#6366f1', icon: '📅', hint: 'reuniões marcadas · clique p/ ver', onClick: () => setPendFilter(p => p === 'scheduled' ? '' : 'scheduled'), active: pendFilter === 'scheduled' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
@@ -548,6 +546,11 @@ export default function HelpDeskFilaPage() {
                 <ChevronDown size={13} style={{ transform: resumoOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} /> Resumo
               </button>
               <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Indicadores</span>
+              {/* Contador único (reflete todos os filtros) — igual ao contador da visão do cliente. */}
+              <span className="ml-auto inline-flex items-baseline gap-1 shrink-0 px-2.5 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                <span className="text-sm font-bold leading-none">{listRows.length}</span>
+                <span className="text-[11px] font-medium">{listRows.length === 1 ? 'chamado' : 'chamados'}</span>
+              </span>
             </div>
             {resumoOpen && (
               <div className="flex flex-wrap gap-1.5">
