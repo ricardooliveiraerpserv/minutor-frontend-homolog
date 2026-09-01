@@ -241,6 +241,15 @@ export default function RateioHorasPage() {
       setExpandedId(null); loadTimesheets(selId)
     } catch (e) { toast.error(apiMessage(e, 'Erro ao reverter')) }
   }
+  const deleteApont = async (a: Aponta) => {
+    if (!selId) return
+    if (!confirm(`Excluir o apontamento de ${fmtDate(a.date)} (${hh(a.effort_minutes)}) e estornar os rateios? Soft-delete (recuperável pelo suporte).`)) return
+    try {
+      await api.delete(`/rateio-hours/projects/${selId}/timesheets/${a.id}`)
+      toast.success('Apontamento excluído e rateios estornados')
+      setExpandedId(null); loadTimesheets(selId)
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao excluir')) }
+  }
   const editSum = Math.round(editRows.reduce((a, r) => a + (Number(r.percentual) || 0), 0) * 100) / 100
 
   const openAlloc = (p: RateioProject) => {
@@ -404,6 +413,7 @@ export default function RateioHorasPage() {
                                 <div className="flex items-center gap-2">
                                   {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Voltar ao automático</button>}
                                   <button onClick={() => startEdit(a)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}><Pencil size={12} /> Editar</button>
+                                  <button onClick={() => deleteApont(a)} title="Excluir apontamento + estornar rateios" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}><Trash2 size={12} /> Excluir</button>
                                 </div>
                               </div>
                               {a.splits.length === 0 ? (
