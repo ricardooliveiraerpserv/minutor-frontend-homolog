@@ -13,6 +13,8 @@ export interface ProjetoExportRow {
   saude?: string
   coord?: string
   status: string
+  /** % Entrega (delivery_percentage). */
+  deliveryPct?: string
 }
 
 /** Exporta a lista de projetos (Demandas e Projetos) para .xlsx. */
@@ -34,13 +36,14 @@ export function exportProjetosToExcel(rows: ProjetoExportRow[], includeInternal:
       row['Coordenação']   = r.coord ?? ''
     }
     row['Status'] = r.status
+    row['% Entrega'] = r.deliveryPct ?? ''
     return row
   })
 
   const ws = XLSX.utils.json_to_sheet(data)
   const widths: Record<string, number> = {
     'Cliente': 24, 'Projeto': 34, 'Código': 16, 'Tipo Contrato': 16, 'Tipo Serviço': 16,
-    'Fase': 16, 'Horas': 10, 'HS Consumidas': 14, 'Saldo': 10, 'Saúde': 12, 'Coordenação': 14, 'Status': 16,
+    'Fase': 16, 'Horas': 10, 'HS Consumidas': 14, 'Saldo': 10, 'Saúde': 12, 'Coordenação': 14, 'Status': 16, '% Entrega': 12,
   }
   const headers = Object.keys(data[0] ?? {})
   ws['!cols'] = headers.map(h => ({ wch: widths[h] ?? 16 }))

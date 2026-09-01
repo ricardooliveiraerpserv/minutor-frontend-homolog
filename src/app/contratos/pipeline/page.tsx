@@ -4734,6 +4734,7 @@ function KanbanContent() {
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
         coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
+        deliveryPct:  p.delivery_percentage != null ? `${Math.round(Number(p.delivery_percentage))}%` : '',
       }
     })
 
