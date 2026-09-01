@@ -3,6 +3,20 @@
 // - Toque e volume são GLOBAIS (definidos em Configurações, vêm no /me).
 
 const SOUND_KEY = 'minutor.chatSound'
+const MEETING_SOUND_KEY = 'minutor.meetingSound'
+
+/** Beep do alerta de REUNIÃO ligado para ESTE usuário/navegador? (padrão: ligado) */
+export function isMeetingSoundOn(): boolean {
+  if (typeof window === 'undefined') return true
+  return localStorage.getItem(MEETING_SOUND_KEY) !== 'off'
+}
+
+/** Liga/desliga o beep do alerta de reunião (local) e avisa a UI da mesma aba. */
+export function setMeetingSoundOn(on: boolean): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(MEETING_SOUND_KEY, on ? 'on' : 'off')
+  window.dispatchEvent(new Event('meeting-sound-changed'))
+}
 
 /** Som de notificação ligado para ESTE usuário/navegador? (padrão: ligado) */
 export function isChatSoundOn(): boolean {

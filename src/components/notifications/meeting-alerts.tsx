@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarClock, MapPin, User, Video, BellOff, X } from 'lucide-react'
+import { CalendarClock, MapPin, User, Video, BellOff, X, Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
-import { playChatSound } from '@/lib/chat-prefs'
+import { playChatSound, isMeetingSoundOn, setMeetingSoundOn } from '@/lib/chat-prefs'
 import type { CalEvento } from './calendar-mini'
 
 /**
@@ -106,12 +106,20 @@ export function MeetingAlerts() {
   const fired = useRef<Set<string>>(loadFired(todayIso))
   const snoozed = useRef<Map<string, number>>(new Map())   // key → timestamp em que pode redisparar
   const [queue, setQueue] = useState<MeetingAlert[]>([])
+  const [soundOn, setSoundOn] = useState(true)
 
   useEffect(() => { if (user) ensureNotificationPermission() }, [user])
+  // Preferência local de beep do alerta de reunião (silenciável pelo botão do card).
+  useEffect(() => {
+    const sync = () => setSoundOn(isMeetingSoundOn())
+    sync()
+    window.addEventListener('meeting-sound-changed', sync)
+    return () => window.removeEventListener('meeting-sound-changed', sync)
+  }, [])
 
   const enqueue = useCallback((a: MeetingAlert) => {
     setQueue(prev => (prev.some(x => x.key === a.key) ? prev : [...prev, a]))
-    playChatSound('alerta', 85)
+    if (isMeetingSoundOn()) playChatSound('alerta', 85)
     fireSystemNotification(a)
   }, [])
 
@@ -182,6 +190,11 @@ export function MeetingAlerts() {
             </div>
             <div className="text-lg font-bold leading-tight mt-0.5 break-words">{a.titulo}</div>
           </div>
+          <button onClick={() => setMeetingSoundOn(!soundOn)} className="shrink-0 p-1 rounded-md opacity-80 hover:opacity-100"
+            aria-label={soundOn ? 'Silenciar beep das reuniões' : 'Ativar beep das reuniões'}
+            title={soundOn ? 'Silenciar beep das reuniões' : 'Ativar beep das reuniões'} style={{ color: 'var(--primary-fg)' }}>
+            {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
           <button onClick={() => dismiss(a.key)} className="shrink-0 p-1 rounded-md opacity-80 hover:opacity-100" aria-label="Fechar" style={{ color: 'var(--primary-fg)' }}>
             <X size={18} />
           </button>
