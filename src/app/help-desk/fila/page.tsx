@@ -355,6 +355,7 @@ export default function HelpDeskFilaPage() {
     if (pendFilter === 'open') return isPendente(t)
     if (pendFilter === 'novos') return isNovo(t)
     if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
+    if (pendFilter === 'estourado') return slaDot(t.sla).dot === '🔴' // SLA estourado
     if (pendFilter === 'scheduled') return !!t.scheduled_until // reunião/agendamento marcado (Teams)
     return true
   }
@@ -393,10 +394,12 @@ export default function HelpDeskFilaPage() {
     { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', highlight: true, hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
-    { label: 'Total', value: totalFila, cor: '#64748b', hint: pendFilter ? 'clique para ver todos' : undefined, onClick: () => setPendFilter('') },
+    // Total = contagem EXIBIDA (reflete todos os filtros, inclusive chips de status/pendência) — igual ao contador do cliente.
+    { label: 'Total', value: listRows.length, cor: '#64748b', hint: (pendFilter || statusSel.length) ? 'clique para ver todos' : undefined, onClick: () => { setPendFilter(''); setStatusSel([]) } },
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
     { label: 'Agendados', value: agendados, cor: '#6366f1', icon: '📅', hint: 'reuniões marcadas · clique p/ ver', onClick: () => setPendFilter(p => p === 'scheduled' ? '' : 'scheduled'), active: pendFilter === 'scheduled' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
+    { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
   ]
 
   // Modo Atendimento — restaura filtros da sessão ao voltar para a fila.
@@ -571,15 +574,15 @@ export default function HelpDeskFilaPage() {
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {statMetrics.map((m, i) => (
                   <div key={i} onClick={m.onClick}
-                    className={`ds-card px-3 py-1 min-w-[120px] shrink-0 ${m.highlight ? 'hd-pulse' : ''} ${m.onClick ? 'cursor-pointer ds-row-hover' : ''}`}
+                    className={`ds-card px-2.5 py-1 min-w-[92px] shrink-0 ${m.highlight ? 'hd-pulse' : ''} ${m.onClick ? 'cursor-pointer ds-row-hover' : ''}`}
                     style={m.active
                       ? { border: `2px solid ${m.cor}`, background: `${m.cor}2e`, boxShadow: `0 0 0 3px ${m.cor}55` }
                       : m.highlight
                       ? { borderLeft: `4px solid ${m.cor}`, background: `${m.cor}24` }
                       : { borderLeft: `3px solid ${m.cor}`, background: `${m.cor}12` }}>
                     <div className="flex items-center gap-1.5">
-                      {m.icon && <span className="text-base leading-none">{m.icon}</span>}
-                      <div className={`${m.highlight ? 'text-2xl' : 'text-xl'} font-bold leading-none`} style={{ color: m.cor }}>{m.value}</div>
+                      {m.icon && <span className="text-sm leading-none">{m.icon}</span>}
+                      <div className={`${m.highlight ? 'text-xl' : 'text-lg'} font-bold leading-none`} style={{ color: m.cor }}>{m.value}</div>
                     </div>
                     <div className={`text-[11px] mt-1 leading-tight ${(m.highlight || m.active) ? 'font-semibold' : ''}`} style={{ color: (m.highlight || m.active) ? m.cor : 'var(--text-muted)' }}>{m.label}{m.active && ' ✓'}</div>
                     <div className="text-[10px] leading-tight" style={{ color: m.active ? m.cor : 'var(--text-light)' }}>{m.active ? 'filtrando · clique p/ limpar' : (m.hint ?? '')}</div>
@@ -587,7 +590,7 @@ export default function HelpDeskFilaPage() {
                 ))}
                 {/* Card em DESTAQUE — no FINAL (direita), cresce pra preencher o espaço restante.
                     Principal = ≥3 dias úteis sem interação da equipe; 1 e 2 dias detalham abaixo. */}
-                <div className={`ds-card px-4 py-1 flex-1 min-w-[240px] ${semInt3 > 0 ? 'hd-pulse' : ''}`}
+                <div className={`ds-card px-3 py-1 shrink-0 min-w-[210px] ${semInt3 > 0 ? 'hd-pulse' : ''}`}
                   style={semInt3 > 0
                     ? { border: '2px solid #ef4444', background: '#ef444426', boxShadow: '0 0 0 3px #ef444422' }
                     : { borderLeft: '3px solid #16a34a', background: '#16a34a12' }}>
