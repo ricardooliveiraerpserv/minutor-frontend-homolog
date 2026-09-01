@@ -17,7 +17,6 @@ interface ProjOpt { id: number; name: string; code?: string | null; customer_id?
 interface TargetRow { target_project_id: number | ''; projeto?: string; percentual: number }
 interface PlanRow { id?: number; data_inicio: string; data_fim: string; semFim: boolean; targets: TargetRow[] }
 interface Aponta { id: number; date: string; consultor: string | null; effort_minutes: number; status: string; overridden?: boolean; splits: { target_project_id: number; projeto: string | null; projeto_codigo: string | null; minutes: number }[] }
-interface OverrideRow { target_project_id: number | ''; projeto?: string; minutes: number }
 
 const fmtDate = (d?: string | null) => d ? d.split('-').reverse().join('/') : null
 const hh = (min: number) => (min / 60).toFixed(2) + 'h'
@@ -41,10 +40,10 @@ export default function RateioHorasPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [markPick, setMarkPick] = useState('')
-  // Ajuste manual da divisão de um apontamento.
-  const [overrideFor, setOverrideFor] = useState<Aponta | null>(null)
-  const [overrideRows, setOverrideRows] = useState<OverrideRow[]>([])
-  const [savingOverride, setSavingOverride] = useState(false)
+  // Ajuste manual da divisão de um apontamento (expansível inline, por PERCENTUAL).
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [editRows, setEditRows] = useState<{ target_project_id: number | ''; projeto?: string; percentual: number }[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const loadProjects = useCallback(() => {
     setLoading(true)
@@ -173,28 +172,57 @@ export default function RateioHorasPage() {
   }
 
   // ── Ajuste manual de um apontamento ──
-  const openOverride = (a: Aponta) => {
-    setOverrideFor(a)
-    setOverrideRows(a.splits.length > 0
-      ? a.splits.map(s => ({ target_project_id: s.target_project_id, projeto: s.projeto ?? undefined, minutes: s.minutes }))
-      : [{ target_project_id: '', projeto: undefined, minutes: a.effort_minutes }])
+  // Expandir um apontamento: carrega os destinos atuais como PERCENTUAL (editável).
+  const toggleExpand = (a: Aponta) => {
+    if (expandedId === a.id) { setExpandedId(null); return }
+    setExpandedId(a.id)
+    const total = a.effort_minutes || 1
+    setEditRows(a.splits.length > 0
+      ? a.splits.map(s => ({ target_project_id: s.target_project_id, projeto: s.projeto ?? undefined, percentual: Math.round(s.minutes / total * 10000) / 100 }))
+      : [])
   }
-  const setOvRow = (i: number, patch: Partial<OverrideRow>) => setOverrideRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
-  const ovSum = overrideRows.reduce((a, r) => a + (Number(r.minutes) || 0), 0)
-  const ovOk = overrideFor ? ovSum === overrideFor.effort_minutes : false
-  const saveOverride = async () => {
-    if (!overrideFor || !selId) return
-    if (overrideRows.some(r => !r.target_project_id)) { toast.error('Selecione o destino em todas as linhas.'); return }
-    if (!ovOk) { toast.error(`A soma da divisão (${hh(ovSum)}) deve fechar o total (${hh(overrideFor.effort_minutes)}).`); return }
-    setSavingOverride(true)
-    try {
-      await api.put(`/rateio-hours/projects/${selId}/timesheets/${overrideFor.id}/override`, {
-        distribution: overrideRows.filter(r => Number(r.minutes) > 0).map(r => ({ target_project_id: Number(r.target_project_id), minutes: Number(r.minutes) })),
+  const addEditRow = () => setEditRows(r => [...r, { target_project_id: '', percentual: 0 }])
+  const removeEditRow = (i: number) => setEditRows(r => r.filter((_, idx) => idx !== i))
+  const setEditRow = (i: number, patch: Partial<{ target_project_id: number | ''; projeto?: string; percentual: number }>) => setEditRows(r => r.map((row, idx) => idx === i ? { ...row, ...patch } : row))
+  // Editar o % de um destino rebalanceia os demais p/ fechar 100% (igual ao editor de períodos).
+  const setEditPct = (i: number, val: number) => setEditRows(rows => {
+    const v = Math.max(0, Math.min(100, isNaN(val) ? 0 : val))
+    const out = rows.map(r => ({ ...r })); out[i].percentual = v
+    const others = out.map((r, j) => ({ j, w: Number(r.percentual) || 0 })).filter(o => o.j !== i)
+    if (others.length > 0) {
+      const remaining = Math.round((100 - v) * 100) / 100
+      const sumO = others.reduce((a, o) => a + o.w, 0)
+      let acc = 0
+      others.forEach((o, k) => {
+        const share = k === others.length - 1 ? Math.round((remaining - acc) * 100) / 100
+          : (sumO > 0 ? Math.round((o.w / sumO) * remaining * 100) / 100 : Math.round((remaining / others.length) * 100) / 100)
+        if (k !== others.length - 1) acc += share
+        out[o.j].percentual = Math.max(0, share)
       })
+    }
+    return out
+  })
+  const editDistribuir = () => setEditRows(rows => {
+    const n = rows.length; if (!n) return rows
+    const base = Math.floor((100 / n) * 100) / 100
+    return rows.map((r, k) => ({ ...r, percentual: k === n - 1 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base }))
+  })
+  const saveEdit = async (a: Aponta) => {
+    if (!selId) return
+    if (editRows.length === 0 || editRows.some(r => !r.target_project_id)) { toast.error('Selecione o contrato em todas as linhas.'); return }
+    const total = a.effort_minutes; const n = editRows.length; let acc = 0
+    const dist = editRows.map((r, i) => {
+      const m = i === n - 1 ? total - acc : Math.round(total * (Number(r.percentual) || 0) / 100)
+      if (i !== n - 1) acc += m
+      return { target_project_id: Number(r.target_project_id), minutes: m }
+    }).filter(d => d.minutes > 0)
+    setSavingEdit(true)
+    try {
+      await api.put(`/rateio-hours/projects/${selId}/timesheets/${a.id}/override`, { distribution: dist })
       toast.success('Divisão ajustada')
-      setOverrideFor(null); loadTimesheets(selId)
+      setExpandedId(null); loadTimesheets(selId)
     } catch (e) { toast.error(apiMessage(e, 'Erro ao ajustar divisão')) }
-    finally { setSavingOverride(false) }
+    finally { setSavingEdit(false) }
   }
   const resetOverride = async (a: Aponta) => {
     if (!selId) return
@@ -202,9 +230,10 @@ export default function RateioHorasPage() {
     try {
       await api.put(`/rateio-hours/projects/${selId}/timesheets/${a.id}/override`, { auto: true })
       toast.success('Voltou ao automático')
-      loadTimesheets(selId)
+      setExpandedId(null); loadTimesheets(selId)
     } catch (e) { toast.error(apiMessage(e, 'Erro ao reverter')) }
   }
+  const editSum = Math.round(editRows.reduce((a, r) => a + (Number(r.percentual) || 0), 0) * 100) / 100
 
   const openAlloc = (p: RateioProject) => {
     setAllocFor(p)
@@ -333,64 +362,66 @@ export default function RateioHorasPage() {
         {selId && (
           <div className="ds-card p-4">
             <p className="text-sm font-semibold inline-flex items-center gap-1.5 mb-1" style={{ color: 'var(--text)' }}><ListChecks size={15} /> Apontamentos no servidor</p>
-            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Horas lançadas neste projeto-servidor e como foram divididas. Clique em <b>Ajustar</b> para alterar a divisão manualmente naquele apontamento.</p>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Horas lançadas no servidor (o apontamento-origem não aparece na lista de Apontamentos — os rateios é que pagam o consultor). Clique numa linha para <b>ver/editar</b> a divisão por percentual ou trocar os contratos.</p>
             {apontas.length === 0 ? (
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum apontamento no servidor ainda.</p>
             ) : (
-              <div className="space-y-1.5">
-                {apontas.map(a => (
-                  <div key={a.id} className="flex items-start gap-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                    <div className="w-20 text-xs shrink-0" style={{ color: 'var(--text)' }}>{fmtDate(a.date)}</div>
-                    <div className="w-40 text-xs shrink-0 truncate" style={{ color: 'var(--text-muted)' }}>{a.consultor ?? '—'}</div>
-                    <div className="w-16 text-xs shrink-0 font-semibold" style={{ color: 'var(--text)' }}>{hh(a.effort_minutes)}</div>
-                    <div className="flex-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      {a.overridden && <span className="inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] font-semibold align-middle" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>✏ manual</span>}
-                      {a.splits.length === 0 ? <span style={{ color: 'var(--warning)' }}>Sem divisão (sem período nesta data)</span>
-                        : a.splits.map((s, i) => <span key={i} className="inline-block mr-2">{s.projeto_codigo ?? s.projeto}: <b style={{ color: 'var(--text)' }}>{hh(s.minutes)}</b></span>)}
+              <div className="space-y-1">
+                {apontas.map(a => {
+                  const open = expandedId === a.id
+                  return (
+                    <div key={a.id} className="rounded-lg border" style={{ borderColor: open ? 'var(--primary)' : 'var(--border)' }}>
+                      <button onClick={() => toggleExpand(a)} className="w-full flex items-start gap-3 px-3 py-2 text-left">
+                        <span className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>{open ? '▾' : '▸'}</span>
+                        <span className="w-20 text-xs shrink-0" style={{ color: 'var(--text)' }}>{fmtDate(a.date)}</span>
+                        <span className="w-40 text-xs shrink-0 truncate" style={{ color: 'var(--text-muted)' }}>{a.consultor ?? '—'}</span>
+                        <span className="w-16 text-xs shrink-0 font-semibold" style={{ color: 'var(--text)' }}>{hh(a.effort_minutes)}</span>
+                        <span className="flex-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          {a.overridden && <span className="inline-block mr-2 px-1.5 py-0.5 rounded text-[10px] font-semibold align-middle" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>✏ manual</span>}
+                          {a.splits.length === 0 ? <span style={{ color: 'var(--warning)' }}>Sem divisão (sem período nesta data)</span>
+                            : a.splits.map((s, i) => <span key={i} className="inline-block mr-2">{s.projeto_codigo ?? s.projeto}: <b style={{ color: 'var(--text)' }}>{hh(s.minutes)}</b></span>)}
+                        </span>
+                      </button>
+                      {open && (
+                        <div className="px-3 pb-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Divisão do apontamento ({hh(a.effort_minutes)}) — por percentual</span>
+                            <div className="flex items-center gap-2">
+                              {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Voltar ao automático</button>}
+                              <button onClick={editDistribuir} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Split size={12} /> Dividir igual</button>
+                              <button onClick={addEditRow} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Contrato</button>
+                            </div>
+                          </div>
+                          {editRows.length === 0 ? (
+                            <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>Sem destinos. Adicione os contratos que recebem estas horas.</p>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {editRows.map((r, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <div className="flex-1"><SearchSelect value={String(r.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setEditRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
+                                    options={destOptions.filter(o => o.id === r.target_project_id || !editRows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id))} placeholder="Contrato (Cloud)…" /></div>
+                                  <input type="number" min={0} max={100} step="0.01" value={r.percentual} onChange={e => setEditPct(i, Number(e.target.value))}
+                                    className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
+                                  <span className="text-[11px] w-16 text-right" style={{ color: 'var(--text-muted)' }}>{hh(Math.round(a.effort_minutes * (Number(r.percentual) || 0) / 100))}</span>
+                                  <button onClick={() => removeEditRow(i)} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-[11px]" style={{ color: Math.abs(editSum - 100) > 0.01 ? 'var(--warning)' : 'var(--text-muted)' }}>Soma: {editSum}%{Math.abs(editSum - 100) > 0.01 ? ' (será normalizada p/ 100%)' : ''}</span>
+                            <button onClick={() => saveEdit(a)} disabled={savingEdit} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-1.5 disabled:opacity-60"><Save size={13} /> {savingEdit ? 'Salvando…' : 'Salvar divisão'}</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {a.overridden && <button onClick={() => resetOverride(a)} title="Voltar à divisão automática (pelo período)" className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>Auto</button>}
-                    <button onClick={() => openOverride(a)} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Pencil size={11} /> Ajustar</button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
         )}
       </div>
-
-      {/* Ajuste manual da divisão de um apontamento */}
-      {overrideFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setOverrideFor(null)}>
-          <div className="ds-card w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-1">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}><Pencil size={14} className="inline mr-1" /> Ajustar divisão</p>
-              <button onClick={() => setOverrideFor(null)} className="hover:opacity-70"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
-            </div>
-            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>{fmtDate(overrideFor.date)} · {overrideFor.consultor ?? '—'} · total {hh(overrideFor.effort_minutes)}. Defina os minutos por destino — a soma deve fechar o total.</p>
-            <div className="space-y-1.5">
-              {overrideRows.map((r, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1"><SearchSelect value={String(r.target_project_id)} onChange={v => { const opt = destProjects.find(p => String(p.id) === v); setOvRow(i, { target_project_id: v ? Number(v) : '', projeto: opt?.name }) }}
-                    options={destOptions.filter(o => o.id === r.target_project_id || !overrideRows.some((rr, ri) => ri !== i && Number(rr.target_project_id) === o.id))} placeholder="Destino (Cloud)…" /></div>
-                  <input type="number" min={0} step="0.25" value={r.minutes ? +(r.minutes / 60).toFixed(2) : 0} onChange={e => setOvRow(i, { minutes: Math.round((Number(e.target.value) || 0) * 60) })}
-                    className="w-20 text-xs px-2 py-2 rounded-lg text-right" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }} />
-                  <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>h</span>
-                  <button onClick={() => setOverrideRows(rows => rows.filter((_, idx) => idx !== i))} className="p-1.5 rounded-lg" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
-                </div>
-              ))}
-              <button onClick={() => setOverrideRows(rows => [...rows, { target_project_id: '', minutes: 0 }])} className="text-[11px] inline-flex items-center gap-1 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}><Plus size={12} /> Adicionar destino</button>
-              <div className="flex items-center justify-end gap-2 pt-1 text-[11px]">
-                <span style={{ color: 'var(--text-muted)' }}>Distribuído:</span>
-                <span className="font-semibold" style={{ color: ovOk ? 'var(--success)' : 'var(--danger)' }}>{hh(ovSum)} / {hh(overrideFor.effort_minutes)}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button onClick={() => setOverrideFor(null)} className="text-xs px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>Cancelar</button>
-              <button onClick={saveOverride} disabled={savingOverride} className="ds-btn-primary text-xs inline-flex items-center gap-1 px-3 py-2 disabled:opacity-60"><Save size={13} /> {savingOverride ? 'Salvando…' : 'Salvar divisão'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Alocar equipe do servidor de rateio: consultores apontam + 1 coordenador aprova. */}
       {allocFor && (
