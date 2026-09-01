@@ -335,9 +335,6 @@ export default function HelpDeskFilaPage() {
   // Chamados NOVOS = status inicial "Novo" (recém-criados, ainda sem triagem/atendimento).
   const isNovo = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return s?.key === 'novo' }
   const novos = flt.filter(isNovo).length
-  // Chamados com reunião/agendamento marcado (Teams). "Reunião agendada" não é status próprio —
-  // vem do agendamento (scheduled_until). O card abaixo filtra por isso.
-  const agendados = flt.filter(t => !!t.scheduled_until).length
   // Pendência NOSSA = aberto, exceto "Aguardando cliente" (a bola está com o cliente, não conosco).
   const isNossaPendencia = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return isPendente(t) && s?.key !== 'aguardando_cliente' }
   // Meus tickets pendentes — atribuídos a mim e com pendência nossa (independe dos filtros do board).
@@ -395,7 +392,6 @@ export default function HelpDeskFilaPage() {
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
-    { label: 'Agendados', value: agendados, cor: '#6366f1', icon: '📅', hint: 'reuniões marcadas · clique p/ ver', onClick: () => setPendFilter(p => p === 'scheduled' ? '' : 'scheduled'), active: pendFilter === 'scheduled' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
     { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
   ]
