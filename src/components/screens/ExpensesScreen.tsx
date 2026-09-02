@@ -506,7 +506,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
     payment_method: 'pix', charge_client: false, user_id: '',
   })
   const [modalUsers, setModalUsers] = useState<SelectOption[]>([])
-  const [items, setItems] = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
+  const [expenseItems, setExpenseItems] = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
   // Projetos reais do investimento: só os escolhidos p/ este consultor na Alocação
@@ -630,7 +630,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
 
   const openCreate = () => {
     setForm({ customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false, user_id: '' })
-    setItems([emptyExpenseItem()])
+    setExpenseItems([emptyExpenseItem()])
     loadOptions()
     setModal({ open: true })
   }
@@ -650,7 +650,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
       charge_client: item.charge_client,
       user_id: String(item.user_id ?? ''),
     })
-    setItems(expenseToItemDrafts(item))
+    setExpenseItems(expenseToItemDrafts(item))
     loadOptions()
     setModal({ open: true, item })
   }
@@ -683,14 +683,14 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
       const selProj = (projects as any[]).find(p => String(p.id) === form.project_id)
       const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
       if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); setSaving(false); return }
-      if (!expenseItemsValid(items)) { toast.error('Preencha categoria, descrição e valor de cada item'); setSaving(false); return }
+      if (!expenseItemsValid(expenseItems)) { toast.error('Preencha categoria, descrição e valor de cada item'); setSaving(false); return }
       const fd = new FormData()
       fd.append('project_id', form.project_id)
       if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
       fd.append('expense_date', form.expense_date)
       fd.append('expense_type', form.expense_type)
       fd.append('payment_method', form.payment_method)
-      appendExpenseItems(fd, items)
+      appendExpenseItems(fd, expenseItems)
       if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
       if (modal.item) fd.append('_method', 'PUT')
 
@@ -1287,15 +1287,15 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
               <div>
                 <Label className="text-xs text-[var(--text-muted)] mb-1 block">Itens da despesa *</Label>
                 <ExpenseItemsEditor
-                  items={items}
-                  onChange={setItems}
+                  items={expenseItems}
+                  onChange={setExpenseItems}
                   categories={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</UIButton>
-              <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_date || !expenseItemsValid(items)}
+              <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_date || !expenseItemsValid(expenseItems)}
                 className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 {saving ? 'Salvando...' : 'Salvar'}
               </UIButton>
