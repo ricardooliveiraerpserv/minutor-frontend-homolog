@@ -42,6 +42,14 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   const [kbResults, setKbResults] = useState<{ id: number; titulo?: string; title?: string }[]>([])
   const [tagOptions, setTagOptions] = useState<{ id: number; name: string; color?: string | null }[]>([])
   const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [ccEmails, setCcEmails] = useState<string[]>([])
+  const [ccInput, setCcInput] = useState('')
+  const addCc = () => {
+    const e = ccInput.trim().replace(/[;,]$/, '')
+    if (!e) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { toast.error('E-mail inválido'); return }
+    setCcEmails(cur => cur.includes(e) ? cur : [...cur, e]); setCcInput('')
+  }
   const [created, setCreated] = useState<{ id: number; numero: string | null } | null>(null)
   const descRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
@@ -64,7 +72,10 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
     const descFiles = descRef.current?.getFiles() ?? []
     setSaving(true)
     try {
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags })
+      const cc = [...ccEmails]
+      const pend = ccInput.trim().replace(/[;,]$/, '')
+      if (pend && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pend) && !cc.includes(pend)) cc.push(pend)
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags, cc_emails: cc })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
@@ -163,6 +174,26 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
             </div>
           </div>
         )}
+
+        {/* CC — pessoas em CÓPIA (todos os perfis). Digite o e-mail e Enter. */}
+        <div>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Em cópia (CC) <span style={{ color: 'var(--text-light)' }}>· e-mails que receberão as atualizações</span></label>
+          {ccEmails.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {ccEmails.map(e => (
+                <span key={e} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                  {e}<button type="button" onClick={() => setCcEmails(cur => cur.filter(x => x !== e))} style={{ color: 'var(--text-light)' }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input className={`${fieldCls} flex-1`} style={inputStyle} value={ccInput} onChange={e => setCcInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ',' || e.key === ';') { e.preventDefault(); addCc() } }}
+              placeholder="email@empresa.com e Enter" />
+            <button type="button" className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={addCc}>Adicionar</button>
+          </div>
+        </div>
 
         {inform.urgency && (
           <div>
