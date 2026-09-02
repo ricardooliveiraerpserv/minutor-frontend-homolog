@@ -1693,6 +1693,13 @@ export default function MeuPainelPage() {
   const [tsDateFrom, setTsDateFrom] = useState('')
   const [tsDateTo,   setTsDateTo]   = useState('')
   const [tsPage,     setTsPage]     = useState(1)
+  const [tsSort,     setTsSort]     = useState('date')
+  const [tsSortDir,  setTsSortDir]  = useState<'asc' | 'desc'>('desc')
+  const handleTsSort = (f: string) => {
+    if (tsSort === f) setTsSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setTsSort(f); setTsSortDir('asc') }
+    setTsPage(1)
+  }
   const [tsHasNext,  setTsHasNext]  = useState(false)
   const [tsModal,       setTsModal]       = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
   const [tsViewItem,    setTsViewItem]    = useState<TimesheetItem | null>(null)
@@ -1808,13 +1815,14 @@ export default function MeuPainelPage() {
       if (tsProject)  p.set('project_id',  tsProject)
       if (tsCustomer) p.set('customer_id', tsCustomer)
       if (tsStatus)   p.set('status',      tsStatus)
+      p.set('sort', tsSort); p.set('direction', tsSortDir)
       const r = await api.get<any>(`/timesheets?${p}`)
       setTimesheets(Array.isArray(r?.items) ? r.items : [])
       setTsHasNext(!!r?.hasNext)
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally   { setTsLoading(false) }
-  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id])
+  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id, tsSort, tsSortDir])
 
   // ── Load expenses ──────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
@@ -2879,16 +2887,21 @@ export default function MeuPainelPage() {
             <table className="w-full min-w-max text-xs">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Data</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Projeto</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Ticket #</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Título</th>
+                  {([['Data','date',''],['Cliente','customer.name','hidden md:table-cell'],['Projeto','project.name',''],['Ticket #','ticket','hidden lg:table-cell'],['Título','titulo','hidden xl:table-cell']] as const).map(([label,field,cls]) => (
+                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
+                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
+                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                  ))}
                   <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Horário</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Horas</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Observação</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Status</th>
+                  {([['Horas','effort_hours',''],['Tipo de Serviço','service_type','hidden xl:table-cell'],['Observação','observation','hidden lg:table-cell'],['Status','status','']] as const).map(([label,field,cls]) => (
+                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
+                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
+                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                  ))}
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
