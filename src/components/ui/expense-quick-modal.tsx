@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { X, Paperclip, DollarSign } from 'lucide-react'
+import { X, DollarSign } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Button as UIButton } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ExpenseItemsEditor, ExpenseItemDraft, emptyExpenseItem, appendExpenseItems, expenseItemsValid } from '@/components/ui/expense-items-editor'
 
 interface Opt { id: number; name: string }
 interface Cat { id: number; name: string; parent_id?: number | null }
@@ -36,15 +37,14 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
   const [projects, setProjects]     = useState<Array<Opt & { is_investimento_comercial?: boolean; categoria_interna?: string; service_type?: { code?: string } }>>([])
   const [categories, setCategories] = useState<Cat[]>([])
   const [modalUsers, setModalUsers] = useState<Opt[]>([])
-  const [receipt, setReceipt]       = useState<File | null>(null)
+  const [items, setItems]           = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const [saving, setSaving]         = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   // Ao abrir: reseta o form e carrega clientes / categorias / usuários.
   useEffect(() => {
     if (!open) return
     setForm({ customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', user_id: '' })
-    setReceipt(null)
+    setItems([emptyExpenseItem()])
     ;(async () => {
       try {
         const [cust, cat, us] = await Promise.all([
@@ -87,17 +87,15 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
     try {
       const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
       if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); setSaving(false); return }
+      if (!expenseItemsValid(items)) { toast.error('Preencha categoria, descrição e valor de cada item'); setSaving(false); return }
       const fd = new FormData()
       fd.append('project_id', form.project_id)
       if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
-      fd.append('expense_category_id', form.expense_category_id)
       fd.append('expense_date', form.expense_date)
-      fd.append('description', form.description)
-      fd.append('amount', form.amount)
       fd.append('expense_type', form.expense_type)
       fd.append('payment_method', form.payment_method)
+      appendExpenseItems(fd, items)
       if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
-      if (receipt) fd.append('receipt', receipt)
       const res = await fetch('/api/v1/expenses', { method: 'POST', headers: { Accept: 'application/json' }, credentials: 'same-origin', body: fd })
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new ApiError(res.status, b.message ?? 'Erro ao salvar') }
       toast.success('Despesa criada ✓')
@@ -140,37 +138,21 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
             </div>
           )}
           <div>
-            <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Categoria *</Label>
-            <div className="mt-1"><SearchSelect value={form.expense_category_id} onChange={v => setForm(f => ({ ...f, expense_category_id: v }))} options={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))} placeholder="Selecione a categoria..." /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Data *</Label>
-              <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} className="mt-1 h-9 text-xs" />
-            </div>
-            <div>
-              <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor *</Label>
-              <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} className="mt-1 h-9 text-xs" />
-            </div>
+            <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Data *</Label>
+            <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} className="mt-1 h-9 text-xs" />
           </div>
           <div>
-            <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Descrição *</Label>
-            <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mt-1 h-9 text-xs" />
-          </div>
-          <div>
-            <Label className="text-xs" style={{ color: 'var(--text-muted)' }}>Comprovante</Label>
-            <div className="mt-1 flex items-center gap-2">
-              <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-                <Paperclip size={12} /> {receipt ? receipt.name : 'Selecionar arquivo'}
-              </button>
-              {receipt && <button onClick={() => setReceipt(null)} style={{ color: 'var(--text-light)' }}><X size={12} /></button>}
-            </div>
-            <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={e => setReceipt(e.target.files?.[0] ?? null)} />
+            <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Itens da despesa *</Label>
+            <ExpenseItemsEditor
+              items={items}
+              onChange={setItems}
+              categories={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
+            />
           </div>
         </div>
         <div className="flex gap-2 mt-5 justify-end">
           <UIButton variant="outline" onClick={onClose} className="h-8 text-xs">Cancelar</UIButton>
-          <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_category_id || !form.expense_date || !form.amount || !form.description} className="h-8 text-xs">{saving ? 'Salvando...' : 'Salvar'}</UIButton>
+          <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_date || !expenseItemsValid(items)} className="h-8 text-xs">{saving ? 'Salvando...' : 'Salvar'}</UIButton>
         </div>
       </div>
     </div>
