@@ -707,8 +707,21 @@ export function ApprovalsScreen({ scope, embedded, leadOptions, extDate, lockedP
 
   const filterParams = useMemo(() => {
     const p = new URLSearchParams()
-    if (dateFrom)      p.set('date_from',      dateFrom)
-    if (dateTo)        p.set('date_to',        dateTo)
+    // No portal (embedded) a data VEM DE CIMA (extDate) e é a fonte da verdade — NÃO usar
+    // o filtro persistido, que pode ser sobrescrito na hidratação (key muda com user.id).
+    let effFrom = dateFrom, effTo = dateTo
+    if (extDate) {
+      if (extDate.mode === 'month' && extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        effFrom = `${extDate.year}-${mm}-01`
+        effTo   = `${extDate.year}-${mm}-${String(last).padStart(2, '0')}`
+      } else if (extDate.mode === 'period') {
+        effFrom = extDate.from ?? ''; effTo = extDate.to ?? ''
+      } else { effFrom = ''; effTo = '' }
+    }
+    if (effFrom)       p.set('date_from',      effFrom)
+    if (effTo)         p.set('date_to',        effTo)
     if (userId)        p.set('user_id',        userId)
     // Coordenador: chip 'Meus projetos' injeta coordinator_id=user.id; o BE
     // (PR #57) confia no FE pra escopar. Filtro manual de coord (dropdown)
@@ -725,7 +738,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions, extDate, lockedP
     if (scope === 'investimento') p.set('categoria_servico', 'investimento')
     else if (categoriaServico) p.set('categoria_servico', categoriaServico)
     return p.toString()
-  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, lockedProjectId, categoriaServico, isCoordenador, coordScope, user?.id, scope])
+  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, lockedProjectId, categoriaServico, isCoordenador, coordScope, user?.id, scope, extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   const loadTs = useCallback(async () => {
     setTsLoading(true)
