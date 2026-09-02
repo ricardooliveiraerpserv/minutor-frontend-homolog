@@ -26,6 +26,21 @@ export function parseExpenseAmount(v: string): number {
   return isNaN(n) ? 0 : n
 }
 
+// Máscara de moeda BRL: só dígitos, interpretados como centavos → "1.104,00".
+// Vazio permanece vazio.
+function maskCurrencyInput(v: string): string {
+  const digits = String(v ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  const cents = parseInt(digits, 10)
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// Número → string mascarada "1.104,00" (usado ao carregar despesa existente pra edição).
+function formatBRLAmount(n: number): string {
+  if (!isFinite(n)) return ''
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function expenseItemsTotal(items: ExpenseItemDraft[]): number {
   return items.reduce((s, it) => s + parseExpenseAmount(it.amount), 0)
 }
@@ -55,7 +70,7 @@ export function expenseToItemDrafts(exp: any): ExpenseItemDraft[] {
       id: it.id,
       expense_category_id: String(it.expense_category_id ?? ''),
       description: it.description ?? '',
-      amount: it.amount != null ? String(it.amount) : '',
+      amount: it.amount != null ? formatBRLAmount(Number(it.amount)) : '',
       file: null,
       receipt_url: it.receipt_url ?? null,
     }))
@@ -63,7 +78,7 @@ export function expenseToItemDrafts(exp: any): ExpenseItemDraft[] {
   return [{
     expense_category_id: String(exp?.expense_category_id ?? ''),
     description: exp?.description ?? '',
-    amount: exp?.amount != null ? String(exp.amount) : '',
+    amount: exp?.amount != null ? formatBRLAmount(Number(exp.amount)) : '',
     file: null,
     receipt_url: exp?.receipt_url ?? null,
   }]
@@ -102,12 +117,15 @@ function ItemRow({ item, index, canRemove, categories, onPatch, onRemove }: {
           <option value="">Categoria…</option>
           {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
         </select>
-        <input
-          inputMode="decimal"
-          value={item.amount}
-          onChange={e => onPatch({ amount: e.target.value })}
-          placeholder="Valor (R$)"
-          className="h-9 px-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg text-xs text-[var(--text)] outline-none focus:border-[var(--border-strong)] text-right" />
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] pointer-events-none text-[var(--text-light)]">R$</span>
+          <input
+            inputMode="numeric"
+            value={item.amount}
+            onChange={e => onPatch({ amount: maskCurrencyInput(e.target.value) })}
+            placeholder="0,00"
+            className="h-9 pl-7 pr-2 w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg text-xs text-[var(--text)] outline-none focus:border-[var(--border-strong)] text-right" />
+        </div>
       </div>
 
       <input
