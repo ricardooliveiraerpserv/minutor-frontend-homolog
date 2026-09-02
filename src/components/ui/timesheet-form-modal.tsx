@@ -194,12 +194,12 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     setForm(f => ({ ...f, customer_id: '', project_id: '', is_billable_only: false }))
     setProjects([])
 
-    // When admin/coordenador picks a different consultant → load only their allocated customers
+    // Admin/coordenador têm escopo TOTAL: veem TODOS os clientes, inclusive apontando por outro.
     const actingAsOther = canActAsUser && form.user_id && form.user_id !== String(currentUser?.id)
-    const customerEndpoint = actingAsOther
-      ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
-      : (isAdmin || isCoordenador)
-        ? '/customers?pageSize=500'
+    const customerEndpoint = (isAdmin || isCoordenador)
+      ? '/customers?pageSize=500'
+      : actingAsOther
+        ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
         : '/customers/user-linked?pageSize=500'
 
     api.get<any>(customerEndpoint)
