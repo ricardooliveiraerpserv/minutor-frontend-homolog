@@ -1423,69 +1423,6 @@ function SearchableSelect({
   )
 }
 
-// Filtro MULTISELEÇÃO (todos/alguns). value=[] → TODOS (sem filtro); no modo "todos" as
-// caixas aparecem marcadas; clicar desmarca só aquela; marcar todas volta pra "todos".
-function SearchableMultiSelect({ value, onChange, options, placeholder = 'Todos' }: {
-  value: string[]
-  onChange: (v: string[]) => void
-  options: { id: number | string; name: string }[]
-  placeholder?: string
-}) {
-  const [open, setOpen]   = useState(false)
-  const [query, setQuery] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
-  const filtered = query ? options.filter(o => o.name.toLowerCase().includes(query.toLowerCase())) : options
-  const allMode = value.length === 0
-  const toggle = (id: string) => {
-    if (allMode) { onChange(options.map(o => String(o.id)).filter(x => x !== id)); return }
-    const next = value.includes(id) ? value.filter(x => x !== id) : [...value, id]
-    onChange(next.length === options.length ? [] : next)
-  }
-  const label = allMode ? placeholder : value.length === 1 ? (options.find(o => String(o.id) === value[0])?.name ?? '1') : `${placeholder} (${value.length})`
-  const box = (on: boolean) => (
-    <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] leading-none" style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--text-light)'}`, background: on ? 'var(--primary)' : 'transparent', color: '#fff' }}>{on ? '✓' : ''}</span>
-  )
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => { setOpen(o => !o); setQuery('') }}
-        className={`flex items-center justify-between gap-2 h-9 px-3 min-w-[150px] bg-[var(--surface-hover)] border rounded-lg text-xs transition-colors text-[var(--text)] ${open ? 'border-[var(--border-strong)]' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
-        <span className={allMode ? 'text-[var(--text-light)]' : 'text-[var(--text)]'}>{label}</span>
-        <ChevronDown size={12} className="text-[var(--text-light)] shrink-0" />
-      </button>
-      {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 min-w-full w-max max-w-[260px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
-          <div className="p-2 border-b border-[var(--border)]">
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
-              className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg text-xs text-[var(--text)] px-2.5 py-1.5 outline-none placeholder:text-[var(--text-muted)]" />
-          </div>
-          <div className="max-h-48 overflow-y-auto py-1">
-            <button type="button" onClick={() => onChange([])}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left ${allMode ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>
-              {box(allMode)}{placeholder}
-            </button>
-            {filtered.map(o => {
-              const on = allMode || value.includes(String(o.id))
-              return (
-                <button key={o.id} type="button" onClick={() => toggle(String(o.id))}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                  {box(on)}<span className="truncate">{o.name}</span>
-                </button>
-              )
-            })}
-            {filtered.length === 0 && <p className="px-3 py-2 text-xs text-[var(--text-muted)]">Nenhum resultado</p>}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 function SelectField({ label, value, onChange, children, required }: {
   label: string
   value: string
@@ -1711,19 +1648,12 @@ export default function MeuPainelPage() {
   const [tsLoading,  setTsLoading]  = useState(true)
   const [tsTotalMin, setTsTotalMin] = useState(0)
   const [tsSearch,   setTsSearch]   = useState('')
-  const [tsProject,  setTsProject]  = useState<string[]>([])
-  const [tsCustomer, setTsCustomer] = useState<string[]>([])
+  const [tsProject,  setTsProject]  = useState('')
+  const [tsCustomer, setTsCustomer] = useState('')
   const [tsStatus,   setTsStatus]   = useState('')
   const [tsDateFrom, setTsDateFrom] = useState('')
   const [tsDateTo,   setTsDateTo]   = useState('')
   const [tsPage,     setTsPage]     = useState(1)
-  const [tsSort,     setTsSort]     = useState('date')
-  const [tsSortDir,  setTsSortDir]  = useState<'asc' | 'desc'>('desc')
-  const handleTsSort = (f: string) => {
-    if (tsSort === f) setTsSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
-    else { setTsSort(f); setTsSortDir('asc') }
-    setTsPage(1)
-  }
   const [tsHasNext,  setTsHasNext]  = useState(false)
   const [tsModal,       setTsModal]       = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
   const [tsViewItem,    setTsViewItem]    = useState<TimesheetItem | null>(null)
@@ -1831,17 +1761,16 @@ export default function MeuPainelPage() {
       })
       p.set('user_id', String(user.id))
       if (tsSearch)   p.set('search',      tsSearch)
-      tsProject.forEach(id => p.append('project_id[]', id))
-      tsCustomer.forEach(id => p.append('customer_id[]', id))
+      if (tsProject)  p.set('project_id',  tsProject)
+      if (tsCustomer) p.set('customer_id', tsCustomer)
       if (tsStatus)   p.set('status',      tsStatus)
-      p.set('sort', tsSort); p.set('direction', tsSortDir)
       const r = await api.get<any>(`/timesheets?${p}`)
       setTimesheets(Array.isArray(r?.items) ? r.items : [])
       setTsHasNext(!!r?.hasNext)
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally   { setTsLoading(false) }
-  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id, tsSort, tsSortDir])
+  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id])
 
   // ── Load expenses ──────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
@@ -1870,7 +1799,7 @@ export default function MeuPainelPage() {
     finally   { setExpLoading(false) }
   }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo, isCoordenador, user?.id])
 
-  const hasTsFilters = !!(tsSearch || tsCustomer.length || tsProject.length || tsStatus || tsDateFrom || tsDateTo)
+  const hasTsFilters = !!(tsSearch || tsCustomer || tsProject || tsStatus || tsDateFrom || tsDateTo)
   const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expCategory || expDateFrom || expDateTo)
 
   function exportTs() {
@@ -1893,7 +1822,7 @@ export default function MeuPainelPage() {
   }
 
   function clearTsFilters() {
-    setTsSearch(''); setTsCustomer([]); setTsProject([]); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
+    setTsSearch(''); setTsCustomer(''); setTsProject(''); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
   }
   function clearExpFilters() {
     setExpSearch(''); setExpCustomer(''); setExpProject(''); setExpStatus(''); setExpCategory(''); setExpDateFrom(''); setExpDateTo(''); setExpPage(1)
@@ -2868,13 +2797,13 @@ export default function MeuPainelPage() {
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
               placeholder="Buscar por projeto, observação, ticket..."
               className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            <SearchableMultiSelect
+            <SearchableSelect
               value={tsCustomer}
               onChange={v => { setTsCustomer(v); setTsPage(1) }}
               options={consultantCustomers}
               placeholder="Todos os clientes"
             />
-            <SearchableMultiSelect
+            <SearchableSelect
               value={tsProject}
               onChange={v => { setTsProject(v); setTsPage(1) }}
               options={projects}
@@ -2927,21 +2856,16 @@ export default function MeuPainelPage() {
             <table className="w-full min-w-max text-xs">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                  {([['Data','date',''],['Cliente','customer.name','hidden md:table-cell'],['Projeto','project.name',''],['Ticket #','ticket','hidden lg:table-cell'],['Título','titulo','hidden xl:table-cell']] as const).map(([label,field,cls]) => (
-                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
-                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
-                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                  ))}
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Data</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Projeto</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Ticket #</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Título</th>
                   <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Horário</th>
-                  {([['Horas','effort_hours',''],['Tipo de Serviço','service_type','hidden xl:table-cell'],['Observação','observation','hidden lg:table-cell'],['Status','status','']] as const).map(([label,field,cls]) => (
-                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
-                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
-                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
-                      </button>
-                    </th>
-                  ))}
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Horas</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Observação</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Status</th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
