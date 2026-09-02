@@ -137,9 +137,11 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
 
   // Só indicadores de PRAZO (schedule). Custo/esforço (CPI/CV) removido — o sistema
   // não trabalha com custo (decisão 24/08).
-  const cards: { label: string; value: string; tone: Tone; sub: string; trend: 'up' | 'down' | 'flat' }[] = [
-    { label: 'SPI · Prazo', value: fmtIdx(m.spi), tone: idxTone(m.spi), sub: m.spi == null ? 'sem dado' : m.spi >= 1 ? 'no ritmo ou adiantado' : 'atrás do planejado', trend: m.spi == null ? 'flat' : m.spi >= 1 ? 'up' : 'down' },
-    { label: 'SV · Prazo (horas)', value: fmtSigned(m.sv), tone: varTone(m.sv), sub: m.sv >= 0 ? 'adiantado' : 'atrasado', trend: m.sv >= 0 ? 'up' : 'down' },
+  const cards: { label: string; value: string; tone: Tone; sub: string; trend: 'up' | 'down' | 'flat'; help: string }[] = [
+    { label: 'SPI · Prazo', value: fmtIdx(m.spi), tone: idxTone(m.spi), sub: m.spi == null ? 'sem dado' : m.spi >= 1 ? 'no ritmo ou adiantado' : 'atrás do planejado', trend: m.spi == null ? 'flat' : m.spi >= 1 ? 'up' : 'down',
+      help: 'SPI = EV ÷ PV — horas de trabalho FEITO (EV) ÷ horas PLANEJADAS até hoje (PV). 1,00 = no ritmo; abaixo de 1,00 = atrasado; acima = adiantado.' },
+    { label: 'SV · Prazo (horas)', value: fmtSigned(m.sv), tone: varTone(m.sv), sub: m.sv >= 0 ? 'adiantado' : 'atrasado', trend: m.sv >= 0 ? 'up' : 'down',
+      help: 'SV = EV − PV — diferença, em horas, entre o que foi FEITO (EV) e o que estava PLANEJADO até hoje (PV). Negativo = atrasado; positivo = adiantado.' },
   ]
 
   return (
@@ -184,7 +186,9 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
 
       <div className="ds-card p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>% Planejado vs Real</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1" style={{ color: 'var(--text-light)' }}>% Planejado vs Real
+            <span title="PV (Planejado) = % / horas que o cronograma previa concluir até hoje. EV (Real/Feito) = % / horas planejadas das atividades já concluídas. Se o Real (EV) está abaixo do Planejado (PV), o projeto está atrasado." style={{ cursor: 'help', color: 'var(--text-light)' }}><Info size={11} style={{ display: 'inline', verticalAlign: '-1px' }} /></span>
+          </span>
           <span className="text-[12px]" style={{ color: (m.pct_real ?? 0) < (m.pct_planned ?? 0) ? 'var(--warning)' : 'var(--success)' }}>
             {(m.pct_real ?? 0) < (m.pct_planned ?? 0) ? 'abaixo do planejado' : 'no ritmo esperado'}
           </span>
@@ -197,7 +201,9 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
       <div className="grid grid-cols-2 gap-2.5">
         {cards.map(c => (
           <div key={c.label} className="ds-card px-3.5 py-3" style={{ borderLeft: `3px solid ${toneVar(c.tone)}` }}>
-            <div className="text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>{c.label}</div>
+            <div className="text-[11px] font-medium flex items-center gap-1" style={{ color: 'var(--text-light)' }}>{c.label}
+              <span title={c.help} style={{ cursor: 'help', color: 'var(--text-light)' }}><Info size={11} style={{ display: 'inline', verticalAlign: '-1px' }} /></span>
+            </div>
             <div className="flex items-baseline gap-1.5 mt-0.5">
               <span className="text-2xl font-bold" style={{ color: toneVar(c.tone) }}>{c.value}</span>
               {c.trend === 'up' && <TrendingUp size={15} style={{ color: toneVar(c.tone) }} />}
@@ -213,7 +219,25 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
         <span className="uppercase tracking-wide text-[10px] font-semibold self-center" style={{ color: 'var(--text-light)' }}>Horas</span>
-        <span>BAC <b style={{ color: 'var(--text)' }}>{fmtH(m.bac)}</b> <span style={{ color: 'var(--text-light)' }}>planejadas</span></span>
+        <span title="BAC (Budget At Completion) = total de horas planejadas de todas as etapas/atividades da linha de base — a meta cheia do projeto.">BAC <b style={{ color: 'var(--text)' }}>{fmtH(m.bac)}</b> <span style={{ color: 'var(--text-light)' }}>planejadas</span></span>
+      </div>
+
+      {/* Glossário — explica o cálculo de cada indicador (pedido de coordenação) */}
+      <div className="ds-card p-3.5" style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+        <div className="uppercase tracking-wide text-[10px] font-semibold mb-2 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+          <Info size={12} /> Como ler estes indicadores
+        </div>
+        <ul className="space-y-1.5" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          <li><b style={{ color: COL_PV }}>PV · Planejado</b> — horas que o cronograma previa ter <b>concluído até hoje</b> (o que era pra estar pronto).</li>
+          <li><b style={{ color: COL_EV }}>EV · Feito (Real)</b> — horas planejadas das atividades que <b>já foram concluídas</b> (o quanto de fato avançou).</li>
+          <li><b style={{ color: 'var(--warning)' }}>AC · Apontado</b> — horas <b>lançadas em apontamentos</b> até hoje (esforço gasto). Só aparece na Curva-S.</li>
+          <li><b style={{ color: 'var(--text)' }}>SPI = EV ÷ PV</b> — ritmo de prazo. <b>1,00</b> = no ritmo; <b>abaixo de 1,00</b> = atrasado; <b>acima</b> = adiantado.</li>
+          <li><b style={{ color: 'var(--text)' }}>SV = EV − PV</b> — atraso/adianto <b>em horas</b>. <b>Negativo</b> = atrasado; <b>positivo</b> = adiantado.</li>
+          <li><b style={{ color: 'var(--text)' }}>BAC</b> — total de horas planejadas do projeto (a meta cheia da linha de base).</li>
+        </ul>
+        <p className="mt-2 text-[11px]" style={{ color: 'var(--text-light)' }}>
+          Na <b>Curva-S</b>, as três linhas se acumulam ao longo do tempo. Se a linha do <b style={{ color: COL_EV }}>Feito (EV)</b> está <b>abaixo</b> da linha do <b style={{ color: COL_PV }}>Planejado (PV)</b>, o projeto está <b>atrasado no prazo</b> (foi feito menos do que o previsto até a data).
+        </p>
       </div>
     </div>
   )
