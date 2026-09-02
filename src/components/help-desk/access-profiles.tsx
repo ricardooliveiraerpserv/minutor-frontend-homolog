@@ -87,14 +87,14 @@ const SCHEMA: Record<Kind, Tab[]> = {
   cliente: [
     { id: 'tickets', label: 'Tickets', sections: [
       { title: 'Abertura de tickets', controls: [
-        { key: 'tickets.open', label: 'Permitir que o cliente abra tickets', type: 'radio', options: [{ value: 'any', label: 'Para qualquer cliente' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'own', label: 'Somente em seu nome' }, { value: 'none', label: 'Não permitir' }] },
+        { key: 'tickets.open', label: 'Permitir que o cliente abra tickets', type: 'radio', options: [{ value: 'own', label: 'Somente em seu nome' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'any', label: 'Para qualquer cliente' }, { value: 'none', label: 'Não permitir' }] },
         { key: 'tickets.inform', label: 'Permitir que o cliente informe na abertura', type: 'toggles', items: [{ key: 'tickets.inform.service', label: 'Serviço' }, { key: 'tickets.inform.category', label: 'Categoria' }, { key: 'tickets.inform.urgency', label: 'Urgência' }, { key: 'tickets.inform.subject', label: 'Assunto' }, { key: 'tickets.inform.tags', label: 'TAGs' }] },
         { key: 'tickets.kb_suggestions', label: 'Exibir sugestão de artigos da Base de Conhecimento', type: 'toggle' },
         { key: 'tickets.open_on_behalf', label: 'Abertura por outras pessoas no nome do cliente', type: 'toggle' },
       ] },
       { title: 'Listagem e visualização', controls: [
         { key: 'tickets.personal_views', label: 'Criar visualizações personalizadas', type: 'toggle' },
-        { key: 'tickets.view_tickets', label: 'Permitir que o cliente visualize tickets', type: 'radio', options: [{ value: 'any', label: 'Todos de qualquer cliente' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'department', label: 'Somente do seu departamento' }, { value: 'own', label: 'Somente em seu nome' }, { value: 'none', label: 'Não permitir' }] },
+        { key: 'tickets.view_tickets', label: 'Permitir que o cliente visualize tickets', type: 'radio', options: [{ value: 'own', label: 'Somente em seu nome' }, { value: 'department', label: 'Somente do seu departamento' }, { value: 'same_org', label: 'Mesma organização' }, { value: 'any', label: 'Todos de qualquer cliente' }, { value: 'none', label: 'Não permitir' }] },
         { key: 'tickets.view_in', label: 'Permitir que o cliente visualize NO ticket', type: 'toggles', items: [{ key: 'tickets.view_in.service', label: 'Serviço' }, { key: 'tickets.view_in.responsible', label: 'Responsável' }, { key: 'tickets.view_in.category', label: 'Categoria' }, { key: 'tickets.view_in.urgency', label: 'Urgência' }, { key: 'tickets.view_in.sla_due', label: 'SLA (vencimento)' }, { key: 'tickets.view_in.sla_first', label: 'SLA 1ª resposta' }, { key: 'tickets.view_in.status', label: 'Status' }, { key: 'tickets.view_in.justification', label: 'Justificativa' }, { key: 'tickets.view_in.subject', label: 'Assunto' }, { key: 'tickets.view_in.agent_times', label: 'Tempos apontados pelos agentes' }, { key: 'tickets.view_in.tags', label: 'TAGs' }] },
       ] },
     ] },
