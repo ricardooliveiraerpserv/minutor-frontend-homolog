@@ -37,7 +37,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   const [services, setServices] = useState<{ id: number; name: string }[]>([])
   const [contactId, setContactId] = useState('')
   const [onBehalf, setOnBehalf] = useState(false)
-  const [contacts, setContacts] = useState<{ id: number; name: string; email?: string }[]>([])
+  const [contacts, setContacts] = useState<{ id: string; name: string; email?: string }[]>([])
   const [kbEnabled, setKbEnabled] = useState(false)
   const [kbResults, setKbResults] = useState<{ id: number; titulo?: string; title?: string }[]>([])
   const [tagOptions, setTagOptions] = useState<{ id: number; name: string; color?: string | null }[]>([])
@@ -45,7 +45,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   const [created, setCreated] = useState<{ id: number; numero: string | null } | null>(null)
   const descRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
-    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: number; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>('/help-desk/portal/permissions')
+    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: string; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>('/help-desk/portal/permissions')
       .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []); setKbEnabled(!!d?.kb_suggestions); setOnBehalf(!!d?.open_on_behalf); setContacts(d?.contacts ?? []); setTagOptions(d?.tags ?? []) }).catch(() => {})
   }, [])
   // Sugestão de artigos da KB conforme o cliente digita o assunto (só se o perfil permitir).
@@ -64,7 +64,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
     const descFiles = descRef.current?.getFiles() ?? []
     setSaving(true)
     try {
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, customer_contact_id: contactId ? Number(contactId) : null, tags: selectedTags })
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
