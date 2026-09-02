@@ -3638,6 +3638,25 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 })}
               </div>
             )}
+            {(selectedIds.size > 0 || selectedGroupIds.size > 0) && (
+              <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.25)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: '#a78bfa' }}>Alocados ({selectedIds.size + selectedGroupIds.size}) — clique no × para desalocar</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allConsultants.filter(c => selectedIds.has(c.id)).map(c => (
+                    <span key={c.id} className="inline-flex items-center gap-1 text-[11px] rounded-lg px-2 py-1" style={{ background: 'var(--surface)', border: '1px solid rgba(139,92,246,0.35)', color: 'var(--text)' }}>
+                      {c.name}
+                      <button onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))} title="Desalocar" className="hover:opacity-70" style={{ color: 'var(--danger)' }}><X size={12} /></button>
+                    </span>
+                  ))}
+                  {allGroups.filter(g => selectedGroupIds.has(g.id)).map(g => (
+                    <span key={'g' + g.id} className="inline-flex items-center gap-1 text-[11px] rounded-lg px-2 py-1" style={{ background: 'var(--surface)', border: '1px solid rgba(245,158,11,0.4)', color: 'var(--text)' }}>
+                      👥 {g.name}
+                      <button onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))} title="Desalocar grupo" className="hover:opacity-70" style={{ color: 'var(--danger)' }}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex gap-1 mb-2 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               {([['consult','Consultores',selectedIds.size],['group','Grupos',selectedGroupIds.size]] as const).map(([id,label,count]) => (
                 <button key={id} onClick={() => { setTab(id); setSearch('') }}
@@ -3657,8 +3676,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   <button key={c.id} onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                      {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? '#8b5cf6' : 'var(--surface)', border: `1.5px solid ${sel ? '#8b5cf6' : 'var(--text-light)'}` }}>
+                      {sel && <Check size={12} style={{ color: '#fff' }} />}
                     </div>
                     <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}</span>
                   </button>
@@ -3670,8 +3689,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   <button key={g.id} onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(245,158,11,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(245,158,11,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                      {sel && <Check size={10} style={{ color: '#f59e0b' }} />}
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? '#f59e0b' : 'var(--surface)', border: `1.5px solid ${sel ? '#f59e0b' : 'var(--text-light)'}` }}>
+                      {sel && <Check size={12} style={{ color: '#fff' }} />}
                     </div>
                     <span className="text-xs" style={{ color: sel ? '#f59e0b' : 'var(--text)' }}>{g.name}</span>
                   </button>
