@@ -12,7 +12,7 @@ interface BlockSettings { timesheet_retroactive_limit_days?: number | null; fech
 
 interface WeekRow { n: number; week_start: string; week_end: string; deadline: string; status: string; reopen_auto_close_at: string | null }
 interface MonthGroup { ym: string; label: string; status: string; deadline: string; reopen_auto_close_at: string | null; weeks: WeekRow[] }
-interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; customer_id?: number | null; customer?: string | null; all_projects?: boolean; projects_count?: number; user_id: number | null; user: string | null; auto_close_at: string | null }
+interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; customer_id?: number | null; customer?: string | null; all_projects?: boolean; projects_count?: number; user_id: number | null; user: string | null; target_user_id?: number | null; target_user?: string | null; auto_close_at: string | null }
 interface ScopedClosure { id: number; period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; closed_by: number | null; closed_by_name: string | null; closed_at: string | null }
 interface LogRow { id: number; event: string; period_kind: string; period_key: string; project: string | null; user: string | null; occurred_at: string; note: string | null }
 interface Opt { id: number; name: string }
@@ -109,6 +109,28 @@ export default function FechamentoSemanalPage() {
     setBusy(key)
     try { await api.post(`/weekly-closings/${action}`, body); toast.success(action === 'reopen' ? 'Período reaberto até 23:59' : 'Período encerrado'); load() }
     catch { toast.error('Erro na operação') } finally { setBusy('') }
+  }
+  // Encerra TODAS as reaberturas de uma empresa (antecipa o prazo) — 1 chamada por escopo
+  // distinto (período + usuário-alvo), fechando todos os projetos do cliente de uma vez.
+  const closeCompany = async (company: string, items: { p: ActiveReopen; i: number }[]) => {
+    if (!confirm(`Encerrar TODAS as ${items.length} reaberturas de ${company} agora, antecipando o prazo?`)) return
+    setBusy(`co-${company}`)
+    try {
+      const seen = new Set<string>()
+      for (const { p } of items) {
+        const cid = p.customer_id ?? null
+        const uid = p.user_id ?? p.target_user_id ?? null
+        const sig = `${p.period_kind}|${p.period_key}|${cid ?? 'x'}|${uid ?? 'x'}`
+        if (seen.has(sig)) continue
+        seen.add(sig)
+        await api.post('/weekly-closings/close', {
+          period_kind: p.period_kind, period_key: p.period_key,
+          ...(cid ? { customer_id: cid } : (p.project_id ? { project_id: p.project_id } : {})),
+          ...(uid ? { user_id: uid } : {}),
+        })
+      }
+      toast.success(`Reaberturas de ${company} encerradas`); load()
+    } catch { toast.error('Erro ao encerrar a empresa') } finally { setBusy('') }
   }
   const submitForm = (action: 'reopen' | 'close') => {
     if (!fMonth) { toast.error('Escolha o mês'); return }
@@ -224,24 +246,33 @@ export default function FechamentoSemanalPage() {
                   const byCompany = new Map<string, Map<string, { p: ActiveReopen; i: number }[]>>()
                   activeReopens.forEach((p, i) => {
                     const c = p.customer ?? (p.project ? 'Sem cliente' : 'Global')
-                    const u = p.user ?? 'Todos os usuários'
+                    const u = p.target_user ?? (p.user_id ? `Usuário #${p.user_id}` : 'Todos os usuários')
                     if (!byCompany.has(c)) byCompany.set(c, new Map())
                     const um = byCompany.get(c)!
                     if (!um.has(u)) um.set(u, [])
                     um.get(u)!.push({ p, i })
                   })
                   return [...byCompany.entries()].map(([company, users]) => {
-                    const total = [...users.values()].reduce((a, l) => a + l.length, 0)
+                    const companyItems = [...users.values()].flat()
+                    const total = companyItems.length
                     const open = openReopenGroups.includes(company)
+                    const toggleCompany = () => setOpenReopenGroups(o => o.includes(company) ? o.filter(x => x !== company) : [...o, company])
                     return (
                       <div key={company} className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
-                        <button onClick={() => setOpenReopenGroups(o => o.includes(company) ? o.filter(x => x !== company) : [...o, company])}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-left">
-                          {open ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
-                          <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{company}</span>
-                          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{total}</span>
-                          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{users.size} usuário{users.size !== 1 ? 's' : ''} · {open ? 'recolher' : 'expandir'}</span>
-                        </button>
+                        <div className="w-full flex items-center gap-2 px-3 py-2">
+                          <button onClick={toggleCompany} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                            {open ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
+                            <span className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{company}</span>
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{total}</span>
+                            <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>· {users.size} usuário{users.size !== 1 ? 's' : ''}</span>
+                          </button>
+                          <button onClick={() => closeCompany(company, companyItems)} disabled={busy === `co-${company}`}
+                            title="Encerrar todas as reaberturas desta empresa agora (antecipar o prazo)"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded font-semibold text-[11px] disabled:opacity-60"
+                            style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+                            <Lock size={11} /> Encerrar empresa
+                          </button>
+                        </div>
                         {open && (
                           <div className="px-2 pb-2 space-y-1">
                             {[...users.entries()].map(([user, items]) => {
@@ -255,6 +286,7 @@ export default function FechamentoSemanalPage() {
                                     <UserCog size={12} style={{ color: 'var(--text-muted)' }} />
                                     <span className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>{user}</span>
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{items.length}</span>
+                                    {items[0]?.p.user && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>· liberado por {items[0].p.user}</span>}
                                     <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{uopen ? 'recolher' : 'expandir'}</span>
                                   </button>
                                   {uopen && (
