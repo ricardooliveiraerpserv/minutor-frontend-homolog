@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
+import { ExpenseItemsEditor, ExpenseItemDraft, emptyExpenseItem, appendExpenseItems, expenseItemsValid, expenseToItemDrafts } from '@/components/ui/expense-items-editor'
 import { ExpenseHoverTooltip, useExpenseHover } from '@/components/ui/timesheet-hover-tooltip'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
@@ -505,7 +506,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
     payment_method: 'pix', charge_client: false, user_id: '',
   })
   const [modalUsers, setModalUsers] = useState<SelectOption[]>([])
-  const [receipt, setReceipt] = useState<File | null>(null)
+  const [expenseItems, setExpenseItems] = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
   // Projetos reais do investimento: só os escolhidos p/ este consultor na Alocação
@@ -520,7 +521,6 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
   const [executives,       setExecutives]       = useState<SelectOption[]>([])
   interface ClienteProject { id: number; name: string; contract_type_id?: number; contract_type_display?: string }
   const [clienteProjects,  setClienteProjects]  = useState<ClienteProject[]>([])
-  const fileRef = useRef<HTMLInputElement>(null)
 
   const clienteContractTypes = useMemo(() => {
     const seen = new Set<number>()
@@ -628,7 +628,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
 
   const openCreate = () => {
     setForm({ customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false, user_id: '' })
-    setReceipt(null)
+    setExpenseItems([emptyExpenseItem()])
     loadOptions()
     setModal({ open: true })
   }
@@ -648,7 +648,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
       charge_client: item.charge_client,
       user_id: String(item.user_id ?? ''),
     })
-    setReceipt(null)
+    setExpenseItems(expenseToItemDrafts(item))
     loadOptions()
     setModal({ open: true, item })
   }
@@ -681,17 +681,15 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
     const selProj = (projects as any[]).find(p => String(p.id) === form.project_id)
     const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
     if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
+    if (!expenseItemsValid(expenseItems)) { toast.error('Preencha categoria, descrição e valor de cada item'); return }
     const fd = new FormData()
     fd.append('project_id', form.project_id)
     if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
-    fd.append('expense_category_id', form.expense_category_id)
     fd.append('expense_date', form.expense_date)
-    fd.append('description', form.description)
-    fd.append('amount', form.amount)
     fd.append('expense_type', form.expense_type)
     fd.append('payment_method', form.payment_method)
+    appendExpenseItems(fd, expenseItems)
     if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
-    if (receipt) fd.append('receipt', receipt)
     if (modal.item) fd.append('_method', 'PUT')
 
     const url = modal.item ? `/api/v1/expenses/${modal.item.id}` : '/api/v1/expenses'
@@ -1271,47 +1269,22 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
                 )
               })()}
               <div>
-                <Label className="text-xs text-[var(--text-muted)]">Categoria *</Label>
-                <div className="mt-1">
-                  <SearchSelect
-                    value={form.expense_category_id}
-                    onChange={v => setForm(f => ({ ...f, expense_category_id: v }))}
-                    options={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
-                    placeholder="Selecione a categoria..."
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
-                  <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-                </div>
-                <div>
-                  <Label className="text-xs text-[var(--text-muted)]">Valor *</Label>
-                  <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
-                <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
+                <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))}
                   className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
-                <div className="mt-1 flex items-center gap-2">
-                  <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-md text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
-                    <Paperclip size={12} /> {receipt ? receipt.name : 'Selecionar arquivo'}
-                  </button>
-                  {receipt && <button onClick={() => setReceipt(null)} className="text-[var(--text-light)] hover:text-[var(--text)]"><X size={12} /></button>}
-                </div>
-                <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={e => setReceipt(e.target.files?.[0] ?? null)} />
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Itens da despesa *</Label>
+                <ExpenseItemsEditor
+                  items={expenseItems}
+                  onChange={setExpenseItems}
+                  categories={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
+                />
               </div>
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</UIButton>
-              <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_category_id || !form.expense_date || !form.amount || !form.description}
+              <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_date || !expenseItemsValid(expenseItems)}
                 className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 {saving ? 'Salvando...' : 'Salvar'}
               </UIButton>

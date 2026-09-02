@@ -94,6 +94,7 @@ export function ExpenseViewModal({
   onEdit?: () => void
 }) {
   const sc = EXP_STATUS_CONF[expense.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: expense.status }
+  const hasItems = Array.isArray(expense.items) && expense.items.length > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -169,12 +170,14 @@ export function ExpenseViewModal({
             {expense.payment_method && (
               <InfoRow icon={CreditCard} label="Pagamento" value={PAYMENT_LABEL_MAP[expense.payment_method] ?? expense.payment_method} />
             )}
-            <InfoRow icon={Paperclip} label="Comprovante" last>
-              {expense.receipt_url
-                ? <ReceiptLink url={expense.receipt_url} />
-                : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
-              }
-            </InfoRow>
+            {!hasItems && (
+              <InfoRow icon={Paperclip} label="Comprovante" last>
+                {expense.receipt_url
+                  ? <ReceiptLink url={expense.receipt_url} />
+                  : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
+                }
+              </InfoRow>
+            )}
             {/* FASE 11.2.FE — Painel composto: lista + upload de extras via nova camada.
                 Coexiste com receipt_url legado acima. Quando 11.4 deprecar legado,
                 a InfoRow "Comprovante" sai daqui e este painel é a fonte única. */}
@@ -192,8 +195,40 @@ export function ExpenseViewModal({
             </div>
           </div>
 
+          {/* Itens (despesa multi-item) — categoria + descrição + valor + comprovante próprio */}
+          {hasItems && (
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                <Receipt size={13} style={{ color: 'var(--primary)' }} />
+                <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--text-light)' }}>
+                  Itens ({expense.items!.length})
+                </span>
+              </div>
+              <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                {expense.items!.map(it => (
+                  <div key={it.id} className="px-3.5 py-2.5 flex flex-col gap-1.5" style={{ borderColor: 'var(--border)' }}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium truncate" style={{ color: 'var(--text)' }}>{it.description || '—'}</p>
+                        {it.category?.name && (
+                          <span className="inline-flex items-center gap-1 mt-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>
+                            <Tag size={10} /> {it.category.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[13px] font-semibold shrink-0" style={{ color: 'var(--text)' }}>{formatCurrency(Number(it.amount))}</p>
+                    </div>
+                    {it.receipt_url
+                      ? <ReceiptLink url={it.receipt_url} />
+                      : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Descrição */}
-          {expense.description && (
+          {expense.description && !hasItems && (
             <div className="rounded-2xl overflow-hidden"
               style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--border)' }}>

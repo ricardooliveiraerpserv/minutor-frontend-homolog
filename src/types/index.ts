@@ -278,6 +278,19 @@ export interface Expense {
   created_at: string
   status_display?: string
   formatted_amount?: string
+  items?: ExpenseLineItem[]
+}
+
+// Item de uma despesa multi-item (categoria + descrição + valor + comprovante próprio).
+export interface ExpenseLineItem {
+  id: number
+  expense_id: number
+  expense_category_id: number
+  category?: { id: number; name: string }
+  description: string
+  amount: number
+  receipt_url?: string | null
+  formatted_amount?: string
 }
 
 export interface ProjectMessage {

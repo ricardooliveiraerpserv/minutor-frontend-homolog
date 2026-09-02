@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ExpenseItemsEditor, ExpenseItemDraft, emptyExpenseItem, appendExpenseItems, expenseItemsValid, expenseToItemDrafts } from '@/components/ui/expense-items-editor'
 import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye, EyeOff,
@@ -99,6 +100,7 @@ interface ExpenseItem {
   is_paid: boolean
   receipt_url?: string
   rejection_reason?: string | null
+  items?: Array<{ id: number; expense_category_id: number; category?: { id: number; name: string }; description: string; amount: number; receipt_url?: string | null }>
 }
 
 interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string }; is_investimento_comercial?: boolean; categoria_interna?: string | null }
@@ -1766,6 +1768,7 @@ export default function MeuPainelPage() {
   const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
   const [expSaving,   setExpSaving]  = useState(false)
   const [expFile,     setExpFile]    = useState<File | null>(null)
+  const [expItems,    setExpItems]   = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Banco de Horas state ───────────────────────────────────────────────────
@@ -2112,6 +2115,7 @@ export default function MeuPainelPage() {
   const openCreateExp = () => {
     setExpForm({ ...EMPTY_EXP, expense_date: todayISO() })
     setExpFile(null)
+    setExpItems([emptyExpenseItem()])
     setExpModal({ open: true })
   }
 
@@ -2131,13 +2135,14 @@ export default function MeuPainelPage() {
       receipt_url:         item.receipt_url ?? '',
     })
     setExpFile(null)
+    setExpItems(expenseToItemDrafts(item))
     setExpModal({ open: true, item })
   }
 
   const saveExp = async () => {
     if (!expForm.project_id)  { toast.error('Selecione um projeto'); return }
-    if (!expForm.description) { toast.error('Informe a descrição'); return }
-    if (!expForm.amount)      { toast.error('Informe o valor'); return }
+    if (!expForm.expense_date) { toast.error('Informe a data'); return }
+    if (!expenseItemsValid(expItems)) { toast.error('Preencha categoria, descrição e valor de cada item'); return }
     const spExp = projects.find(p => p.id === Number(expForm.project_id)) as any
     const scExp = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
     const isErpExp = String(scExp?.name ?? '').toUpperCase().includes('ERPSERV')
@@ -2148,14 +2153,11 @@ export default function MeuPainelPage() {
       const fd = new FormData()
       fd.append('project_id',          expForm.project_id)
       if (expIsInvestimento && expForm.real_project_id) fd.append('real_project_id', expForm.real_project_id)
-      fd.append('expense_category_id', expForm.expense_category_id)
       fd.append('expense_date',        expForm.expense_date)
-      fd.append('description',         expForm.description)
-      fd.append('amount',              expForm.amount)
       fd.append('expense_type',        expForm.expense_type)
       fd.append('payment_method',      expForm.payment_method)
       fd.append('charge_client',       expForm.charge_client ? '1' : '0')
-      if (expFile) fd.append('receipt', expFile)
+      appendExpenseItems(fd, expItems)
 
       const url    = expModal.item ? `/api/v1/expenses/${expModal.item.id}` : '/api/v1/expenses'
       const method = 'POST'
@@ -4313,14 +4315,6 @@ export default function MeuPainelPage() {
               )
             })()}
 
-            {categories.length > 0 && (
-              <SearchSelectField label="Categoria" value={expForm.expense_category_id}
-                onChange={v => setExpForm(f => ({ ...f, expense_category_id: v }))}
-                options={categories}
-                placeholder="Selecione a categoria..."
-              />
-            )}
-
             <div>
               <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={expForm.expense_date}
@@ -4329,52 +4323,12 @@ export default function MeuPainelPage() {
             </div>
 
             <div>
-              <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
-              <Input value={expForm.description}
-                onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Ex.: Passagem para São Paulo"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            </div>
-
-            <div>
-              <Label className="text-xs text-[var(--text-muted)]">Valor (R$) *</Label>
-              <Input type="number" min="0" step="0.01" value={expForm.amount}
-                onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
-                placeholder="0,00"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            </div>
-
-            {/* Receipt upload */}
-            <div>
-              <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
-
-              {/* Comprovante existente (modo edição) */}
-              {expForm.receipt_url && !expFile && (
-                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]">
-                  <span className="text-xs text-[var(--success)] flex-1">Comprovante anexado</span>
-                  <ReceiptLinkInline url={expForm.receipt_url} />
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="text-[11px] text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-                    Substituir
-                  </button>
-                </div>
-              )}
-
-              {/* Upload area */}
-              {(!expForm.receipt_url || expFile) && (
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className="mt-1.5 border border-dashed border-[var(--border)] rounded-lg p-4 cursor-pointer hover:border-[var(--border-strong)] transition-colors text-center">
-                  <span className="text-xs text-[var(--text-light)]">
-                    {expFile
-                      ? <span className="text-[var(--primary)]">{expFile.name}</span>
-                      : 'Clique para anexar comprovante (opcional)'}
-                  </span>
-                </div>
-              )}
-
-              <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
-                onChange={e => setExpFile(e.target.files?.[0] ?? null)} />
+              <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Itens da despesa *</Label>
+              <ExpenseItemsEditor
+                items={expItems}
+                onChange={setExpItems}
+                categories={categories as any}
+              />
             </div>
 
             <div className="flex gap-2 justify-end pt-2">
@@ -4382,7 +4336,7 @@ export default function MeuPainelPage() {
                 className="h-9 text-xs border-[var(--border)] text-[var(--text)]">
                 Cancelar
               </Button>
-              <Button onClick={saveExp} disabled={expSaving}
+              <Button onClick={saveExp} disabled={expSaving || !expForm.project_id || !expForm.expense_date || !expenseItemsValid(expItems)}
                 className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
               </Button>
@@ -4441,14 +4395,46 @@ export default function MeuPainelPage() {
                   {expViewItem.project?.customer?.name && (
                     <InfoRowModal icon={Building2} label="Cliente" value={expViewItem.project.customer.name} />
                   )}
-                  <InfoRowModal icon={FolderOpen} label="Projeto" value={expViewItem.project?.name} />
-                  <InfoRowModal icon={Paperclip} label="Comprovante" last>
-                    {expViewItem.receipt_url
-                      ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />
-                      : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
-                    }
-                  </InfoRowModal>
+                  <InfoRowModal icon={FolderOpen} label="Projeto" value={expViewItem.project?.name} last={!!(expViewItem.items && expViewItem.items.length)} />
+                  {!(expViewItem.items && expViewItem.items.length) && (
+                    <InfoRowModal icon={Paperclip} label="Comprovante" last>
+                      {expViewItem.receipt_url
+                        ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />
+                        : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
+                      }
+                    </InfoRowModal>
+                  )}
                 </div>
+
+                {/* Itens (multi-item) */}
+                {expViewItem.items && expViewItem.items.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                      <Receipt size={11} style={{ color: 'var(--primary)' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Itens ({expViewItem.items.length})</span>
+                    </div>
+                    {expViewItem.items.map(it => (
+                      <div key={it.id} className="px-4 py-3 flex flex-col gap-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{it.description || '—'}</p>
+                            {it.category?.name && (
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>
+                                <Tag size={9} /> {it.category.name}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--text)' }}>
+                            {Number(it.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                        {it.receipt_url
+                          ? <ReceiptLinkInline url={it.receipt_url} label="Comprovante" />
+                          : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Descrição */}
                 {expViewItem.description && (
