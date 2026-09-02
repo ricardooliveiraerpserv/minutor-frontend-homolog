@@ -29,11 +29,18 @@ function htmlIsBlank(html: string): boolean {
 export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const [subject, setSubject] = useState('')
   const [priority, setPriority] = useState('normal')
+  const [categoryId, setCategoryId] = useState('')
+  const [serviceId, setServiceId] = useState('')
   const [saving, setSaving] = useState(false)
-  const [canUrgency, setCanUrgency] = useState(true)
+  const [inform, setInform] = useState<Record<string, boolean>>({ urgency: true, category: true, service: true })
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+  const [services, setServices] = useState<{ id: number; name: string }[]>([])
   const [created, setCreated] = useState<{ id: number; numero: string | null } | null>(null)
   const descRef = useRef<RichEditorHandle>(null)
-  useEffect(() => { api.get<{ data: { inform?: Record<string, boolean> } }>('/help-desk/portal/permissions').then(r => setCanUrgency(r?.data?.inform?.urgency ?? true)).catch(() => {}) }, [])
+  useEffect(() => {
+    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[] } }>('/help-desk/portal/permissions')
+      .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []) }).catch(() => {})
+  }, [])
 
   const submit = async () => {
     if (!subject.trim()) return toast.error('Informe o assunto.')
@@ -41,7 +48,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
     const descFiles = descRef.current?.getFiles() ?? []
     setSaving(true)
     try {
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority })
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
@@ -78,7 +85,31 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
           <RichEditor ref={descRef} initialHtml="" minHeight={240} />
         </div>
 
-        {canUrgency && (
+        {/* Campos que o cliente pode INFORMAR na abertura — cada um respeita o perfil de acesso. */}
+        {((inform.service && services.length > 0) || (inform.category && categories.length > 0)) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {inform.service && services.length > 0 && (
+              <div>
+                <label className={lbl} style={{ color: 'var(--text-light)' }}>Serviço</label>
+                <select className={`${fieldCls} w-full`} style={inputStyle} value={serviceId} onChange={e => setServiceId(e.target.value)}>
+                  <option value="">Selecione…</option>
+                  {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+            {inform.category && categories.length > 0 && (
+              <div>
+                <label className={lbl} style={{ color: 'var(--text-light)' }}>Categoria</label>
+                <select className={`${fieldCls} w-full`} style={inputStyle} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+                  <option value="">Selecione…</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {inform.urgency && (
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Prioridade</label>
             <div className="flex gap-2 flex-wrap">
