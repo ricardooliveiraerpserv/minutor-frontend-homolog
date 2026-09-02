@@ -40,11 +40,12 @@ export function MultiSelect({
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id])
 
+  // Ao selecionar, prefixa com o NOME do campo (placeholder) para saber o que está filtrando.
   const triggerLabel = value.length === 0
     ? placeholder
     : value.length === 1
-      ? (options.find(o => String(o.id) === value[0])?.name ?? `1 selecionado`)
-      : `${value.length} selecionados`
+      ? `${placeholder}: ${options.find(o => String(o.id) === value[0])?.name ?? '1 selecionado'}`
+      : `${placeholder}: ${value.length} selecionados`
 
   useEffect(() => {
     if (!open) return
