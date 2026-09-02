@@ -53,6 +53,7 @@ export default function FechamentoSemanalPage() {
   const [months, setMonths] = useState<MonthGroup[]>([])
   const [activeReopens, setActiveReopens] = useState<ActiveReopen[]>([])
   const [openReopenGroups, setOpenReopenGroups] = useState<string[]>([])   // empresas expandidas nas reaberturas
+  const [openReopenUsers, setOpenReopenUsers] = useState<string[]>([])      // "empresa::usuário" expandidos
   const [scopedClosures, setScopedClosures] = useState<ScopedClosure[]>([])
   // Config de bloqueio (vinda de Configurações → agora centralizada aqui).
   const [cfg, setCfg] = useState<BlockSettings>({})
@@ -219,13 +220,18 @@ export default function FechamentoSemanalPage() {
               <p className="text-[11px] uppercase tracking-wide mb-2" style={{ color: 'var(--text-light)' }}>Reaberturas ativas (escopo) · {activeReopens.length}</p>
               <div className="space-y-1.5">
                 {(() => {
-                  const groups = new Map<string, { p: ActiveReopen; i: number }[]>()
+                  // Empresa → Usuário (consultor liberado) → projetos reabertos.
+                  const byCompany = new Map<string, Map<string, { p: ActiveReopen; i: number }[]>>()
                   activeReopens.forEach((p, i) => {
-                    const key = p.customer ?? (p.project ? 'Sem cliente' : 'Global')
-                    if (!groups.has(key)) groups.set(key, [])
-                    groups.get(key)!.push({ p, i })
+                    const c = p.customer ?? (p.project ? 'Sem cliente' : 'Global')
+                    const u = p.user ?? 'Todos os usuários'
+                    if (!byCompany.has(c)) byCompany.set(c, new Map())
+                    const um = byCompany.get(c)!
+                    if (!um.has(u)) um.set(u, [])
+                    um.get(u)!.push({ p, i })
                   })
-                  return [...groups.entries()].map(([company, items]) => {
+                  return [...byCompany.entries()].map(([company, users]) => {
+                    const total = [...users.values()].reduce((a, l) => a + l.length, 0)
                     const open = openReopenGroups.includes(company)
                     return (
                       <div key={company} className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
@@ -233,22 +239,42 @@ export default function FechamentoSemanalPage() {
                           className="w-full flex items-center gap-2 px-3 py-2 text-left">
                           {open ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
                           <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{company}</span>
-                          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{items.length}</span>
-                          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{open ? 'recolher' : 'expandir'}</span>
+                          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{total}</span>
+                          <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{users.size} usuário{users.size !== 1 ? 's' : ''} · {open ? 'recolher' : 'expandir'}</span>
                         </button>
                         {open && (
-                          <div className="px-3 pb-2.5 flex flex-wrap gap-2">
-                            {items.map(({ p, i }) => (
-                              <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
-                                <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.all_projects ? 'projetos = todos' : (p.project ?? 'global')}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}</span>
-                                <button title={p.all_projects ? 'Encerrar a reabertura de TODOS os projetos deste cliente' : 'Encerrar esta reabertura agora'} disabled={busy === `ar${i}`}
-                                  onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.all_projects && p.customer_id ? { customer_id: p.customer_id } : (p.project_id ? { project_id: p.project_id } : {})), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
-                                  style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
-                                  <Lock size={10} /> Encerrar
-                                </button>
-                              </span>
-                            ))}
+                          <div className="px-2 pb-2 space-y-1">
+                            {[...users.entries()].map(([user, items]) => {
+                              const uk = company + '::' + user
+                              const uopen = openReopenUsers.includes(uk)
+                              return (
+                                <div key={uk} className="rounded-md" style={{ background: 'var(--surface-hover)' }}>
+                                  <button onClick={() => setOpenReopenUsers(o => o.includes(uk) ? o.filter(x => x !== uk) : [...o, uk])}
+                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left">
+                                    {uopen ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-muted)' }} />}
+                                    <UserCog size={12} style={{ color: 'var(--text-muted)' }} />
+                                    <span className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>{user}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{items.length}</span>
+                                    <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{uopen ? 'recolher' : 'expandir'}</span>
+                                  </button>
+                                  {uopen && (
+                                    <div className="px-3 pb-2 flex flex-wrap gap-2">
+                                      {items.map(({ p, i }) => (
+                                        <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+                                          <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.all_projects ? 'projetos = todos' : (p.project ?? 'global')} · até {fmtDT(p.auto_close_at)}</span>
+                                          <button title={p.all_projects ? 'Encerrar a reabertura de TODOS os projetos deste cliente' : 'Encerrar esta reabertura agora'} disabled={busy === `ar${i}`}
+                                            onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.all_projects && p.customer_id ? { customer_id: p.customer_id } : (p.project_id ? { project_id: p.project_id } : {})), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
+                                            style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+                                            <Lock size={10} /> Encerrar
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
