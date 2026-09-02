@@ -35,12 +35,28 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   const [inform, setInform] = useState<Record<string, boolean>>({ urgency: true, category: true, service: true })
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [services, setServices] = useState<{ id: number; name: string }[]>([])
+  const [contactId, setContactId] = useState('')
+  const [onBehalf, setOnBehalf] = useState(false)
+  const [contacts, setContacts] = useState<{ id: number; name: string; email?: string }[]>([])
+  const [kbEnabled, setKbEnabled] = useState(false)
+  const [kbResults, setKbResults] = useState<{ id: number; titulo?: string; title?: string }[]>([])
+  const [tagOptions, setTagOptions] = useState<{ id: number; name: string; color?: string | null }[]>([])
+  const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [created, setCreated] = useState<{ id: number; numero: string | null } | null>(null)
   const descRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
-    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[] } }>('/help-desk/portal/permissions')
-      .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []) }).catch(() => {})
+    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: number; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>('/help-desk/portal/permissions')
+      .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []); setKbEnabled(!!d?.kb_suggestions); setOnBehalf(!!d?.open_on_behalf); setContacts(d?.contacts ?? []); setTagOptions(d?.tags ?? []) }).catch(() => {})
   }, [])
+  // Sugestão de artigos da KB conforme o cliente digita o assunto (só se o perfil permitir).
+  useEffect(() => {
+    if (!kbEnabled || subject.trim().length < 3) { setKbResults([]); return }
+    const t = setTimeout(() => {
+      api.get<{ data: { id: number; titulo?: string; title?: string }[] }>(`/help-desk/portal/kb?search=${encodeURIComponent(subject.trim())}`)
+        .then(r => setKbResults((r?.data ?? []).slice(0, 4))).catch(() => setKbResults([]))
+    }, 350)
+    return () => clearTimeout(t)
+  }, [subject, kbEnabled])
 
   const submit = async () => {
     if (!subject.trim()) return toast.error('Informe o assunto.')
@@ -48,7 +64,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
     const descFiles = descRef.current?.getFiles() ?? []
     setSaving(true)
     try {
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null })
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, customer_contact_id: contactId ? Number(contactId) : null, tags: selectedTags })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
@@ -80,6 +96,25 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
       <div className="ds-card w-full max-w-4xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between"><h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Abrir chamado</h2><button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button></div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus /></div>
+        {/* Sugestão de artigos da Base de Conhecimento (se o perfil permitir). */}
+        {kbEnabled && kbResults.length > 0 && (
+          <div className="rounded-lg p-2.5" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--primary)' }}>💡 Talvez estes artigos ajudem:</div>
+            <ul className="space-y-0.5 text-sm">
+              {kbResults.map(a => <li key={a.id} style={{ color: 'var(--text)' }}>• {a.titulo ?? a.title}</li>)}
+            </ul>
+          </div>
+        )}
+        {/* Abrir em nome de outra pessoa (contato) — se o perfil permitir. */}
+        {onBehalf && contacts.length > 0 && (
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Em nome de <span style={{ color: 'var(--text-light)' }}>(opcional)</span></label>
+            <select className={`${fieldCls} w-full`} style={inputStyle} value={contactId} onChange={e => setContactId(e.target.value)}>
+              <option value="">Eu mesmo</option>
+              {contacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição <span style={{ color: 'var(--text-light)' }}>· cole um print direto aqui (Ctrl+V) ou anexe arquivos</span></label>
           <RichEditor ref={descRef} initialHtml="" minHeight={240} />
@@ -106,6 +141,26 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
                 </select>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAGs — se o perfil permitir informar. Chips clicáveis (multi-seleção). */}
+        {inform.tags && tagOptions.length > 0 && (
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>TAGs</label>
+            <div className="flex gap-2 flex-wrap">
+              {tagOptions.map(tg => {
+                const on = selectedTags.includes(tg.id)
+                return (
+                  <button key={tg.id} type="button"
+                    onClick={() => setSelectedTags(s => on ? s.filter(x => x !== tg.id) : [...s, tg.id])}
+                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-medium"
+                    style={{ background: on ? (tg.color ?? 'var(--primary)') : 'var(--surface-sunken)', color: on ? '#ffffff' : 'var(--text-muted)', border: `1px solid ${on ? (tg.color ?? 'var(--primary)') : 'var(--border)'}` }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: on ? '#ffffff' : (tg.color ?? 'var(--text-light)') }} />{tg.name}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 
