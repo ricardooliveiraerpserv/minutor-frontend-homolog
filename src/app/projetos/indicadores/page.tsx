@@ -93,7 +93,12 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
   }, [open])
 
   const list = options.filter(o => o.toLowerCase().includes(q.trim().toLowerCase()))
-  const toggle = (o: string) => onChange(selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o])
+  const toggle = (o: string) => {
+    // Modo "Todos" (selected vazio) mostra tudo marcado → clicar desmarca só o item (materializa todos menos ele).
+    if (selected.length === 0) { onChange(options.filter(x => x !== o)); return }
+    const next = selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o]
+    onChange(next.length === options.length ? [] : next)   // marcou todos manualmente → volta pra "Todos"
+  }
   const btn = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
 
   return (
@@ -123,7 +128,7 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
               {allLabel}
             </button>
             {list.map(o => {
-              const on = selected.includes(o)
+              const on = selected.length === 0 || selected.includes(o)
               return (
                 <button key={o} type="button" onClick={() => toggle(o)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
