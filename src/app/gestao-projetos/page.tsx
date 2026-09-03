@@ -1792,25 +1792,57 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 const groupConsultants: any[] = (d.consultant_groups ?? []).flatMap((g: any) => g.consultants ?? [])
                 const allProjectConsultants = [...directConsultants, ...groupConsultants].filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
                 if (allProjectConsultants.length === 0) return null
+                const directIds = new Set(directConsultants.map((c: any) => c.id))
+                // Desaloca do projeto: se for direto, tira dos consultores; se vier de grupo,
+                // "explode" o(s) grupo(s) em consultores individuais (menos o removido).
+                const removeConsultantFromProject = (id: number) => {
+                  const groupsSrc = [...((d.consultant_groups ?? []) as any[]), ...(optGroups as any[])]
+                    .filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i)
+                  setForm(p => {
+                    if (p.consultant_ids.includes(id)) {
+                      return { ...p, consultant_ids: p.consultant_ids.filter(x => x !== id) }
+                    }
+                    const groupsWith = groupsSrc.filter(g => p.consultant_group_ids.includes(g.id) && (g.consultants ?? []).some((m: any) => m.id === id))
+                    if (groupsWith.length > 0) {
+                      const removeGids = new Set(groupsWith.map(g => g.id))
+                      const remaining = p.consultant_group_ids.filter(gid => !removeGids.has(gid))
+                      const exploded = groupsWith.flatMap(g => (g.consultants ?? []).map((m: any) => m.id)).filter((mid: number) => mid !== id)
+                      return { ...p, consultant_group_ids: remaining, consultant_ids: Array.from(new Set([...p.consultant_ids, ...exploded])) }
+                    }
+                    return p
+                  })
+                  setManualTimesheetIds(prev => { const s = new Set(prev); s.delete(id); return s })
+                }
                 return (
                   <div className="mb-2 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                     <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--text-light)' }}>Apontamento manual — consultores no projeto</p>
                     {allProjectConsultants.map((c: any) => {
                       const allowManual = manualTimesheetIds.has(c.id)
+                      const viaGroup = !directIds.has(c.id)
                       return (
-                        <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                          <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}</span>
+                        <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
+                          <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
+                            {c.name}
+                            {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
+                          </span>
                           <button
                             title={allowManual ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                             onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
                             className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
-                            style={{ background: allowManual ? 'var(--success-bg)' : 'var(--surface-hover)', border: `1px solid ${allowManual ? 'var(--success-border)' : 'var(--border)'}`, color: allowManual ? 'var(--success-border)' : 'var(--text-light)' }}>
+                            style={{ background: allowManual ? 'var(--success-bg)' : 'var(--surface)', border: `1px solid ${allowManual ? 'var(--success-border)' : 'var(--border)'}`, color: allowManual ? 'var(--success-border)' : 'var(--text-light)' }}>
                             <Clock size={10} />
                             {allowManual ? 'Liberado' : 'Bloqueado'}
+                          </button>
+                          <button type="button" title="Desalocar do projeto" onClick={() => removeConsultantFromProject(c.id)}
+                            className="p-1 rounded-lg shrink-0 transition-colors hover:bg-[var(--danger-bg)]" style={{ color: 'var(--danger-border)' }}>
+                            <X size={13} />
                           </button>
                         </div>
                       )
                     })}
+                    <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                      <b style={{ color: 'var(--success-border)' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático. Toque no <b>×</b> para desalocar.
+                    </p>
                   </div>
                 )
               })()}
