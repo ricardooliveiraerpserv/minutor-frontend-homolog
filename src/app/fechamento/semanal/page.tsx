@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { CalendarClock, RotateCcw, Lock, ClipboardList, RefreshCw, ChevronDown, ChevronRight, UserCog, Save } from 'lucide-react'
 
@@ -75,7 +76,7 @@ export default function FechamentoSemanalPage() {
   const [fCliente, setFCliente] = useState('')
   const [fProjeto, setFProjeto] = useState('')
   const [fKind, setFKind] = useState<'week' | 'month'>('week')
-  const [fMonth, setFMonth] = useState('')
+  const [fMonth, setFMonth] = useState<string[]>([])
   const [fWeek, setFWeek] = useState('')
   const [fUser, setFUser] = useState('')
   const formRef = useRef<HTMLDivElement>(null)
@@ -102,7 +103,7 @@ export default function FechamentoSemanalPage() {
 
   const projectOptions = projects.filter(p => !fCliente || String(p.customer_id) === fCliente)
   const monthOptions = months.map(m => ({ id: m.ym, name: m.label }))
-  const weeksOfMonth = months.find(m => m.ym === fMonth)?.weeks ?? []
+  const weeksOfMonth = months.find(m => m.ym === fMonth[0])?.weeks ?? []
   const weekOptions = weeksOfMonth.map(w => ({ id: w.week_start, name: `Semana ${w.n} (${fmtDate(w.week_start)}–${fmtDate(w.week_end)})` }))
 
   const doAction = async (action: 'reopen' | 'close', body: Record<string, unknown>, key: string) => {
@@ -132,15 +133,26 @@ export default function FechamentoSemanalPage() {
       toast.success(`Reaberturas de ${company} encerradas`); load()
     } catch { toast.error('Erro ao encerrar a empresa') } finally { setBusy('') }
   }
-  const submitForm = (action: 'reopen' | 'close') => {
-    if (!fMonth) { toast.error('Escolha o mês'); return }
+  const submitForm = async (action: 'reopen' | 'close') => {
+    if (!fMonth.length) { toast.error('Escolha o mês'); return }
     if (fKind === 'week' && !fWeek) { toast.error('Escolha a semana'); return }
-    doAction(action, {
-      period_kind: fKind,
-      period_key: fKind === 'month' ? fMonth : fWeek,
+    const scope = {
       ...(fProjeto ? { project_id: Number(fProjeto) } : (fCliente ? { customer_id: Number(fCliente) } : {})),
       ...(fUser ? { user_id: Number(fUser) } : {}),
-    }, 'form')
+    }
+    setBusy('form')
+    try {
+      if (fKind === 'month') {
+        // Multiseleção: aplica a cada mês escolhido.
+        for (const ym of fMonth) {
+          await api.post(`/weekly-closings/${action}`, { period_kind: 'month', period_key: ym, ...scope })
+        }
+      } else {
+        await api.post(`/weekly-closings/${action}`, { period_kind: 'week', period_key: fWeek, ...scope })
+      }
+      toast.success(action === 'reopen' ? 'Período(s) reaberto(s) até 23:59' : 'Período(s) encerrado(s)')
+      load()
+    } catch { toast.error('Erro na operação') } finally { setBusy('') }
   }
   // Seletor de usuário INLINE (na linha da semana/mês): reabre/encerra para 1 usuário
   // em TODOS os projetos dele (escopo global de projeto + user_id).
@@ -225,10 +237,10 @@ export default function FechamentoSemanalPage() {
                 ))}
               </div></div>
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mês</label>
-              <SearchSelect value={fMonth} onChange={v => { setFMonth(v); setFWeek('') }} options={monthOptions} placeholder="Escolha o mês…" /></div>
+              <MultiSelect value={fMonth} onChange={v => { setFMonth(v); setFWeek('') }} options={monthOptions} placeholder="Escolha o(s) mês(es)…" /></div>
             {fKind === 'week' && (
-              <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Semana {!fMonth && <span style={{ color: 'var(--text-light)' }}>(escolha o mês)</span>}</label>
-                <SearchSelect value={fWeek} onChange={setFWeek} options={weekOptions} placeholder={fMonth ? 'Escolha a semana…' : 'Escolha o mês primeiro'} disabled={!fMonth} /></div>
+              <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Semana {!fMonth.length && <span style={{ color: 'var(--text-light)' }}>(escolha o mês)</span>}</label>
+                <SearchSelect value={fWeek} onChange={setFWeek} options={weekOptions} placeholder={fMonth.length ? 'Escolha a semana…' : 'Escolha o mês primeiro'} disabled={!fMonth.length} /></div>
             )}
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Usuário (vazio = todos)</label>
               <SearchSelect value={fUser} onChange={setFUser} options={users} placeholder="Todos os usuários" /></div>
