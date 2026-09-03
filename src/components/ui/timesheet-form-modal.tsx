@@ -77,7 +77,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
+        <span className="flex-1 min-w-0 text-sm break-words leading-snug" title={selected ? selected.name : undefined}>{selected ? selected.name : placeholder}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}/>
         </svg>
@@ -109,7 +109,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
                   return (
                     <button key={o.id} type="button"
                       onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                      className="w-full text-left px-3 py-2 text-sm transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm transition-colors whitespace-normal break-words leading-snug"
                       style={{
                         color: isSelected ? 'var(--primary)' : 'var(--text)',
                         background: isSelected ? 'var(--primary-soft)' : 'transparent',
