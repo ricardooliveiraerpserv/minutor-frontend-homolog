@@ -933,9 +933,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const [hadInitialHistory] = useState(
     Number(d.initial_hours_consumed ?? 0) > 0 || Number(d.initial_cost ?? 0) > 0
   )
-  // Parse existing code: PREFIX001-26 → seq='001', year='26'; PREFIX001-26-01 → suffix='01'
+  // Parse existing code: PREFIX001-26 → seq='001', year='26'; PREFIX001-26-01 → suffix='01';
+  // PREFIX013-26-A → suffix='A' (o sufixo pode ser LETRA, não só número — senão o code é
+  // reconstruído sem o sufixo e colide com o projeto-pai ao salvar).
   const parsedCode = useMemo(() => {
-    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)(?:-(\d+))?/)
+    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)(?:-([A-Za-z0-9]+))?/)
     return {
       seq:    m?.[1] ?? '',
       year:   m?.[2] ?? String(new Date().getFullYear()).slice(-2),
