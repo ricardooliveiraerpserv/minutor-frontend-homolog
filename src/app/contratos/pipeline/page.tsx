@@ -3636,6 +3636,9 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                     </div>
                   )
                 })}
+                <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                  <b style={{ color: '#22c55e' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático.
+                </p>
               </div>
             )}
             {(selectedIds.size > 0 || selectedGroupIds.size > 0) && (
