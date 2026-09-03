@@ -181,7 +181,9 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
 function visibleSaldoOf(p: ProjectWithTeam): number {
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
-  return isOnDemand ? 0 : Number(p.general_hours_balance ?? 0)
+  // Cloud/SaaS (mensalidade) não têm saldo — não entram no somatório de horas negativas.
+  const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
+  return (isOnDemand || isCloudSaas) ? 0 : Number(p.general_hours_balance ?? 0)
 }
 
 // Saúde + % de uso. O % e a cor batem com o SALDO exibido (consumido vs.
@@ -193,6 +195,10 @@ function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number
     // On Demand pai com horas de meses encerrados NÃO faturadas → Crítico (só admin).
     if (considerUnbilled && Number((p as any).unbilled_hours ?? 0) > 0) return { pct: 100, color: 'red' }
     return { pct: 100, color: 'green' }
+  }
+  // Cloud/SaaS (mensalidade): sem vendidas/saldo — sem % de uso/saúde por horas.
+  if (ctName === 'cloud' || ctName === 'saas') {
+    return { pct: 0, color: 'green' }
   }
   if (ctName.includes('mensal')) {
     // % de uso e saúde batem com o SALDO exibido: consumido vs. vendidas/contratadas,
@@ -435,6 +441,10 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   const dEdit = isDenied('/gestao-projetos', 'edit')
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
+  // Cloud/SaaS = mensalidade: sem horas vendidas/saldo, só se acompanha o CONSUMO
+  // (igual On Demand). Nessas colunas mostra "= consumo"/"—" em vez de vendidas/saldo.
+  const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
+  const isConsumoOnly = isOnDemand || isCloudSaas
   const isBhMensal = ctName.includes('mensal')
   const contributions = ((project as any).total_available_hours ?? project.sold_hours ?? 0) - (project.sold_hours ?? 0)
   const displaySold = isOnDemand
@@ -450,7 +460,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   const consumedHours = project.consumed_hours != null
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
-  const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
+  const displaySaldo = isConsumoOnly ? 0 : (project.general_hours_balance ?? null)
   // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
   const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
   const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
@@ -645,7 +655,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* HS Vendidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>= consumo</span>
           ) : (
             <div className="flex flex-col items-center leading-tight">
@@ -662,7 +672,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* Total Contratadas = acumulado + aporte */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>—</span>
           ) : (
             fmt(displaySold, 1)
@@ -694,12 +704,14 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             ? (hasUnbilled
                 ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
                 : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
-            : (saldo != null ? fmt(saldo, 1) : '—')}
+            : isCloudSaas
+              ? <span style={{ color: 'var(--text-light)' }}>—</span>
+              : (saldo != null ? fmt(saldo, 1) : '—')}
         </td>
 
         {/* % Uso + barra */}
         <td className="py-3 px-4 min-w-[140px]">
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             hasUnbilled
               ? <span className="text-xs font-semibold" style={{ color: 'var(--danger-border)' }}>Crítico</span>
               : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
