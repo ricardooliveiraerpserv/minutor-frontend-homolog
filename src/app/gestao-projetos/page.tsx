@@ -3604,30 +3604,60 @@ function GestaoProjetosInner() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              {teamTab === 'consultores' && allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => {
-                const on = teamHasConsultant(c.id)
-                const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
+              {teamTab === 'consultores' && (() => {
+                const allocated = allConsultants.filter(c => teamHasConsultant(c.id))
                 return (
-                  <div key={c.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors">
-                    <button type="button" onClick={() => toggleTeamConsultant(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
-                      <span className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                        style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
-                        {on && <Check size={11} style={{ color: '#fff' }} />}
-                      </span>
-                      <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{c.name}</span>
-                      {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
-                    </button>
-                    {on && (
-                      <button type="button" title="Liberar apontamento manual"
-                        onClick={() => setTeamManualIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
-                        className="text-[10px] px-2 py-1 rounded-lg shrink-0 transition-colors"
-                        style={{ border: '1px solid var(--border)', background: teamManualIds.has(c.id) ? 'var(--primary-soft)' : 'transparent', color: teamManualIds.has(c.id) ? 'var(--primary)' : 'var(--text-muted)', fontWeight: teamManualIds.has(c.id) ? 700 : 400 }}>
-                        Manual
-                      </button>
+                  <>
+                    {/* Equipe alocada: apontamento manual (Liberado/Bloqueado) + desalocação fácil */}
+                    {allocated.length > 0 && (
+                      <div className="mb-3 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--text-light)' }}>Equipe alocada — apontamento manual</p>
+                        {allocated.map(c => {
+                          const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
+                          const allow = teamManualIds.has(c.id)
+                          return (
+                            <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
+                              <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
+                                {c.name}
+                                {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
+                              </span>
+                              <button type="button" title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
+                                onClick={() => setTeamManualIds(prev => { const s = new Set(prev); allow ? s.delete(c.id) : s.add(c.id); return s })}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
+                                style={{ background: allow ? 'var(--success-bg)' : 'var(--surface)', border: `1px solid ${allow ? 'var(--success-border)' : 'var(--border)'}`, color: allow ? 'var(--success-border)' : 'var(--text-light)' }}>
+                                <Clock size={10} />{allow ? 'Liberado' : 'Bloqueado'}
+                              </button>
+                              <button type="button" title="Desalocar do projeto" onClick={() => toggleTeamConsultant(c.id)}
+                                className="p-1 rounded-lg shrink-0 transition-colors hover:bg-[var(--danger-bg)]" style={{ color: 'var(--danger-border)' }}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                          <b style={{ color: 'var(--success-border)' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático. Toque no <b>×</b> para desalocar.
+                        </p>
+                      </div>
                     )}
-                  </div>
+                    {/* Lista completa: marcar/desmarcar para alocar */}
+                    {allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => {
+                      const on = teamHasConsultant(c.id)
+                      const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
+                      return (
+                        <button key={c.id} type="button" onClick={() => toggleTeamConsultant(c.id)}
+                          className="w-full flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors text-left">
+                          <span className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                            style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
+                            {on && <Check size={11} style={{ color: '#fff' }} />}
+                          </span>
+                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}</span>
+                          {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
+                        </button>
+                      )
+                    })}
+                  </>
                 )
-              })}
+              })()}
               {teamTab === 'grupos' && consultantGroups.filter(g => g.name.toLowerCase().includes(teamSearch.toLowerCase())).map(g => (
                 <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                   <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => {
