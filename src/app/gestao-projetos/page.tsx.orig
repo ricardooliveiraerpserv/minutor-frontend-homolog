@@ -2237,14 +2237,8 @@ function GestaoProjetosInner() {
   const [teamSaving, setTeamSaving]           = useState(false)
   const [teamSearch, setTeamSearch]           = useState('')
   const [teamTab, setTeamTab]                 = useState<'consultores' | 'grupos'>('consultores')
-  const [consultantGroups, setConsultantGroups] = useState<{ id: number; name: string; consultants?: { id: number; name: string }[] }[]>([])
+  const [consultantGroups, setConsultantGroups] = useState<{ id: number; name: string }[]>([])
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<number>>(new Set())
-  // Consultores REMOVIDOS individualmente mesmo estando num grupo alocado (ao salvar, o
-  // grupo afetado "explode" em consultores individuais, menos os excluídos).
-  const [teamExcludedIds, setTeamExcludedIds] = useState<Set<number>>(new Set())
-  // Liberar apontamento manual por consultor (pivô allow_manual_timesheet).
-  const [teamManualIds, setTeamManualIds]     = useState<Set<number>>(new Set())
-  const [teamManualInitial, setTeamManualInitial] = useState<Set<number>>(new Set())
 
   // Modal de edição de projeto
   const [editProjectId, setEditProjectId] = useState<number | null>(null)
@@ -2789,12 +2783,6 @@ function GestaoProjetosInner() {
       // Pré-seleciona os grupos já vinculados ao projeto (antes começava vazio,
       // dando impressão de que o save não persistia).
       setSelectedGroupIds(new Set(((project as any).consultant_groups ?? []).map((g: any) => g.id)))
-      setTeamExcludedIds(new Set())
-      // Estado inicial do "apontamento manual" a partir do pivô dos consultores diretos.
-      const manual0 = new Set<number>(
-        (project.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id)
-      )
-      setTeamManualIds(new Set(manual0)); setTeamManualInitial(new Set(manual0))
       try {
         const promises: Promise<void>[] = []
         if (allConsultants.length === 0) {
@@ -2820,27 +2808,6 @@ function GestaoProjetosInner() {
     }
   }
 
-  // ── Equipe: membros efetivos = diretos ∪ membros dos grupos selecionados − removidos ──
-  const teamGroupMemberIds = useMemo(() => {
-    const s = new Set<number>()
-    consultantGroups.forEach(g => { if (selectedGroupIds.has(g.id)) (g.consultants ?? []).forEach(m => s.add(m.id)) })
-    return s
-  }, [consultantGroups, selectedGroupIds])
-  const teamHasConsultant = (id: number) => (selectedIds.has(id) || teamGroupMemberIds.has(id)) && !teamExcludedIds.has(id)
-  const toggleTeamConsultant = (id: number) => {
-    if (teamHasConsultant(id)) {
-      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
-      if (teamGroupMemberIds.has(id)) setTeamExcludedIds(prev => new Set(prev).add(id))
-      setTeamManualIds(prev => { const n = new Set(prev); n.delete(id); return n })
-    } else {
-      setTeamExcludedIds(prev => { const n = new Set(prev); n.delete(id); return n })
-      setSelectedIds(prev => new Set(prev).add(id))
-    }
-  }
-  const teamEffectiveCount = useMemo(() => {
-    const s = new Set<number>(selectedIds); teamGroupMemberIds.forEach(id => s.add(id)); teamExcludedIds.forEach(id => s.delete(id)); return s.size
-  }, [selectedIds, teamGroupMemberIds, teamExcludedIds])
-
   const saveTeam = async () => {
     if (!teamProject) return
     // Projeto operacional (tipo "Projeto") não aloca equipe aqui — só por atividade
@@ -2851,31 +2818,10 @@ function GestaoProjetosInner() {
     }
     setTeamSaving(true)
     try {
-      const finalIndividuals = new Set<number>(selectedIds)
-      const finalGroupIds: number[] = []
-      consultantGroups.forEach(g => {
-        if (!selectedGroupIds.has(g.id)) return
-        const members = (g.consultants ?? []).map(m => m.id)
-        if (members.some(id => teamExcludedIds.has(id))) {
-          members.filter(id => !teamExcludedIds.has(id)).forEach(id => finalIndividuals.add(id))
-        } else {
-          finalGroupIds.push(g.id)
-        }
-      })
-      teamExcludedIds.forEach(id => finalIndividuals.delete(id))
-
       await api.put(`/projects/${teamProject.id}`, {
-        consultant_ids: [...finalIndividuals],
-        consultant_group_ids: finalGroupIds,
+        consultant_ids: [...selectedIds],
+        consultant_group_ids: [...selectedGroupIds],
       })
-
-      const effective = new Set<number>(finalIndividuals)
-      consultantGroups.forEach(g => { if (finalGroupIds.includes(g.id)) (g.consultants ?? []).forEach(m => effective.add(m.id)) })
-      const manualChanges = [...effective].filter(id => teamManualIds.has(id) !== teamManualInitial.has(id))
-      await Promise.all(manualChanges.map(id =>
-        api.put(`/projects/${teamProject.id}/consultants/${id}/manual-timesheet`, { allow: teamManualIds.has(id) }).catch(() => {})
-      ))
-
       toast.success('Equipe atualizada')
       setTeamProject(null)
       setProjects(prev => prev.map(p => p.id === teamProject.id
@@ -3604,40 +3550,16 @@ function GestaoProjetosInner() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              {teamTab === 'consultores' && allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => {
-                const on = teamHasConsultant(c.id)
-                const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
-                return (
-                  <div key={c.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors">
-                    <button type="button" onClick={() => toggleTeamConsultant(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
-                      <span className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                        style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
-                        {on && <Check size={11} style={{ color: '#fff' }} />}
-                      </span>
-                      <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{c.name}</span>
-                      {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
-                    </button>
-                    {on && (
-                      <button type="button" title="Liberar apontamento manual"
-                        onClick={() => setTeamManualIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
-                        className="text-[10px] px-2 py-1 rounded-lg shrink-0 transition-colors"
-                        style={{ border: '1px solid var(--border)', background: teamManualIds.has(c.id) ? 'var(--primary-soft)' : 'transparent', color: teamManualIds.has(c.id) ? 'var(--primary)' : 'var(--text-muted)', fontWeight: teamManualIds.has(c.id) ? 700 : 400 }}>
-                        Manual
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
+              {teamTab === 'consultores' && allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
+                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
+                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
+                  <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
+                </label>
+              ))}
               {teamTab === 'grupos' && consultantGroups.filter(g => g.name.toLowerCase().includes(teamSearch.toLowerCase())).map(g => (
                 <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
-                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => {
-                    const n = new Set(prev)
-                    if (n.has(g.id)) { n.delete(g.id); setTeamExcludedIds(ex => { const m = new Set(ex); (g.consultants ?? []).forEach(c => m.delete(c.id)); return m }) }
-                    else n.add(g.id)
-                    return n
-                  })} className="w-4 h-4 rounded accent-[var(--primary)]" />
+                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
                   <span className="text-sm" style={{ color: 'var(--text)' }}>{g.name}</span>
-                  {(g.consultants?.length ?? 0) > 0 && <span className="text-[10px] ml-auto" style={{ color: 'var(--text-light)' }}>{g.consultants!.length} membro(s)</span>}
                 </label>
               ))}
               {teamTab === 'grupos' && consultantGroups.length === 0 && (
@@ -3646,7 +3568,7 @@ function GestaoProjetosInner() {
             </div>
             <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
               <span className="text-xs" style={{ color: 'var(--text-light)' }}>
-                {teamEffectiveCount} consultor(es) · {selectedGroupIds.size} grupo(s)
+                {selectedIds.size} consultor(es) · {selectedGroupIds.size} grupo(s)
               </span>
               <div className="flex gap-2">
                 <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
