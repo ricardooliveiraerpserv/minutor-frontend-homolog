@@ -1705,6 +1705,10 @@ function KanbanContent() {
       ? new Set(projectCards.filter(isActiveProject).map(p => p.id))
       : null
     return base
+      // Nas filas de sustentação (ativas), esconde projetos em status TERMINAL
+      // (encerrado/cancelado/pausado) — eles têm coluna própria (Encerrado/Cancelado/
+      // Pausado) e não devem aparecer na fila como se estivessem ativos.
+      .filter(c => !colId.startsWith('sust_') || !['finished', 'cancelled', 'paused'].includes((c as any).status ?? ''))
       .filter(c => matchFilter(c.customer_name, c.project_name, (c as any).contract_code ?? (c as any).project_code))
       .filter(c => matchExecutivoKanban((c as ContractCard).executivo_conta_name))
       .filter(c => matchProjectKanban(c.project_name))
@@ -1740,8 +1744,14 @@ function KanbanContent() {
   // do board (Anderson + Ricardo); no board completo (admin) mostra todos.
   const projectsInStatusCol = (colId: string): ProjectCard[] => {
     const targetStatus = COL_TO_PROJECT_STATUS[colId]
-    return projectCards
-      .filter(p => p.status === targetStatus)
+    const fromProjects = projectCards.filter(p => p.status === targetStatus)
+    // Rede de segurança: os cards de sustentação (card_type='project') com esse status
+    // terminal também entram aqui — assim o projeto que saiu da fila de sustentação
+    // (encerrado/cancelado/pausado) continua visível na coluna própria, nunca some.
+    const seen = new Set(fromProjects.map(p => p.id))
+    const fromSust = (Object.values(sustGroups).flat() as any[])
+      .filter(c => c.card_type === 'project' && c.status === targetStatus && !seen.has(c.id)) as ProjectCard[]
+    return [...fromProjects, ...fromSust]
       .filter(p => !isSustCoordenador || sustBoardCoordIds.some(id => projectHasCoord(p, id)))
       .filter(p => matchFilter(p.customer_name, p.project_name, (p as any).project_code ?? (p as any).contract_code))
       .filter(p => matchExecutivoKanban(p.executivo_conta_name))
