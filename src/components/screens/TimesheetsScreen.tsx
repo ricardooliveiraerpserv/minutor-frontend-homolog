@@ -554,7 +554,7 @@ function ChangeDataDigitacaoModal({ id, date, onClose, onSaved }: { id: number; 
     setSaving(true)
     try {
       await api.patch(`/timesheets/${id}/data-digitacao`, { date: value })
-      toast.success('Data de digitação alterada e travada')
+      toast.success('Data de digitação (inclusão) alterada')
       onSaved(); onClose()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar a data') }
     finally { setSaving(false) }
@@ -567,8 +567,8 @@ function ChangeDataDigitacaoModal({ id, date, onClose, onSaved }: { id: number; 
           <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Mudar data de digitação</p>
           <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
         </div>
-        <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>A nova data fica <b>travada</b> — a integração do Movidesk não sobrescreve.</p>
-        <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Data</label>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>Altera a <b>data de digitação</b> (inclusão) do apontamento — não muda a data do serviço.</p>
+        <label className="block text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Data de digitação</label>
         <input type="date" value={value} onChange={e => setValue(e.target.value)}
           className="w-full rounded-lg px-3 py-2 text-sm outline-none" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
         <div className="flex justify-end gap-2 mt-4">
@@ -1715,7 +1715,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                       onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                       onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
-                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.date ?? '').slice(0, 10) }) : undefined}
+                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.created_at ?? ts.date ?? '').slice(0, 10) }) : undefined}
                     />
                     </div>
                   </Td>
@@ -1906,7 +1906,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                         onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                         onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                         onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
-                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.date ?? '').slice(0, 10) }) : undefined}
+                      onChangeDate={isAdmin ? () => setChangeDateFor({ id: ts.id, date: String(ts.created_at ?? ts.date ?? '').slice(0, 10) }) : undefined}
                       />
                     </div>
                   </div>
