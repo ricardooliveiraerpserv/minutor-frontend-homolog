@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { zipLooksLikeSource } from '@/lib/zip-inspect'
+import { useConfirm } from '@/components/ui/use-confirm'
 import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
 import { EmailFrame } from './email-frame'
@@ -54,6 +55,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean; agent: boolean }
   isManager?: boolean
 }>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, currentDevDelivery, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager }, ref) {
+  const { alert, confirmDialog } = useConfirm()
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -293,7 +295,12 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (isHomologStatus && sendStatus !== currentStatusId) {
       const zips = files.filter(f => /\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed')
       if (zips.length === 0) {
-        toast.error('Anexe o código-fonte zipado (.zip) para mover o chamado para Em Homologação.'); return
+        await alert({
+          title: 'Código-fonte obrigatório',
+          message: 'Para mover o chamado para Em Homologação, anexe o código-fonte do desenvolvimento zipado (.zip) pelo botão Anexar.',
+          danger: true,
+        })
+        return
       }
       // Inspeciona o índice do(s) zip(s): se algum contém código-fonte, libera; se lidos e nenhum contém, recusa.
       let verdict: 'yes' | 'no' | 'unknown' = 'unknown'
@@ -303,10 +310,18 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         if (r === 'no') verdict = 'no'
       }
       if (verdict === 'no') {
-        toast.error('O .zip anexado não contém código-fonte. Anexe o código-fonte do desenvolvimento para mover para Em Homologação.'); return
+        await alert({
+          title: 'O .zip não contém código-fonte',
+          message: 'O arquivo .zip anexado não parece conter código-fonte. Anexe o código-fonte do desenvolvimento para mover o chamado para Em Homologação.',
+          danger: true,
+        })
+        return
       }
       if (verdict === 'unknown') {
-        toast.warning('Não foi possível verificar o conteúdo do .zip — confirme que é o código-fonte.')
+        await alert({
+          title: 'Não foi possível verificar o .zip',
+          message: 'Não conseguimos ler o conteúdo do .zip para confirmar que é o código-fonte. Verifique o arquivo antes de continuar.',
+        })
       }
     }
     const ed = edRef.current
@@ -375,6 +390,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   }
 
   return (
+    <>
     <div className="space-y-2">
       <div className="relative">
         <div
@@ -593,5 +609,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         </button>
       </div>
     </div>
+    {confirmDialog}
+    </>
   )
 })
