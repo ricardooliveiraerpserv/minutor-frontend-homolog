@@ -126,7 +126,10 @@ export function MeetingAlerts() {
   // Relógio: a cada CHECK_MS avalia os eventos outlook de hoje e dispara na janela.
   useEffect(() => {
     if (!user) return
-    const events = (data ?? []).filter(e => e.tipo === 'outlook' && e.data === todayIso && e.hora)
+    // Guard de reunião CANCELADA (prefixo "Cancelado:"/"Canceled:") — o BE já filtra no sync, mas
+    // aqui vale de imediato p/ o snapshot ainda não re-sincronizado (throttle de 10 min).
+    const isCancelled = (t: string) => /^\s*cancel(?:ad[oa]|ed|led)\s*:/i.test(t || '')
+    const events = (data ?? []).filter(e => e.tipo === 'outlook' && e.data === todayIso && e.hora && !isCancelled(e.titulo))
 
     const tick = () => {
       const now = Date.now()
