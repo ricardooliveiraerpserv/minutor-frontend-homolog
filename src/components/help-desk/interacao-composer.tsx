@@ -480,8 +480,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                   })}
                 </div>
               </>)}
-              {/* Status "agendável": data (obrigatória p/ agendar) + hora opcional ao lado. Pausa o SLA. */}
-              {canSchedule && (
+              {/* Status "agendável": data (obrigatória p/ agendar) + hora opcional ao lado. Pausa o SLA.
+                  Em Desenvolvimento usa o campo próprio de previsão de entrega — esconde o agendamento genérico. */}
+              {canSchedule && !isDevStatus && (
                 <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}>
                   <span title="Ao enviar, agenda o chamado e pausa o SLA até esta data." style={{ color: 'var(--text-muted)' }}>📅 agendar</span>
                   <input type="date" value={schedDate} min={localToday()} onChange={e => setSchedDate(e.target.value)} aria-label="Data do agendamento"
