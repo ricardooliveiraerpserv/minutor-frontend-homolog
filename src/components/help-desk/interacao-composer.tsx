@@ -4,6 +4,7 @@ import { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 're
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
+import { zipLooksLikeSource } from '@/lib/zip-inspect'
 import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
 import { EmailFrame } from './email-frame'
@@ -288,9 +289,25 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (isDevStatus && !devDelivery) {
       toast.error('Informe a data de previsão de entrega em homologação.'); return
     }
-    // Em Homologação: obrigatório anexar o código-fonte zipado (.zip).
-    if (isHomologStatus && sendStatus !== currentStatusId && !hasZip) {
-      toast.error('Anexe o código-fonte zipado (.zip) para mover o chamado para Em Homologação.'); return
+    // Em Homologação: obrigatório anexar o código-fonte zipado (.zip) — e o zip PRECISA conter código-fonte.
+    if (isHomologStatus && sendStatus !== currentStatusId) {
+      const zips = files.filter(f => /\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed')
+      if (zips.length === 0) {
+        toast.error('Anexe o código-fonte zipado (.zip) para mover o chamado para Em Homologação.'); return
+      }
+      // Inspeciona o índice do(s) zip(s): se algum contém código-fonte, libera; se lidos e nenhum contém, recusa.
+      let verdict: 'yes' | 'no' | 'unknown' = 'unknown'
+      for (const z of zips) {
+        const r = await zipLooksLikeSource(z)
+        if (r === 'yes') { verdict = 'yes'; break }
+        if (r === 'no') verdict = 'no'
+      }
+      if (verdict === 'no') {
+        toast.error('O .zip anexado não contém código-fonte. Anexe o código-fonte do desenvolvimento para mover para Em Homologação.'); return
+      }
+      if (verdict === 'unknown') {
+        toast.warning('Não foi possível verificar o conteúdo do .zip — confirme que é o código-fonte.')
+      }
     }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
