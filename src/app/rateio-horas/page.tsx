@@ -4,7 +4,7 @@
 // destinos Cloud, POR PERÍODO de vigência (cada empresa entra numa data). O consultor NÃO vê
 // a divisão; a gestão (períodos, equipe e ajuste manual por apontamento) é feita aqui.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
@@ -38,6 +38,8 @@ export default function RateioHorasPage() {
   const [selId, setSelId] = useState<number | null>(null)
   const [plans, setPlans] = useState<PlanRow[]>([])
   const [apontas, setApontas] = useState<Aponta[]>([])
+  const [apFrom, setApFrom] = useState('')  // filtro de data dos apontamentos (servidor)
+  const [apTo, setApTo]     = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [markPick, setMarkPick] = useState('')
@@ -95,6 +97,27 @@ export default function RateioHorasPage() {
   }, [])
 
   const selectProject = (id: number) => { setSelId(id); loadPlans(id); loadTimesheets(id) }
+
+  // Filtro de data dos apontamentos do servidor + indicador de horas por EMPRESA (destino),
+  // obedecendo o filtro de data. Empresa = cliente do projeto-destino de cada fatia.
+  const projById = useMemo(() => {
+    const m: Record<number, ProjOpt> = {}
+    ;[...allProjects, ...destProjects].forEach(p => { m[p.id] = p })
+    return m
+  }, [allProjects, destProjects])
+  const filteredApontas = useMemo(() =>
+    apontas.filter(a => (!apFrom || a.date >= apFrom) && (!apTo || a.date <= apTo)),
+    [apontas, apFrom, apTo])
+  const horasPorEmpresa = useMemo(() => {
+    const map: Record<string, number> = {}
+    filteredApontas.forEach(a => a.splits.forEach(s => {
+      const proj = projById[s.target_project_id]
+      const emp = (proj?.customer_id && customers[proj.customer_id]) || (s.projeto ?? '—')
+      map[emp] = (map[emp] ?? 0) + s.minutes
+    }))
+    return Object.entries(map).sort((a, b) => b[1] - a[1])
+  }, [filteredApontas, projById, customers])
+  const totalFiltradoMin = useMemo(() => filteredApontas.reduce((s, a) => s + a.effort_minutes, 0), [filteredApontas])
 
   const markAsRateio = async () => {
     const id = Number(markPick)
@@ -392,11 +415,42 @@ export default function RateioHorasPage() {
           <div className="ds-card p-4">
             <p className="text-sm font-semibold inline-flex items-center gap-1.5 mb-1" style={{ color: 'var(--text)' }}><ListChecks size={15} /> Apontamentos no servidor</p>
             <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>Horas lançadas no servidor (o apontamento-origem não aparece na lista de Apontamentos — os rateios é que pagam o consultor). Clique numa linha para <b>ver/editar</b> a divisão por percentual ou trocar os contratos.</p>
-            {apontas.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum apontamento no servidor ainda.</p>
+
+            {/* Filtro de data dos apontamentos */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <CalendarRange size={14} style={{ color: 'var(--text-light)' }} />
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>De</span>
+              <input type="date" value={apFrom} onChange={e => setApFrom(e.target.value)}
+                className="h-8 px-2 rounded-lg text-xs outline-none" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
+              <input type="date" value={apTo} onChange={e => setApTo(e.target.value)}
+                className="h-8 px-2 rounded-lg text-xs outline-none" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              {(apFrom || apTo) && (
+                <button onClick={() => { setApFrom(''); setApTo('') }} className="text-[11px] px-2 py-1 rounded-lg" style={{ color: 'var(--danger)', border: '1px solid var(--border)' }}>× Limpar</button>
+              )}
+              <span className="text-[11px] ml-auto" style={{ color: 'var(--text-muted)' }}>{filteredApontas.length} apont. · <b style={{ color: 'var(--text)' }}>{hh(totalFiltradoMin)}</b></span>
+            </div>
+
+            {/* Indicador: horas por EMPRESA (destino), respeitando o filtro de data */}
+            {horasPorEmpresa.length > 0 && (
+              <div className="mb-3 rounded-xl p-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-light)' }}>Horas por empresa {(apFrom || apTo) ? '(no período filtrado)' : ''}</p>
+                <div className="flex flex-wrap gap-2">
+                  {horasPorEmpresa.map(([emp, min]) => (
+                    <span key={emp} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{emp}</span>
+                      <b style={{ color: 'var(--primary)' }}>{hh(min)}</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filteredApontas.length === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{apontas.length === 0 ? 'Nenhum apontamento no servidor ainda.' : 'Nenhum apontamento no período filtrado.'}</p>
             ) : (
               <div className="space-y-1">
-                {apontas.map(a => {
+                {filteredApontas.map(a => {
                   const open = expandedId === a.id
                   return (
                     <div key={a.id} className="rounded-lg border" style={{ borderColor: open ? 'var(--primary)' : 'var(--border)' }}>
