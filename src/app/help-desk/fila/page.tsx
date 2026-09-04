@@ -32,6 +32,7 @@ interface TicketRow {
   last_agent_activity_at?: string | null // última interação DA EQUIPE (nota/resposta interna)
   dias_sem_interacao?: number | null // dias úteis sem interação da equipe (0 = interagiu hoje)
   interactions_count?: number | null // qtd de interações (comentários reais) — só na visão do admin
+  dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -343,6 +344,10 @@ export default function HelpDeskFilaPage() {
   // Admin: pendentes de TODA a equipe (todos os responsáveis) com pendência nossa.
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
+  // Entregas vencidas: Em Desenvolvimento com previsão de entrega em homologação já passada.
+  const _todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+  const isDevOverdue = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return s?.key === 'em_desenvolvimento' && !!t.dev_delivery_at && (t.dev_delivery_at as string).slice(0, 10) < _todayStr }
+  const entregasVencidas = flt.filter(isDevOverdue).length
   // Filtro aplicado ao clicar nos cards de pendentes (filtra o board; cards seguem contando o total).
   const pendPass = (t: TicketRow) => {
     // Status: MULTI-seleção (independente dos cards). Vazio = todos.
@@ -354,6 +359,7 @@ export default function HelpDeskFilaPage() {
     if (pendFilter === 'novos') return isNovo(t)
     if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
     if (pendFilter === 'estourado') return slaDot(t.sla).dot === '🔴' // SLA estourado
+    if (pendFilter === 'dev_overdue') return isDevOverdue(t) // entrega em homologação vencida
     if (pendFilter === 'scheduled') return !!t.scheduled_until // reunião/agendamento marcado (Teams)
     return true
   }
@@ -396,6 +402,7 @@ export default function HelpDeskFilaPage() {
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
     { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
     { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
+    { label: 'Entregas vencidas', value: entregasVencidas, cor: '#ef4444', icon: '🚧', hint: pendFilter === 'dev_overdue' ? undefined : 'entrega em homologação vencida · clique p/ ver', onClick: () => setPendFilter(p => p === 'dev_overdue' ? '' : 'dev_overdue'), active: pendFilter === 'dev_overdue' },
   ]
 
   // Modo Atendimento — restaura filtros da sessão ao voltar para a fila.
@@ -671,7 +678,11 @@ export default function HelpDeskFilaPage() {
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: t.assignee ? 'var(--text-muted)' : 'var(--text-light)' }}>{t.assignee?.name ?? 'Não atribuído'}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{st && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: st.color ?? 'var(--text)', background: (st.color ?? '').startsWith('#') ? `${st.color}22` : 'var(--surface-sunken)', border: `1px solid ${st.color ?? 'var(--border)'}` }}>{st.label}</span>}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{st && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: st.color ?? 'var(--text)', background: (st.color ?? '').startsWith('#') ? `${st.color}22` : 'var(--surface-sunken)', border: `1px solid ${st.color ?? 'var(--border)'}` }}>{st.label}</span>}
+                        {st?.key === 'em_desenvolvimento' && t.dev_delivery_at && (() => {
+                          const dd = (t.dev_delivery_at as string).slice(0, 10); const venc = dd < _todayStr
+                          return <div className="mt-1 text-[10px] font-semibold" style={{ color: venc ? 'var(--danger-border)' : 'var(--warning-border)' }} title={venc ? 'Entrega em homologação vencida' : 'Entrega prevista em homologação'}>🚧 {dd.split('-').reverse().join('/')}{venc ? ' · vencida' : ''}</div>
+                        })()}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: sla.color, background: sla.bg }}>{sla.icon} {sla.label}</span></td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{dt(t.created_at)}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: 'var(--text-light)' }}>{dt(t.last_agent_activity_at)}</td>
