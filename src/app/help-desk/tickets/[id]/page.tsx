@@ -70,6 +70,7 @@ interface TicketDetail {
   service?: { id: number; name: string; code: string | null } | null
   justification?: { id: number; name: string; status_id: number } | null
   slaPolicy?: Ref | null; created_at: string; sla?: Sla | null
+  dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
@@ -312,6 +313,7 @@ function TicketDetailInner({ id }: { id: number }) {
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
   const [justifications, setJustifications] = useState<JustificationOpt[]>([])
   const [pendingStatus, setPendingStatus] = useState<string | null>(null) // status escolhido aguardando justificativa
+  const [pendingExtra, setPendingExtra] = useState<{ dev_delivery_at?: string } | null>(null) // data de entrega (Em Desenvolvimento) presa ao pendingStatus
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [services, setServices] = useState<{ id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]>([])
   const [teams, setTeams] = useState<AgentTeam[]>([])
@@ -529,8 +531,8 @@ function TicketDetailInner({ id }: { id: number }) {
   }, [coreReady])
   useEffect(() => { if (!coreReady) return; cachedGet<{ data: AgentTeam[] }>('/help-desk/teams?all=1', 300000).then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [coreReady])
 
-  const changeStatus = async (statusId: string, justificationId?: number | null) => {
-    try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
+  const changeStatus = async (statusId: string, justificationId?: number | null, extra?: { dev_delivery_at?: string }) => {
+    try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null, dev_delivery_at: extra?.dev_delivery_at ?? null }); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao mudar status') }
   }
   // Reabrir AGORA: chamado resolvido/fechado volta para "Em andamento" (1º status aberto).
@@ -608,9 +610,9 @@ function TicketDetailInner({ id }: { id: number }) {
   useEffect(() => { if (!coreReady) return; cachedGet<{ data: HdForm[] }>('/help-desk/forms', 300000).then(r => setForms(r?.data ?? [])).catch(() => {}) }, [coreReady])
 
   // Status SEM formulário: aplica direto (com justificativa se houver).
-  const onStatusSelect = (statusId: string) => {
-    if (justifications.some(j => j.status_id === Number(statusId))) { setPendingStatus(statusId); return }
-    return changeStatus(statusId) // devolve a Promise → o composer aguarda o PATCH antes de postar (e-mail com o status novo)
+  const onStatusSelect = (statusId: string, extra?: { dev_delivery_at?: string }) => {
+    if (justifications.some(j => j.status_id === Number(statusId))) { setPendingExtra(extra ?? null); setPendingStatus(statusId); return }
+    return changeStatus(statusId, null, extra) // devolve a Promise → o composer aguarda o PATCH antes de postar (e-mail com o status novo)
   }
 
   // Status COM formulário (do construtor) → abre o modal dinâmico.
@@ -889,10 +891,18 @@ function TicketDetailInner({ id }: { id: number }) {
               </button>
             )}
             {/* Status ÚNICO e EVIDENTE — tom da cor + borda na cor + texto do tema (legível em qualquer cor). */}
-            <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
-              <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
-              {t.status?.label ?? '—'}
-            </span>
+            <div className="flex flex-col items-start gap-1">
+              <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
+                {t.status?.label ?? '—'}
+              </span>
+              {/* Legenda: previsão de entrega em homologação (só em "Em Desenvolvimento"). */}
+              {t.dev_delivery_at && t.status?.key === 'em_desenvolvimento' && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ background: 'rgba(245,158,11,0.14)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.35)' }} title="Data prevista de entrega em homologação">
+                  🚧 Entrega prevista em homologação: {(t.dev_delivery_at || '').slice(0, 10).split('-').reverse().join('/')}
+                </span>
+              )}
+            </div>
             {t.external_ticket_ref && t.status?.key === 'pendente_terceiros' && (
               <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)', border: '1px solid var(--border)' }} title="Referência no fornecedor">
                 🔗 {t.external_ticket_ref}
@@ -1113,12 +1123,12 @@ function TicketDetailInner({ id }: { id: number }) {
                   <InteracaoComposer ref={composerRef} ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     /* Encerrar (status terminal) só p/ quem tem permissão — coordenador/admin por padrão. */
                     /* 'Reunião agendada' é definido automaticamente ao agendar a reunião — fora do seletor manual. */
-                    statuses={statuses.filter(s => s.key !== 'reuniao_agendada' && (t.can_close || !s.is_terminal)).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, is_terminal: s.is_terminal, allows_scheduling: s.allows_scheduling }))}
+                    statuses={statuses.filter(s => s.key !== 'reuniao_agendada' && (t.can_close || !s.is_terminal)).map(s => ({ id: s.id, label: s.label, key: s.key, is_resolved: s.is_resolved, is_terminal: s.is_terminal, allows_scheduling: s.allows_scheduling }))}
                     currentStatusId={t.status?.id}
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
                     timeMode={t.apontamento_time_mode ?? 'optional'}
-                    onApplyStatus={(sid) => onStatusSelect(String(sid))}
+                    onApplyStatus={(sid, extra) => onStatusSelect(String(sid), extra)}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
                     classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id }}
@@ -1741,12 +1751,12 @@ function TicketDetailInner({ id }: { id: number }) {
                   onClick={() => {
                     if (/totvs/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'totvs' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
                     else if (/terceir|fornecedor/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'other' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
-                    else { changeStatus(pendingStatus, j.id); setPendingStatus(null) }
+                    else { changeStatus(pendingStatus, j.id, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }
                   }}>{j.name}</button>
               ))}
             </div>
             <div className="flex justify-between pt-1">
-              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { changeStatus(pendingStatus); setPendingStatus(null) }}>Mudar sem justificativa</button>
+              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { changeStatus(pendingStatus, null, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }}>Mudar sem justificativa</button>
               <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setPendingStatus(null)}>Cancelar</button>
             </div>
           </div>

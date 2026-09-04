@@ -32,13 +32,13 @@ function deriveTotal(start: string, end: string): string {
 //    exatamente onde está o cursor; não vira anexo separado.
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
-export interface ComposerStatus { id: number; label: string; is_resolved?: boolean; is_terminal?: boolean; allows_scheduling?: boolean }
+export interface ComposerStatus { id: number; label: string; key?: string; is_resolved?: boolean; is_terminal?: boolean; allows_scheduling?: boolean }
 export const InteracaoComposer = forwardRef<ComposerHandle, {
   ticketId: number
   onSent: () => void
   statuses?: ComposerStatus[]
   currentStatusId?: number
-  onApplyStatus?: (statusId: number) => void | Promise<void>
+  onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string }) => void | Promise<void>
   onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
   onFormStatus?: (statusId: number) => void
@@ -70,6 +70,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Agendamento inline: aparece quando o status escolhido "permite agendamento".
   const [schedDate, setSchedDate] = useState('')
   const [schedTime, setSchedTime] = useState('')
+  // "Em Desenvolvimento": exige a PREVISÃO de entrega em homologação (vira legenda no chamado)
+  // e pré-preenche a interação com o texto fixo p/ o consultor complementar antes de enviar.
+  const [devDelivery, setDevDelivery] = useState('')
+  const devTemplateRef = useRef<string | null>(null) // último texto fixo inserido (só sobrescreve se não editado)
   // Preview da assinatura do cadastro (a MESMA anexada no envio — GET /signature/mine).
   const [sigPreviewOpen, setSigPreviewOpen] = useState(false)
   const [sigPreviewHtml, setSigPreviewHtml] = useState<string | null>(null)
@@ -137,6 +141,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (!window.confirm(msg)) return
     }
     setSendStatus(s.id)
+    // Em Desenvolvimento: injeta o texto fixo (o consultor complementa) já ao escolher o status.
+    if (s.key === 'em_desenvolvimento') setTimeout(() => applyDevTemplate(devDelivery), 0)
   }
   const canSchedule = !!selStatus?.allows_scheduling
   const derivedTotal = deriveTotal(startTime, endTime)
@@ -182,6 +188,27 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     const safe = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
     document.execCommand('insertHTML', false, (ed.textContent?.trim() ? '<br>' : '') + safe)
     syncEmpty()
+  }
+  const isDevStatus = selStatus?.key === 'em_desenvolvimento'
+  // Texto FIXO de "Em Desenvolvimento" com a previsão de entrega — o consultor complementa abaixo.
+  const devTemplateHtml = (dateYmd: string): string => {
+    const [y, m, d] = (dateYmd || '').split('-')
+    const br = (y && m && d) ? `${d}/${m}/${y}` : '___/___/______'
+    return `<p>Olá! Informamos que seu chamado foi colocado <strong>em desenvolvimento</strong>, `
+      + `com previsão de entrega em <strong>homologação para o dia ${br}</strong>.</p><p><br></p>`
+  }
+  // Aplica/atualiza o texto fixo. Só sobrescreve se o campo estiver vazio ou ainda for o texto
+  // automático (não pisa no que o consultor já complementou).
+  const applyDevTemplate = (dateYmd: string) => {
+    const ed = edRef.current; if (!ed) return
+    const current = ed.innerHTML.trim()
+    const isAuto = devTemplateRef.current !== null && current === devTemplateRef.current.trim()
+    if (current === '' || isAuto) {
+      const html = devTemplateHtml(dateYmd)
+      ed.innerHTML = html
+      devTemplateRef.current = html
+      syncEmpty()
+    }
   }
   // Foca o compositor no modo pedido (cliente/nota interna) — usado pelo menu "Opções".
   const focusReply = (v: 'customer' | 'internal') => {
@@ -248,6 +275,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (statuses.length > 0 && !sendStatus) { toast.error('Escolha o status antes de enviar.'); return }
     // Trava de classificação (ver classBlock): campos obrigatórios conforme status + papel.
     if (classBlock) { toast.error(classBlock); return }
+    // Em Desenvolvimento: a previsão de entrega em homologação é OBRIGATÓRIA.
+    if (isDevStatus && sendStatus !== currentStatusId && !devDelivery) {
+      toast.error('Informe a data de previsão de entrega em homologação.'); return
+    }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
     const hasText = !empty
@@ -276,7 +307,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     try {
       // Aplica o status ANTES de postar a interação → o e-mail gerado pelo backend reflete o
       // status NOVO (senão sairia com o status antigo). "Manter" (== atual) não faz nada.
-      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
+      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) {
+        await onApplyStatus(sendStatus, isDevStatus ? { dev_delivery_at: devDelivery } : undefined)
+      }
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
       fd.append('visibility', visibility)
@@ -301,6 +334,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       // Status "agendável" + data informada → agenda (pausa o SLA). Feito APÓS aplicar o status.
       if (canSchedule && schedDate && onSchedule) { await onSchedule(schedDate, schedTime); toast.success('Chamado agendado — SLA pausado') }
       setSchedDate(''); setSchedTime('')
+      setDevDelivery(''); devTemplateRef.current = null
       setSendStatus(undefined) // volta a exigir escolha na próxima interação
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
@@ -445,6 +479,16 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                     className="ds-input" style={{ height: 30, fontSize: 12, width: 130, padding: '0 6px' }} />
                   <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} aria-label="Hora do agendamento (opcional)"
                     className="ds-input" style={{ height: 30, fontSize: 12, width: 88, padding: '0 6px' }} />
+                </span>
+              )}
+              {/* Em Desenvolvimento: previsão de entrega em homologação (OBRIGATÓRIA) — vira legenda + texto fixo. */}
+              {isDevStatus && sendStatus !== currentStatusId && (
+                <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}>
+                  <span title="Data prevista de entrega em homologação — obrigatória." style={{ color: devDelivery ? 'var(--text-muted)' : 'var(--danger-border)', fontWeight: 600 }}>🚧 entrega homolog.*</span>
+                  <input type="date" value={devDelivery} min={localToday()}
+                    onChange={e => { setDevDelivery(e.target.value); applyDevTemplate(e.target.value) }}
+                    aria-label="Previsão de entrega em homologação"
+                    className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 6px', borderColor: devDelivery ? 'var(--border)' : 'var(--danger-border)' }} />
                 </span>
               )}
             </span>
