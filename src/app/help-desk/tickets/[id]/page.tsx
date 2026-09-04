@@ -1129,6 +1129,7 @@ function TicketDetailInner({ id }: { id: number }) {
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
                     timeMode={t.apontamento_time_mode ?? 'optional'}
                     onApplyStatus={(sid, extra) => onStatusSelect(String(sid), extra)}
+                    currentDevDelivery={t.dev_delivery_at}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
                     classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id }}

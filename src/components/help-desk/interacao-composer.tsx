@@ -39,6 +39,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   statuses?: ComposerStatus[]
   currentStatusId?: number
   onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string }) => void | Promise<void>
+  currentDevDelivery?: string | null   // data de entrega já salva no chamado (Em Desenvolvimento)
   onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
   onFormStatus?: (statusId: number) => void
@@ -51,7 +52,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Trava de classificação: quais campos estão preenchidos + se o usuário é gestor (admin/coord).
   classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean; agent: boolean }
   isManager?: boolean
-}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager }, ref) {
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, currentDevDelivery, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager }, ref) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -141,8 +142,13 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (!window.confirm(msg)) return
     }
     setSendStatus(s.id)
-    // Em Desenvolvimento: injeta o texto fixo (o consultor complementa) já ao escolher o status.
-    if (s.key === 'em_desenvolvimento') setTimeout(() => applyDevTemplate(devDelivery), 0)
+    // Em Desenvolvimento: pré-carrega a data já salva no chamado (se houver) e injeta o texto fixo
+    // com essa data. Sem data ainda, o texto só entra quando o consultor escolher a previsão.
+    if (s.key === 'em_desenvolvimento') {
+      const existing = (currentDevDelivery || '').slice(0, 10)
+      setDevDelivery(existing)
+      if (existing) setTimeout(() => applyDevTemplate(existing), 0)
+    }
   }
   const canSchedule = !!selStatus?.allows_scheduling
   const derivedTotal = deriveTotal(startTime, endTime)
@@ -192,14 +198,14 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   const isDevStatus = selStatus?.key === 'em_desenvolvimento'
   // Texto FIXO de "Em Desenvolvimento" com a previsão de entrega — o consultor complementa abaixo.
   const devTemplateHtml = (dateYmd: string): string => {
-    const [y, m, d] = (dateYmd || '').split('-')
-    const br = (y && m && d) ? `${d}/${m}/${y}` : '___/___/______'
+    const [y, m, d] = dateYmd.split('-')
     return `<p>Olá! Informamos que seu chamado foi colocado <strong>em desenvolvimento</strong>, `
-      + `com previsão de entrega em <strong>homologação para o dia ${br}</strong>.</p><p><br></p>`
+      + `com previsão de entrega em <strong>homologação para o dia ${d}/${m}/${y}</strong>.</p><p><br></p>`
   }
-  // Aplica/atualiza o texto fixo. Só sobrescreve se o campo estiver vazio ou ainda for o texto
-  // automático (não pisa no que o consultor já complementou).
+  // Injeta/atualiza o texto fixo — SÓ com uma data válida (nunca com placeholder). Só sobrescreve
+  // se o campo estiver vazio ou ainda for o texto automático (não pisa no que o consultor complementou).
   const applyDevTemplate = (dateYmd: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateYmd || '')) return
     const ed = edRef.current; if (!ed) return
     const current = ed.innerHTML.trim()
     const isAuto = devTemplateRef.current !== null && current === devTemplateRef.current.trim()
@@ -276,7 +282,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     // Trava de classificação (ver classBlock): campos obrigatórios conforme status + papel.
     if (classBlock) { toast.error(classBlock); return }
     // Em Desenvolvimento: a previsão de entrega em homologação é OBRIGATÓRIA.
-    if (isDevStatus && sendStatus !== currentStatusId && !devDelivery) {
+    if (isDevStatus && !devDelivery) {
       toast.error('Informe a data de previsão de entrega em homologação.'); return
     }
     const ed = edRef.current
@@ -307,8 +313,11 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     try {
       // Aplica o status ANTES de postar a interação → o e-mail gerado pelo backend reflete o
       // status NOVO (senão sairia com o status antigo). "Manter" (== atual) não faz nada.
-      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) {
-        await onApplyStatus(sendStatus, isDevStatus ? { dev_delivery_at: devDelivery } : undefined)
+      // Aplica o status quando muda; em "Em Desenvolvimento" aplica também no "Manter" para
+      // PERSISTIR a data de entrega (o backend faz early-return na transição de mesmo status).
+      const applyStatus = !!sendStatus && (sendStatus !== currentStatusId || (isDevStatus && !!devDelivery))
+      if (onApplyStatus && applyStatus) {
+        await onApplyStatus(sendStatus!, isDevStatus ? { dev_delivery_at: devDelivery } : undefined)
       }
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
@@ -482,7 +491,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                 </span>
               )}
               {/* Em Desenvolvimento: previsão de entrega em homologação (OBRIGATÓRIA) — vira legenda + texto fixo. */}
-              {isDevStatus && sendStatus !== currentStatusId && (
+              {isDevStatus && (
                 <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}>
                   <span title="Data prevista de entrega em homologação — obrigatória." style={{ color: devDelivery ? 'var(--text-muted)' : 'var(--danger-border)', fontWeight: 600 }}>🚧 entrega homolog.*</span>
                   <input type="date" value={devDelivery} min={localToday()}
