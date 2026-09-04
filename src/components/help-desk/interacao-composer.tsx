@@ -196,6 +196,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     syncEmpty()
   }
   const isDevStatus = selStatus?.key === 'em_desenvolvimento'
+  // Em Homologação: exige anexar o CÓDIGO-FONTE zipado (.zip) ao mover para esse status.
+  const isHomologStatus = selStatus?.key === 'em_homologacao'
+  const hasZip = files.some(f => /\.zip$/i.test(f.name) || f.type === 'application/zip' || f.type === 'application/x-zip-compressed')
   // Texto FIXO de "Em Desenvolvimento" com a previsão de entrega — o consultor complementa abaixo.
   const devTemplateHtml = (dateYmd: string): string => {
     const [y, m, d] = dateYmd.split('-')
@@ -284,6 +287,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     // Em Desenvolvimento: a previsão de entrega em homologação é OBRIGATÓRIA.
     if (isDevStatus && !devDelivery) {
       toast.error('Informe a data de previsão de entrega em homologação.'); return
+    }
+    // Em Homologação: obrigatório anexar o código-fonte zipado (.zip).
+    if (isHomologStatus && sendStatus !== currentStatusId && !hasZip) {
+      toast.error('Anexe o código-fonte zipado (.zip) para mover o chamado para Em Homologação.'); return
     }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
@@ -499,6 +506,15 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                     onChange={e => { setDevDelivery(e.target.value); applyDevTemplate(e.target.value) }}
                     aria-label="Previsão de entrega em homologação"
                     className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 6px', borderColor: devDelivery ? 'var(--border)' : 'var(--danger-border)' }} />
+                </span>
+              )}
+              {/* Em Homologação: código-fonte zipado (.zip) obrigatório. */}
+              {isHomologStatus && sendStatus !== currentStatusId && (
+                <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}
+                  title="Anexe o código-fonte zipado (.zip) pelo botão Anexar.">
+                  <span style={{ color: hasZip ? 'var(--success)' : 'var(--danger-border)', fontWeight: 600 }}>
+                    {hasZip ? '📦 código-fonte .zip anexado' : '📦 anexe o código-fonte .zip*'}
+                  </span>
                 </span>
               )}
             </span>

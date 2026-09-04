@@ -431,6 +431,10 @@ export default function HelpDeskFilaPage() {
     const newStatusId = Number(destination.droppableId)
     const moved = local.find(t => t.id === ticketId)
     if (!moved) return
+    // Status que exigem dados/anexos na interação NÃO podem ser aplicados por arrastar (sem UI de anexo/data).
+    const destKey = statusById[newStatusId]?.key
+    if (destKey === 'em_homologacao') { toast.error('Para mover para Em Homologação, abra o chamado e anexe o código-fonte (.zip) na interação.'); return }
+    if (destKey === 'em_desenvolvimento') { toast.error('Para mover para Em Desenvolvimento, abra o chamado e informe a data de entrega em homologação.'); return }
     const prevStatusId = moved.status_id
     // Otimismo
     setLocal(prev => prev.map(t => t.id === ticketId ? { ...t, status_id: newStatusId } : t))
