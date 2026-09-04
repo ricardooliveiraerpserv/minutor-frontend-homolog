@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { toast } from 'sonner'
 import { X, DollarSign } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -96,11 +97,11 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
       fd.append('payment_method', form.payment_method)
       appendExpenseItems(fd, items)
       if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
-      const res = await fetch('/api/v1/expenses', { method: 'POST', headers: { Accept: 'application/json' }, credentials: 'same-origin', body: fd })
-      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new ApiError(res.status, b.message ?? 'Erro ao salvar') }
+      // Upload DIRETO no backend (contorna o limite ~4.5MB da borda da Vercel) → comprovantes até 50MB.
+      await uploadDirect('/expenses', fd)
       toast.success('Despesa criada ✓')
       onSaved()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : (e instanceof Error ? e.message : 'Erro ao salvar')) }
     finally { setSaving(false) }
   }
 

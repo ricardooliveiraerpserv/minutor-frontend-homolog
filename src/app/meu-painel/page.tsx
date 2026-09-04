@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext, Fragment } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { fetchAndOpenLegacyUrl } from '@/lib/attachments'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
 import { previewText, sanitizeHtml } from '@/lib/sanitize'
@@ -2201,20 +2202,10 @@ export default function MeuPainelPage() {
       fd.append('charge_client',       expForm.charge_client ? '1' : '0')
       appendExpenseItems(fd, expItems)
 
-      const url    = expModal.item ? `/api/v1/expenses/${expModal.item.id}` : '/api/v1/expenses'
-      const method = 'POST'
+      // Upload DIRETO no backend (contorna o limite ~4.5MB da borda da Vercel) → comprovantes até 50MB.
+      const path = expModal.item ? `/expenses/${expModal.item.id}` : '/expenses'
       if (expModal.item) fd.append('_method', 'PUT')
-
-      const res = await fetch(url, { method, credentials: 'same-origin', body: fd })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        const details = err.details ?? err.errors
-        const detailMsg = Array.isArray(details) ? details.join('; ')
-          : typeof details === 'object' && details !== null
-            ? Object.values(details).flat().join('; ')
-            : undefined
-        throw new Error(detailMsg ?? err.detailMessage ?? err.message ?? 'Erro ao salvar')
-      }
+      await uploadDirect(path, fd)
       toast.success(expModal.item ? 'Despesa atualizada' : 'Despesa criada')
       setExpModal({ open: false })
       loadExpenses()

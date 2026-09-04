@@ -187,6 +187,10 @@ export function ExpenseItemsEditor({ items, onChange, categories }: {
           Total: <span className="font-semibold text-[var(--text)]">{brl(total)}</span>
         </div>
       </div>
+
+      <p className="text-[11px] text-[var(--text-light)] leading-snug">
+        Máx. 50 MB por arquivo. Para arquivos maiores, compartilhe por link (OneDrive/SharePoint) na descrição do item.
+      </p>
     </div>
   )
 }
