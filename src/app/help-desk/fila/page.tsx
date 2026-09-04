@@ -400,7 +400,6 @@ export default function HelpDeskFilaPage() {
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
-    { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
     { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
     { label: 'Entregas vencidas', value: entregasVencidas, cor: '#ef4444', icon: '🚧', hint: pendFilter === 'dev_overdue' ? undefined : 'entrega em homologação vencida · clique p/ ver', onClick: () => setPendFilter(p => p === 'dev_overdue' ? '' : 'dev_overdue'), active: pendFilter === 'dev_overdue' },
   ]
@@ -578,6 +577,11 @@ export default function HelpDeskFilaPage() {
                 })}
               </div>
             )}
+            {/* SLA no prazo — informativo (não é filtro). */}
+            <div className="flex items-center gap-1.5 text-[11px] mb-1 px-0.5">
+              <span className="font-semibold" style={{ color: slaCorFila }}>SLA no prazo: {pctSlaFila}%</span>
+              <span style={{ color: 'var(--text-light)' }}>({totalFila - slaCnt.r} de {totalFila} no prazo)</span>
+            </div>
             {(
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {statMetrics.map((m, i) => (
@@ -593,7 +597,6 @@ export default function HelpDeskFilaPage() {
                       <div className={`${m.highlight ? 'text-xl' : 'text-lg'} font-bold leading-none`} style={{ color: m.cor }}>{m.value}</div>
                     </div>
                     <div className={`text-[11px] mt-1 leading-tight ${(m.highlight || m.active) ? 'font-semibold' : ''}`} style={{ color: (m.highlight || m.active) ? m.cor : 'var(--text-muted)' }}>{m.label}{m.active && ' ✓'}</div>
-                    <div className="text-[10px] leading-tight" style={{ color: m.active ? m.cor : 'var(--text-light)' }}>{m.active ? 'filtrando · clique p/ limpar' : (m.hint ?? '')}</div>
                   </div>
                 ))}
                 {/* Card em DESTAQUE — no FINAL (direita), cresce pra preencher o espaço restante.
