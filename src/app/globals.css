@@ -423,6 +423,12 @@ svg.recharts-surface > g > rect:first-child {
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
+/* Kanban do Help Desk — barra horizontal PRÓPRIA (mais alta e sempre visível). */
+.hd-kanban-scroll { scrollbar-gutter: stable; scrollbar-width: thin; }
+.hd-kanban-scroll::-webkit-scrollbar { height: 12px; }
+.hd-kanban-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
+.hd-kanban-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); background-clip: padding-box; }
+
 /* ── Number input — remove spinners (setas) ──────────────────── */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
