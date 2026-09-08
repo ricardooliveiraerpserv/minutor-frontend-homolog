@@ -203,8 +203,8 @@ interface OnDemandPanel {
   current_month: string
   summary: { hours_month: number; tickets_month: number; clients_active: number; clients_total: number; clients_no_move: number; hours_12m: number; tickets_12m: number }
   monthly_totals: { month: string; hours: number; tickets: number; clients: number }[]
-  by_client: { customer_id: number; customer: string; months: Record<string, { h: number; tk: number }>; total_hours: number; total_tickets: number; current_hours: number; current_tickets: number; last_activity: string | null }[]
-  no_movement: { customer_id: number; customer: string; last_activity: string | null; hours_12m: number }[]
+  by_client: { customer_id: number; customer: string; status: string; months: Record<string, { h: number; tk: number }>; total_hours: number; total_tickets: number; current_hours: number; current_tickets: number; last_activity: string | null }[]
+  no_movement: { customer_id: number; customer: string; status: string; last_activity: string | null; hours_12m: number }[]
 }
 
 const TABS = [
@@ -876,6 +876,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
   const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado na lista (aba On Demand)
   const [odText, setOdText]           = useState('')                            // busca por texto (nome do cliente)
+  const [odStatus, setOdStatus]       = useState<'all' | 'ativo' | 'encerrado'>('all')  // filtro situação do contrato
   const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
   const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
@@ -2125,9 +2126,18 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
           const clickSort = (setter: typeof setOdSort, cur: { key: string; dir: 'asc' | 'desc' }, key: string) =>
             setter(cur.key === key ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
           const arrow = (srt: { key: string; dir: 'asc' | 'desc' }, key: string) => srt.key === key ? (srt.dir === 'desc' ? ' ↓' : ' ↑') : ''
-          const clientsF = onDemand.by_client.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer))
+          const matchSt = (st: string) => odStatus === 'all' || st === odStatus
+          const clientsF = onDemand.by_client.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer) && matchSt(c.status))
           const clientsSorted = sortBy(clientsF, odSort)
-          const noMovF = onDemand.no_movement.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer))
+          const noMovF = onDemand.no_movement.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer) && matchSt(c.status))
+          const StatusBadge = ({ st }: { st: string }) => (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+              style={st === 'ativo'
+                ? { background: 'var(--success-bg)', color: 'var(--success-border)' }
+                : { background: 'var(--danger-bg)', color: 'var(--danger-border)' }}>
+              {st === 'ativo' ? 'Ativo' : 'Encerrado'}
+            </span>
+          )
           const noMovSorted = sortBy(noMovF, odNoMovSort)
           return (
             <div className="space-y-6">
@@ -2148,6 +2158,15 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                   {odClientsShown.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                 </select>
                 {(odFilter || odText) && <button type="button" onClick={() => { setOdFilter(''); setOdText('') }} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Todos'], ['ativo', 'Ativos'], ['encerrado', 'Encerrados']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setOdStatus(v)}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                      style={odStatus === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>
+                      {l}
+                    </button>
+                  ))}
+                </span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <KpiCard label={`Horas no mês (${mLabel(onDemand.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
@@ -2178,9 +2197,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                        {([['customer','Cliente'],['current_hours','Horas mês'],['current_tickets','Tickets mês'],['total_hours','Horas 12m'],['total_tickets','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
+                        {([['customer','Cliente'],['status','Situação'],['current_hours','Horas mês'],['current_tickets','Tickets mês'],['total_hours','Horas 12m'],['total_tickets','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
                           <th key={key} onClick={() => clickSort(setOdSort, odSort, key)}
-                            className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : 'text-right'}`}>
+                            className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : i === 1 ? 'text-center' : 'text-right'}`}>
                             {label}{arrow(odSort, key)}
                           </th>
                         ))}
@@ -2190,6 +2209,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                       {clientsSorted.map(c => (
                         <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                           <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                          <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
                           <td className="px-4 py-2.5 text-right" style={{ color: c.current_hours > 0 ? CYAN : 'var(--text-light)' }}>{c.current_hours.toLocaleString('pt-BR')}h</td>
                           <td className="px-4 py-2.5 text-right" style={{ color: c.current_tickets > 0 ? BLUE : 'var(--text-light)' }}>{c.current_tickets}</td>
                           <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.total_hours.toLocaleString('pt-BR')}h</td>
@@ -2198,7 +2218,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                         </tr>
                       ))}
                       {clientsSorted.length === 0 && (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">{(sel || txt) ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--text-light)]">{(sel || txt) ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -2213,9 +2233,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                            {([['customer','Cliente'],['last_activity','Última atividade'],['hours_12m','Horas nos 12m']] as const).map(([key, label], i) => (
+                            {([['customer','Cliente'],['status','Situação'],['last_activity','Última atividade'],['hours_12m','Horas nos 12m']] as const).map(([key, label], i) => (
                               <th key={key} onClick={() => clickSort(setOdNoMovSort, odNoMovSort, key)}
-                                className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : 'text-right'}`}>
+                                className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : i === 1 ? 'text-center' : 'text-right'}`}>
                                 {label}{arrow(odNoMovSort, key)}
                               </th>
                             ))}
@@ -2225,6 +2245,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                           {noMovSorted.map(c => (
                             <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                               <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                              <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
                               <td className="px-4 py-2.5 text-right" style={{ color: c.last_activity ? 'var(--text-muted)' : RED }}>{c.last_activity ? mLabel(c.last_activity) : 'nunca (12m)'}</td>
                               <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.hours_12m.toLocaleString('pt-BR')}h</td>
                             </tr>
