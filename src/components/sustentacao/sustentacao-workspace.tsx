@@ -198,9 +198,19 @@ const STATUS_LABEL: Record<string, string> = {
   Resolved: 'Resolvido', Closed: 'Fechado', Canceled: 'Cancelado',
 }
 
+interface OnDemandPanel {
+  months: string[]
+  current_month: string
+  summary: { hours_month: number; tickets_month: number; clients_active: number; clients_total: number; clients_no_move: number; hours_12m: number; tickets_12m: number }
+  monthly_totals: { month: string; hours: number; tickets: number; clients: number }[]
+  by_client: { customer_id: number; customer: string; months: Record<string, { h: number; tk: number }>; total_hours: number; total_tickets: number; current_hours: number; current_tickets: number; last_activity: string | null }[]
+  no_movement: { customer_id: number; customer: string; last_activity: string | null; hours_12m: number }[]
+}
+
 const TABS = [
   { id: 'resumo',       label: 'Resumo Executivo',  icon: LayoutDashboard },
   { id: 'status',       label: 'Status de Suporte', icon: Gauge },
+  { id: 'ondemand',     label: 'On Demand',         icon: Zap },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
   { id: 'indicadores',  label: 'Indicadores',       icon: BarChart2 },
@@ -863,6 +873,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   const [clients, setClients]         = useState<ClientData | null>(null)
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
+  const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
   const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
   const [loadError, setLoadError]         = useState<string | null>(null)
@@ -904,6 +915,10 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       } else if (t === 'evolution' && !evolution) {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
+      } else if (t === 'ondemand' && !onDemand) {
+        // Independe do filtro de data (sempre últimos 12 meses) → busca uma vez e cacheia.
+        const r = await api.get<OnDemandPanel>(`/sustentacao/on-demand-panel`)
+        setOnDemand(r)
       } else if (t === 'indicadores' && !indicadores) {
         const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
@@ -932,7 +947,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     } finally {
       setLoading(false)
     }
-  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes, debugResponsaveis])
+  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, onDemand, debugClientes, debugResponsaveis])
 
   const fetchQueue = useCallback(async (
     resp: string[], cliente: string[], urgencia: string[], status: string[], search: string
@@ -2083,6 +2098,96 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
             </div>
           </div>
         )}
+
+        {/* ON DEMAND — 12 meses de horas + tickets por cliente, resultado do mês e sem movimentação */}
+        {!routineTab && tab === 'ondemand' && onDemand && (() => {
+          const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
+          const chart = onDemand.monthly_totals.map(x => ({ ...x, mes: mLabel(x.month) }))
+          const s = onDemand.summary
+          return (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <KpiCard label={`Horas no mês (${mLabel(onDemand.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
+                <KpiCard label="Tickets no mês" value={s.tickets_month} icon={List} color={BLUE} />
+                <KpiCard label="Clientes ativos no mês" value={`${s.clients_active}/${s.clients_total}`} icon={Users} color={GREEN} />
+                <KpiCard label="Clientes SEM movimentação" value={s.clients_no_move} sub="no mês corrente" icon={AlertTriangle} color={s.clients_no_move > 0 ? YELLOW : GREEN} />
+                <KpiCard label="Horas (12 meses)" value={`${s.hours_12m.toLocaleString('pt-BR')}h`} icon={TrendingUp} color={PURPLE} />
+                <KpiCard label="Tickets (12 meses)" value={s.tickets_12m} icon={BarChart2} color={ORANGE} />
+              </div>
+
+              <Section title="Últimos 12 meses — horas apontadas e tickets">
+                <ResponsiveContainer width="100%" height={240}>
+                  <ComposedChart data={chart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis yAxisId="h" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis yAxisId="t" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar  yAxisId="h" dataKey="hours"   name="Horas"   fill={CYAN} radius={[2, 2, 0, 0]} />
+                    <Line yAxisId="t" dataKey="tickets" name="Tickets" stroke={ORANGE} dot={{ r: 3 }} strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Section>
+
+              <Section title={`Por cliente (${onDemand.by_client.length}) — mês corrente e acumulado 12 meses`}>
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {['Cliente', 'Horas mês', 'Tickets mês', 'Horas 12m', 'Tickets 12m', 'Última atividade'].map((h, i) => (
+                          <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {onDemand.by_client.map(c => (
+                        <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.current_hours > 0 ? CYAN : 'var(--text-light)' }}>{c.current_hours.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.current_tickets > 0 ? BLUE : 'var(--text-light)' }}>{c.current_tickets}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.total_hours.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.total_tickets}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.last_activity ? mLabel(c.last_activity) : '—'}</td>
+                        </tr>
+                      ))}
+                      {onDemand.by_client.length === 0 && (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">Sem apontamentos On Demand nos últimos 12 meses</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+
+              <Section title={`Clientes On Demand sem movimentação no mês (${onDemand.no_movement.length})`}>
+                {onDemand.no_movement.length === 0
+                  ? <p className="text-xs text-[var(--text-light)]">Todos os clientes On Demand tiveram movimentação neste mês.</p>
+                  : (
+                    <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                            {['Cliente', 'Última atividade', 'Horas nos 12m'].map((h, i) => (
+                              <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {onDemand.no_movement.map(c => (
+                            <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                              <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                              <td className="px-4 py-2.5 text-right" style={{ color: c.last_activity ? 'var(--text-muted)' : RED }}>{c.last_activity ? mLabel(c.last_activity) : 'nunca (12m)'}</td>
+                              <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.hours_12m.toLocaleString('pt-BR')}h</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+              </Section>
+            </div>
+          )
+        })()}
 
         {/* DISTRIBUIÇÃO */}
         {!routineTab && tab === 'distribution' && distribution && (
