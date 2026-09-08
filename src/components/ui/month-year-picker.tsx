@@ -6,30 +6,53 @@ import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react'
 const MONTHS_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const MONTHS_FULL_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
-export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano' }: {
+// ordinal de um mês (p/ comparar/ordenar seleção que cruza anos)
+const ord = (m: number, y: number) => y * 12 + (m - 1)
+
+export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano',
+  endMonth = null, endYear = null, onRangeChange }: {
   month: number | null   // 1-12
   year:  number | null
   onChange: (month: number, year: number) => void
   placeholder?: string
+  // ── Modo RANGE (opcional): passe onRangeChange p/ permitir selecionar MAIS DE UM mês.
+  // A seleção é um intervalo [início, fim] de meses (mapeia p/ um from/to de datas).
+  endMonth?: number | null
+  endYear?:  number | null
+  onRangeChange?: (startM: number, startY: number, endM: number, endY: number) => void
 }) {
+  const rangeMode = typeof onRangeChange === 'function'
   const [open,      setOpen]      = useState(false)
   const [navYear,   setNavYear]   = useState(() => year ?? new Date().getFullYear())
   const [pos,       setPos]       = useState<{ top: number; left: number } | null>(null)
+  // no modo range: guarda o 1º clique (âncora) enquanto espera o 2º
+  const [anchor,    setAnchor]    = useState<{ m: number; y: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const ref    = useRef<HTMLDivElement>(null)
 
   const hasValue = month !== null && year !== null
-  const displayText = hasValue ? `${MONTHS_FULL_PT[month! - 1]} ${year}` : placeholder
+  // fim efetivo do range = endMonth/endYear se houver, senão o próprio início (1 mês)
+  const eM = endMonth ?? month
+  const eY = endYear ?? year
+  const spanLabel = () => {
+    if (!hasValue) return placeholder
+    const sameStartEnd = eM === month && eY === year
+    if (!rangeMode || sameStartEnd) return `${MONTHS_FULL_PT[month! - 1]} ${year}`
+    // intervalo: "Jul – Set 2026" (mesmo ano) ou "Jul 2026 – Jan 2027"
+    if (year === eY) return `${MONTHS_PT[month! - 1]} – ${MONTHS_PT[eM! - 1]} ${year}`
+    return `${MONTHS_PT[month! - 1]} ${year} – ${MONTHS_PT[eM! - 1]} ${eY}`
+  }
+  const displayText = spanLabel()
 
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
-        setOpen(false)
+        setOpen(false); setAnchor(null)
       }
     }
-    const onScroll = () => setOpen(false)
+    const onScroll = () => { setOpen(false); setAnchor(null) }
     document.addEventListener('mousedown', handler)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
@@ -39,24 +62,52 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
   }, [open])
 
   const toggle = () => {
-    if (open) { setOpen(false); return }
+    if (open) { setOpen(false); setAnchor(null); return }
     if (!btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
     const dropW = 224
     const left = Math.min(r.left, window.innerWidth - dropW - 8)
     setPos({ top: r.bottom + 4, left: Math.max(8, left) })
     setNavYear(year ?? new Date().getFullYear())
+    setAnchor(null)
     setOpen(true)
   }
 
   const select = (m: number) => {
-    onChange(m, navYear)
+    if (!rangeMode) {
+      onChange(m, navYear)
+      setOpen(false)
+      return
+    }
+    // modo range: 1º clique = âncora (seleção de 1 mês); 2º clique = fecha o intervalo.
+    if (!anchor) {
+      setAnchor({ m, y: navYear })
+      onRangeChange!(m, navYear, m, navYear)   // já vale como "1 mês" até o 2º clique
+      return
+    }
+    const a = ord(anchor.m, anchor.y)
+    const b = ord(m, navYear)
+    const [s, e] = a <= b ? [anchor, { m, y: navYear }] : [{ m, y: navYear }, anchor]
+    onRangeChange!(s.m, s.y, e.m, e.y)
+    setAnchor(null)
     setOpen(false)
   }
 
   const now = new Date()
   const todayM = now.getMonth() + 1
   const todayY = now.getFullYear()
+
+  // um mês (na página navegada) está DENTRO da seleção atual?
+  const inSelection = (mNum: number): boolean => {
+    if (!hasValue) return false
+    if (anchor) return mNum === anchor.m && navYear === anchor.y   // aguardando 2º clique
+    const lo = ord(month!, year!)
+    const hi = ord(eM!, eY!)
+    const cur = ord(mNum, navYear)
+    return cur >= lo && cur <= hi
+  }
+  const isEdge = (mNum: number): boolean =>
+    (mNum === month && navYear === year) || (rangeMode && mNum === eM && navYear === eY)
 
   return (
     <>
@@ -101,21 +152,27 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
           <div className="grid grid-cols-3 gap-1">
             {MONTHS_PT.map((m, i) => {
               const mNum = i + 1
-              const isSelected = mNum === month && navYear === year
-              const isToday    = mNum === todayM && navYear === todayY
+              const sel      = inSelection(mNum)
+              const edge     = isEdge(mNum)
+              const isToday  = mNum === todayM && navYear === todayY
               return (
                 <button key={m} type="button" onClick={() => select(mNum)}
                   className="py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: isSelected ? 'var(--primary)' : isToday ? 'var(--primary-soft)' : undefined,
-                    color: isSelected ? '#0A0A0B' : isToday ? 'var(--primary)' : 'var(--text)',
-                    border: isToday && !isSelected ? '1px solid var(--primary)' : '1px solid transparent',
+                    background: edge ? 'var(--primary)' : sel ? 'var(--primary-soft)' : isToday ? 'var(--primary-soft)' : undefined,
+                    color: edge ? '#0A0A0B' : sel ? 'var(--primary)' : isToday ? 'var(--primary)' : 'var(--text)',
+                    border: (isToday || sel) && !edge ? '1px solid var(--primary)' : '1px solid transparent',
                   }}>
                   {m}
                 </button>
               )
             })}
           </div>
+          {rangeMode && (
+            <div className="mt-2 text-[10px] leading-tight" style={{ color: 'var(--text-light)' }}>
+              {anchor ? 'Clique no mês final do intervalo.' : 'Clique 1 mês, ou 2 p/ um intervalo.'}
+            </div>
+          )}
         </div>
       )}
     </>
