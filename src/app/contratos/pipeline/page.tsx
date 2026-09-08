@@ -4734,6 +4734,13 @@ function KanbanContent() {
 
     if (list.length === 0) { toast.info('Nenhum projeto para exportar.'); return }
 
+    // Formata YYYY-MM-DD(...) → DD/MM/AAAA sem depender de fuso (evita voltar 1 dia).
+    const fmtDateBR = (d?: string | null): string => {
+      if (!d) return ''
+      const [y, m, dd] = d.slice(0, 10).split('-')
+      return y && m && dd ? `${dd}/${m}/${y}` : d
+    }
+
     const rows: ProjetoExportRow[] = list.map(p => {
       const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
       const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
@@ -4756,6 +4763,9 @@ function KanbanContent() {
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
         coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
+        urgencia:     p.nivel_urgencia ? (URGENCIA_LABEL[p.nivel_urgencia] ?? p.nivel_urgencia) : '—',
+        inicio:       fmtDateBR(p.start_date),
+        previsao:     fmtDateBR(p.expected_end_date),
         deliveryPct:  p.delivery_percentage != null ? `${Math.round(Number(p.delivery_percentage))}%` : '',
       }
     })
