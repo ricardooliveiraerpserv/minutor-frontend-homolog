@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { sanitizeHtml, previewText } from '@/lib/sanitize'
 import { AppLayout } from '@/components/layout/app-layout'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -813,8 +813,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     if (!isAdmin && !isSustentacaoCoord) router.replace('/dashboard')
   }, [user, router])
 
-  const _searchParams = useSearchParams()
-  const [tab, setTab]         = useState(() => _searchParams.get('tab') || (show === 'indicadores' ? 'resumo' : ''))   // aba inicial via ?tab= (deep-link do menu)
+  const [tab, setTab]         = useState(show === 'indicadores' ? 'resumo' : '')
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -1016,6 +1015,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     finally { setDrillLoading(false) }
   }, [drillDown])
 
+  // Aba inicial via ?tab= (deep-link do menu) — client-only p/ não quebrar o prerender.
+  useEffect(() => { const t = new URLSearchParams(window.location.search).get('tab'); if (t) setTab(t) }, [])
   useEffect(() => { load(tab) }, [tab])
   // On Demand: busca dedicada (independe do filtro de data) que REBUSCA ao trocar o tipo de serviço.
   useEffect(() => {
