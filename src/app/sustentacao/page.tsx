@@ -810,6 +810,9 @@ export default function SustentacaoPage() {
   const now = new Date()
   const [refMonth, setRefMonth] = useState<number | null>(now.getMonth() + 1)
   const [refYear,  setRefYear]  = useState<number | null>(now.getFullYear())
+  // Fim do intervalo Mês/Ano (permite selecionar MAIS DE UM mês). Igual ao início = 1 mês só.
+  const [refMonthEnd, setRefMonthEnd] = useState<number | null>(now.getMonth() + 1)
+  const [refYearEnd,  setRefYearEnd]  = useState<number | null>(now.getFullYear())
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 30)
     return d.toISOString().split('T')[0]
@@ -820,12 +823,13 @@ export default function SustentacaoPage() {
   // completas do menu (TimesheetsScreen/ExpensesScreen/etc.) com scope='sustentacao',
   // que fazem o próprio fetch. O fetch legado em /sustentacao/{tab} foi descontinuado.
 
-  // Computa from/to a partir do modo ativo
+  // Computa from/to a partir do modo ativo. Em Mês/Ano, o intervalo vai do 1º dia do mês
+  // INICIAL ao último dia do mês FINAL (refMonthEnd/refYearEnd) — suporta 1 ou vários meses.
   const from = filterMode === 'month' && refMonth && refYear
     ? `${refYear}-${String(refMonth).padStart(2, '0')}-01`
     : dateFrom
   const to = filterMode === 'month' && refMonth && refYear
-    ? new Date(refYear, refMonth, 0).toISOString().split('T')[0]
+    ? new Date(refYearEnd ?? refYear, (refMonthEnd ?? refMonth), 0).toISOString().split('T')[0]
     : dateTo
 
   // Período (mês-a-mês) repassado ao report de Rentabilidade embutido, derivado do filtro do portal.
@@ -836,7 +840,13 @@ export default function SustentacaoPage() {
   }, [from, to])
 
   // Filtro de data DE CIMA repassado às telas embedded — elas escondem o próprio (um filtro só).
-  const portalDate: PortalDate = { mode: filterMode, month: refMonth, year: refYear, from: dateFrom, to: dateTo }
+  // Se o Mês/Ano abrange MAIS DE UM mês, repassa como PERÍODO (from/to do span) p/ as telas
+  // embedded também cobrirem o intervalo; 1 mês só continua indo como mês (comportamento antigo).
+  const monthSpansMultiple = filterMode === 'month' &&
+    (refMonth !== refMonthEnd || refYear !== refYearEnd)
+  const portalDate: PortalDate = monthSpansMultiple
+    ? { mode: 'period', month: null, year: null, from, to }
+    : { mode: filterMode, month: refMonth, year: refYear, from: dateFrom, to: dateTo }
 
   const [queueFilterResp,      setQueueFilterResp]      = useState<string[]>([])
   const [queueFilterCliente,   setQueueFilterCliente]   = useState<string[]>([])
@@ -1030,9 +1040,14 @@ export default function SustentacaoPage() {
             <MonthYearPicker
               month={refMonth}
               year={refYear}
+              endMonth={refMonthEnd}
+              endYear={refYearEnd}
               onChange={(m, y) => {
-                if (m === 0) { setRefMonth(null); setRefYear(null) }
-                else { setRefMonth(m); setRefYear(y); invalidateAll() }
+                // usado só pelo "×" (limpar): zera início e fim juntos
+                if (m === 0) { setRefMonth(null); setRefYear(null); setRefMonthEnd(null); setRefYearEnd(null) }
+              }}
+              onRangeChange={(sm, sy, em, ey) => {
+                setRefMonth(sm); setRefYear(sy); setRefMonthEnd(em); setRefYearEnd(ey); invalidateAll()
               }}
             />
           ) : (
