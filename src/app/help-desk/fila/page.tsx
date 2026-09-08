@@ -145,6 +145,7 @@ export default function HelpDeskFilaPage() {
   const [customers, setCustomers] = useState<Ref[]>([])
   // Perfil de acesso: se este agente enxerga a coluna "Novo" (tickets ainda não distribuídos).
   const [seeNewColumn, setSeeNewColumn] = useState(true)
+  const [canTriage, setCanTriage] = useState(false) // card "Triagem" liberado pelo perfil de acesso
   const [viewScope, setViewScope] = useState('all') // escopo de visão: 'all' vê de outros; 'assigned' só os próprios
   // Só faz sentido oferecer "apenas meus chamados" se o agente enxerga chamados além dos dele.
   const canSeeOthers = viewScope === 'all' || viewScope === 'parent' || viewScope === 'assigned_or_parent'
@@ -291,8 +292,8 @@ export default function HelpDeskFilaPage() {
     return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
   }, [load])
   useEffect(() => {
-    api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
-      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
+    api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean; can_triage?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
+      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setCanTriage(!!r?.data?.can_triage); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
       .catch(() => {})
   }, [])
   // Agentes (para o picker de Responsável na ação em massa).
@@ -399,7 +400,7 @@ export default function HelpDeskFilaPage() {
   const pctSlaFila = totalFila > 0 ? Math.round(((totalFila - slaCnt.r) / totalFila) * 100) : 100
   const slaCorFila = pctSlaFila >= 90 ? '#16a34a' : pctSlaFila >= 70 ? '#f59e0b' : '#ef4444'
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
-    { label: 'Triagem', value: naoAtribuidos, cor: '#0ea5e9', icon: '🗂️', highlight: naoAtribuidos > 0, hint: 'sem responsável · clique p/ ver', onClick: () => setPendFilter(p => p === 'triagem' ? '' : 'triagem'), active: pendFilter === 'triagem' },
+    ...(canTriage ? [{ label: 'Triagem', value: naoAtribuidos, cor: '#0ea5e9', icon: '🗂️', highlight: naoAtribuidos > 0, hint: 'sem responsável · clique p/ ver', onClick: () => setPendFilter(p => p === 'triagem' ? '' : 'triagem'), active: pendFilter === 'triagem' }] : []),
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },

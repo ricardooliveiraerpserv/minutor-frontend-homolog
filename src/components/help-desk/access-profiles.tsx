@@ -33,6 +33,7 @@ const SCHEMA: Record<Kind, Tab[]> = {
       ] },
       { title: 'Listagem e visualização', controls: [
         { key: 'tickets.personal_views', label: 'Criar visualizações pessoais', type: 'toggle' },
+        { key: 'tickets.triagem', label: 'Exibir card “Triagem” na fila (chamados sem responsável, a distribuir)', type: 'toggle' },
         { key: 'tickets.shared_views', label: 'Editar/criar painéis compartilhados', type: 'radio', options: [{ value: 'any', label: 'Qualquer agente' }, { value: 'same_team', label: 'Somente mesma equipe' }, { value: 'none', label: 'Não permitir' }] },
         { key: 'tickets.bulk_actions', label: 'Manutenção coletiva de tickets (habilita a barra de seleção)', type: 'toggle' },
         { key: 'tickets.bulk', label: 'O que pode fazer na atualização em massa', type: 'toggles', items: [
