@@ -208,9 +208,17 @@ interface OnDemandPanel {
   no_movement: { customer_id: number; customer: string; status: string; last_activity: string | null; hours_12m: number }[]
 }
 
+interface ContractsPanel {
+  current_month: string
+  summary: { contracts: number; clients: number; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number }
+  by_type: { contract_type: string; clients: number; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number }[]
+  by_client: { customer_id: number; customer: string; contract_type: string; status: string; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number; last_activity: string | null }[]
+}
+
 const TABS = [
   { id: 'status',       label: 'Status de Suporte', icon: Gauge },
   { id: 'ondemand',     label: 'On Demand',         icon: Zap },
+  { id: 'contratos',    label: 'Contratos',         icon: FileText },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
   { id: 'indicadores',  label: 'Indicadores',       icon: BarChart2 },
@@ -877,6 +885,12 @@ export default function SustentacaoPage() {
   const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado (aba On Demand; '' = todos) — busca embutida no SearchSelect
   const [odStatus, setOdStatus]       = useState<'all' | 'ativo' | 'encerrado'>('all')  // filtro situação do contrato
   const [odService, setOdService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')  // filtro tipo de serviço (server-side)
+  // Aba Contratos
+  const [contracts, setContracts]     = useState<ContractsPanel | null>(null)
+  const [ctClient, setCtClient]       = useState('')                              // cliente selecionado (client-side)
+  const [ctStatus, setCtStatus]       = useState<'all' | 'ativo' | 'inativo'>('all')
+  const [ctService, setCtService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')
+  const [ctSort, setCtSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'hours_12m', dir: 'desc' })
   const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
   const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
@@ -1006,6 +1020,15 @@ export default function SustentacaoPage() {
     const qs = odService !== 'all' ? `?service=${odService}` : ''
     api.get<OnDemandPanel>(`/sustentacao/on-demand-panel${qs}`).then(setOnDemand).catch(() => {})
   }, [tab, odService])
+  // Aba Contratos: refetch por serviço/situação (server-side); cliente é filtrado no FE.
+  useEffect(() => {
+    if (tab !== 'contratos') return
+    setContracts(null)
+    const p = new URLSearchParams()
+    if (ctService !== 'all') p.set('service', ctService)
+    if (ctStatus !== 'all')  p.set('status', ctStatus)
+    api.get<ContractsPanel>(`/sustentacao/contracts-panel${p.toString() ? '?' + p : ''}`).then(setContracts).catch(() => {})
+  }, [tab, ctService, ctStatus])
 
   useEffect(() => {
     api.get<{ statuses: { value: string; label: string; base_status: string }[] }>('/sustentacao/filter-options')
@@ -2170,6 +2193,112 @@ export default function SustentacaoPage() {
                       </table>
                     </div>
                   )}
+              </Section>
+            </div>
+          )
+        })()}
+
+        {/* CONTRATOS — visão por tipo de contrato + detalhe por cliente */}
+        {!routineTab && tab === 'contratos' && contracts && (() => {
+          const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
+          const clientsOpts = Array.from(new Map(contracts.by_client.map(c => [c.customer_id, c.customer])).entries())
+            .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+          const rows = contracts.by_client.filter(c => !ctClient || String(c.customer_id) === ctClient)
+          const cmp = (a: any, b: any, k: string) => (typeof a[k] === 'number' && typeof b[k] === 'number') ? a[k] - b[k] : String(a[k] ?? '').localeCompare(String(b[k] ?? ''), 'pt-BR')
+          const rowsSorted = [...rows].sort((a, b) => (ctSort.dir === 'asc' ? 1 : -1) * cmp(a, b, ctSort.key))
+          const clickSort = (k: string) => setCtSort(s => s.key === k ? { key: k, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key: k, dir: 'desc' })
+          const arr = (k: string) => ctSort.key === k ? (ctSort.dir === 'desc' ? ' ↓' : ' ↑') : ''
+          const StatusBadge = ({ st }: { st: string }) => (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium" style={st === 'ativo' ? { background: 'var(--success-bg)', color: 'var(--success-border)' } : { background: 'var(--danger-bg)', color: 'var(--danger-border)' }}>{st === 'ativo' ? 'Ativo' : 'Inativo'}</span>
+          )
+          const s = contracts.summary
+          return (
+            <div className="space-y-6">
+              {/* Filtros */}
+              <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--primary)' }}>
+                <label className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>Contratos</label>
+                <SearchSelect value={ctClient} onChange={v => setCtClient(v)}
+                  options={[{ id: '', name: `Todos os clientes (${clientsOpts.length})` }, ...clientsOpts]}
+                  placeholder="Buscar cliente…" wide />
+                {ctClient && <button type="button" onClick={() => setCtClient('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Serviço: todos'], ['sustentacao', 'Sustentação'], ['projeto', 'Projeto']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setCtService(v)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors" style={ctService === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </span>
+                <span className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Todos'], ['ativo', 'Ativos'], ['inativo', 'Inativos']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setCtStatus(v)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors" style={ctStatus === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </span>
+              </div>
+
+              {/* KPIs gerais */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <KpiCard label={`Horas no mês (${mLabel(contracts.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
+                <KpiCard label="Tickets no mês" value={s.tickets_month} icon={List} color={BLUE} />
+                <KpiCard label="Contratos" value={s.contracts} icon={FileText} color={GREEN} />
+                <KpiCard label="Clientes" value={s.clients} icon={Users} color={PURPLE} />
+                <KpiCard label="Horas (12 meses)" value={`${s.hours_12m.toLocaleString('pt-BR')}h`} icon={TrendingUp} color={ORANGE} />
+                <KpiCard label="Tickets (12 meses)" value={s.tickets_12m} icon={BarChart2} color={CYAN} />
+              </div>
+
+              {/* Resumo por tipo de contrato */}
+              <Section title="Por tipo de contrato — 12 meses">
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {['Tipo de contrato', 'Clientes', 'Horas mês', 'Tickets mês', 'Horas 12m', 'Tickets 12m'].map((h, i) => (
+                          <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contracts.by_type.map(t => (
+                        <tr key={t.contract_type} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{t.contract_type}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.clients}</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: CYAN }}>{t.hours_month.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: BLUE }}>{t.tickets_month}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.hours_12m.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.tickets_12m}</td>
+                        </tr>
+                      ))}
+                      {contracts.by_type.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">Sem contratos com esse filtro</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+
+              {/* Detalhe por cliente × tipo */}
+              <Section title={`Por cliente × contrato (${rows.length})`}>
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {([['customer','Cliente'],['contract_type','Contrato'],['status','Situação'],['hours_month','Horas mês'],['tickets_month','Tickets mês'],['hours_12m','Horas 12m'],['tickets_12m','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
+                          <th key={key} onClick={() => clickSort(key)} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 || i === 1 ? 'text-left' : i === 2 ? 'text-center' : 'text-right'}`}>{label}{arr(key)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rowsSorted.map((c, idx) => (
+                        <tr key={c.customer_id + '|' + c.contract_type + idx} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                          <td className="px-4 py-2.5 text-[var(--text-muted)]">{c.contract_type}</td>
+                          <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.hours_month > 0 ? CYAN : 'var(--text-light)' }}>{c.hours_month.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.tickets_month > 0 ? BLUE : 'var(--text-light)' }}>{c.tickets_month}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.hours_12m.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.tickets_12m}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.last_activity ? mLabel(c.last_activity) : '—'}</td>
+                        </tr>
+                      ))}
+                      {rowsSorted.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[var(--text-light)]">Nenhum contrato com esse filtro</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
               </Section>
             </div>
           )
