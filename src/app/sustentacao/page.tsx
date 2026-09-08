@@ -813,6 +813,7 @@ export default function SustentacaoPage() {
   }, [user, router])
 
   const [tab, setTab]         = useState('status')
+  const [solo, setSolo]       = useState(false)   // ?solo=1 → mostra SÓ a aba escolhida (sem barra de abas), p/ deep-link do menu
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -1014,7 +1015,11 @@ export default function SustentacaoPage() {
   }, [drillDown])
 
   // Aba inicial via ?tab= (deep-link do menu) — client-only p/ não quebrar o prerender (sem useSearchParams).
-  useEffect(() => { const t = new URLSearchParams(window.location.search).get('tab'); if (t) setTab(t) }, [])
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tab'); if (t) setTab(t)
+    if (sp.get('solo') === '1') setSolo(true)
+  }, [])
   useEffect(() => { load(tab) }, [tab])
   // On Demand: busca dedicada (independe do filtro de data) que REBUSCA ao trocar o tipo de serviço.
   useEffect(() => {
@@ -1119,8 +1124,8 @@ export default function SustentacaoPage() {
         </div>
       </div>
 
-      {/* ── Central de Lançamentos — sempre visível (navegação entre rotinas) ── */}
-      <div className="px-4 md:px-6 pt-3 shrink-0">
+      {/* ── Central de Lançamentos — sempre visível (navegação entre rotinas); oculta no modo solo ── */}
+      {!solo && <div className="px-4 md:px-6 pt-3 shrink-0">
         <div
           className="rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -1164,10 +1169,10 @@ export default function SustentacaoPage() {
             </button>
           )}
         </div>
-      </div>
+      </div>}
 
-      {/* ── Tabs (Indicadores) — escondidas quando uma rotina está ativa ── */}
-      {!routineTab && (
+      {/* ── Tabs (Indicadores) — escondidas quando uma rotina está ativa ou no modo solo ── */}
+      {!routineTab && !solo && (
         <div className="flex gap-1 px-4 md:px-6 pt-3 pb-0 border-b shrink-0 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(t => {
             const Icon = t.icon
