@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { SearchSelect } from '@/components/ui/search-select'
 import type { PortalDate } from '@/lib/portal-date'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -873,8 +874,7 @@ export default function SustentacaoPage() {
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
   const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
-  const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado na lista (aba On Demand)
-  const [odText, setOdText]           = useState('')                            // busca por texto (nome do cliente)
+  const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado (aba On Demand; '' = todos) — busca embutida no SearchSelect
   const [odStatus, setOdStatus]       = useState<'all' | 'ativo' | 'encerrado'>('all')  // filtro situação do contrato
   const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
   const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
@@ -2017,9 +2017,6 @@ export default function SustentacaoPage() {
           const odClients = Array.from(new Map([...onDemand.by_client, ...onDemand.no_movement].map(c => [c.customer_id, c.customer])).entries())
             .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
           const sel = odFilter   // '' = todos; senão customer_id (string)
-          const txt = odText.trim().toLowerCase()
-          const odClientsShown = odClients.filter(c => !txt || c.name.toLowerCase().includes(txt))
-          const matchTxt = (name: string) => !txt || name.toLowerCase().includes(txt)
           const cmp = (a: any, b: any, key: string) => {
             const va = a[key], vb = b[key]
             if (typeof va === 'number' && typeof vb === 'number') return va - vb
@@ -2031,9 +2028,9 @@ export default function SustentacaoPage() {
             setter(cur.key === key ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
           const arrow = (srt: { key: string; dir: 'asc' | 'desc' }, key: string) => srt.key === key ? (srt.dir === 'desc' ? ' ↓' : ' ↑') : ''
           const matchSt = (st: string) => odStatus === 'all' || st === odStatus
-          const clientsF = onDemand.by_client.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer) && matchSt(c.status))
+          const clientsF = onDemand.by_client.filter(c => (!sel || String(c.customer_id) === sel) && matchSt(c.status))
           const clientsSorted = sortBy(clientsF, odSort)
-          const noMovF = onDemand.no_movement.filter(c => (!sel || String(c.customer_id) === sel) && matchTxt(c.customer) && matchSt(c.status))
+          const noMovF = onDemand.no_movement.filter(c => (!sel || String(c.customer_id) === sel) && matchSt(c.status))
           const StatusBadge = ({ st }: { st: string }) => (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-medium"
               style={st === 'ativo'
@@ -2051,17 +2048,13 @@ export default function SustentacaoPage() {
                 <label className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>
                   Filtrar por cliente On Demand
                 </label>
-                <input value={odText} onChange={e => setOdText(e.target.value)}
-                  placeholder="🔍 Buscar por nome…"
-                  className="h-9 px-3 rounded-lg text-sm outline-none w-full sm:w-56"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text)' }} />
-                <select value={odFilter} onChange={e => setOdFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg text-sm outline-none w-full sm:w-72 cursor-pointer"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text)' }}>
-                  <option value="">Todos os clientes ({odClientsShown.length})</option>
-                  {odClientsShown.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-                </select>
-                {(odFilter || odText) && <button type="button" onClick={() => { setOdFilter(''); setOdText('') }} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <SearchSelect
+                  value={odFilter}
+                  onChange={v => setOdFilter(v)}
+                  options={[{ id: '', name: `Todos os clientes (${odClients.length})` }, ...odClients]}
+                  placeholder="Buscar cliente On Demand…"
+                  wide />
+                {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
                 <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {([['all', 'Todos'], ['ativo', 'Ativos'], ['encerrado', 'Encerrados']] as const).map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setOdStatus(v)}
@@ -2125,7 +2118,7 @@ export default function SustentacaoPage() {
                         </tr>
                       ))}
                       {clientsSorted.length === 0 && (
-                        <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--text-light)]">{(sel || txt) ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -2135,7 +2128,7 @@ export default function SustentacaoPage() {
               {/* Clientes On Demand SEM movimentação no mês corrente */}
               <Section title={`Clientes On Demand sem movimentação no mês (${noMovF.length})`}>
                 {noMovSorted.length === 0
-                  ? <p className="text-xs text-[var(--text-light)]">{(sel || txt) ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
+                  ? <p className="text-xs text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
                   : (
                     <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                       <table className="w-full text-xs">
