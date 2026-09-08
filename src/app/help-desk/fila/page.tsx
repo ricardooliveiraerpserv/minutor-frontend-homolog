@@ -336,7 +336,8 @@ export default function HelpDeskFilaPage() {
   const abertos = flt.filter(isPendente).length
   // Chamados NOVOS = status inicial "Novo" (recém-criados, ainda sem triagem/atendimento).
   const isNovo = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return s?.key === 'novo' }
-  const novos = flt.filter(isNovo).length
+  // TRIAGEM = chamados pendentes SEM responsável atribuído (a distribuir).
+  const naoAtribuidos = flt.filter(t => !t.assignee && isPendente(t)).length
   // Pendência NOSSA = aberto, exceto "Aguardando cliente" (a bola está com o cliente, não conosco).
   const isNossaPendencia = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return isPendente(t) && s?.key !== 'aguardando_cliente' }
   // Meus tickets pendentes — atribuídos a mim e com pendência nossa (independe dos filtros do board).
@@ -357,6 +358,7 @@ export default function HelpDeskFilaPage() {
     if (pendFilter === 'team') return isNossaPendencia(t)
     if (pendFilter === 'open') return isPendente(t)
     if (pendFilter === 'novos') return isNovo(t)
+    if (pendFilter === 'triagem') return !t.assignee && isPendente(t) // sem responsável (a distribuir)
     if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
     if (pendFilter === 'estourado') return slaDot(t.sla).dot === '🔴' // SLA estourado
     if (pendFilter === 'dev_overdue') return isDevOverdue(t) // entrega em homologação vencida
@@ -396,7 +398,7 @@ export default function HelpDeskFilaPage() {
   const pctSlaFila = totalFila > 0 ? Math.round(((totalFila - slaCnt.r) / totalFila) * 100) : 100
   const slaCorFila = pctSlaFila >= 90 ? '#16a34a' : pctSlaFila >= 70 ? '#f59e0b' : '#ef4444'
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
-    { label: 'Novos', value: novos, cor: '#0ea5e9', icon: '🆕', highlight: true, hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'novos' ? '' : 'novos'), active: pendFilter === 'novos' },
+    { label: 'Triagem', value: naoAtribuidos, cor: '#0ea5e9', icon: '🗂️', highlight: naoAtribuidos > 0, hint: 'sem responsável · clique p/ ver', onClick: () => setPendFilter(p => p === 'triagem' ? '' : 'triagem'), active: pendFilter === 'triagem' },
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
