@@ -890,6 +890,7 @@ export default function SustentacaoPage() {
   const [ctClient, setCtClient]       = useState('')                              // cliente selecionado (client-side)
   const [ctStatus, setCtStatus]       = useState<'all' | 'ativo' | 'inativo'>('all')
   const [ctService, setCtService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')
+  const [ctType, setCtType]           = useState('')                              // filtro tipo de contrato (client-side; '' = todos)
   const [ctSort, setCtSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'hours_12m', dir: 'desc' })
   const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
   const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
@@ -2203,7 +2204,7 @@ export default function SustentacaoPage() {
           const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
           const clientsOpts = Array.from(new Map(contracts.by_client.map(c => [c.customer_id, c.customer])).entries())
             .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-          const rows = contracts.by_client.filter(c => !ctClient || String(c.customer_id) === ctClient)
+          const rows = contracts.by_client.filter(c => (!ctClient || String(c.customer_id) === ctClient) && (!ctType || c.contract_type === ctType))
           const cmp = (a: any, b: any, k: string) => (typeof a[k] === 'number' && typeof b[k] === 'number') ? a[k] - b[k] : String(a[k] ?? '').localeCompare(String(b[k] ?? ''), 'pt-BR')
           const rowsSorted = [...rows].sort((a, b) => (ctSort.dir === 'asc' ? 1 : -1) * cmp(a, b, ctSort.key))
           const clickSort = (k: string) => setCtSort(s => s.key === k ? { key: k, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key: k, dir: 'desc' })
@@ -2221,6 +2222,12 @@ export default function SustentacaoPage() {
                   options={[{ id: '', name: `Todos os clientes (${clientsOpts.length})` }, ...clientsOpts]}
                   placeholder="Buscar cliente…" wide />
                 {ctClient && <button type="button" onClick={() => setCtClient('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <select value={ctType} onChange={e => setCtType(e.target.value)}
+                  className="h-9 px-3 rounded-lg text-sm outline-none cursor-pointer"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text)' }}>
+                  <option value="">Todos os tipos</option>
+                  {contracts.by_type.map(t => <option key={t.contract_type} value={t.contract_type}>{t.contract_type}</option>)}
+                </select>
                 <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {([['all', 'Serviço: todos'], ['sustentacao', 'Sustentação'], ['projeto', 'Projeto']] as const).map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setCtService(v)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors" style={ctService === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>{l}</button>
