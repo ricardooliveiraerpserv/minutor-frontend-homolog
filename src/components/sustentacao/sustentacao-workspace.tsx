@@ -2346,6 +2346,47 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
               </div>
 
               {/* Resumo por tipo de contrato */}
+              {/* Indicadores */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Section title="Horas por tipo de contrato (12 meses)">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <ComposedChart data={contracts.by_type}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="contract_type" tick={{ fontSize: 9, fill: 'var(--text-light)' }} interval={0} angle={-12} textAnchor="end" height={50} />
+                      <YAxis yAxisId="h" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis yAxisId="t" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar  yAxisId="h" dataKey="hours_12m"   name="Horas 12m"   fill={CYAN} radius={[2, 2, 0, 0]} />
+                      <Line yAxisId="t" dataKey="tickets_12m" name="Tickets 12m" stroke={ORANGE} dot={{ r: 3 }} strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </Section>
+                <Section title="Clientes por tipo de contrato">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie data={contracts.by_type} dataKey="clients" nameKey="contract_type" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name ?? ''}: ${value}`} labelLine={false}>
+                        {contracts.by_type.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Section>
+              </div>
+
+              {/* Top clientes por horas (respeita os filtros) */}
+              <Section title="Top 10 clientes por horas (12 meses)">
+                <ResponsiveContainer width="100%" height={Math.max(160, Math.min(rowsSorted.length, 10) * 34 + 20)}>
+                  <BarChart layout="vertical" data={[...rows].sort((a, b) => b.hours_12m - a.hours_12m).slice(0, 10).map(c => ({ nome: `${c.customer} · ${c.contract_type}`, horas: c.hours_12m }))} margin={{ left: 8, right: 24 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis type="category" dataKey="nome" width={220} tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} formatter={(v) => `${v}h`} />
+                    <Bar dataKey="horas" name="Horas 12m" fill={CYAN} radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Section>
+
               <Section title="Por tipo de contrato — 12 meses">
                 <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                   <table className="w-full text-xs">
