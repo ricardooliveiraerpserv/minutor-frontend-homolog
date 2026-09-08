@@ -1018,9 +1018,11 @@ export default function SustentacaoPage() {
   useEffect(() => {
     if (tab !== 'ondemand') return
     setOnDemand(null)
-    const qs = odService !== 'all' ? `?service=${odService}` : ''
-    api.get<OnDemandPanel>(`/sustentacao/on-demand-panel${qs}`).then(setOnDemand).catch(() => {})
-  }, [tab, odService])
+    const p = new URLSearchParams()
+    if (odService !== 'all') p.set('service', odService)
+    if (to) p.set('ref', to.slice(0, 7))   // mês de referência = mês selecionado no topo
+    api.get<OnDemandPanel>(`/sustentacao/on-demand-panel${p.toString() ? '?' + p : ''}`).then(setOnDemand).catch(() => {})
+  }, [tab, odService, to])
   // Aba Contratos: refetch por serviço/situação (server-side); cliente é filtrado no FE.
   useEffect(() => {
     if (tab !== 'contratos') return
@@ -1028,8 +1030,9 @@ export default function SustentacaoPage() {
     const p = new URLSearchParams()
     if (ctService !== 'all') p.set('service', ctService)
     if (ctStatus !== 'all')  p.set('status', ctStatus)
+    if (to) p.set('ref', to.slice(0, 7))   // mês de referência = mês selecionado no topo
     api.get<ContractsPanel>(`/sustentacao/contracts-panel${p.toString() ? '?' + p : ''}`).then(setContracts).catch(() => {})
-  }, [tab, ctService, ctStatus])
+  }, [tab, ctService, ctStatus, to])
 
   useEffect(() => {
     api.get<{ statuses: { value: string; label: string; base_status: string }[] }>('/sustentacao/filter-options')
