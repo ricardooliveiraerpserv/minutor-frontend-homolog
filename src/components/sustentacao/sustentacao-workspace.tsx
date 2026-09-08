@@ -1085,8 +1085,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap px-4 md:px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
         <div>
-          <h1 className="text-lg font-bold text-[var(--text)]">{show === 'indicadores' ? 'Indicadores — Sustentação' : 'Portal de Sustentação'}</h1>
-          <p className="text-xs text-[var(--text-light)]">{show === 'indicadores' ? 'Painel analítico de suporte — Movidesk + Minutor' : 'Central operacional de suporte — Movidesk + Minutor'}</p>
+          <h1 className="text-lg font-bold text-[var(--text)]">{solo && tab === 'contratos' ? 'Indicadores Contratos' : show === 'indicadores' ? 'Indicadores — Sustentação' : 'Portal de Sustentação'}</h1>
+          <p className="text-xs text-[var(--text-light)]">{solo && tab === 'contratos' ? 'Contratos por tipo — horas, tickets e clientes' : show === 'indicadores' ? 'Painel analítico de suporte — Movidesk + Minutor' : 'Central operacional de suporte — Movidesk + Minutor'}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Toggle Mês/Ano ↔ Período */}
