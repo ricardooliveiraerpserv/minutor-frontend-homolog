@@ -873,6 +873,9 @@ export default function SustentacaoPage() {
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
   const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
+  const [odFilter, setOdFilter]       = useState('')                            // filtro de cliente (aba On Demand)
+  const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
+  const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
   const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
   const [loadError, setLoadError]         = useState<string | null>(null)
@@ -2008,8 +2011,31 @@ export default function SustentacaoPage() {
           const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
           const chart = onDemand.monthly_totals.map(x => ({ ...x, mes: mLabel(x.month) }))
           const s = onDemand.summary
+          const q = odFilter.trim().toLowerCase()
+          const cmp = (a: any, b: any, key: string) => {
+            const va = a[key], vb = b[key]
+            if (typeof va === 'number' && typeof vb === 'number') return va - vb
+            return String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR')
+          }
+          const sortBy = <T,>(arr: T[], srt: { key: string; dir: 'asc' | 'desc' }) =>
+            [...arr].sort((a, b) => (srt.dir === 'asc' ? 1 : -1) * cmp(a, b, srt.key))
+          const clickSort = (setter: typeof setOdSort, cur: { key: string; dir: 'asc' | 'desc' }, key: string) =>
+            setter(cur.key === key ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
+          const arrow = (srt: { key: string; dir: 'asc' | 'desc' }, key: string) => srt.key === key ? (srt.dir === 'desc' ? ' ↓' : ' ↑') : ''
+          const clientsF = onDemand.by_client.filter(c => !q || c.customer.toLowerCase().includes(q))
+          const clientsSorted = sortBy(clientsF, odSort)
+          const noMovF = onDemand.no_movement.filter(c => !q || c.customer.toLowerCase().includes(q))
+          const noMovSorted = sortBy(noMovF, odNoMovSort)
           return (
             <div className="space-y-6">
+              {/* Filtro de cliente (aplica às duas tabelas) */}
+              <div className="flex items-center gap-2">
+                <input value={odFilter} onChange={e => setOdFilter(e.target.value)}
+                  placeholder="Filtrar cliente…"
+                  className="h-8 px-3 rounded-lg text-xs outline-none w-64"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--text-muted)' }}>limpar</button>}
+              </div>
               {/* KPIs do mês corrente + 12 meses */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <KpiCard label={`Horas no mês (${mLabel(onDemand.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
@@ -2037,18 +2063,21 @@ export default function SustentacaoPage() {
               </Section>
 
               {/* Por cliente: mês corrente + 12 meses + última atividade */}
-              <Section title={`Por cliente (${onDemand.by_client.length}) — mês corrente e acumulado 12 meses`}>
+              <Section title={`Por cliente (${clientsF.length}) — mês corrente e acumulado 12 meses`}>
                 <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                        {['Cliente', 'Horas mês', 'Tickets mês', 'Horas 12m', 'Tickets 12m', 'Última atividade'].map((h, i) => (
-                          <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                        {([['customer','Cliente'],['current_hours','Horas mês'],['current_tickets','Tickets mês'],['total_hours','Horas 12m'],['total_tickets','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
+                          <th key={key} onClick={() => clickSort(setOdSort, odSort, key)}
+                            className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : 'text-right'}`}>
+                            {label}{arrow(odSort, key)}
+                          </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {onDemand.by_client.map(c => (
+                      {clientsSorted.map(c => (
                         <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                           <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
                           <td className="px-4 py-2.5 text-right" style={{ color: c.current_hours > 0 ? CYAN : 'var(--text-light)' }}>{c.current_hours.toLocaleString('pt-BR')}h</td>
@@ -2058,8 +2087,8 @@ export default function SustentacaoPage() {
                           <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.last_activity ? mLabel(c.last_activity) : '—'}</td>
                         </tr>
                       ))}
-                      {onDemand.by_client.length === 0 && (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">Sem apontamentos On Demand nos últimos 12 meses</td></tr>
+                      {clientsSorted.length === 0 && (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">{q ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -2067,21 +2096,24 @@ export default function SustentacaoPage() {
               </Section>
 
               {/* Clientes On Demand SEM movimentação no mês corrente */}
-              <Section title={`Clientes On Demand sem movimentação no mês (${onDemand.no_movement.length})`}>
-                {onDemand.no_movement.length === 0
-                  ? <p className="text-xs text-[var(--text-light)]">Todos os clientes On Demand tiveram movimentação neste mês.</p>
+              <Section title={`Clientes On Demand sem movimentação no mês (${noMovF.length})`}>
+                {noMovSorted.length === 0
+                  ? <p className="text-xs text-[var(--text-light)]">{q ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
                   : (
                     <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                            {['Cliente', 'Última atividade', 'Horas nos 12m'].map((h, i) => (
-                              <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                            {([['customer','Cliente'],['last_activity','Última atividade'],['hours_12m','Horas nos 12m']] as const).map(([key, label], i) => (
+                              <th key={key} onClick={() => clickSort(setOdNoMovSort, odNoMovSort, key)}
+                                className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : 'text-right'}`}>
+                                {label}{arrow(odNoMovSort, key)}
+                              </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {onDemand.no_movement.map(c => (
+                          {noMovSorted.map(c => (
                             <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
                               <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
                               <td className="px-4 py-2.5 text-right" style={{ color: c.last_activity ? 'var(--text-muted)' : RED }}>{c.last_activity ? mLabel(c.last_activity) : 'nunca (12m)'}</td>
