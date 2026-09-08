@@ -814,6 +814,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   }, [user, router])
 
   const [tab, setTab]         = useState(show === 'indicadores' ? 'resumo' : '')
+  const [solo, setSolo]       = useState(false)   // ?solo=1 → mostra SÓ a aba escolhida (sem barra de abas)
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -1016,7 +1017,11 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   }, [drillDown])
 
   // Aba inicial via ?tab= (deep-link do menu) — client-only p/ não quebrar o prerender.
-  useEffect(() => { const t = new URLSearchParams(window.location.search).get('tab'); if (t) setTab(t) }, [])
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tab'); if (t) setTab(t)
+    if (sp.get('solo') === '1') setSolo(true)
+  }, [])
   useEffect(() => { load(tab) }, [tab])
   // On Demand: busca dedicada (independe do filtro de data) que REBUSCA ao trocar o tipo de serviço.
   useEffect(() => {
@@ -1173,8 +1178,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
 
       )}
 
-      {/* ── Tabs (Indicadores) — só na tela de Indicadores (show='indicadores') ── */}
-      {show === 'indicadores' && !routineTab && (
+      {/* ── Tabs (Indicadores) — só na tela de Indicadores; ocultas no modo solo ── */}
+      {show === 'indicadores' && !routineTab && !solo && (
         <div className="flex gap-1 px-4 md:px-6 pt-3 pb-0 border-b shrink-0 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(t => {
             const Icon = t.icon
