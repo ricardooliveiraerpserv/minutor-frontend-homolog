@@ -877,6 +877,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
   const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado (aba On Demand; '' = todos) — busca embutida no SearchSelect
   const [odStatus, setOdStatus]       = useState<'all' | 'ativo' | 'encerrado'>('all')  // filtro situação do contrato
+  const [odService, setOdService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')  // filtro tipo de serviço (server-side)
   const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
   const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
@@ -920,10 +921,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       } else if (t === 'evolution' && !evolution) {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
-      } else if (t === 'ondemand' && !onDemand) {
-        // Independe do filtro de data (sempre últimos 12 meses) → busca uma vez e cacheia.
-        const r = await api.get<OnDemandPanel>(`/sustentacao/on-demand-panel`)
-        setOnDemand(r)
+      } else if (t === 'ondemand') {
+        // On Demand tem effect próprio (refetch por tipo de serviço) — ver useEffect abaixo.
       } else if (t === 'indicadores' && !indicadores) {
         const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
@@ -1002,6 +1001,13 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   }, [drillDown])
 
   useEffect(() => { load(tab) }, [tab])
+  // On Demand: busca dedicada (independe do filtro de data) que REBUSCA ao trocar o tipo de serviço.
+  useEffect(() => {
+    if (tab !== 'ondemand') return
+    setOnDemand(null)
+    const qs = odService !== 'all' ? `?service=${odService}` : ''
+    api.get<OnDemandPanel>(`/sustentacao/on-demand-panel${qs}`).then(setOnDemand).catch(() => {})
+  }, [tab, odService])
 
   useEffect(() => {
     api.get<{ statuses: { value: string; label: string; base_status: string }[] }>('/sustentacao/filter-options')
@@ -2152,6 +2158,15 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                   wide />
                 {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
                 <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Serviço: todos'], ['sustentacao', 'Sustentação'], ['projeto', 'Projeto']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setOdService(v)}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                      style={odService === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>
+                      {l}
+                    </button>
+                  ))}
+                </span>
+                <span className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {([['all', 'Todos'], ['ativo', 'Ativos'], ['encerrado', 'Encerrados']] as const).map(([v, l]) => (
                     <button key={v} type="button" onClick={() => setOdStatus(v)}
                       className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
