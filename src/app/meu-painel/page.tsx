@@ -1486,7 +1486,7 @@ function SearchableMultiSelect({ value, onChange, options, placeholder = 'Todos'
   const filtered = query ? options.filter(o => o.name.toLowerCase().includes(query.toLowerCase())) : options
   const allMode = value.length === 0
   const toggle = (id: string) => {
-    if (allMode) { onChange(options.map(o => String(o.id)).filter(x => x !== id)); return }
+    // Fora do allMode marca/desmarca; marcar todos individualmente volta ao allMode ([]).
     const next = value.includes(id) ? value.filter(x => x !== id) : [...value, id]
     onChange(next.length === options.length ? [] : next)
   }
@@ -1513,7 +1513,7 @@ function SearchableMultiSelect({ value, onChange, options, placeholder = 'Todos'
               {box(allMode)}{placeholder}
             </button>
             {filtered.map(o => {
-              const on = allMode || value.includes(String(o.id))
+              const on = value.includes(String(o.id))
               return (
                 <button key={o.id} type="button" onClick={() => toggle(String(o.id))}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
@@ -1755,6 +1755,9 @@ export default function MeuPainelPage() {
   const [tsSearch,   setTsSearch]   = useState('')
   const [tsProject,  setTsProject]  = useState<string[]>([])
   const [tsCustomer, setTsCustomer] = useState<string[]>([])
+  // Clientes que aparecem nos apontamentos do consultor (acumula por período — inclui
+  // clientes apontados via ticket/webhook que não estão entre os projetos alocados dele).
+  const [tsCustPool, setTsCustPool] = useState<{ id: number; name: string }[]>([])
   const [tsStatus,   setTsStatus]   = useState('')
   const [tsDateFrom, setTsDateFrom] = useState('')
   const [tsDateTo,   setTsDateTo]   = useState('')
@@ -1884,7 +1887,18 @@ export default function MeuPainelPage() {
       if (tsStatus)   p.set('status',      tsStatus)
       p.set('sort', tsSort); p.set('direction', tsSortDir)
       const r = await api.get<any>(`/timesheets?${p}`)
-      setTimesheets(Array.isArray(r?.items) ? r.items : [])
+      const items = Array.isArray(r?.items) ? r.items : []
+      setTimesheets(items)
+      // Acumula os clientes vistos nos apontamentos (só cresce dentro do período) para
+      // que o filtro de clientes liste todos que o consultor apontou, não só os alocados.
+      setTsCustPool(prev => {
+        const map = new Map(prev.map(c => [String(c.id), c]))
+        items.forEach((ts: TimesheetItem) => {
+          const c = ts.customer ?? ts.project?.customer
+          if (c && !map.has(String(c.id))) map.set(String(c.id), { id: c.id, name: c.name })
+        })
+        return map.size === prev.length ? prev : Array.from(map.values())
+      })
       setTsHasNext(!!r?.hasNext)
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
@@ -2482,6 +2496,18 @@ export default function MeuPainelPage() {
     return list.sort((a, b) => a.name.localeCompare(b.name))
   }, [projects])
 
+  // Zera o pool ao trocar o período — o filtro reflete os clientes apontados no período atual.
+  useEffect(() => { setTsCustPool([]) }, [startDate, endDate, tsDateFrom, tsDateTo])
+
+  // Opções do filtro de clientes da aba Apontamentos: projetos alocados ∪ clientes apontados
+  // (inclui clientes fora da alocação do consultor, ex.: apontamento via ticket/webhook).
+  const tsCustomerOptions = useMemo(() => {
+    const map = new Map<string, { id: number; name: string }>()
+    consultantCustomers.forEach(c => map.set(String(c.id), c))
+    tsCustPool.forEach(c => { if (!map.has(String(c.id))) map.set(String(c.id), c) })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [consultantCustomers, tsCustPool])
+
   // Projetos filtrados pelo cliente selecionado no form de despesa
   const expProjectOptions = useMemo(() => {
     if (!expForm.customer_id) return projects
@@ -2887,7 +2913,7 @@ export default function MeuPainelPage() {
             <SearchableMultiSelect
               value={tsCustomer}
               onChange={v => { setTsCustomer(v); setTsPage(1) }}
-              options={consultantCustomers}
+              options={tsCustomerOptions}
               placeholder="Todos os clientes"
             />
             <SearchableMultiSelect
