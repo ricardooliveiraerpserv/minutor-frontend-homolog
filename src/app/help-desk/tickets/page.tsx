@@ -25,6 +25,7 @@ interface TicketRow {
   customer?: Ref | null; category?: CategoryOpt | null; assignee?: Ref | null
   status?: StatusOpt | null; updated_at: string; sla?: Sla | null
   dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
+  dev_delivery_overdue?: boolean   // vencida em DIAS ÚTEIS (BE, considera feriados)
 }
 interface ServiceOpt { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }
 interface Meta { priorities: string[]; statuses: StatusOpt[]; categories: CategoryOpt[]; teams: Ref[]; services?: ServiceOpt[]; my_inform?: Record<string, boolean>; can_open?: boolean; my_perms?: Record<string, boolean> }
@@ -120,16 +121,14 @@ export default function HelpDeskTicketsPage() {
   }, [])
 
   const counters = useMemo(() => {
-    const d = new Date()
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     return {
       total: rows.length,
       abertos: rows.filter(t => t.status?.is_open).length,
       semAtendente: rows.filter(t => !t.assignee).length,
       atraso: rows.filter(t => t.sla?.first_response_breached || t.sla?.resolution_breached || t.sla?.first_response_overdue || t.sla?.resolution_overdue).length,
       meus: rows.filter(t => t.assignee?.id === user?.id).length,
-      // Entregas vencidas: Em Desenvolvimento com previsão de entrega em homologação já passada.
-      entregasVencidas: rows.filter(t => t.status?.key === 'em_desenvolvimento' && !!t.dev_delivery_at && (t.dev_delivery_at as string).slice(0, 10) < todayStr).length,
+      // Entregas vencidas (dias úteis, considera feriados) — flag calculado no BE.
+      entregasVencidas: rows.filter(t => !!t.dev_delivery_overdue).length,
     }
   }, [rows, user?.id])
 
@@ -261,8 +260,7 @@ export default function HelpDeskTicketsPage() {
                         : '—'}
                       {t.status?.key === 'em_desenvolvimento' && t.dev_delivery_at && (() => {
                         const dd = (t.dev_delivery_at as string).slice(0, 10)
-                        const d2 = new Date(); const todayStr = `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, '0')}-${String(d2.getDate()).padStart(2, '0')}`
-                        const venc = dd < todayStr
+                        const venc = !!t.dev_delivery_overdue
                         return (
                           <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold" style={{ color: venc ? 'var(--danger-border)' : 'var(--warning-border)' }}
                             title={venc ? 'Entrega em homologação vencida' : 'Entrega prevista em homologação'}>

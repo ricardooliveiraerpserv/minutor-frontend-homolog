@@ -33,6 +33,7 @@ interface TicketRow {
   dias_sem_interacao?: number | null // dias úteis sem interação da equipe (0 = interagiu hoje)
   interactions_count?: number | null // qtd de interações (comentários reais) — só na visão do admin
   dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
+  dev_delivery_overdue?: boolean   // vencida em DIAS ÚTEIS (calculado no BE, considera feriados)
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -346,8 +347,8 @@ export default function HelpDeskFilaPage() {
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
   // Entregas vencidas: Em Desenvolvimento com previsão de entrega em homologação já passada.
-  const _todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
-  const isDevOverdue = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return s?.key === 'em_desenvolvimento' && !!t.dev_delivery_at && (t.dev_delivery_at as string).slice(0, 10) < _todayStr }
+  // Vencida = flag do BE (dias úteis, considera feriados). Fallback p/ payloads antigos sem o flag.
+  const isDevOverdue = (t: TicketRow) => !!t.dev_delivery_overdue
   const entregasVencidas = flt.filter(isDevOverdue).length
   // Filtro aplicado ao clicar nos cards de pendentes (filtra o board; cards seguem contando o total).
   const pendPass = (t: TicketRow) => {
@@ -689,7 +690,7 @@ export default function HelpDeskFilaPage() {
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: t.assignee ? 'var(--text-muted)' : 'var(--text-light)' }}>{t.assignee?.name ?? 'Não atribuído'}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{st && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: st.color ?? 'var(--text)', background: (st.color ?? '').startsWith('#') ? `${st.color}22` : 'var(--surface-sunken)', border: `1px solid ${st.color ?? 'var(--border)'}` }}>{st.label}</span>}
                         {st?.key === 'em_desenvolvimento' && t.dev_delivery_at && (() => {
-                          const dd = (t.dev_delivery_at as string).slice(0, 10); const venc = dd < _todayStr
+                          const dd = (t.dev_delivery_at as string).slice(0, 10); const venc = !!t.dev_delivery_overdue
                           return <div className="mt-1 text-[10px] font-semibold" style={{ color: venc ? 'var(--danger-border)' : 'var(--warning-border)' }} title={venc ? 'Entrega em homologação vencida' : 'Entrega prevista em homologação'}>🚧 {dd.split('-').reverse().join('/')}{venc ? ' · vencida' : ''}</div>
                         })()}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: sla.color, background: sla.bg }}>{sla.icon} {sla.label}</span></td>
