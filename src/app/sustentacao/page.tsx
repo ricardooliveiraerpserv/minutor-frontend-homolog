@@ -2011,7 +2011,10 @@ export default function SustentacaoPage() {
           const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
           const chart = onDemand.monthly_totals.map(x => ({ ...x, mes: mLabel(x.month) }))
           const s = onDemand.summary
-          const q = odFilter.trim().toLowerCase()
+          // Universo de clientes On Demand (união das duas tabelas → todos têm contrato On Demand).
+          const odClients = Array.from(new Map([...onDemand.by_client, ...onDemand.no_movement].map(c => [c.customer_id, c.customer])).entries())
+            .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+          const sel = odFilter   // '' = todos; senão customer_id (string)
           const cmp = (a: any, b: any, key: string) => {
             const va = a[key], vb = b[key]
             if (typeof va === 'number' && typeof vb === 'number') return va - vb
@@ -2022,19 +2025,25 @@ export default function SustentacaoPage() {
           const clickSort = (setter: typeof setOdSort, cur: { key: string; dir: 'asc' | 'desc' }, key: string) =>
             setter(cur.key === key ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
           const arrow = (srt: { key: string; dir: 'asc' | 'desc' }, key: string) => srt.key === key ? (srt.dir === 'desc' ? ' ↓' : ' ↑') : ''
-          const clientsF = onDemand.by_client.filter(c => !q || c.customer.toLowerCase().includes(q))
+          const clientsF = onDemand.by_client.filter(c => !sel || String(c.customer_id) === sel)
           const clientsSorted = sortBy(clientsF, odSort)
-          const noMovF = onDemand.no_movement.filter(c => !q || c.customer.toLowerCase().includes(q))
+          const noMovF = onDemand.no_movement.filter(c => !sel || String(c.customer_id) === sel)
           const noMovSorted = sortBy(noMovF, odNoMovSort)
           return (
             <div className="space-y-6">
-              {/* Filtro de cliente (aplica às duas tabelas) */}
-              <div className="flex items-center gap-2">
-                <input value={odFilter} onChange={e => setOdFilter(e.target.value)}
-                  placeholder="Filtrar cliente…"
-                  className="h-8 px-3 rounded-lg text-xs outline-none w-64"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--text-muted)' }}>limpar</button>}
+              {/* Filtro de cliente On Demand (lista) — aplica às duas tabelas */}
+              <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                style={{ background: 'var(--surface)', borderColor: 'var(--primary)' }}>
+                <label className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>
+                  Filtrar por cliente On Demand
+                </label>
+                <select value={odFilter} onChange={e => setOdFilter(e.target.value)}
+                  className="h-9 px-3 rounded-lg text-sm outline-none w-full sm:w-80 cursor-pointer"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text)' }}>
+                  <option value="">Todos os clientes ({odClients.length})</option>
+                  {odClients.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                </select>
+                {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
               </div>
               {/* KPIs do mês corrente + 12 meses */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -2088,7 +2097,7 @@ export default function SustentacaoPage() {
                         </tr>
                       ))}
                       {clientsSorted.length === 0 && (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">{q ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -2098,7 +2107,7 @@ export default function SustentacaoPage() {
               {/* Clientes On Demand SEM movimentação no mês corrente */}
               <Section title={`Clientes On Demand sem movimentação no mês (${noMovF.length})`}>
                 {noMovSorted.length === 0
-                  ? <p className="text-xs text-[var(--text-light)]">{q ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
+                  ? <p className="text-xs text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
                   : (
                     <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                       <table className="w-full text-xs">
