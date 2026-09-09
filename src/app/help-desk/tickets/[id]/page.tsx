@@ -55,7 +55,7 @@ interface Sla {
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
-  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
+  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; can_see_collision?: boolean; can_view_contract_summary?: boolean; default_action?: 'public' | 'internal'; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
@@ -871,7 +871,8 @@ function TicketDetailInner({ id }: { id: number }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Olho: quem está visualizando o chamado agora (cliente/consultor/agente). Hover mostra os nomes. */}
+            {/* Olho: quem está visualizando o chamado agora — só se o perfil de acesso permitir a colisão. */}
+            {t.can_see_collision !== false && (
             <span
               title={viewers.length ? `Visualizando agora: ${viewers.map(v => `${v.name} (${v.type === 'cliente' ? 'cliente' : v.type === 'consultor' ? 'consultor' : v.type === 'coordenador' ? 'coordenador' : v.type === 'admin' ? 'admin' : v.type === 'parceiro_admin' ? 'parceiro' : 'agente'})`).join(', ')}` : 'Ninguém mais está visualizando este chamado'}
               className="inline-flex items-center gap-1 text-sm px-2.5 py-2 rounded-lg"
@@ -880,6 +881,7 @@ function TicketDetailInner({ id }: { id: number }) {
               <Eye size={16} />
               {viewers.length > 0 && <span className="text-xs font-semibold">{viewers.length}</span>}
             </span>
+            )}
             {/* Botão Atualizar — aparece quando o chamado teve alteração/interação nova (não recarrega sozinho). */}
             {hasUpdate && (
               <button
@@ -1134,6 +1136,8 @@ function TicketDetailInner({ id }: { id: number }) {
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
                     classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id }}
                     isManager={user?.type === 'admin' || user?.type === 'coordenador'}
+                    /* Tipo padrão da ação (perfil de acesso): 'internal' abre em ação interna; senão pública. */
+                    defaultVisibility={t.default_action === 'internal' ? 'internal' : 'customer'}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
                     formStatusIds={[...new Set([...forms.filter(f => f.status_id).map(f => f.status_id as number), ...justifications.map(j => j.status_id)])]}
@@ -1565,8 +1569,8 @@ function TicketDetailInner({ id }: { id: number }) {
               )}
             </div>
 
-            {/* Chave de integração de horas do CONTRATO (substitui o Movidesk) */}
-            {t.contract && (
+            {/* Chave de integração de horas do CONTRATO — só se o perfil permitir o resumo do contrato. */}
+            {t.contract && t.can_view_contract_summary !== false && (
               <div className="ds-card p-4 space-y-2">
                 <div className={lbl} style={{ color: 'var(--text-light)' }}>Integração de horas</div>
                 <div className="flex items-start justify-between gap-3">

@@ -21,7 +21,6 @@ interface Section { title?: string; controls: Ctrl[] }
 interface Tab { id: string; label: string; sections: Section[] }
 
 const VIEW_SCOPE = [{ value: 'all', label: 'Todos' }, { value: 'assigned', label: 'Somente se for responsável' }, { value: 'parent', label: 'Somente se o ticket for pai do seu' }, { value: 'assigned_or_parent', label: 'Responsável ou pai' }, { value: 'none', label: 'Não permitir' }]
-const ACTION_TYPES = [{ value: 'public', label: 'Ações públicas' }, { value: 'internal', label: 'Ações internas' }, { value: 'both', label: 'Públicas e internas' }, { value: 'none', label: 'Não permitir incluir ações' }]
 
 const SCHEMA: Record<Kind, Tab[]> = {
   agent: [
@@ -70,8 +69,6 @@ const SCHEMA: Record<Kind, Tab[]> = {
         { key: 'policies.global_search', label: 'Busca global (lupa) — pesquisar e abrir qualquer chamado, mesmo fora da sua fila', type: 'toggle' },
         { key: 'policies.view_tickets', label: 'Permitir visualizar tickets (defina se enxerga os não distribuídos a ele)', type: 'radio', options: VIEW_SCOPE },
         { key: 'policies.edit_tickets', label: 'Permitir editar tickets', type: 'radio', options: VIEW_SCOPE },
-        { key: 'policies.actions_editable', label: 'Criar ações onde tem acesso a edição', type: 'radio', options: ACTION_TYPES },
-        { key: 'policies.actions_not_editable', label: 'Criar ações onde NÃO tem acesso a edição', type: 'radio', options: ACTION_TYPES },
       ] },
     ] },
     { id: 'apontamentos', label: 'Apontamentos', sections: [

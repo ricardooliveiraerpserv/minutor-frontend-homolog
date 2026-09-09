@@ -54,9 +54,11 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Trava de classificação: quais campos estão preenchidos + se o usuário é gestor (admin/coord).
   classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean; agent: boolean }
   isManager?: boolean
-}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, currentDevDelivery, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager }, ref) {
+  // Tipo PADRÃO da nova ação (perfil de acesso, service.default_action): 'customer' (pública) | 'internal'.
+  defaultVisibility?: 'customer' | 'internal'
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, currentDevDelivery, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', classFilled, isManager, defaultVisibility = 'customer' }, ref) {
   const { alert, confirmDialog } = useConfirm()
-  const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
+  const [visibility, setVisibility] = useState<'customer' | 'internal'>(defaultVisibility)
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
   const [sendStatus, setSendStatus] = useState<number | undefined>(undefined)
