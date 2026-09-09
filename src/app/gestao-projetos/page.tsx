@@ -177,7 +177,9 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
 function visibleSaldoOf(p: ProjectWithTeam): number {
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
-  return isOnDemand ? 0 : Number(p.general_hours_balance ?? 0)
+  // Cloud/SaaS (mensalidade) não têm saldo — não entram no somatório de horas negativas.
+  const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
+  return (isOnDemand || isCloudSaas) ? 0 : Number(p.general_hours_balance ?? 0)
 }
 
 // Saúde + % de uso. O % e a cor batem com o SALDO exibido (consumido vs.
@@ -189,6 +191,10 @@ function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number
     // On Demand pai com horas de meses encerrados NÃO faturadas → Crítico (só admin).
     if (considerUnbilled && Number((p as any).unbilled_hours ?? 0) > 0) return { pct: 100, color: 'red' }
     return { pct: 100, color: 'green' }
+  }
+  // Cloud/SaaS (mensalidade): sem vendidas/saldo — sem % de uso/saúde por horas.
+  if (ctName === 'cloud' || ctName === 'saas') {
+    return { pct: 0, color: 'green' }
   }
   if (ctName.includes('mensal')) {
     // % de uso e saúde batem com o SALDO exibido: consumido vs. vendidas/contratadas,
@@ -431,6 +437,10 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   const dEdit = isDenied('/gestao-projetos', 'edit')
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
+  // Cloud/SaaS = mensalidade: sem horas vendidas/saldo, só se acompanha o CONSUMO
+  // (igual On Demand). Nessas colunas mostra "= consumo"/"—" em vez de vendidas/saldo.
+  const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
+  const isConsumoOnly = isOnDemand || isCloudSaas
   const isBhMensal = ctName.includes('mensal')
   const contributions = ((project as any).total_available_hours ?? project.sold_hours ?? 0) - (project.sold_hours ?? 0)
   const displaySold = isOnDemand
@@ -446,7 +456,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   const consumedHours = project.consumed_hours != null
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
-  const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
+  const displaySaldo = isConsumoOnly ? 0 : (project.general_hours_balance ?? null)
   // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
   const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
   const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
@@ -641,7 +651,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* HS Vendidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>= consumo</span>
           ) : (
             <div className="flex flex-col items-center leading-tight">
@@ -658,7 +668,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* Total Contratadas = acumulado + aporte */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>—</span>
           ) : (
             fmt(displaySold, 1)
@@ -690,12 +700,14 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             ? (hasUnbilled
                 ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
                 : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
-            : (saldo != null ? fmt(saldo, 1) : '—')}
+            : isCloudSaas
+              ? <span style={{ color: 'var(--text-light)' }}>—</span>
+              : (saldo != null ? fmt(saldo, 1) : '—')}
         </td>
 
         {/* % Uso + barra */}
         <td className="py-3 px-4 min-w-[140px]">
-          {isOnDemand ? (
+          {isConsumoOnly ? (
             hasUnbilled
               ? <span className="text-xs font-semibold" style={{ color: 'var(--danger-border)' }}>Crítico</span>
               : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
@@ -934,9 +946,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const [hadInitialHistory] = useState(
     Number(d.initial_hours_consumed ?? 0) > 0 || Number(d.initial_cost ?? 0) > 0
   )
-  // Parse existing code: PREFIX001-26 → seq='001', year='26'; PREFIX001-26-01 → suffix='01'
+  // Parse existing code: PREFIX001-26 → seq='001', year='26'; PREFIX001-26-01 → suffix='01';
+  // PREFIX013-26-A → suffix='A' (o sufixo pode ser LETRA, não só número — senão o code é
+  // reconstruído sem o sufixo e colide com o projeto-pai ao salvar).
   const parsedCode = useMemo(() => {
-    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)(?:-(\d+))?/)
+    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)(?:-([A-Za-z0-9]+))?/)
     return {
       seq:    m?.[1] ?? '',
       year:   m?.[2] ?? String(new Date().getFullYear()).slice(-2),
@@ -1784,25 +1798,57 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 const groupConsultants: any[] = (d.consultant_groups ?? []).flatMap((g: any) => g.consultants ?? [])
                 const allProjectConsultants = [...directConsultants, ...groupConsultants].filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
                 if (allProjectConsultants.length === 0) return null
+                const directIds = new Set(directConsultants.map((c: any) => c.id))
+                // Desaloca do projeto: se for direto, tira dos consultores; se vier de grupo,
+                // "explode" o(s) grupo(s) em consultores individuais (menos o removido).
+                const removeConsultantFromProject = (id: number) => {
+                  const groupsSrc = [...((d.consultant_groups ?? []) as any[]), ...(optGroups as any[])]
+                    .filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i)
+                  setForm(p => {
+                    if (p.consultant_ids.includes(id)) {
+                      return { ...p, consultant_ids: p.consultant_ids.filter(x => x !== id) }
+                    }
+                    const groupsWith = groupsSrc.filter(g => p.consultant_group_ids.includes(g.id) && (g.consultants ?? []).some((m: any) => m.id === id))
+                    if (groupsWith.length > 0) {
+                      const removeGids = new Set(groupsWith.map(g => g.id))
+                      const remaining = p.consultant_group_ids.filter(gid => !removeGids.has(gid))
+                      const exploded = groupsWith.flatMap(g => (g.consultants ?? []).map((m: any) => m.id)).filter((mid: number) => mid !== id)
+                      return { ...p, consultant_group_ids: remaining, consultant_ids: Array.from(new Set([...p.consultant_ids, ...exploded])) }
+                    }
+                    return p
+                  })
+                  setManualTimesheetIds(prev => { const s = new Set(prev); s.delete(id); return s })
+                }
                 return (
                   <div className="mb-2 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                     <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--text-light)' }}>Apontamento manual — consultores no projeto</p>
                     {allProjectConsultants.map((c: any) => {
                       const allowManual = manualTimesheetIds.has(c.id)
+                      const viaGroup = !directIds.has(c.id)
                       return (
-                        <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                          <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}</span>
+                        <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
+                          <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
+                            {c.name}
+                            {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
+                          </span>
                           <button
                             title={allowManual ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                             onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
                             className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
-                            style={{ background: allowManual ? 'var(--success-bg)' : 'var(--surface-hover)', border: `1px solid ${allowManual ? 'var(--success-border)' : 'var(--border)'}`, color: allowManual ? 'var(--success-border)' : 'var(--text-light)' }}>
+                            style={{ background: allowManual ? 'var(--success-bg)' : 'var(--surface)', border: `1px solid ${allowManual ? 'var(--success-border)' : 'var(--border)'}`, color: allowManual ? 'var(--success-border)' : 'var(--text-light)' }}>
                             <Clock size={10} />
                             {allowManual ? 'Liberado' : 'Bloqueado'}
+                          </button>
+                          <button type="button" title="Desalocar do projeto" onClick={() => removeConsultantFromProject(c.id)}
+                            className="p-1 rounded-lg shrink-0 transition-colors hover:bg-[var(--danger-bg)]" style={{ color: 'var(--danger-border)' }}>
+                            <X size={13} />
                           </button>
                         </div>
                       )
                     })}
+                    <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                      <b style={{ color: 'var(--success-border)' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático. Toque no <b>×</b> para desalocar.
+                    </p>
                   </div>
                 )
               })()}
@@ -2236,8 +2282,14 @@ function GestaoProjetosInner() {
   const [teamSaving, setTeamSaving]           = useState(false)
   const [teamSearch, setTeamSearch]           = useState('')
   const [teamTab, setTeamTab]                 = useState<'consultores' | 'grupos'>('consultores')
-  const [consultantGroups, setConsultantGroups] = useState<{ id: number; name: string }[]>([])
+  const [consultantGroups, setConsultantGroups] = useState<{ id: number; name: string; consultants?: { id: number; name: string }[] }[]>([])
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<number>>(new Set())
+  // Consultores REMOVIDOS individualmente mesmo estando num grupo alocado (ao salvar, o
+  // grupo afetado "explode" em consultores individuais, menos os excluídos).
+  const [teamExcludedIds, setTeamExcludedIds] = useState<Set<number>>(new Set())
+  // Liberar apontamento manual por consultor (pivô allow_manual_timesheet).
+  const [teamManualIds, setTeamManualIds]     = useState<Set<number>>(new Set())
+  const [teamManualInitial, setTeamManualInitial] = useState<Set<number>>(new Set())
 
   // Modal de edição de projeto
   const [editProjectId, setEditProjectId] = useState<number | null>(null)
@@ -2778,6 +2830,12 @@ function GestaoProjetosInner() {
       // Pré-seleciona os grupos já vinculados ao projeto (antes começava vazio,
       // dando impressão de que o save não persistia).
       setSelectedGroupIds(new Set(((project as any).consultant_groups ?? []).map((g: any) => g.id)))
+      setTeamExcludedIds(new Set())
+      // Estado inicial do "apontamento manual" a partir do pivô dos consultores diretos.
+      const manual0 = new Set<number>(
+        (project.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id)
+      )
+      setTeamManualIds(new Set(manual0)); setTeamManualInitial(new Set(manual0))
       try {
         const promises: Promise<void>[] = []
         if (allConsultants.length === 0) {
@@ -2803,14 +2861,61 @@ function GestaoProjetosInner() {
     }
   }
 
+  // ── Equipe: membros efetivos = diretos ∪ membros dos grupos selecionados − removidos ──
+  const teamGroupMemberIds = useMemo(() => {
+    const s = new Set<number>()
+    consultantGroups.forEach(g => { if (selectedGroupIds.has(g.id)) (g.consultants ?? []).forEach(m => s.add(m.id)) })
+    return s
+  }, [consultantGroups, selectedGroupIds])
+  const teamHasConsultant = (id: number) => (selectedIds.has(id) || teamGroupMemberIds.has(id)) && !teamExcludedIds.has(id)
+  const toggleTeamConsultant = (id: number) => {
+    if (teamHasConsultant(id)) {
+      // Remover: tira dos diretos e, se veio via grupo, marca como excluído
+      // (o grupo "explode" em consultores individuais no save, sem esse).
+      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      if (teamGroupMemberIds.has(id)) setTeamExcludedIds(prev => new Set(prev).add(id))
+      setTeamManualIds(prev => { const n = new Set(prev); n.delete(id); return n })
+    } else {
+      setTeamExcludedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      setSelectedIds(prev => new Set(prev).add(id))
+    }
+  }
+  const teamEffectiveCount = useMemo(() => {
+    const s = new Set<number>(selectedIds); teamGroupMemberIds.forEach(id => s.add(id)); teamExcludedIds.forEach(id => s.delete(id)); return s.size
+  }, [selectedIds, teamGroupMemberIds, teamExcludedIds])
+
   const saveTeam = async () => {
     if (!teamProject) return
     setTeamSaving(true)
     try {
-      await api.put(`/projects/${teamProject.id}`, {
-        consultant_ids: [...selectedIds],
-        consultant_group_ids: [...selectedGroupIds],
+      // Explode os grupos que tiveram alguém REMOVIDO em consultores individuais (menos os
+      // excluídos); grupos intactos permanecem como grupo.
+      const finalIndividuals = new Set<number>(selectedIds)
+      const finalGroupIds: number[] = []
+      consultantGroups.forEach(g => {
+        if (!selectedGroupIds.has(g.id)) return
+        const members = (g.consultants ?? []).map(m => m.id)
+        if (members.some(id => teamExcludedIds.has(id))) {
+          members.filter(id => !teamExcludedIds.has(id)).forEach(id => finalIndividuals.add(id))
+        } else {
+          finalGroupIds.push(g.id)
+        }
       })
+      teamExcludedIds.forEach(id => finalIndividuals.delete(id))
+
+      await api.put(`/projects/${teamProject.id}`, {
+        consultant_ids: [...finalIndividuals],
+        consultant_group_ids: finalGroupIds,
+      })
+
+      // Apontamento manual: PATCH por consultor que mudou (só faz sentido p/ quem está na equipe).
+      const effective = new Set<number>(finalIndividuals)
+      consultantGroups.forEach(g => { if (finalGroupIds.includes(g.id)) (g.consultants ?? []).forEach(m => effective.add(m.id)) })
+      const manualChanges = [...effective].filter(id => teamManualIds.has(id) !== teamManualInitial.has(id))
+      await Promise.all(manualChanges.map(id =>
+        api.put(`/projects/${teamProject.id}/consultants/${id}/manual-timesheet`, { allow: teamManualIds.has(id) }).catch(() => {})
+      ))
+
       toast.success('Equipe atualizada')
       setTeamProject(null)
       setProjects(prev => prev.map(p => p.id === teamProject.id
@@ -3521,16 +3626,70 @@ function GestaoProjetosInner() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
-              {teamTab === 'consultores' && allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
-                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
-                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
-                  <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
-                </label>
-              ))}
+              {teamTab === 'consultores' && (() => {
+                const allocated = allConsultants.filter(c => teamHasConsultant(c.id))
+                return (
+                  <>
+                    {/* Equipe alocada: apontamento manual (Liberado/Bloqueado) + desalocação fácil */}
+                    {allocated.length > 0 && (
+                      <div className="mb-3 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--text-light)' }}>Equipe alocada — apontamento manual</p>
+                        {allocated.map(c => {
+                          const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
+                          const allow = teamManualIds.has(c.id)
+                          return (
+                            <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
+                              <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
+                                {c.name}
+                                {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
+                              </span>
+                              <button type="button" title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
+                                onClick={() => setTeamManualIds(prev => { const s = new Set(prev); allow ? s.delete(c.id) : s.add(c.id); return s })}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
+                                style={{ background: allow ? 'var(--success-bg)' : 'var(--surface)', border: `1px solid ${allow ? 'var(--success-border)' : 'var(--border)'}`, color: allow ? 'var(--success-border)' : 'var(--text-light)' }}>
+                                <Clock size={10} />{allow ? 'Liberado' : 'Bloqueado'}
+                              </button>
+                              <button type="button" title="Desalocar do projeto" onClick={() => toggleTeamConsultant(c.id)}
+                                className="p-1 rounded-lg shrink-0 transition-colors hover:bg-[var(--danger-bg)]" style={{ color: 'var(--danger-border)' }}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                        <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                          <b style={{ color: 'var(--success-border)' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático. Toque no <b>×</b> para desalocar.
+                        </p>
+                      </div>
+                    )}
+                    {/* Lista completa: marcar/desmarcar para alocar */}
+                    {allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => {
+                      const on = teamHasConsultant(c.id)
+                      const viaGroup = teamGroupMemberIds.has(c.id) && !teamExcludedIds.has(c.id) && !selectedIds.has(c.id)
+                      return (
+                        <button key={c.id} type="button" onClick={() => toggleTeamConsultant(c.id)}
+                          className="w-full flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors text-left">
+                          <span className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                            style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
+                            {on && <Check size={11} style={{ color: '#fff' }} />}
+                          </span>
+                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}</span>
+                          {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
+                        </button>
+                      )
+                    })}
+                  </>
+                )
+              })()}
               {teamTab === 'grupos' && consultantGroups.filter(g => g.name.toLowerCase().includes(teamSearch.toLowerCase())).map(g => (
                 <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
-                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
+                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => {
+                    const n = new Set(prev)
+                    if (n.has(g.id)) { n.delete(g.id); setTeamExcludedIds(ex => { const m = new Set(ex); (g.consultants ?? []).forEach(c => m.delete(c.id)); return m }) }
+                    else n.add(g.id)
+                    return n
+                  })} className="w-4 h-4 rounded accent-[var(--primary)]" />
                   <span className="text-sm" style={{ color: 'var(--text)' }}>{g.name}</span>
+                  {(g.consultants?.length ?? 0) > 0 && <span className="text-[10px] ml-auto" style={{ color: 'var(--text-light)' }}>{g.consultants!.length} membro(s)</span>}
                 </label>
               ))}
               {teamTab === 'grupos' && consultantGroups.length === 0 && (
@@ -3539,7 +3698,7 @@ function GestaoProjetosInner() {
             </div>
             <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
               <span className="text-xs" style={{ color: 'var(--text-light)' }}>
-                {selectedIds.size} consultor(es) · {selectedGroupIds.size} grupo(s)
+                {teamEffectiveCount} consultor(es) · {selectedGroupIds.size} grupo(s)
               </span>
               <div className="flex gap-2">
                 <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>

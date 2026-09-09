@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { CalendarClock, RotateCcw, Lock, ClipboardList, RefreshCw, ChevronDown, ChevronRight, UserCog, Save } from 'lucide-react'
 
@@ -12,7 +13,7 @@ interface BlockSettings { timesheet_retroactive_limit_days?: number | null; fech
 
 interface WeekRow { n: number; week_start: string; week_end: string; deadline: string; status: string; reopen_auto_close_at: string | null }
 interface MonthGroup { ym: string; label: string; status: string; deadline: string; reopen_auto_close_at: string | null; weeks: WeekRow[] }
-interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; customer_id?: number | null; customer?: string | null; all_projects?: boolean; projects_count?: number; user_id: number | null; user: string | null; auto_close_at: string | null }
+interface ActiveReopen { period_kind: string; period_key: string; project_id: number | null; project: string | null; customer_id?: number | null; customer?: string | null; all_projects?: boolean; projects_count?: number; user_id: number | null; user: string | null; target_user_id?: number | null; target_user?: string | null; auto_close_at: string | null }
 interface ScopedClosure { id: number; period_kind: string; period_key: string; project_id: number | null; project: string | null; user_id: number | null; user: string | null; closed_by: number | null; closed_by_name: string | null; closed_at: string | null }
 interface LogRow { id: number; event: string; period_kind: string; period_key: string; project: string | null; user: string | null; occurred_at: string; note: string | null }
 interface Opt { id: number; name: string }
@@ -52,6 +53,8 @@ const norm = (r: unknown): unknown[] => {
 export default function FechamentoSemanalPage() {
   const [months, setMonths] = useState<MonthGroup[]>([])
   const [activeReopens, setActiveReopens] = useState<ActiveReopen[]>([])
+  const [openReopenGroups, setOpenReopenGroups] = useState<string[]>([])   // empresas expandidas nas reaberturas
+  const [openReopenUsers, setOpenReopenUsers] = useState<string[]>([])      // "empresa::usuário" expandidos
   const [scopedClosures, setScopedClosures] = useState<ScopedClosure[]>([])
   // Config de bloqueio (vinda de Configurações → agora centralizada aqui).
   const [cfg, setCfg] = useState<BlockSettings>({})
@@ -73,7 +76,7 @@ export default function FechamentoSemanalPage() {
   const [fCliente, setFCliente] = useState('')
   const [fProjeto, setFProjeto] = useState('')
   const [fKind, setFKind] = useState<'week' | 'month'>('week')
-  const [fMonth, setFMonth] = useState('')
+  const [fMonth, setFMonth] = useState<string[]>([])
   const [fWeek, setFWeek] = useState('')
   const [fUser, setFUser] = useState('')
   const formRef = useRef<HTMLDivElement>(null)
@@ -100,7 +103,7 @@ export default function FechamentoSemanalPage() {
 
   const projectOptions = projects.filter(p => !fCliente || String(p.customer_id) === fCliente)
   const monthOptions = months.map(m => ({ id: m.ym, name: m.label }))
-  const weeksOfMonth = months.find(m => m.ym === fMonth)?.weeks ?? []
+  const weeksOfMonth = months.find(m => m.ym === fMonth[0])?.weeks ?? []
   const weekOptions = weeksOfMonth.map(w => ({ id: w.week_start, name: `Semana ${w.n} (${fmtDate(w.week_start)}–${fmtDate(w.week_end)})` }))
 
   const doAction = async (action: 'reopen' | 'close', body: Record<string, unknown>, key: string) => {
@@ -108,15 +111,48 @@ export default function FechamentoSemanalPage() {
     try { await api.post(`/weekly-closings/${action}`, body); toast.success(action === 'reopen' ? 'Período reaberto até 23:59' : 'Período encerrado'); load() }
     catch { toast.error('Erro na operação') } finally { setBusy('') }
   }
-  const submitForm = (action: 'reopen' | 'close') => {
-    if (!fMonth) { toast.error('Escolha o mês'); return }
+  // Encerra TODAS as reaberturas de uma empresa (antecipa o prazo) — 1 chamada por escopo
+  // distinto (período + usuário-alvo), fechando todos os projetos do cliente de uma vez.
+  const closeCompany = async (company: string, items: { p: ActiveReopen; i: number }[]) => {
+    if (!confirm(`Encerrar TODAS as ${items.length} reaberturas de ${company} agora, antecipando o prazo?`)) return
+    setBusy(`co-${company}`)
+    try {
+      const seen = new Set<string>()
+      for (const { p } of items) {
+        const cid = p.customer_id ?? null
+        const uid = p.user_id ?? p.target_user_id ?? null
+        const sig = `${p.period_kind}|${p.period_key}|${cid ?? 'x'}|${uid ?? 'x'}`
+        if (seen.has(sig)) continue
+        seen.add(sig)
+        await api.post('/weekly-closings/close', {
+          period_kind: p.period_kind, period_key: p.period_key,
+          ...(cid ? { customer_id: cid } : (p.project_id ? { project_id: p.project_id } : {})),
+          ...(uid ? { user_id: uid } : {}),
+        })
+      }
+      toast.success(`Reaberturas de ${company} encerradas`); load()
+    } catch { toast.error('Erro ao encerrar a empresa') } finally { setBusy('') }
+  }
+  const submitForm = async (action: 'reopen' | 'close') => {
+    if (!fMonth.length) { toast.error('Escolha o mês'); return }
     if (fKind === 'week' && !fWeek) { toast.error('Escolha a semana'); return }
-    doAction(action, {
-      period_kind: fKind,
-      period_key: fKind === 'month' ? fMonth : fWeek,
+    const scope = {
       ...(fProjeto ? { project_id: Number(fProjeto) } : (fCliente ? { customer_id: Number(fCliente) } : {})),
       ...(fUser ? { user_id: Number(fUser) } : {}),
-    }, 'form')
+    }
+    setBusy('form')
+    try {
+      if (fKind === 'month') {
+        // Multiseleção: aplica a cada mês escolhido.
+        for (const ym of fMonth) {
+          await api.post(`/weekly-closings/${action}`, { period_kind: 'month', period_key: ym, ...scope })
+        }
+      } else {
+        await api.post(`/weekly-closings/${action}`, { period_kind: 'week', period_key: fWeek, ...scope })
+      }
+      toast.success(action === 'reopen' ? 'Período(s) reaberto(s) até 23:59' : 'Período(s) encerrado(s)')
+      load()
+    } catch { toast.error('Erro na operação') } finally { setBusy('') }
   }
   // Seletor de usuário INLINE (na linha da semana/mês): reabre/encerra para 1 usuário
   // em TODOS os projetos dele (escopo global de projeto + user_id).
@@ -201,10 +237,10 @@ export default function FechamentoSemanalPage() {
                 ))}
               </div></div>
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Mês</label>
-              <SearchSelect value={fMonth} onChange={v => { setFMonth(v); setFWeek('') }} options={monthOptions} placeholder="Escolha o mês…" /></div>
+              <MultiSelect value={fMonth} onChange={v => { setFMonth(v); setFWeek('') }} options={monthOptions} placeholder="Escolha o(s) mês(es)…" /></div>
             {fKind === 'week' && (
-              <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Semana {!fMonth && <span style={{ color: 'var(--text-light)' }}>(escolha o mês)</span>}</label>
-                <SearchSelect value={fWeek} onChange={setFWeek} options={weekOptions} placeholder={fMonth ? 'Escolha a semana…' : 'Escolha o mês primeiro'} disabled={!fMonth} /></div>
+              <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Semana {!fMonth.length && <span style={{ color: 'var(--text-light)' }}>(escolha o mês)</span>}</label>
+                <SearchSelect value={fWeek} onChange={setFWeek} options={weekOptions} placeholder={fMonth.length ? 'Escolha a semana…' : 'Escolha o mês primeiro'} disabled={!fMonth.length} /></div>
             )}
             <div><label className="text-[11px]" style={{ color: 'var(--text-light)' }}>Usuário (vazio = todos)</label>
               <SearchSelect value={fUser} onChange={setFUser} options={users} placeholder="Todos os usuários" /></div>
@@ -215,19 +251,80 @@ export default function FechamentoSemanalPage() {
           </div>
           {activeReopens.length > 0 && (
             <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-[11px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-light)' }}>Reaberturas ativas (escopo)</p>
-              <div className="flex flex-wrap gap-2">
-                {activeReopens.map((p, i) => (
-                  <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
-                    <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.all_projects ? `${p.customer ?? 'Cliente'} · projetos = todos` : (p.project ? `${p.customer ? p.customer + ' · ' : ''}${p.project}` : 'global')}{p.user ? ` · ${p.user}` : ''} · até {fmtDT(p.auto_close_at)}</span>
-                    <button title={p.all_projects ? 'Encerrar a reabertura de TODOS os projetos deste cliente' : 'Encerrar esta reabertura agora'} disabled={busy === `ar${i}`}
-                      onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.all_projects && p.customer_id ? { customer_id: p.customer_id } : (p.project_id ? { project_id: p.project_id } : {})), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
-                      style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
-                      <Lock size={10} /> Encerrar
-                    </button>
-                  </span>
-                ))}
+              <p className="text-[11px] uppercase tracking-wide mb-2" style={{ color: 'var(--text-light)' }}>Reaberturas ativas (escopo) · {activeReopens.length}</p>
+              <div className="space-y-1.5">
+                {(() => {
+                  // Empresa → Usuário (consultor liberado) → projetos reabertos.
+                  const byCompany = new Map<string, Map<string, { p: ActiveReopen; i: number }[]>>()
+                  activeReopens.forEach((p, i) => {
+                    const c = p.customer ?? (p.project ? 'Sem cliente' : 'Global')
+                    const u = p.target_user ?? (p.user_id ? `Usuário #${p.user_id}` : 'Todos os usuários')
+                    if (!byCompany.has(c)) byCompany.set(c, new Map())
+                    const um = byCompany.get(c)!
+                    if (!um.has(u)) um.set(u, [])
+                    um.get(u)!.push({ p, i })
+                  })
+                  return [...byCompany.entries()].map(([company, users]) => {
+                    const companyItems = [...users.values()].flat()
+                    const total = companyItems.length
+                    const open = openReopenGroups.includes(company)
+                    const toggleCompany = () => setOpenReopenGroups(o => o.includes(company) ? o.filter(x => x !== company) : [...o, company])
+                    return (
+                      <div key={company} className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+                        <div className="w-full flex items-center gap-2 px-3 py-2">
+                          <button onClick={toggleCompany} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                            {open ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />}
+                            <span className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{company}</span>
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold shrink-0" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{total}</span>
+                            <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>· {users.size} usuário{users.size !== 1 ? 's' : ''}</span>
+                          </button>
+                          <button onClick={() => closeCompany(company, companyItems)} disabled={busy === `co-${company}`}
+                            title="Encerrar todas as reaberturas desta empresa agora (antecipar o prazo)"
+                            className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded font-semibold text-[11px] disabled:opacity-60"
+                            style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+                            <Lock size={11} /> Encerrar empresa
+                          </button>
+                        </div>
+                        {open && (
+                          <div className="px-2 pb-2 space-y-1">
+                            {[...users.entries()].map(([user, items]) => {
+                              const uk = company + '::' + user
+                              const uopen = openReopenUsers.includes(uk)
+                              return (
+                                <div key={uk} className="rounded-md" style={{ background: 'var(--surface-hover)' }}>
+                                  <button onClick={() => setOpenReopenUsers(o => o.includes(uk) ? o.filter(x => x !== uk) : [...o, uk])}
+                                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left">
+                                    {uopen ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-muted)' }} />}
+                                    <UserCog size={12} style={{ color: 'var(--text-muted)' }} />
+                                    <span className="text-[11px] font-semibold" style={{ color: 'var(--text)' }}>{user}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>{items.length}</span>
+                                    {items[0]?.p.user && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>· liberado por {items[0].p.user}</span>}
+                                    <span className="ml-auto text-[10px]" style={{ color: 'var(--text-light)' }}>{uopen ? 'recolher' : 'expandir'}</span>
+                                  </button>
+                                  {uopen && (
+                                    <div className="px-3 pb-2 flex flex-wrap gap-2">
+                                      {items.map(({ p, i }) => (
+                                        <span key={i} className="inline-flex items-center gap-2 text-[11px] pl-2 pr-1 py-1 rounded-md" style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}>
+                                          <span>{p.period_kind === 'week' ? 'Semana' : 'Mês'} {p.period_kind === 'week' ? fmtDate(p.period_key) : p.period_key} · {p.all_projects ? 'projetos = todos' : (p.project ?? 'global')} · até {fmtDT(p.auto_close_at)}</span>
+                                          <button title={p.all_projects ? 'Encerrar a reabertura de TODOS os projetos deste cliente' : 'Encerrar esta reabertura agora'} disabled={busy === `ar${i}`}
+                                            onClick={() => doAction('close', { period_kind: p.period_kind, period_key: p.period_key, ...(p.all_projects && p.customer_id ? { customer_id: p.customer_id } : (p.project_id ? { project_id: p.project_id } : {})), ...(p.user_id ? { user_id: p.user_id } : {}) }, `ar${i}`)}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold disabled:opacity-60"
+                                            style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
+                                            <Lock size={10} /> Encerrar
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             </div>
           )}

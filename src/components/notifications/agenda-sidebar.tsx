@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { CalendarDays, X, Clock, MapPin, Link2, Settings } from 'lucide-react'
+import { CalendarDays, X, Clock, MapPin, Link2, Settings, Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { isMeetingSoundOn, setMeetingSoundOn } from '@/lib/chat-prefs'
 import { CalendarMini, DOT, type CalEvento, type CalEventoConvidado } from './calendar-mini'
 
 interface VisConfig { visibility: Record<string, string[]>; types: Record<string, string>; profiles: Record<string, string> }
@@ -33,6 +34,15 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   const [cfgOpen, setCfgOpen] = useState(false)
   const [cfg, setCfg] = useState<VisConfig | null>(null)
   const [savingCfg, setSavingCfg] = useState(false)
+  // Beep dos alertas de reunião (pref local; o pop-up continua aparecendo silenciado).
+  const [meetingSoundOn, setMeetingSoundOnState] = useState(true)
+  useEffect(() => {
+    const sync = () => setMeetingSoundOnState(isMeetingSoundOn())
+    sync()
+    window.addEventListener('meeting-sound-changed', sync)
+    return () => window.removeEventListener('meeting-sound-changed', sync)
+  }, [])
+  const toggleMeetingSound = () => { const next = !meetingSoundOn; setMeetingSoundOnState(next); setMeetingSoundOn(next) }
 
   const openCfg = () => { setCfgOpen(true); api.get<{ data: VisConfig }>('/calendar/visibility').then(r => setCfg(r.data ?? null)).catch(() => toast.error('Erro ao carregar config')) }
   const toggleCfg = (tipo: string, perfil: string) => setCfg(c => {
@@ -77,7 +87,13 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
       <div className="flex items-center gap-2">
         <CalendarDays size={15} style={{ color: 'var(--primary)' }} />
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Agenda</span>
-        {isAdmin && <button onClick={openCfg} className="ml-auto p-1 rounded-md" title="Configurar o que cada perfil vê na agenda" style={{ color: 'var(--text-muted)' }}><Settings size={14} /></button>}
+        <button onClick={toggleMeetingSound} className="ml-auto p-1 rounded-md"
+          title={meetingSoundOn ? 'Beep dos alertas de reunião ligado — clique para silenciar (o pop-up continua aparecendo)' : 'Beep dos alertas de reunião desligado — clique para ativar'}
+          aria-label={meetingSoundOn ? 'Silenciar beep dos alertas de reunião' : 'Ativar beep dos alertas de reunião'}
+          style={{ color: meetingSoundOn ? 'var(--primary)' : 'var(--text-light)' }}>
+          {meetingSoundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+        </button>
+        {isAdmin && <button onClick={openCfg} className="p-1 rounded-md" title="Configurar o que cada perfil vê na agenda" style={{ color: 'var(--text-muted)' }}><Settings size={14} /></button>}
       </div>
 
       <CalendarMini

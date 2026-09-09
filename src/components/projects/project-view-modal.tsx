@@ -32,6 +32,11 @@ interface ProjectFull {
   parent_project?: { id: number; name: string; code: string } | null
   // Subprojeto faturado que gerou um aporte automático no pai (legenda verde).
   generated_aporte?: { id: number; parent_id: number; kanban_status: string } | null
+  // Vínculo de fatura: item "Banco de Horas Mensal" cobrado no contrato principal Cloud (fatura única).
+  bh_mensal_item?: boolean
+  parent_contract_code?: string | null
+  has_bh_mensal_items?: boolean
+  combined_billing_value?: number | null
   coordinators?: { id: number; name: string; email: string }[]
   consultants?: { id: number; name: string; email: string }[]
   approvers?: { id: number; name: string; email: string }[]
@@ -432,6 +437,20 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
             {tab === 'overview' && (
               <div className="space-y-5">
+                {/* Faturamento consolidado — item BH Mensal cobrado no contrato principal (fatura única). */}
+                {p.bh_mensal_item && (
+                  <div className="rounded-xl p-4 text-sm font-bold leading-snug"
+                    style={{ background: '#f973161f', color: '#c2410c', border: '1px solid #f9731666' }}>
+                    💰 O faturamento deste contrato é feito no contrato principal nº {p.parent_contract_code ?? '—'} — fatura única.
+                  </div>
+                )}
+                {p.has_bh_mensal_items && p.combined_billing_value != null && (
+                  <div className="rounded-xl p-4 text-sm font-bold leading-snug"
+                    style={{ background: '#0e74901f', color: '#0e7490', border: '1px solid #0e749066' }}>
+                    💰 Fatura única: {Number(p.combined_billing_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    <span className="block font-medium mt-0.5">Inclui este contrato + o(s) item(ns) vinculado(s) — uma única nota.</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: internalLens ? 'Horas Apontáveis' : 'Horas Vendidas',

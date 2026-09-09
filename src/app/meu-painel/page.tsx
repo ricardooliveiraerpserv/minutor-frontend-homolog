@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useRef, useMemo, createContext, useContext, Fragment } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { fetchAndOpenLegacyUrl } from '@/lib/attachments'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
 import { previewText, sanitizeHtml } from '@/lib/sanitize'
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ExpenseItemsEditor, ExpenseItemDraft, emptyExpenseItem, appendExpenseItems, expenseItemsValid, expenseToItemDrafts } from '@/components/ui/expense-items-editor'
 import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye, EyeOff,
@@ -98,6 +100,7 @@ interface ExpenseItem {
   is_paid: boolean
   receipt_url?: string
   rejection_reason?: string | null
+  items?: Array<{ id: number; expense_category_id: number; category?: { id: number; name: string }; description: string; amount: number; receipt_url?: string | null }>
 }
 
 interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string }; is_investimento_comercial?: boolean; categoria_interna?: string | null }
@@ -1463,6 +1466,69 @@ function SearchableSelect({
   )
 }
 
+// Filtro MULTISELEÇÃO (todos/alguns). value=[] → TODOS (sem filtro); no modo "todos" as
+// caixas aparecem marcadas; clicar desmarca só aquela; marcar todas volta pra "todos".
+function SearchableMultiSelect({ value, onChange, options, placeholder = 'Todos' }: {
+  value: string[]
+  onChange: (v: string[]) => void
+  options: { id: number | string; name: string }[]
+  placeholder?: string
+}) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    function handler(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+  const filtered = query ? options.filter(o => o.name.toLowerCase().includes(query.toLowerCase())) : options
+  const allMode = value.length === 0
+  const toggle = (id: string) => {
+    // Fora do allMode marca/desmarca; marcar todos individualmente volta ao allMode ([]).
+    const next = value.includes(id) ? value.filter(x => x !== id) : [...value, id]
+    onChange(next.length === options.length ? [] : next)
+  }
+  const label = allMode ? placeholder : value.length === 1 ? (options.find(o => String(o.id) === value[0])?.name ?? '1') : `${placeholder} (${value.length})`
+  const box = (on: boolean) => (
+    <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] leading-none" style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--text-light)'}`, background: on ? 'var(--primary)' : 'transparent', color: '#fff' }}>{on ? '✓' : ''}</span>
+  )
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => { setOpen(o => !o); setQuery('') }}
+        className={`flex items-center justify-between gap-2 h-9 px-3 min-w-[150px] bg-[var(--surface-hover)] border rounded-lg text-xs transition-colors text-[var(--text)] ${open ? 'border-[var(--border-strong)]' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
+        <span className={allMode ? 'text-[var(--text-light)]' : 'text-[var(--text)]'}>{label}</span>
+        <ChevronDown size={12} className="text-[var(--text-light)] shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full w-max max-w-[260px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-[var(--border)]">
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
+              className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg text-xs text-[var(--text)] px-2.5 py-1.5 outline-none placeholder:text-[var(--text-muted)]" />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            <button type="button" onClick={() => onChange([])}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-xs text-left ${allMode ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>
+              {box(allMode)}{placeholder}
+            </button>
+            {filtered.map(o => {
+              const on = value.includes(String(o.id))
+              return (
+                <button key={o.id} type="button" onClick={() => toggle(String(o.id))}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                  {box(on)}<span className="truncate">{o.name}</span>
+                </button>
+              )
+            })}
+            {filtered.length === 0 && <p className="px-3 py-2 text-xs text-[var(--text-muted)]">Nenhum resultado</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SelectField({ label, value, onChange, children, required }: {
   label: string
   value: string
@@ -1687,12 +1753,22 @@ export default function MeuPainelPage() {
   const [tsLoading,  setTsLoading]  = useState(true)
   const [tsTotalMin, setTsTotalMin] = useState(0)
   const [tsSearch,   setTsSearch]   = useState('')
-  const [tsProject,  setTsProject]  = useState('')
-  const [tsCustomer, setTsCustomer] = useState('')
+  const [tsProject,  setTsProject]  = useState<string[]>([])
+  const [tsCustomer, setTsCustomer] = useState<string[]>([])
+  // Clientes que aparecem nos apontamentos do consultor (acumula por período — inclui
+  // clientes apontados via ticket/webhook que não estão entre os projetos alocados dele).
+  const [tsCustPool, setTsCustPool] = useState<{ id: number; name: string }[]>([])
   const [tsStatus,   setTsStatus]   = useState('')
   const [tsDateFrom, setTsDateFrom] = useState('')
   const [tsDateTo,   setTsDateTo]   = useState('')
   const [tsPage,     setTsPage]     = useState(1)
+  const [tsSort,     setTsSort]     = useState('date')
+  const [tsSortDir,  setTsSortDir]  = useState<'asc' | 'desc'>('desc')
+  const handleTsSort = (f: string) => {
+    if (tsSort === f) setTsSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setTsSort(f); setTsSortDir('asc') }
+    setTsPage(1)
+  }
   const [tsHasNext,  setTsHasNext]  = useState(false)
   const [tsModal,       setTsModal]       = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
   const [tsViewItem,    setTsViewItem]    = useState<TimesheetItem | null>(null)
@@ -1735,6 +1811,7 @@ export default function MeuPainelPage() {
   const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
   const [expSaving,   setExpSaving]  = useState(false)
   const [expFile,     setExpFile]    = useState<File | null>(null)
+  const [expItems,    setExpItems]   = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Banco de Horas state ───────────────────────────────────────────────────
@@ -1805,16 +1882,28 @@ export default function MeuPainelPage() {
       })
       p.set('user_id', String(user.id))
       if (tsSearch)   p.set('search',      tsSearch)
-      if (tsProject)  p.set('project_id',  tsProject)
-      if (tsCustomer) p.set('customer_id', tsCustomer)
+      tsProject.forEach(id => p.append('project_id[]', id))
+      tsCustomer.forEach(id => p.append('customer_id[]', id))
       if (tsStatus)   p.set('status',      tsStatus)
+      p.set('sort', tsSort); p.set('direction', tsSortDir)
       const r = await api.get<any>(`/timesheets?${p}`)
-      setTimesheets(Array.isArray(r?.items) ? r.items : [])
+      const items = Array.isArray(r?.items) ? r.items : []
+      setTimesheets(items)
+      // Acumula os clientes vistos nos apontamentos (só cresce dentro do período) para
+      // que o filtro de clientes liste todos que o consultor apontou, não só os alocados.
+      setTsCustPool(prev => {
+        const map = new Map(prev.map(c => [String(c.id), c]))
+        items.forEach((ts: TimesheetItem) => {
+          const c = ts.customer ?? ts.project?.customer
+          if (c && !map.has(String(c.id))) map.set(String(c.id), { id: c.id, name: c.name })
+        })
+        return map.size === prev.length ? prev : Array.from(map.values())
+      })
       setTsHasNext(!!r?.hasNext)
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally   { setTsLoading(false) }
-  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id])
+  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id, tsSort, tsSortDir])
 
   // ── Load expenses ──────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
@@ -1843,7 +1932,7 @@ export default function MeuPainelPage() {
     finally   { setExpLoading(false) }
   }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo, isCoordenador, user?.id])
 
-  const hasTsFilters = !!(tsSearch || tsCustomer || tsProject || tsStatus || tsDateFrom || tsDateTo)
+  const hasTsFilters = !!(tsSearch || tsCustomer.length || tsProject.length || tsStatus || tsDateFrom || tsDateTo)
   const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expCategory || expDateFrom || expDateTo)
 
   function exportTs() {
@@ -1866,7 +1955,7 @@ export default function MeuPainelPage() {
   }
 
   function clearTsFilters() {
-    setTsSearch(''); setTsCustomer(''); setTsProject(''); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
+    setTsSearch(''); setTsCustomer([]); setTsProject([]); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
   }
   function clearExpFilters() {
     setExpSearch(''); setExpCustomer(''); setExpProject(''); setExpStatus(''); setExpCategory(''); setExpDateFrom(''); setExpDateTo(''); setExpPage(1)
@@ -2083,6 +2172,7 @@ export default function MeuPainelPage() {
   const openCreateExp = () => {
     setExpForm({ ...EMPTY_EXP, expense_date: todayISO() })
     setExpFile(null)
+    setExpItems([emptyExpenseItem()])
     setExpModal({ open: true })
   }
 
@@ -2102,13 +2192,14 @@ export default function MeuPainelPage() {
       receipt_url:         item.receipt_url ?? '',
     })
     setExpFile(null)
+    setExpItems(expenseToItemDrafts(item))
     setExpModal({ open: true, item })
   }
 
   const saveExp = async () => {
     if (!expForm.project_id)  { toast.error('Selecione um projeto'); return }
-    if (!expForm.description) { toast.error('Informe a descrição'); return }
-    if (!expForm.amount)      { toast.error('Informe o valor'); return }
+    if (!expForm.expense_date) { toast.error('Informe a data'); return }
+    if (!expenseItemsValid(expItems)) { toast.error('Preencha categoria, descrição e valor de cada item'); return }
     const spExp = projects.find(p => p.id === Number(expForm.project_id)) as any
     const scExp = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
     const isErpExp = String(scExp?.name ?? '').toUpperCase().includes('ERPSERV')
@@ -2119,29 +2210,16 @@ export default function MeuPainelPage() {
       const fd = new FormData()
       fd.append('project_id',          expForm.project_id)
       if (expIsInvestimento && expForm.real_project_id) fd.append('real_project_id', expForm.real_project_id)
-      fd.append('expense_category_id', expForm.expense_category_id)
       fd.append('expense_date',        expForm.expense_date)
-      fd.append('description',         expForm.description)
-      fd.append('amount',              expForm.amount)
       fd.append('expense_type',        expForm.expense_type)
       fd.append('payment_method',      expForm.payment_method)
       fd.append('charge_client',       expForm.charge_client ? '1' : '0')
-      if (expFile) fd.append('receipt', expFile)
+      appendExpenseItems(fd, expItems)
 
-      const url    = expModal.item ? `/api/v1/expenses/${expModal.item.id}` : '/api/v1/expenses'
-      const method = 'POST'
+      // Upload DIRETO no backend (contorna o limite ~4.5MB da borda da Vercel) → comprovantes até 50MB.
+      const path = expModal.item ? `/expenses/${expModal.item.id}` : '/expenses'
       if (expModal.item) fd.append('_method', 'PUT')
-
-      const res = await fetch(url, { method, credentials: 'same-origin', body: fd })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        const details = err.details ?? err.errors
-        const detailMsg = Array.isArray(details) ? details.join('; ')
-          : typeof details === 'object' && details !== null
-            ? Object.values(details).flat().join('; ')
-            : undefined
-        throw new Error(detailMsg ?? err.detailMessage ?? err.message ?? 'Erro ao salvar')
-      }
+      await uploadDirect(path, fd)
       toast.success(expModal.item ? 'Despesa atualizada' : 'Despesa criada')
       setExpModal({ open: false })
       loadExpenses()
@@ -2417,6 +2495,18 @@ export default function MeuPainelPage() {
     })
     return list.sort((a, b) => a.name.localeCompare(b.name))
   }, [projects])
+
+  // Zera o pool ao trocar o período — o filtro reflete os clientes apontados no período atual.
+  useEffect(() => { setTsCustPool([]) }, [startDate, endDate, tsDateFrom, tsDateTo])
+
+  // Opções do filtro de clientes da aba Apontamentos: projetos alocados ∪ clientes apontados
+  // (inclui clientes fora da alocação do consultor, ex.: apontamento via ticket/webhook).
+  const tsCustomerOptions = useMemo(() => {
+    const map = new Map<string, { id: number; name: string }>()
+    consultantCustomers.forEach(c => map.set(String(c.id), c))
+    tsCustPool.forEach(c => { if (!map.has(String(c.id))) map.set(String(c.id), c) })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [consultantCustomers, tsCustPool])
 
   // Projetos filtrados pelo cliente selecionado no form de despesa
   const expProjectOptions = useMemo(() => {
@@ -2820,13 +2910,13 @@ export default function MeuPainelPage() {
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
               placeholder="Buscar por projeto, observação, ticket..."
               className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            <SearchableSelect
+            <SearchableMultiSelect
               value={tsCustomer}
               onChange={v => { setTsCustomer(v); setTsPage(1) }}
-              options={consultantCustomers}
+              options={tsCustomerOptions}
               placeholder="Todos os clientes"
             />
-            <SearchableSelect
+            <SearchableMultiSelect
               value={tsProject}
               onChange={v => { setTsProject(v); setTsPage(1) }}
               options={projects}
@@ -2879,16 +2969,21 @@ export default function MeuPainelPage() {
             <table className="w-full min-w-max text-xs">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Data</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Projeto</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Ticket #</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Título</th>
+                  {([['Data','date',''],['Cliente','customer.name','hidden md:table-cell'],['Projeto','project.name',''],['Ticket #','ticket','hidden lg:table-cell'],['Título','titulo','hidden xl:table-cell']] as const).map(([label,field,cls]) => (
+                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
+                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
+                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                  ))}
                   <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Horário</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Horas</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Observação</th>
-                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Status</th>
+                  {([['Horas','effort_hours',''],['Tipo de Serviço','service_type','hidden xl:table-cell'],['Observação','observation','hidden lg:table-cell'],['Status','status','']] as const).map(([label,field,cls]) => (
+                    <th key={field} className={`text-left px-4 py-3 text-[var(--text-light)] font-medium ${cls}`}>
+                      <button onClick={() => handleTsSort(field)} className="inline-flex items-center gap-1 hover:text-[var(--text)] transition-colors">
+                        {label}{tsSort === field && <span className="text-[9px]">{tsSortDir === 'asc' ? '▲' : '▼'}</span>}
+                      </button>
+                    </th>
+                  ))}
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
@@ -4249,14 +4344,6 @@ export default function MeuPainelPage() {
               )
             })()}
 
-            {categories.length > 0 && (
-              <SearchSelectField label="Categoria" value={expForm.expense_category_id}
-                onChange={v => setExpForm(f => ({ ...f, expense_category_id: v }))}
-                options={categories}
-                placeholder="Selecione a categoria..."
-              />
-            )}
-
             <div>
               <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={expForm.expense_date}
@@ -4265,52 +4352,12 @@ export default function MeuPainelPage() {
             </div>
 
             <div>
-              <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
-              <Input value={expForm.description}
-                onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Ex.: Passagem para São Paulo"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            </div>
-
-            <div>
-              <Label className="text-xs text-[var(--text-muted)]">Valor (R$) *</Label>
-              <Input type="number" min="0" step="0.01" value={expForm.amount}
-                onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
-                placeholder="0,00"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-            </div>
-
-            {/* Receipt upload */}
-            <div>
-              <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
-
-              {/* Comprovante existente (modo edição) */}
-              {expForm.receipt_url && !expFile && (
-                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]">
-                  <span className="text-xs text-[var(--success)] flex-1">Comprovante anexado</span>
-                  <ReceiptLinkInline url={expForm.receipt_url} />
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="text-[11px] text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-                    Substituir
-                  </button>
-                </div>
-              )}
-
-              {/* Upload area */}
-              {(!expForm.receipt_url || expFile) && (
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className="mt-1.5 border border-dashed border-[var(--border)] rounded-lg p-4 cursor-pointer hover:border-[var(--border-strong)] transition-colors text-center">
-                  <span className="text-xs text-[var(--text-light)]">
-                    {expFile
-                      ? <span className="text-[var(--primary)]">{expFile.name}</span>
-                      : 'Clique para anexar comprovante (opcional)'}
-                  </span>
-                </div>
-              )}
-
-              <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
-                onChange={e => setExpFile(e.target.files?.[0] ?? null)} />
+              <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Itens da despesa *</Label>
+              <ExpenseItemsEditor
+                items={expItems}
+                onChange={setExpItems}
+                categories={categories as any}
+              />
             </div>
 
             <div className="flex gap-2 justify-end pt-2">
@@ -4318,7 +4365,7 @@ export default function MeuPainelPage() {
                 className="h-9 text-xs border-[var(--border)] text-[var(--text)]">
                 Cancelar
               </Button>
-              <Button onClick={saveExp} disabled={expSaving}
+              <Button onClick={saveExp} disabled={expSaving || !expForm.project_id || !expForm.expense_date || !expenseItemsValid(expItems)}
                 className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
               </Button>
@@ -4377,14 +4424,46 @@ export default function MeuPainelPage() {
                   {expViewItem.project?.customer?.name && (
                     <InfoRowModal icon={Building2} label="Cliente" value={expViewItem.project.customer.name} />
                   )}
-                  <InfoRowModal icon={FolderOpen} label="Projeto" value={expViewItem.project?.name} />
-                  <InfoRowModal icon={Paperclip} label="Comprovante" last>
-                    {expViewItem.receipt_url
-                      ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />
-                      : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
-                    }
-                  </InfoRowModal>
+                  <InfoRowModal icon={FolderOpen} label="Projeto" value={expViewItem.project?.name} last={!!(expViewItem.items && expViewItem.items.length)} />
+                  {!(expViewItem.items && expViewItem.items.length) && (
+                    <InfoRowModal icon={Paperclip} label="Comprovante" last>
+                      {expViewItem.receipt_url
+                        ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />
+                        : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
+                      }
+                    </InfoRowModal>
+                  )}
                 </div>
+
+                {/* Itens (multi-item) */}
+                {expViewItem.items && expViewItem.items.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                      <Receipt size={11} style={{ color: 'var(--primary)' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Itens ({expViewItem.items.length})</span>
+                    </div>
+                    {expViewItem.items.map(it => (
+                      <div key={it.id} className="px-4 py-3 flex flex-col gap-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{it.description || '—'}</p>
+                            {it.category?.name && (
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}>
+                                <Tag size={9} /> {it.category.name}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--text)' }}>
+                            {Number(it.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                        {it.receipt_url
+                          ? <ReceiptLinkInline url={it.receipt_url} label="Comprovante" />
+                          : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Descrição */}
                 {expViewItem.description && (

@@ -3878,6 +3878,28 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                     </div>
                   )
                 })}
+                <p className="text-[10px] px-1 mt-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>
+                  <b style={{ color: '#22c55e' }}>Liberado</b>: o consultor pode lançar apontamento manual neste projeto. <b>Bloqueado</b>: só entra por integração/automático.
+                </p>
+              </div>
+            )}
+            {(selectedIds.size > 0 || selectedGroupIds.size > 0) && (
+              <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.25)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: '#a78bfa' }}>Alocados ({selectedIds.size + selectedGroupIds.size}) — clique no × para desalocar</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allConsultants.filter(c => selectedIds.has(c.id)).map(c => (
+                    <span key={c.id} className="inline-flex items-center gap-1 text-[11px] rounded-lg px-2 py-1" style={{ background: 'var(--surface)', border: '1px solid rgba(139,92,246,0.35)', color: 'var(--text)' }}>
+                      {c.name}
+                      <button onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))} title="Desalocar" className="hover:opacity-70" style={{ color: 'var(--danger)' }}><X size={12} /></button>
+                    </span>
+                  ))}
+                  {allGroups.filter(g => selectedGroupIds.has(g.id)).map(g => (
+                    <span key={'g' + g.id} className="inline-flex items-center gap-1 text-[11px] rounded-lg px-2 py-1" style={{ background: 'var(--surface)', border: '1px solid rgba(245,158,11,0.4)', color: 'var(--text)' }}>
+                      👥 {g.name}
+                      <button onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))} title="Desalocar grupo" className="hover:opacity-70" style={{ color: 'var(--danger)' }}><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             <div className="flex gap-1 mb-2 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
@@ -3899,8 +3921,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   <button key={c.id} onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                      {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? '#8b5cf6' : 'var(--surface)', border: `1.5px solid ${sel ? '#8b5cf6' : 'var(--text-light)'}` }}>
+                      {sel && <Check size={12} style={{ color: '#fff' }} />}
                     </div>
                     <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}</span>
                   </button>
@@ -3912,8 +3934,8 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   <button key={g.id} onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(245,158,11,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(245,158,11,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                      {sel && <Check size={10} style={{ color: '#f59e0b' }} />}
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? '#f59e0b' : 'var(--surface)', border: `1.5px solid ${sel ? '#f59e0b' : 'var(--text-light)'}` }}>
+                      {sel && <Check size={12} style={{ color: '#fff' }} />}
                     </div>
                     <span className="text-xs" style={{ color: sel ? '#f59e0b' : 'var(--text)' }}>{g.name}</span>
                   </button>
@@ -4012,27 +4034,37 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
       fd.append('message', text)
       fd.append('visibility', visibility)
       files.forEach(f => fd.append('files[]', f))
-      // Auth POR ABA: manda o token do sessionStorage (igual ao api client). Sem isso, o fetch cru caía
-      // só no cookie httpOnly — que sob "Ver como"/sessão por aba NÃO é do usuário atual, e o POST
-      // falhava (coordenador não conseguia comentar, embora o GET das mensagens usasse o token e funcionasse).
-      const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
-      // Upload com anexo vai DIRETO pro backend em prod: o rewrite do Vercel tem
-      // teto de body ~4.5MB e barra arquivos maiores antes de chegar no backend
-      // (ver ProjectMessages.tsx). CORS do backend libera app.minutor.com.br.
-      const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
-        ? 'https://api.minutor.com.br/api/v1'
-        : '/api/v1'
-      const res = await fetch(`${uploadBase}/contract-requests/${requestId}/messages`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
-        body: fd,
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => null)
-        throw new Error(err?.message ?? '')
+
+      const postUrl = (base: string) => `${base}/contract-requests/${requestId}/messages`
+      const totalBytes = files.reduce((s, f) => s + f.size, 0)
+      const VERCEL_BODY_CAP = 4 * 1024 * 1024  // rewrite do Vercel barra body > ~4.5MB
+      let msg: ReqMsg
+      if (files.length === 0 || totalBytes < VERCEL_BODY_CAP) {
+        // Same-origin via api client: usa o MESMO esquema de auth do GET (token da aba OU
+        // cookie httpOnly injetado pelo BFF) + X-Screen-Path. Evita o "Unauthenticated" do
+        // POST cross-origin, que perdia o cookie quando a sessão é só por cookie (sem token
+        // no sessionStorage), impedindo o comentário.
+        msg = await api.post<ReqMsg>(postUrl(''), fd)
+      } else {
+        // Anexo grande: vai DIRETO pro backend p/ furar o teto de body do rewrite Vercel.
+        // CORS do backend libera app.minutor.com.br. Precisa do token da aba (cross-origin
+        // não carrega o cookie httpOnly).
+        const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+        const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
+          ? 'https://api.minutor.com.br/api/v1'
+          : '/api/v1'
+        const res = await fetch(postUrl(uploadBase), {
+          method: 'POST',
+          credentials: 'include',
+          headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
+          body: fd,
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => null)
+          throw new Error(err?.message ?? '')
+        }
+        msg = await res.json()
       }
-      const msg: ReqMsg = await res.json()
       setMsgs(prev => [...prev, msg])
       setInput('')
       setFiles([])
@@ -5017,6 +5049,13 @@ function KanbanContent() {
 
     if (list.length === 0) { toast.info('Nenhum projeto para exportar.'); return }
 
+    // Formata YYYY-MM-DD(...) → DD/MM/AAAA sem depender de fuso (evita voltar 1 dia).
+    const fmtDateBR = (d?: string | null): string => {
+      if (!d) return ''
+      const [y, m, dd] = d.slice(0, 10).split('-')
+      return y && m && dd ? `${dd}/${m}/${y}` : d
+    }
+
     const rows: ProjetoExportRow[] = list.map(p => {
       const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
       const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
@@ -5039,6 +5078,10 @@ function KanbanContent() {
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
         coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
+        urgencia:     p.nivel_urgencia ? (URGENCIA_LABEL[p.nivel_urgencia] ?? p.nivel_urgencia) : '—',
+        inicio:       fmtDateBR(p.start_date),
+        previsao:     fmtDateBR(p.expected_end_date),
+        deliveryPct:  p.delivery_percentage != null ? `${Math.round(Number(p.delivery_percentage))}%` : '',
       }
     })
 

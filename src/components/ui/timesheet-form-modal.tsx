@@ -6,7 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 
-interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null }
+interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null; is_rateio?: boolean }
 
 interface Props {
   open: boolean
@@ -77,7 +77,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
+        <span className="flex-1 min-w-0 text-sm break-words leading-snug" title={selected ? selected.name : undefined}>{selected ? selected.name : placeholder}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}/>
         </svg>
@@ -109,7 +109,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
                   return (
                     <button key={o.id} type="button"
                       onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                      className="w-full text-left px-3 py-2 text-sm transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm transition-colors whitespace-normal break-words leading-snug"
                       style={{
                         color: isSelected ? 'var(--primary)' : 'var(--text)',
                         background: isSelected ? 'var(--primary-soft)' : 'transparent',
@@ -199,12 +199,13 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     setForm(f => ({ ...f, customer_id: '', project_id: '', is_billable_only: false }))
     setProjects([])
 
-    // When admin/coordenador picks a different consultant → load only their allocated customers
+    // Admin/coordenador têm escopo TOTAL: veem TODOS os clientes, inclusive apontando por
+    // outro consultor (antes o "actingAsOther" limitava aos clientes vinculados ao consultor).
     const actingAsOther = canActAsUser && form.user_id && form.user_id !== String(currentUser?.id)
-    const customerEndpoint = actingAsOther
-      ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
-      : (isAdmin || isCoordenador)
-        ? '/customers?pageSize=500'
+    const customerEndpoint = (isAdmin || isCoordenador)
+      ? '/customers?pageSize=500'
+      : actingAsOther
+        ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
         : '/customers/user-linked?pageSize=500'
 
     api.get<any>(customerEndpoint)
@@ -221,7 +222,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); setRealProjects([]); return }
     let cancelled = false
-    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null, is_rateio: !!p.is_rateio })
 
     // Dropdown "Projeto" (apontável): escopo do consultor (consultant_only).
     const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
@@ -251,7 +252,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     if (!isInvest) { setRealProjects([]); return }
 
     let cancelled = false
-    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type_code ?? p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type_code ?? p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null, is_rateio: !!p.is_rateio })
     const rq = new URLSearchParams()
     const actingAsOther = canActAsUser && form.user_id && form.user_id !== String(currentUser?.id)
     if (actingAsOther) rq.set('user_id', form.user_id)

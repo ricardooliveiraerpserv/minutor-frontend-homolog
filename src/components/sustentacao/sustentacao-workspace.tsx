@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { SearchSelect } from '@/components/ui/search-select'
 import type { PortalDate } from '@/lib/portal-date'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -198,9 +199,27 @@ const STATUS_LABEL: Record<string, string> = {
   Resolved: 'Resolvido', Closed: 'Fechado', Canceled: 'Cancelado',
 }
 
+interface OnDemandPanel {
+  months: string[]
+  current_month: string
+  summary: { hours_month: number; tickets_month: number; clients_active: number; clients_total: number; clients_no_move: number; hours_12m: number; tickets_12m: number }
+  monthly_totals: { month: string; hours: number; tickets: number; clients: number }[]
+  by_client: { customer_id: number; customer: string; status: string; months: Record<string, { h: number; tk: number }>; total_hours: number; total_tickets: number; current_hours: number; current_tickets: number; last_activity: string | null }[]
+  no_movement: { customer_id: number; customer: string; status: string; last_activity: string | null; hours_12m: number }[]
+}
+
+interface ContractsPanel {
+  current_month: string
+  summary: { contracts: number; clients: number; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number }
+  by_type: { contract_type: string; clients: number; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number }[]
+  by_client: { customer_id: number; customer: string; contract_type: string; status: string; hours_month: number; tickets_month: number; hours_12m: number; tickets_12m: number; last_activity: string | null }[]
+}
+
 const TABS = [
   { id: 'resumo',       label: 'Resumo Executivo',  icon: LayoutDashboard },
   { id: 'status',       label: 'Status de Suporte', icon: Gauge },
+  { id: 'ondemand',     label: 'On Demand',         icon: Zap },
+  { id: 'contratos',    label: 'Contratos',         icon: FileText },
   { id: 'kpis',         label: 'Visão Executiva',   icon: Activity },
   { id: 'queue',        label: 'Fila Operacional',  icon: List },
   { id: 'indicadores',  label: 'Indicadores',       icon: BarChart2 },
@@ -795,6 +814,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   }, [user, router])
 
   const [tab, setTab]         = useState(show === 'indicadores' ? 'resumo' : '')
+  const [solo, setSolo]       = useState(false)   // ?solo=1 → mostra SÓ a aba escolhida (sem barra de abas)
 
   // Centralzinha de rotinas (independente das tabs de indicadores).
   // null = mostra indicadores; setado = mostra a tela completa da rotina.
@@ -811,6 +831,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   const now = new Date()
   const [refMonth, setRefMonth] = useState<number | null>(now.getMonth() + 1)
   const [refYear,  setRefYear]  = useState<number | null>(now.getFullYear())
+  // Fim do intervalo Mês/Ano (permite selecionar MAIS DE UM mês). Igual ao início = 1 mês só.
+  const [refMonthEnd, setRefMonthEnd] = useState<number | null>(now.getMonth() + 1)
+  const [refYearEnd,  setRefYearEnd]  = useState<number | null>(now.getFullYear())
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 30)
     return d.toISOString().split('T')[0]
@@ -821,12 +844,13 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   // completas do menu (TimesheetsScreen/ExpensesScreen/etc.) com scope='sustentacao',
   // que fazem o próprio fetch. O fetch legado em /sustentacao/{tab} foi descontinuado.
 
-  // Computa from/to a partir do modo ativo
+  // Computa from/to a partir do modo ativo. Em Mês/Ano, o intervalo vai do 1º dia do mês
+  // INICIAL ao último dia do mês FINAL (refMonthEnd/refYearEnd) — suporta 1 ou vários meses.
   const from = filterMode === 'month' && refMonth && refYear
     ? `${refYear}-${String(refMonth).padStart(2, '0')}-01`
     : dateFrom
   const to = filterMode === 'month' && refMonth && refYear
-    ? new Date(refYear, refMonth, 0).toISOString().split('T')[0]
+    ? new Date(refYearEnd ?? refYear, (refMonthEnd ?? refMonth), 0).toISOString().split('T')[0]
     : dateTo
 
   // Período (mês-a-mês) repassado ao report de Rentabilidade embutido, derivado do filtro do portal.
@@ -837,7 +861,13 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   }, [from, to])
 
   // Filtro de data DE CIMA repassado às telas embedded — elas escondem o próprio (um filtro só).
-  const portalDate: PortalDate = { mode: filterMode, month: refMonth, year: refYear, from: dateFrom, to: dateTo }
+  // Se o Mês/Ano abrange MAIS DE UM mês, repassa como PERÍODO (from/to do span) p/ as telas
+  // embedded também cobrirem o intervalo; 1 mês só continua indo como mês (comportamento antigo).
+  const monthSpansMultiple = filterMode === 'month' &&
+    (refMonth !== refMonthEnd || refYear !== refYearEnd)
+  const portalDate: PortalDate = monthSpansMultiple
+    ? { mode: 'period', month: null, year: null, from, to }
+    : { mode: filterMode, month: refMonth, year: refYear, from: dateFrom, to: dateTo }
 
   const [queueFilterResp,      setQueueFilterResp]      = useState<string[]>([])
   const [queueFilterCliente,   setQueueFilterCliente]   = useState<string[]>([])
@@ -853,6 +883,19 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
   const [clients, setClients]         = useState<ClientData | null>(null)
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
+  const [onDemand, setOnDemand]       = useState<OnDemandPanel | null>(null)   // aba On Demand (12m, independe do filtro de data)
+  const [odFilter, setOdFilter]       = useState('')                            // cliente selecionado (aba On Demand; '' = todos) — busca embutida no SearchSelect
+  const [odStatus, setOdStatus]       = useState<'all' | 'ativo' | 'encerrado'>('all')  // filtro situação do contrato
+  const [odService, setOdService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')  // filtro tipo de serviço (server-side)
+  // Aba Contratos
+  const [contracts, setContracts]     = useState<ContractsPanel | null>(null)
+  const [ctClient, setCtClient]       = useState('')
+  const [ctStatus, setCtStatus]       = useState<'all' | 'ativo' | 'inativo'>('all')
+  const [ctService, setCtService]     = useState<'all' | 'sustentacao' | 'projeto'>('all')
+  const [ctType, setCtType]           = useState('')                              // filtro tipo de contrato (client-side; '' = todos)
+  const [ctSort, setCtSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'hours_12m', dir: 'desc' })
+  const [odSort, setOdSort]           = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'total_hours', dir: 'desc' })
+  const [odNoMovSort, setOdNoMovSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'last_activity', dir: 'desc' })
   const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
   const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
   const [loadError, setLoadError]         = useState<string | null>(null)
@@ -894,6 +937,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       } else if (t === 'evolution' && !evolution) {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
+      } else if (t === 'ondemand') {
+        // On Demand tem effect próprio (refetch por tipo de serviço) — ver useEffect abaixo.
       } else if (t === 'indicadores' && !indicadores) {
         const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
@@ -922,7 +967,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     } finally {
       setLoading(false)
     }
-  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes, debugResponsaveis])
+  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, onDemand, debugClientes, debugResponsaveis])
 
   const fetchQueue = useCallback(async (
     resp: string[], cliente: string[], urgencia: string[], status: string[], search: string
@@ -971,7 +1016,32 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
     finally { setDrillLoading(false) }
   }, [drillDown])
 
+  // Aba inicial via ?tab= (deep-link do menu) — client-only p/ não quebrar o prerender.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tab'); if (t) setTab(t)
+    if (sp.get('solo') === '1') setSolo(true)
+  }, [])
   useEffect(() => { load(tab) }, [tab])
+  // On Demand: busca dedicada (independe do filtro de data) que REBUSCA ao trocar o tipo de serviço.
+  useEffect(() => {
+    if (tab !== 'ondemand') return
+    setOnDemand(null)
+    const p = new URLSearchParams()
+    if (odService !== 'all') p.set('service', odService)
+    if (to) p.set('ref', to.slice(0, 7))   // mês de referência = mês selecionado no topo
+    api.get<OnDemandPanel>(`/sustentacao/on-demand-panel${p.toString() ? '?' + p : ''}`).then(setOnDemand).catch(() => {})
+  }, [tab, odService, to])
+  // Aba Contratos: refetch por serviço/situação (server-side); cliente filtrado no FE.
+  useEffect(() => {
+    if (tab !== 'contratos') return
+    setContracts(null)
+    const p = new URLSearchParams()
+    if (ctService !== 'all') p.set('service', ctService)
+    if (ctStatus !== 'all')  p.set('status', ctStatus)
+    if (to) p.set('ref', to.slice(0, 7))   // mês de referência = mês selecionado no topo
+    api.get<ContractsPanel>(`/sustentacao/contracts-panel${p.toString() ? '?' + p : ''}`).then(setContracts).catch(() => {})
+  }, [tab, ctService, ctStatus, to])
 
   useEffect(() => {
     api.get<{ statuses: { value: string; label: string; base_status: string }[] }>('/sustentacao/filter-options')
@@ -1015,8 +1085,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap px-4 md:px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
         <div>
-          <h1 className="text-lg font-bold text-[var(--text)]">{show === 'indicadores' ? 'Indicadores — Sustentação' : 'Portal de Sustentação'}</h1>
-          <p className="text-xs text-[var(--text-light)]">{show === 'indicadores' ? 'Painel analítico de suporte — Movidesk + Minutor' : 'Central operacional de suporte — Movidesk + Minutor'}</p>
+          <h1 className="text-lg font-bold text-[var(--text)]">{solo && tab === 'contratos' ? 'Indicadores Contratos' : show === 'indicadores' ? 'Indicadores — Sustentação' : 'Portal de Sustentação'}</h1>
+          <p className="text-xs text-[var(--text-light)]">{solo && tab === 'contratos' ? 'Contratos por tipo — horas, tickets e clientes' : show === 'indicadores' ? 'Painel analítico de suporte — Movidesk + Minutor' : 'Central operacional de suporte — Movidesk + Minutor'}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Toggle Mês/Ano ↔ Período */}
@@ -1034,9 +1104,14 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
             <MonthYearPicker
               month={refMonth}
               year={refYear}
+              endMonth={refMonthEnd}
+              endYear={refYearEnd}
               onChange={(m, y) => {
-                if (m === 0) { setRefMonth(null); setRefYear(null) }
-                else { setRefMonth(m); setRefYear(y); invalidateAll() }
+                // usado só pelo "×" (limpar): zera início e fim juntos
+                if (m === 0) { setRefMonth(null); setRefYear(null); setRefMonthEnd(null); setRefYearEnd(null) }
+              }}
+              onRangeChange={(sm, sy, em, ey) => {
+                setRefMonth(sm); setRefYear(sy); setRefMonthEnd(em); setRefYearEnd(ey); invalidateAll()
               }}
             />
           ) : (
@@ -1103,8 +1178,8 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
 
       )}
 
-      {/* ── Tabs (Indicadores) — só na tela de Indicadores (show='indicadores') ── */}
-      {show === 'indicadores' && !routineTab && (
+      {/* ── Tabs (Indicadores) — só na tela de Indicadores; ocultas no modo solo ── */}
+      {show === 'indicadores' && !routineTab && !solo && (
         <div className="flex gap-1 px-4 md:px-6 pt-3 pb-0 border-b shrink-0 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(t => {
             const Icon = t.icon
@@ -2068,6 +2143,316 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
             </div>
           </div>
         )}
+
+        {/* ON DEMAND — 12 meses de horas + tickets por cliente, resultado do mês e sem movimentação */}
+        {!routineTab && tab === 'ondemand' && onDemand && (() => {
+          const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
+          const chart = onDemand.monthly_totals.map(x => ({ ...x, mes: mLabel(x.month) }))
+          const s = onDemand.summary
+          // Universo de clientes On Demand (união das duas tabelas → todos têm contrato On Demand).
+          const odClients = Array.from(new Map([...onDemand.by_client, ...onDemand.no_movement].map(c => [c.customer_id, c.customer])).entries())
+            .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+          const sel = odFilter   // '' = todos; senão customer_id (string)
+          const cmp = (a: any, b: any, key: string) => {
+            const va = a[key], vb = b[key]
+            if (typeof va === 'number' && typeof vb === 'number') return va - vb
+            return String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR')
+          }
+          const sortBy = <T,>(arr: T[], srt: { key: string; dir: 'asc' | 'desc' }) =>
+            [...arr].sort((a, b) => (srt.dir === 'asc' ? 1 : -1) * cmp(a, b, srt.key))
+          const clickSort = (setter: typeof setOdSort, cur: { key: string; dir: 'asc' | 'desc' }, key: string) =>
+            setter(cur.key === key ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' })
+          const arrow = (srt: { key: string; dir: 'asc' | 'desc' }, key: string) => srt.key === key ? (srt.dir === 'desc' ? ' ↓' : ' ↑') : ''
+          const matchSt = (st: string) => odStatus === 'all' || st === odStatus
+          const clientsF = onDemand.by_client.filter(c => (!sel || String(c.customer_id) === sel) && matchSt(c.status))
+          const clientsSorted = sortBy(clientsF, odSort)
+          const noMovF = onDemand.no_movement.filter(c => (!sel || String(c.customer_id) === sel) && matchSt(c.status))
+          const StatusBadge = ({ st }: { st: string }) => (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+              style={st === 'ativo'
+                ? { background: 'var(--success-bg)', color: 'var(--success-border)' }
+                : { background: 'var(--danger-bg)', color: 'var(--danger-border)' }}>
+              {st === 'ativo' ? 'Ativo' : 'Encerrado'}
+            </span>
+          )
+          const noMovSorted = sortBy(noMovF, odNoMovSort)
+          return (
+            <div className="space-y-6">
+              {/* Filtro de cliente On Demand (lista) — aplica às duas tabelas */}
+              <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                style={{ background: 'var(--surface)', borderColor: 'var(--primary)' }}>
+                <label className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>
+                  Filtrar por cliente On Demand
+                </label>
+                <SearchSelect
+                  value={odFilter}
+                  onChange={v => setOdFilter(v)}
+                  options={[{ id: '', name: `Todos os clientes (${odClients.length})` }, ...odClients]}
+                  placeholder="Buscar cliente On Demand…"
+                  wide />
+                {odFilter && <button type="button" onClick={() => setOdFilter('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Serviço: todos'], ['sustentacao', 'Sustentação'], ['projeto', 'Projeto']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setOdService(v)}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                      style={odService === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>
+                      {l}
+                    </button>
+                  ))}
+                </span>
+                <span className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Todos'], ['ativo', 'Ativos'], ['encerrado', 'Encerrados']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setOdStatus(v)}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                      style={odStatus === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>
+                      {l}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <KpiCard label={`Horas no mês (${mLabel(onDemand.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
+                <KpiCard label="Tickets no mês" value={s.tickets_month} icon={List} color={BLUE} />
+                <KpiCard label="Clientes ativos no mês" value={`${s.clients_active}/${s.clients_total}`} icon={Users} color={GREEN} />
+                <KpiCard label="Clientes SEM movimentação" value={s.clients_no_move} sub="no mês corrente" icon={AlertTriangle} color={s.clients_no_move > 0 ? YELLOW : GREEN} />
+                <KpiCard label="Horas (12 meses)" value={`${s.hours_12m.toLocaleString('pt-BR')}h`} icon={TrendingUp} color={PURPLE} />
+                <KpiCard label="Tickets (12 meses)" value={s.tickets_12m} icon={BarChart2} color={ORANGE} />
+              </div>
+
+              <Section title="Últimos 12 meses — horas apontadas e tickets">
+                <ResponsiveContainer width="100%" height={240}>
+                  <ComposedChart data={chart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis yAxisId="h" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis yAxisId="t" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar  yAxisId="h" dataKey="hours"   name="Horas"   fill={CYAN} radius={[2, 2, 0, 0]} />
+                    <Line yAxisId="t" dataKey="tickets" name="Tickets" stroke={ORANGE} dot={{ r: 3 }} strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Section>
+
+              <Section title={`Por cliente (${clientsF.length}) — mês corrente e acumulado 12 meses`}>
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {([['customer','Cliente'],['status','Situação'],['current_hours','Horas mês'],['current_tickets','Tickets mês'],['total_hours','Horas 12m'],['total_tickets','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
+                          <th key={key} onClick={() => clickSort(setOdSort, odSort, key)}
+                            className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : i === 1 ? 'text-center' : 'text-right'}`}>
+                            {label}{arrow(odSort, key)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientsSorted.map(c => (
+                        <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                          <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.current_hours > 0 ? CYAN : 'var(--text-light)' }}>{c.current_hours.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.current_tickets > 0 ? BLUE : 'var(--text-light)' }}>{c.current_tickets}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.total_hours.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.total_tickets}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.last_activity ? mLabel(c.last_activity) : '—'}</td>
+                        </tr>
+                      ))}
+                      {clientsSorted.length === 0 && (
+                        <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Sem apontamentos On Demand nos últimos 12 meses'}</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+
+              <Section title={`Clientes On Demand sem movimentação no mês (${noMovF.length})`}>
+                {noMovSorted.length === 0
+                  ? <p className="text-xs text-[var(--text-light)]">{sel ? 'Nenhum cliente com esse filtro' : 'Todos os clientes On Demand tiveram movimentação neste mês.'}</p>
+                  : (
+                    <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                            {([['customer','Cliente'],['status','Situação'],['last_activity','Última atividade'],['hours_12m','Horas nos 12m']] as const).map(([key, label], i) => (
+                              <th key={key} onClick={() => clickSort(setOdNoMovSort, odNoMovSort, key)}
+                                className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 ? 'text-left' : i === 1 ? 'text-center' : 'text-right'}`}>
+                                {label}{arrow(odNoMovSort, key)}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {noMovSorted.map(c => (
+                            <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                              <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                              <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
+                              <td className="px-4 py-2.5 text-right" style={{ color: c.last_activity ? 'var(--text-muted)' : RED }}>{c.last_activity ? mLabel(c.last_activity) : 'nunca (12m)'}</td>
+                              <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.hours_12m.toLocaleString('pt-BR')}h</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+              </Section>
+            </div>
+          )
+        })()}
+
+        {/* CONTRATOS — visão por tipo de contrato + detalhe por cliente */}
+        {!routineTab && tab === 'contratos' && contracts && (() => {
+          const mLabel = (mk: string) => { const [y, m] = mk.split('-'); return `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m - 1]}/${y.slice(2)}` }
+          const clientsOpts = Array.from(new Map(contracts.by_client.map(c => [c.customer_id, c.customer])).entries())
+            .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+          const rows = contracts.by_client.filter(c => (!ctClient || String(c.customer_id) === ctClient) && (!ctType || c.contract_type === ctType))
+          const cmp = (a: any, b: any, k: string) => (typeof a[k] === 'number' && typeof b[k] === 'number') ? a[k] - b[k] : String(a[k] ?? '').localeCompare(String(b[k] ?? ''), 'pt-BR')
+          const rowsSorted = [...rows].sort((a, b) => (ctSort.dir === 'asc' ? 1 : -1) * cmp(a, b, ctSort.key))
+          const clickSort = (k: string) => setCtSort(s => s.key === k ? { key: k, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key: k, dir: 'desc' })
+          const arr = (k: string) => ctSort.key === k ? (ctSort.dir === 'desc' ? ' ↓' : ' ↑') : ''
+          const StatusBadge = ({ st }: { st: string }) => (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium" style={st === 'ativo' ? { background: 'var(--success-bg)', color: 'var(--success-border)' } : { background: 'var(--danger-bg)', color: 'var(--danger-border)' }}>{st === 'ativo' ? 'Ativo' : 'Inativo'}</span>
+          )
+          const s = contracts.summary
+          return (
+            <div className="space-y-6">
+              {/* Filtros */}
+              <div className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3" style={{ background: 'var(--surface)', borderColor: 'var(--primary)' }}>
+                <label className="text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>Contratos</label>
+                <SearchSelect value={ctClient} onChange={v => setCtClient(v)}
+                  options={[{ id: '', name: `Todos os clientes (${clientsOpts.length})` }, ...clientsOpts]}
+                  placeholder="Buscar cliente…" wide />
+                {ctClient && <button type="button" onClick={() => setCtClient('')} className="text-xs" style={{ color: 'var(--primary)' }}>limpar</button>}
+                <select value={ctType} onChange={e => setCtType(e.target.value)}
+                  className="h-9 px-3 rounded-lg text-sm outline-none cursor-pointer"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border-strong)', color: 'var(--text)' }}>
+                  <option value="">Todos os tipos</option>
+                  {contracts.by_type.map(t => <option key={t.contract_type} value={t.contract_type}>{t.contract_type}</option>)}
+                </select>
+                <span className="sm:ml-auto flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Serviço: todos'], ['sustentacao', 'Sustentação'], ['projeto', 'Projeto']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setCtService(v)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors" style={ctService === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </span>
+                <span className="flex items-center gap-1 rounded-lg p-0.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  {([['all', 'Todos'], ['ativo', 'Ativos'], ['inativo', 'Inativos']] as const).map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setCtStatus(v)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors" style={ctStatus === v ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'transparent', color: 'var(--text-muted)' }}>{l}</button>
+                  ))}
+                </span>
+              </div>
+
+              {/* KPIs gerais */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <KpiCard label={`Horas no mês (${mLabel(contracts.current_month)})`} value={`${s.hours_month.toLocaleString('pt-BR')}h`} icon={Clock} color={CYAN} />
+                <KpiCard label="Tickets no mês" value={s.tickets_month} icon={List} color={BLUE} />
+                <KpiCard label="Contratos" value={s.contracts} icon={FileText} color={GREEN} />
+                <KpiCard label="Clientes" value={s.clients} icon={Users} color={PURPLE} />
+                <KpiCard label="Horas (12 meses)" value={`${s.hours_12m.toLocaleString('pt-BR')}h`} icon={TrendingUp} color={ORANGE} />
+                <KpiCard label="Tickets (12 meses)" value={s.tickets_12m} icon={BarChart2} color={CYAN} />
+              </div>
+
+              {/* Resumo por tipo de contrato */}
+              {/* Indicadores */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Section title="Horas por tipo de contrato (12 meses)">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <ComposedChart data={contracts.by_type}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="contract_type" tick={{ fontSize: 9, fill: 'var(--text-light)' }} interval={0} angle={-12} textAnchor="end" height={50} />
+                      <YAxis yAxisId="h" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis yAxisId="t" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar  yAxisId="h" dataKey="hours_12m"   name="Horas 12m"   fill={CYAN} radius={[2, 2, 0, 0]} />
+                      <Line yAxisId="t" dataKey="tickets_12m" name="Tickets 12m" stroke={ORANGE} dot={{ r: 3 }} strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </Section>
+                <Section title="Clientes por tipo de contrato">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie data={contracts.by_type} dataKey="clients" nameKey="contract_type" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name ?? ''}: ${value}`} labelLine={false}>
+                        {contracts.by_type.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Section>
+              </div>
+
+              {/* Top clientes por horas (respeita os filtros) */}
+              <Section title="Top 10 clientes por horas (12 meses)">
+                <ResponsiveContainer width="100%" height={Math.max(160, Math.min(rowsSorted.length, 10) * 34 + 20)}>
+                  <BarChart layout="vertical" data={[...rows].sort((a, b) => b.hours_12m - a.hours_12m).slice(0, 10).map(c => ({ nome: `${c.customer} · ${c.contract_type}`, horas: c.hours_12m }))} margin={{ left: 8, right: 24 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis type="category" dataKey="nome" width={220} tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} formatter={(v) => `${v}h`} />
+                    <Bar dataKey="horas" name="Horas 12m" fill={CYAN} radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Section>
+
+              <Section title="Por tipo de contrato — 12 meses">
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {['Tipo de contrato', 'Clientes', 'Horas mês', 'Tickets mês', 'Horas 12m', 'Tickets 12m'].map((h, i) => (
+                          <th key={h} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contracts.by_type.map(t => (
+                        <tr key={t.contract_type} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{t.contract_type}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.clients}</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: CYAN }}>{t.hours_month.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: BLUE }}>{t.tickets_month}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.hours_12m.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{t.tickets_12m}</td>
+                        </tr>
+                      ))}
+                      {contracts.by_type.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">Sem contratos com esse filtro</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+
+              {/* Detalhe por cliente × tipo */}
+              <Section title={`Por cliente × contrato (${rows.length})`}>
+                <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                        {([['customer','Cliente'],['contract_type','Contrato'],['status','Situação'],['hours_month','Horas mês'],['tickets_month','Tickets mês'],['hours_12m','Horas 12m'],['tickets_12m','Tickets 12m'],['last_activity','Última atividade']] as const).map(([key, label], i) => (
+                          <th key={key} onClick={() => clickSort(key)} className={`px-4 py-2.5 font-medium text-[var(--text-muted)] cursor-pointer select-none hover:text-[var(--text)] ${i === 0 || i === 1 ? 'text-left' : i === 2 ? 'text-center' : 'text-right'}`}>{label}{arr(key)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rowsSorted.map((c, idx) => (
+                        <tr key={c.customer_id + '|' + c.contract_type + idx} className="border-b" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer}</td>
+                          <td className="px-4 py-2.5 text-[var(--text-muted)]">{c.contract_type}</td>
+                          <td className="px-4 py-2.5 text-center"><StatusBadge st={c.status} /></td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.hours_month > 0 ? CYAN : 'var(--text-light)' }}>{c.hours_month.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right" style={{ color: c.tickets_month > 0 ? BLUE : 'var(--text-light)' }}>{c.tickets_month}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.hours_12m.toLocaleString('pt-BR')}h</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text)]">{c.tickets_12m}</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{c.last_activity ? mLabel(c.last_activity) : '—'}</td>
+                        </tr>
+                      ))}
+                      {rowsSorted.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[var(--text-light)]">Nenhum contrato com esse filtro</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            </div>
+          )
+        })()}
 
         {/* DISTRIBUIÇÃO */}
         {!routineTab && tab === 'distribution' && distribution && (

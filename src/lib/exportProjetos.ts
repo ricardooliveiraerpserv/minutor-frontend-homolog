@@ -13,6 +13,14 @@ export interface ProjetoExportRow {
   saldo?: string
   saude?: string
   status: string
+  /** Urgência (nível herdado da requisição, "—" quando criado direto). */
+  urgencia?: string
+  /** Data de início (start_date), formatada dd/mm/aaaa. */
+  inicio?: string
+  /** Previsão de encerramento (expected_end_date), formatada dd/mm/aaaa. */
+  previsao?: string
+  /** % Entrega (delivery_percentage) — ex.: "75%". */
+  deliveryPct?: string
 }
 
 /** Exporta a lista de projetos (Demandas e Projetos) para .xlsx. */
@@ -33,6 +41,10 @@ export function exportProjetosToExcel(rows: ProjetoExportRow[], includeInternal:
       row['Saúde']         = r.saude ?? ''
     }
     row['Status'] = r.status
+    row['Urgência'] = r.urgencia ?? ''
+    row['Início'] = r.inicio ?? ''
+    row['Previsão'] = r.previsao ?? ''
+    row['% Entrega'] = r.deliveryPct ?? ''
     return row
   })
 
@@ -40,6 +52,7 @@ export function exportProjetosToExcel(rows: ProjetoExportRow[], includeInternal:
   const widths: Record<string, number> = {
     'Cliente': 24, 'Projeto': 34, 'Código': 16, 'Tipo Contrato': 16, 'Tipo Serviço': 16,
     'Fase': 16, 'Horas': 10, 'HS Apontáveis': 14, 'HS Consumidas': 14, 'Saldo': 10, 'Saúde': 12, 'Status': 16,
+    'Urgência': 14, 'Início': 12, 'Previsão': 12, '% Entrega': 12,
   }
   const headers = Object.keys(data[0] ?? {})
   ws['!cols'] = headers.map(h => ({ wch: widths[h] ?? 16 }))

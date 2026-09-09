@@ -52,7 +52,8 @@ interface Partner { id: number; name: string }
 
 export default function VerComoPage() {
   const [kind, setKind] = useState<Kind | null>(null)
-  const [parceiroAdmin, setParceiroAdmin] = useState<boolean>(true)
+  // null = "Todos" (admin + membro juntos). true = admin, false = membro.
+  const [parceiroAdmin, setParceiroAdmin] = useState<boolean | null>(null)
   const [filter, setFilter] = useState('')            // consultor: vínculo/cargo
   const [partners, setPartners] = useState<Partner[]>([])
   const [partnerId, setPartnerId] = useState('')      // parceiro: empresa
@@ -72,10 +73,12 @@ export default function VerComoPage() {
 
   const visibleKinds = KINDS.filter(k => (allowedKinds ?? []).includes(k.id))
 
-  const load = useCallback(async (k: Kind, admin: boolean, query: string, flt: string, pid: string) => {
+  const load = useCallback(async (k: Kind, admin: boolean | null, query: string, flt: string, pid: string) => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ kind: k, admin: admin ? '1' : '0', q: query })
+      const params = new URLSearchParams({ kind: k, q: query })
+      // Só envia `admin` quando NÃO é "Todos" (null) — omitido = sem filtro is_executive.
+      if (admin !== null) params.set('admin', admin ? '1' : '0')
       if (k === 'consultor' && flt) params.set('filter', flt)
       if (k === 'parceiro' && pid) params.set('partner_id', pid)
       const r = await api.get<{ data: Candidate[] }>(`/impersonate/candidates?${params.toString()}`)
@@ -108,10 +111,10 @@ export default function VerComoPage() {
       const raw = localStorage.getItem('minutor:vercomo:return')
       if (!raw) return
       localStorage.removeItem('minutor:vercomo:return')
-      const s = JSON.parse(raw) as { kind?: Kind; parceiroAdmin?: boolean; filter?: string; partnerId?: string; results?: Candidate[] }
+      const s = JSON.parse(raw) as { kind?: Kind; parceiroAdmin?: boolean | null; filter?: string; partnerId?: string; results?: Candidate[] }
       if (!s.kind) return
       setKind(s.kind)
-      if (typeof s.parceiroAdmin === 'boolean') setParceiroAdmin(s.parceiroAdmin)
+      if (s.parceiroAdmin !== undefined) setParceiroAdmin(s.parceiroAdmin)
       if (s.filter) setFilter(s.filter)
       if (s.partnerId) setPartnerId(s.partnerId)
       if (s.results?.length) setResults(s.results)  // mostra a lista em cache na hora; o load atualiza em silêncio
@@ -204,7 +207,7 @@ export default function VerComoPage() {
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Tipo de parceiro:</span>
             <div className="inline-flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
-              {[{ v: true, l: 'Admin do parceiro' }, { v: false, l: 'Membro (não-admin)' }].map(o => (
+              {[{ v: null, l: 'Todos' }, { v: true, l: 'Admin do parceiro' }, { v: false, l: 'Membro (não-admin)' }].map(o => (
                 <button
                   key={String(o.v)}
                   onClick={() => setParceiroAdmin(o.v)}
