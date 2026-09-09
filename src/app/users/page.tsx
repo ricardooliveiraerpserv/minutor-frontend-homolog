@@ -229,10 +229,11 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterHdProfile: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
+  const setFilterHdProfile = (v: string) => setFilter({ filterHdProfile: v, page: 1 } as any)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
   const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', page: 1 } as any) }
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
@@ -290,6 +291,7 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
+      if (filterHdProfile) p.set('helpdesk_access_profile_id', filterHdProfile)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
       const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
@@ -298,7 +300,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, sort, sortDir])
 
   useEffect(() => { load() }, [load])
 
@@ -468,6 +470,13 @@ export default function UsersPage() {
           <option value="1">Ativos</option>
           <option value="0">Inativos</option>
         </select>
+        {hdProfiles.length > 0 && (
+          <select value={filterHdProfile} onChange={e => setFilterHdProfile(e.target.value)} title="Filtrar por perfil de Help Desk"
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2 max-w-[180px]">
+            <option value="">Perfil HD (todos)</option>
+            {hdProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.kind === 'cliente' ? 'cliente' : 'agente'})</option>)}
+          </select>
+        )}
         <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['comercial', 'Comercial'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"

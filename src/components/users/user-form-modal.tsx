@@ -40,6 +40,7 @@ interface UserData {
   partner?: { id: number; name: string } | null
   is_executive?: boolean
   type?: string | null
+  helpdesk_access_profile_id?: number | null
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
@@ -344,6 +345,7 @@ const EMPTY_FORM = {
   bank_hours_initial_balance: '',
   guaranteed_hours: '',
   profiles: [] as ProfileType[],
+  helpdesk_access_profile_id: '' as number | '',
   consultant_type: 'horista' as ConsultantType | '',
   contract_type: '' as ContractType | '',
   coordinator_type: '' as 'projetos' | 'sustentacao' | '',
@@ -403,6 +405,14 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
+  // Perfis de acesso do Help Desk (por kind) — seletor no formulário.
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  useEffect(() => {
+    if (!open) return
+    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
+      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
+      .catch(() => {})
+  }, [open])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
   // Usuário em edição (prefill) — equivale a `modal.item` da página de Usuários.
   const [editItem, setEditItem] = useState<UserData | null>(null)
@@ -489,6 +499,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           bank_hours_initial_balance: item.bank_hours_initial_balance != null ? String(item.bank_hours_initial_balance) : '',
           guaranteed_hours:       item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
           profiles,
+          helpdesk_access_profile_id: item.helpdesk_access_profile_id ?? '',
           consultant_type:      consultant_type as ConsultantType | '',
           contract_type:        (item.contract_type as ContractType | undefined) ?? '',
           coordinator_type:     (item.coordinator_type as 'projetos' | 'sustentacao' | undefined) ?? '',
@@ -632,6 +643,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         payload.smtp_app_password = form.smtp_app_password
       }
 
+      let savedUserId: number | undefined
       if (isEdit && editItem) {
         // Mudou o valor-hora OU o tipo do consultor (rate_type/consultant_type)? Abre o modal de
         // vigência antes de enviar — a alteração vale a partir do mês escolhido (passado não muda).
@@ -645,11 +657,23 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         if (vigenciaChanged && !hourlyRateEffectiveFrom) { setSaving(false); setRateModalOpen(true); return }
         if (vigenciaChanged && hourlyRateEffectiveFrom) { payload.hourly_rate_effective_from = hourlyRateEffectiveFrom }
         await api.put(`/users/${editItem.id}`, payload)
+        savedUserId = editItem.id
         toast.success('Usuário atualizado')
       } else {
         const created = await api.post<any>('/users', payload)
+        savedUserId = created?.id ?? created?.data?.id
         if (created?.welcome_email_sent === false) toast.warning('Usuário criado, mas o e-mail de boas-vindas não pôde ser enviado. Use "Reenviar" depois.')
         else toast.success('Usuário criado — e-mail de boas-vindas enviado com a senha de acesso')
+      }
+      // Perfil de acesso do Help Desk: aplica quando escolhido explicitamente (ou em edição, p/
+      // respeitar limpar). Na criação sem escolha, mantém o default automático do BE. O endpoint
+      // valida kind×tipo (agente×cliente).
+      if (savedUserId && (form.helpdesk_access_profile_id !== '' || isEdit)) {
+        try {
+          await api.patch(`/help-desk/people/${savedUserId}/access-profile`, {
+            access_profile_id: form.helpdesk_access_profile_id === '' ? null : form.helpdesk_access_profile_id,
+          })
+        } catch { /* não bloqueia o cadastro principal */ }
       }
       onSaved()
       onClose()
@@ -726,6 +750,11 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
         allowed_modules:  profiles.includes('cliente')      ? f.allowed_modules : null,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
+        // Perfil HD só continua se o KIND continuar compatível (cliente↔cliente, agente↔agente).
+        helpdesk_access_profile_id: (() => {
+          const cur = hdProfiles.find(hp => hp.id === f.helpdesk_access_profile_id)
+          return cur && (cur.kind === 'cliente') === profiles.includes('cliente') ? f.helpdesk_access_profile_id : ''
+        })(),
       }
     })
   }
@@ -777,6 +806,24 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             })}
           </div>
         </div>
+
+        {/* ── Perfil de acesso do Help Desk (kind conforme o perfil: cliente↔cliente, agente↔agente) ── */}
+        {form.profiles.length > 0 && hdProfiles.length > 0 && (() => {
+          const isCli = form.profiles.includes('cliente')
+          const opts = hdProfiles.filter(p => (p.kind === 'cliente') === isCli)
+          return (
+            <div>
+              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Perfil de acesso do Help Desk</Label>
+              <select value={form.helpdesk_access_profile_id === '' ? '' : String(form.helpdesk_access_profile_id)}
+                onChange={e => setForm(f => ({ ...f, helpdesk_access_profile_id: e.target.value ? Number(e.target.value) : '' }))}
+                className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] h-9 text-xs rounded-lg px-2 outline-none focus:border-[var(--border-strong)]">
+                <option value="">Sem perfil</option>
+                {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <p className="text-[10px] text-[var(--text-light)] mt-1">{isCli ? 'Perfis de CLIENTE' : 'Perfis de AGENTE'} — só perfis compatíveis com o tipo do usuário.</p>
+            </div>
+          )
+        })()}
 
         {/* ── Campos comuns ── */}
         {form.profiles.length > 0 && (
