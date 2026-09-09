@@ -44,6 +44,7 @@ interface UserItem {
   type?: string | null
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
+  helpdesk_access_profile_id?: number | null
   // Pré-cadastro cliente pendente de convite (sem senha, desabilitado) — fase 1a/1b
   is_pending_invite?: boolean
   // Folha de pagamento
@@ -178,6 +179,24 @@ export default function UsersPage() {
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
+  // Perfis de acesso do Help Desk (por kind) — atribuição inline na linha do usuário.
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  useEffect(() => {
+    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
+      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
+      .catch(() => {})
+  }, [])
+  const setHdProfile = async (u: UserItem, profileId: string) => {
+    const prev = u.helpdesk_access_profile_id ?? null
+    const next = profileId ? Number(profileId) : null
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: next } : x))
+    try {
+      await api.patch(`/help-desk/people/${u.id}/access-profile`, { access_profile_id: next })
+    } catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: prev } : x))  // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o perfil de Help Desk')
+    }
+  }
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -567,6 +586,7 @@ export default function UsersPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
@@ -574,7 +594,7 @@ export default function UsersPage() {
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 8 : 7) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={(canResetPwd ? 9 : 8) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
               <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 {canResetPwd && (
@@ -632,6 +652,24 @@ export default function UsersPage() {
                       </span>
                     )}
                   </div>
+                </td>
+                <td className="px-3 py-2.5 hidden md:table-cell">
+                  {(() => {
+                    // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
+                    const kind = user.type === 'cliente' ? 'cliente' : 'agent'
+                    const opts = hdProfiles.filter(p => p.kind === kind)
+                    return (
+                      <select
+                        value={user.helpdesk_access_profile_id ?? ''}
+                        onChange={e => setHdProfile(user, e.target.value)}
+                        className="text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]"
+                        title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}
+                      >
+                        <option value="">Sem perfil</option>
+                        {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    )
+                  })()}
                 </td>
                 <td className="px-3 py-2.5 hidden lg:table-cell">
                   {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
