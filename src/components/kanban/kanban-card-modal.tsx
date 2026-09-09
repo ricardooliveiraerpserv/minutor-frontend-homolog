@@ -76,7 +76,7 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
     if (!isCreate || !columnId || createdId) return
     let alive = true
     kanbanApi.addCard(columnId, { title: 'Novo card' })
-      .then(c => { if (alive) { setCreatedId(c.id); hydrate(c) } })
+      .then(c => { if (alive) { setCreatedId(c.id); hydrate(c); setTitle('') } })  // título vazio (placeholder) no cadastro
       .catch(() => toast.error('Erro ao iniciar o card'))
     return () => { alive = false }
   // eslint-disable-next-line react-hooks/exhaustive-deps
