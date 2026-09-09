@@ -135,17 +135,38 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
   const b = data.baseline
   const curve = (data.curve ?? []).map(p => ({ ...p, label: ddmm(p.date) }))
 
-  // Só indicadores de PRAZO (schedule). Custo/esforço (CPI/CV) removido — o sistema
-  // não trabalha com custo (decisão 24/08).
+  // PRAZO (SPI/SV) + ESFORÇO em horas (CPI/CV = EV÷AC e EV−AC, nunca R$).
   const cards: { label: string; value: string; tone: Tone; sub: string; trend: 'up' | 'down' | 'flat'; help: string }[] = [
     { label: 'SPI · Prazo', value: fmtIdx(m.spi), tone: idxTone(m.spi), sub: m.spi == null ? 'sem dado' : m.spi >= 1 ? 'no ritmo ou adiantado' : 'atrás do planejado', trend: m.spi == null ? 'flat' : m.spi >= 1 ? 'up' : 'down',
       help: 'SPI = EV ÷ PV — horas de trabalho FEITO (EV) ÷ horas PLANEJADAS até hoje (PV). 1,00 = no ritmo; abaixo de 1,00 = atrasado; acima = adiantado.' },
     { label: 'SV · Prazo (horas)', value: fmtSigned(m.sv), tone: varTone(m.sv), sub: m.sv >= 0 ? 'adiantado' : 'atrasado', trend: m.sv >= 0 ? 'up' : 'down',
       help: 'SV = EV − PV — diferença, em horas, entre o que foi FEITO (EV) e o que estava PLANEJADO até hoje (PV). Negativo = atrasado; positivo = adiantado.' },
+    { label: 'CPI · Esforço', value: fmtIdx(m.cpi), tone: idxTone(m.cpi), sub: m.cpi == null ? 'sem apontamento' : m.cpi >= 1 ? 'eficiente' : 'gasta mais do que entrega', trend: m.cpi == null ? 'flat' : m.cpi >= 1 ? 'up' : 'down',
+      help: 'CPI = EV ÷ AC — horas FEITAS (EV) ÷ horas APONTADAS/consumidas (AC). 1,00 = eficiente; abaixo de 1,00 = está gastando mais horas do que entrega (retrabalho, escopo, etc.).' },
+    { label: 'CV · Esforço (horas)', value: fmtSigned(m.cv), tone: varTone(m.cv), sub: m.cv >= 0 ? 'dentro do esforço' : 'esforço acima do entregue', trend: m.cv >= 0 ? 'up' : 'down',
+      help: 'CV = EV − AC — diferença, em horas, entre o valor FEITO (EV) e as horas gastas (AC). Negativo = gastou mais horas do que entregou.' },
   ]
+
+  // Saúde 🟢🟡🔴 combinando prazo (SPI) e esforço (CPI): cortes 0,95 / 0,85.
+  const idxVals = [m.spi, m.cpi].filter((v): v is number => v != null)
+  const worstIdx = idxVals.length ? Math.min(...idxVals) : null
+  const health = worstIdx == null ? null : worstIdx >= 0.95 ? 'green' : worstIdx >= 0.85 ? 'yellow' : 'red'
+  const HEALTH = {
+    green:  { icon: '🟢', label: 'Dentro do planejado', bg: 'var(--success-bg)', fg: 'var(--success)', bd: 'var(--success-border)' },
+    yellow: { icon: '🟡', label: 'Atenção',              bg: 'var(--warning-bg)', fg: 'var(--warning)', bd: 'var(--warning-border)' },
+    red:    { icon: '🔴', label: 'Risco de atraso/estouro', bg: 'var(--danger-bg)', fg: 'var(--danger)', bd: 'var(--danger-border)' },
+  } as const
 
   return (
     <div className="flex flex-col gap-3">
+      {health && (
+        <div className="flex items-center gap-2 flex-wrap px-3 py-2 rounded-lg" style={{ background: HEALTH[health].bg, color: HEALTH[health].fg, border: `1px solid ${HEALTH[health].bd}` }}>
+          <span style={{ fontSize: 14 }}>{HEALTH[health].icon}</span>
+          <span className="text-[12px] font-semibold">{HEALTH[health].label}</span>
+          <span className="text-[11px]" style={{ opacity: 0.85 }}>SPI {fmtIdx(m.spi)} · CPI {fmtIdx(m.cpi)}</span>
+          <span className="text-[10px] ml-auto" style={{ opacity: 0.7 }}>prazo (SPI) + esforço (CPI) · cortes 0,95 / 0,85</span>
+        </div>
+      )}
       {data.using_live_plan ? (
         <div className="flex items-center gap-2 flex-wrap text-[12px] px-3 py-2 rounded-lg"
           style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
