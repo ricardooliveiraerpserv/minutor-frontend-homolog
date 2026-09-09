@@ -118,6 +118,8 @@ export interface TeamLoadItem {
   remaining_hours: number
   usage_pct: number
   overloaded: boolean
+  raia?: string | null
+  raia_label?: string | null
 }
 
 export function useProjectSchedule(projectId: number | null | undefined) {

@@ -517,6 +517,14 @@ function InternalCronogramaPage() {
                     return (
                       <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ flex: '1 1 90px', minWidth: 60, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
+                        {t.raia_label && (() => {
+                          const c = t.raia === 'in_progress' ? ['var(--primary-soft)', 'var(--primary)']
+                            : t.raia === 'review' ? ['rgba(168,85,247,0.15)', '#a855f7']
+                            : t.raia === 'waiting_client' ? ['var(--warning-bg)', 'var(--warning)']
+                            : t.raia === 'done' ? ['var(--success-bg)', 'var(--success)']
+                            : ['var(--surface-hover)', 'var(--text-muted)']
+                          return <span style={{ flex: '0 0 auto', fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 999, whiteSpace: 'nowrap', background: c[0], color: c[1] }}>{t.raia_label}</span>
+                        })()}
                         <div style={{ flex: '0 1 70px', height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 30 }}>
                           <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
                         </div>
