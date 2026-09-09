@@ -20,6 +20,11 @@ interface Props {
 
 export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, onClose, onSaved }: Props) {
   const isCreate = !cardId
+  // Modo criação: cria um RASCUNHO já (para checklist/anexos/comentários funcionarem no ato) e
+  // DESCARTA o rascunho se o usuário cancelar sem confirmar.
+  const [createdId, setCreatedId] = useState<number | null>(null)
+  const committedRef = useRef(false)
+  const effectiveId = cardId ?? createdId
   const [card, setCard] = useState<KCardFull | null>(null)
   const [saving, setSaving] = useState(false)
   const [newCheck, setNewCheck] = useState('')
@@ -62,9 +67,20 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
     setFieldVals(fv)
   }
 
-  function loadHistory() { if (!cardId) return; kanbanApi.cardHistory(cardId).then(r => setHistory(r.items ?? [])).catch(() => {}) }
-  function reload() { if (!cardId) return; kanbanApi.card(cardId).then(hydrate).catch(() => {}); loadHistory() }
+  function loadHistory() { if (!effectiveId) return; kanbanApi.cardHistory(effectiveId).then(r => setHistory(r.items ?? [])).catch(() => {}) }
+  function reload() { if (!effectiveId) return; kanbanApi.card(effectiveId).then(hydrate).catch(() => {}); loadHistory() }
   useEffect(() => { if (!cardId) return; kanbanApi.card(cardId).then(hydrate).catch(() => toast.error('Erro ao abrir o card')); loadHistory() }, [cardId])
+
+  // Modo criação: cria o rascunho ao abrir → tudo (checklist/anexos/comentários) já funciona.
+  useEffect(() => {
+    if (!isCreate || !columnId || createdId) return
+    let alive = true
+    kanbanApi.addCard(columnId, { title: 'Novo card' })
+      .then(c => { if (alive) { setCreatedId(c.id); hydrate(c) } })
+      .catch(() => toast.error('Erro ao iniciar o card'))
+    return () => { alive = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function save() {
     if (!title.trim()) { toast.error('Título é obrigatório.'); return }
@@ -87,21 +103,24 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
       member_ids: memberIds,
       field_values: fieldVals,
     }
+    if (!effectiveId) { toast.error('Card ainda não está pronto — aguarde um instante.'); setSaving(false); return }
     try {
-      if (isCreate) {
-        // Cria com o título e persiste os demais campos no mesmo fluxo (addCard aceita só o básico).
-        const created = await kanbanApi.addCard(columnId!, { title: title.trim() })
-        if (created?.id) await kanbanApi.updateCard(created.id, payload)
-        onSaved()
-        toast.success('Card criado')
-        onClose()
-      } else {
-        await kanbanApi.updateCard(cardId!, payload)
-        onSaved()
-        toast.success('Card salvo')
-      }
+      await kanbanApi.updateCard(effectiveId, payload)
+      committedRef.current = true   // confirmado → não descarta o rascunho ao fechar
+      onSaved()
+      toast.success(isCreate ? 'Card criado' : 'Card salvo')
+      if (isCreate) onClose()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
+  }
+
+  // Descarta o rascunho se o usuário fechar/cancelar no modo criação sem confirmar.
+  async function handleClose() {
+    if (isCreate && createdId && !committedRef.current) {
+      try { await kanbanApi.deleteCard(createdId) } catch { /* ignore */ }
+      onSaved()   // atualiza o board (remove o rascunho descartado)
+    }
+    onClose()
   }
 
   async function remove() {
@@ -115,8 +134,8 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
   }
 
   async function addCheck() {
-    const t = newCheck.trim(); if (!t || !cardId) return
-    try { await kanbanApi.addChecklist(cardId, t); setNewCheck(''); reload() }
+    const t = newCheck.trim(); if (!t || !effectiveId) return
+    try { await kanbanApi.addChecklist(effectiveId, t); setNewCheck(''); reload() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
   async function toggleCheck(id: number, is_done: boolean) {
@@ -125,18 +144,18 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
   async function delCheck(id: number) { try { await kanbanApi.deleteChecklist(id); reload() } catch { /* ignore */ } }
 
   async function addComment() {
-    const b = newComment.trim(); if (!b || !cardId) return
-    try { await kanbanApi.addComment(cardId, b); setNewComment(''); reload() }
+    const b = newComment.trim(); if (!b || !effectiveId) return
+    try { await kanbanApi.addComment(effectiveId, b); setNewComment(''); reload() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
   async function delComment(id: number) { try { await kanbanApi.deleteComment(id); reload() } catch { /* ignore */ } }
 
   async function upload(files: FileList | null) {
-    if (!files || files.length === 0 || !cardId) return
+    if (!files || files.length === 0 || !effectiveId) return
     setUploading(true)
     try {
       for (const f of Array.from(files)) {
-        await uploadAttachment({ entityType: 'KANBAN_CARD', entityId: cardId, category: 'attachment', file: f })
+        await uploadAttachment({ entityType: 'KANBAN_CARD', entityId: effectiveId, category: 'attachment', file: f })
       }
       if (fileRef.current) fileRef.current.value = ''
       reload()
@@ -146,19 +165,21 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
   async function delAttachment(id: number) { try { await deleteAttachment(id); reload() } catch (e) { toast.error(e instanceof Error ? e.message : 'Erro') } }
 
   return (
-    <div onClick={onClose} style={overlay}>
+    <div onClick={handleClose} style={overlay}>
       <div onClick={e => e.stopPropagation()} style={modal}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>{isCreate ? 'Novo card' : `Card #${cardId}`}</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {!isCreate && <button onClick={remove} title="Excluir card" style={iconBtn}><Trash2 size={16} /></button>}
-            <button onClick={onClose} title="Fechar" style={iconBtn}><X size={18} /></button>
+            <button onClick={handleClose} title="Fechar" style={iconBtn}><X size={18} /></button>
           </div>
         </div>
 
-        {(!isCreate && !card) ? <div style={{ padding: 24, color: 'var(--text-muted)' }}>Carregando…</div> : (
+        {!card ? <div style={{ padding: 24, color: 'var(--text-muted)' }}>{isCreate ? 'Preparando…' : 'Carregando…'}</div> : (
           <div style={{ padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título" style={{ width: '100%', fontSize: 16, fontWeight: 600, padding: '10px 12px' }} />
+            <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título"
+              autoFocus={isCreate} onFocus={e => { if (isCreate && title === 'Novo card') e.currentTarget.select() }}
+              style={{ width: '100%', fontSize: 16, fontWeight: 600, padding: '10px 12px' }} />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
               <Field label="Responsável">
@@ -220,7 +241,8 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              {isCreate && <button onClick={handleClose} disabled={saving} className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }}>Cancelar</button>}
               <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 18px' }}>{saving ? 'Salvando…' : (isCreate ? 'Adicionar card' : 'Salvar alterações')}</button>
             </div>
 
