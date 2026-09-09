@@ -172,6 +172,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   const [logTarget, setLogTarget] = useState<Notif | null>(null)
   const [resendMenu, setResendMenu] = useState<number | null>(null)   // qual notif tem o menu de reenvio aberto
   const [showDone, setShowDone] = useState(false)                     // seção "Tarefas concluídas" recolhida por padrão
+  const [showEnc, setShowEnc] = useState(false)                       // seção "Encerradas" recolhida por padrão
   const [tplPreview, setTplPreview] = useState<{ html: string; recipients: number } | null>(null)
 
   // Prévia do e-mail de um modelo (sem precisar abri-lo).
@@ -219,7 +220,11 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   if (editing) return <Form draft={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load(); onChanged?.() }} />
 
   const notifs = rows.filter(n => !n.is_template && !HIDDEN_TITLES.has(n.title))
-  const publications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
+  // "Encerrada" = prazo (expires_at) já vencido — inclui campanhas finalizadas pelo botão Encerrar.
+  const isEncerrada = (n: Notif) => !!n.expires_at && new Date(n.expires_at).getTime() < Date.now()
+  const allPublications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
+  const publications = allPublications.filter(n => !isEncerrada(n))   // ativas (lista principal)
+  const encerradas = allPublications.filter(isEncerrada)              // seção recolhível abaixo
   const completedTasks = notifs.filter(n => COMPLETION_TITLES.has(n.title))
   const templates = rows.filter(n => n.is_template)
 
@@ -239,7 +244,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
         </div>
       </div>
       <div className="space-y-1.5">
-        {publications.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma notificação publicada.</p>}
+        {publications.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma publicação ativa.</p>}
         {publications.map(n => (
           <div key={n.id} className="flex items-center gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
             <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{n.title}</span>
@@ -272,6 +277,29 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
           </div>
         ))}
       </div>
+
+      {/* ── Encerradas (prazo vencido / finalizadas) — separadas, recolhíveis, com excluir ── */}
+      {encerradas.length > 0 && (
+        <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={() => setShowEnc(s => !s)} className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+            <ChevronDown size={13} style={{ transform: showEnc ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' }} />
+            <Ban size={13} /> Encerradas ({encerradas.length})
+          </button>
+          {showEnc && encerradas.map(n => (
+            <div key={n.id} className="flex items-center gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
+              {/* legenda + visual cinza (desabilitado) */}
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>Encerrada</span>
+              <span className="font-medium flex-1 truncate line-through" style={{ color: 'var(--text-light)' }}>{n.title}</span>
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>{n.type}</span>
+              {!!n.actions?.length && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.actions.length} botão(ões)</span>}
+              {n.expires_at && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· encerrada {fmtDateTime(n.expires_at)}</span>}
+              {n.type === 'poll' && <button title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--text-light)' }} /></button>}
+              <button title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--text-light)' }} /></button>
+              <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Tarefas concluídas (auto-geradas) — separadas das publicações, recolhíveis ── */}
       {completedTasks.length > 0 && (
