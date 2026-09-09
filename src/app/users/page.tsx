@@ -45,6 +45,7 @@ interface UserItem {
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   helpdesk_access_profile_id?: number | null
+  helpdesk_department_id?: number | null
   // Pré-cadastro cliente pendente de convite (sem senha, desabilitado) — fase 1a/1b
   is_pending_invite?: boolean
   // Folha de pagamento
@@ -195,6 +196,29 @@ export default function UsersPage() {
     } catch (e) {
       setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: prev } : x))  // reverte
       toast.error((e as { message?: string })?.message ?? 'Erro ao definir o perfil de Help Desk')
+    }
+  }
+  // Departamentos do Help Desk por cliente (só p/ usuários cliente) — atribuição inline.
+  const [deptsByCustomer, setDeptsByCustomer] = useState<Record<number, { id: number; name: string }[]>>({})
+  useEffect(() => {
+    const cids = Array.from(new Set(users.filter(u => u.type === 'cliente' && u.customer_id).map(u => u.customer_id as number)))
+      .filter(cid => !(cid in deptsByCustomer))
+    if (cids.length === 0) return
+    Promise.all(cids.map(cid =>
+      api.get<{ data: { id: number; name: string; active: boolean }[] }>(`/help-desk/departments?customer_id=${cid}`)
+        .then(r => [cid, (r?.data ?? []).filter(d => d.active).map(d => ({ id: d.id, name: d.name }))] as const)
+        .catch(() => [cid, [] as { id: number; name: string }[]] as const)
+    )).then(pairs => setDeptsByCustomer(prev => ({ ...prev, ...Object.fromEntries(pairs) })))
+  }, [users])  // eslint-disable-line react-hooks/exhaustive-deps
+  const setHdDept = async (u: UserItem, deptId: string) => {
+    const prev = u.helpdesk_department_id ?? null
+    const next = deptId ? Number(deptId) : null
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: next } : x))
+    try {
+      await api.patch(`/help-desk/people/${u.id}/department`, { helpdesk_department_id: next })
+    } catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: prev } : x))
+      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o departamento')
     }
   }
   const [customers, setCustomers] = useState<CustomerOption[]>([])
@@ -658,16 +682,22 @@ export default function UsersPage() {
                     // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
                     const kind = user.type === 'cliente' ? 'cliente' : 'agent'
                     const opts = hdProfiles.filter(p => p.kind === kind)
+                    const depts = user.type === 'cliente' && user.customer_id ? (deptsByCustomer[user.customer_id] ?? []) : []
+                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]'
                     return (
-                      <select
-                        value={user.helpdesk_access_profile_id ?? ''}
-                        onChange={e => setHdProfile(user, e.target.value)}
-                        className="text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]"
-                        title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}
-                      >
-                        <option value="">Sem perfil</option>
-                        {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
+                      <div className="flex flex-col gap-1">
+                        <select value={user.helpdesk_access_profile_id ?? ''} onChange={e => setHdProfile(user, e.target.value)} className={selCls}
+                          title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}>
+                          <option value="">Sem perfil</option>
+                          {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        {depts.length > 0 && (
+                          <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title="Departamento (Help Desk)">
+                            <option value="">Sem departamento</option>
+                            {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                        )}
+                      </div>
                     )
                   })()}
                 </td>
