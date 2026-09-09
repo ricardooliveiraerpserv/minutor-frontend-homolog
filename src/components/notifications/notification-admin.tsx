@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown, Ban, Copy } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -172,6 +172,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   const [logTarget, setLogTarget] = useState<Notif | null>(null)
   const [resendMenu, setResendMenu] = useState<number | null>(null)   // qual notif tem o menu de reenvio aberto
   const [showDone, setShowDone] = useState(false)                     // seção "Tarefas concluídas" recolhida por padrão
+  const [showEnc, setShowEnc] = useState(false)                       // seção "Encerradas" recolhida por padrão
   const [tplPreview, setTplPreview] = useState<{ html: string; recipients: number } | null>(null)
 
   // Prévia do e-mail de um modelo (sem precisar abri-lo).
@@ -201,8 +202,17 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
     try { await api.post(`/notifications/${n.id}/resend`, { channel }); toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : 'Reenviado (e-mail + pop-up)'); load(); onChanged?.() }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao reenviar') }
   }
+  // Encerra a campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas). Não apaga.
+  const encerrar = async (n: Notif) => {
+    if (!confirm(`Encerrar a campanha "${n.title}" agora?\n\nPara de re-perguntar sozinho, o pop-up some para todos e novas respostas ficam bloqueadas. As respostas já dadas continuam registradas (nada é apagado).`)) return
+    try { await api.post(`/notifications/${n.id}/encerrar`, {}); toast.success('Campanha encerrada'); load(); onChanged?.() }
+    catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao encerrar') }
+  }
   // Usar um modelo → abre o form prefilled como NOVA notificação (sem id, sem flag de modelo).
   const useTemplate = (t: Notif) => setEditing({ ...t, id: undefined, is_template: false, template_name: null, target_users: (t as Draft).target_users })
+  // Copiar = nova publicação a partir de uma existente (mesmo encerrada): sem id (vira POST),
+  // prazo/recorrência zerados p/ o usuário definir de novo. Preserva texto/botões/destinatários.
+  const copiar = (n: Notif) => setEditing({ ...n, id: undefined, is_template: false, template_name: null, expires_at: null, resent_at: null, version: 1, target_users: (n as Draft).target_users })
 
   const recurLabel = (n: Notif) => n.recurrence && n.recurrence !== 'none'
     ? (n.recurrence === 'every_days' ? `a cada ${n.recurrence_value}d`
@@ -213,7 +223,11 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   if (editing) return <Form draft={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load(); onChanged?.() }} />
 
   const notifs = rows.filter(n => !n.is_template && !HIDDEN_TITLES.has(n.title))
-  const publications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
+  // "Encerrada" = prazo (expires_at) já vencido — inclui campanhas finalizadas pelo botão Encerrar.
+  const isEncerrada = (n: Notif) => !!n.expires_at && new Date(n.expires_at).getTime() < Date.now()
+  const allPublications = notifs.filter(n => !COMPLETION_TITLES.has(n.title))
+  const publications = allPublications.filter(n => !isEncerrada(n))   // ativas (lista principal)
+  const encerradas = allPublications.filter(isEncerrada)              // seção recolhível abaixo
   const completedTasks = notifs.filter(n => COMPLETION_TITLES.has(n.title))
   const templates = rows.filter(n => n.is_template)
 
@@ -233,7 +247,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
         </div>
       </div>
       <div className="space-y-1.5">
-        {publications.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma notificação publicada.</p>}
+        {publications.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma publicação ativa.</p>}
         {publications.map(n => (
           <div key={n.id} className="flex items-center gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
             <span className="font-medium flex-1 truncate" style={{ color: 'var(--text)' }}>{n.title}</span>
@@ -258,11 +272,39 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
                 </>
               )}
             </div>
+            {(!!n.actions?.length || (n.recurrence && n.recurrence !== 'none')) && (
+              <button title="Encerrar campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas)" onClick={() => encerrar(n)}><Ban size={14} style={{ color: 'var(--primary)' }} /></button>
+            )}
             <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
             <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
           </div>
         ))}
       </div>
+
+      {/* ── Encerradas (prazo vencido / finalizadas) — separadas, recolhíveis, com excluir ── */}
+      {encerradas.length > 0 && (
+        <div className="space-y-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={() => setShowEnc(s => !s)} className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+            <ChevronDown size={13} style={{ transform: showEnc ? 'none' : 'rotate(-90deg)', transition: 'transform .15s' }} />
+            <Ban size={13} /> Encerradas ({encerradas.length})
+          </button>
+          {showEnc && encerradas.map(n => (
+            <div key={n.id} className="flex items-center gap-2 text-sm py-1.5 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
+              {/* legenda + visual cinza (desabilitado) */}
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>Encerrada</span>
+              <span className="font-medium flex-1 truncate line-through" style={{ color: 'var(--text-light)' }}>{n.title}</span>
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>{n.type}</span>
+              {!!n.actions?.length && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.actions.length} botão(ões)</span>}
+              {n.expires_at && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· encerrada {fmtDateTime(n.expires_at)}</span>}
+              {n.type === 'poll' && <button title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--text-light)' }} /></button>}
+              <button title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--text-light)' }} /></button>
+              <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
+              <button title="Copiar — nova publicação a partir desta" onClick={() => copiar(n)}><Copy size={14} style={{ color: 'var(--primary)' }} /></button>
+              <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Tarefas concluídas (auto-geradas) — separadas das publicações, recolhíveis ── */}
       {completedTasks.length > 0 && (
