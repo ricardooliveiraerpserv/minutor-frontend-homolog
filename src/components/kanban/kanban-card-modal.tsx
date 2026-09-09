@@ -9,7 +9,8 @@ import { uploadAttachment, downloadAttachment, deleteAttachment } from '@/lib/at
 import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
-  cardId: number
+  cardId?: number
+  columnId?: number   // modo criação: cria o card nesta coluna (sem cardId)
   boardLabels: KLabel[]
   fields: KField[]
   users: KUserRef[]
@@ -17,7 +18,8 @@ interface Props {
   onSaved: () => void
 }
 
-export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, onSaved }: Props) {
+export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, onClose, onSaved }: Props) {
+  const isCreate = !cardId
   const [card, setCard] = useState<KCardFull | null>(null)
   const [saving, setSaving] = useState(false)
   const [newCheck, setNewCheck] = useState('')
@@ -60,9 +62,9 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
     setFieldVals(fv)
   }
 
-  function loadHistory() { kanbanApi.cardHistory(cardId).then(r => setHistory(r.items ?? [])).catch(() => {}) }
-  function reload() { kanbanApi.card(cardId).then(hydrate).catch(() => {}); loadHistory() }
-  useEffect(() => { kanbanApi.card(cardId).then(hydrate).catch(() => toast.error('Erro ao abrir o card')); loadHistory() }, [cardId])
+  function loadHistory() { if (!cardId) return; kanbanApi.cardHistory(cardId).then(r => setHistory(r.items ?? [])).catch(() => {}) }
+  function reload() { if (!cardId) return; kanbanApi.card(cardId).then(hydrate).catch(() => {}); loadHistory() }
+  useEffect(() => { if (!cardId) return; kanbanApi.card(cardId).then(hydrate).catch(() => toast.error('Erro ao abrir o card')); loadHistory() }, [cardId])
 
   async function save() {
     if (!title.trim()) { toast.error('Título é obrigatório.'); return }
@@ -74,26 +76,36 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
       if (empty) { toast.error(`Preencha o campo obrigatório "${f.name}".`); return }
     }
     setSaving(true)
+    const payload = {
+      title: title.trim(),
+      description: description.trim() || null,
+      responsible_user_id: responsibleId ? Number(responsibleId) : null,
+      start_date: startDate || null,
+      due_date: dueDate || null,
+      priority: priority || null,
+      label_ids: labelIds,
+      member_ids: memberIds,
+      field_values: fieldVals,
+    }
     try {
-      await kanbanApi.updateCard(cardId, {
-        title: title.trim(),
-        description: description.trim() || null,
-        responsible_user_id: responsibleId ? Number(responsibleId) : null,
-        start_date: startDate || null,
-        due_date: dueDate || null,
-        priority: priority || null,
-        label_ids: labelIds,
-        member_ids: memberIds,
-        field_values: fieldVals,
-      })
-      onSaved()
-      toast.success('Card salvo')
+      if (isCreate) {
+        // Cria com o título e persiste os demais campos no mesmo fluxo (addCard aceita só o básico).
+        const created = await kanbanApi.addCard(columnId!, { title: title.trim() })
+        if (created?.id) await kanbanApi.updateCard(created.id, payload)
+        onSaved()
+        toast.success('Card criado')
+        onClose()
+      } else {
+        await kanbanApi.updateCard(cardId!, payload)
+        onSaved()
+        toast.success('Card salvo')
+      }
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
   }
 
   async function remove() {
-    if (!confirm('Excluir este card?')) return
+    if (!cardId || !confirm('Excluir este card?')) return
     try { await kanbanApi.deleteCard(cardId); onSaved(); onClose() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
   }
@@ -103,7 +115,7 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
   }
 
   async function addCheck() {
-    const t = newCheck.trim(); if (!t) return
+    const t = newCheck.trim(); if (!t || !cardId) return
     try { await kanbanApi.addChecklist(cardId, t); setNewCheck(''); reload() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
@@ -113,14 +125,14 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
   async function delCheck(id: number) { try { await kanbanApi.deleteChecklist(id); reload() } catch { /* ignore */ } }
 
   async function addComment() {
-    const b = newComment.trim(); if (!b) return
+    const b = newComment.trim(); if (!b || !cardId) return
     try { await kanbanApi.addComment(cardId, b); setNewComment(''); reload() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
   async function delComment(id: number) { try { await kanbanApi.deleteComment(id); reload() } catch { /* ignore */ } }
 
   async function upload(files: FileList | null) {
-    if (!files || files.length === 0) return
+    if (!files || files.length === 0 || !cardId) return
     setUploading(true)
     try {
       for (const f of Array.from(files)) {
@@ -137,14 +149,14 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
     <div onClick={onClose} style={overlay}>
       <div onClick={e => e.stopPropagation()} style={modal}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>Card #{cardId}</span>
+          <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-muted)' }}>{isCreate ? 'Novo card' : `Card #${cardId}`}</span>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={remove} title="Excluir card" style={iconBtn}><Trash2 size={16} /></button>
+            {!isCreate && <button onClick={remove} title="Excluir card" style={iconBtn}><Trash2 size={16} /></button>}
             <button onClick={onClose} title="Fechar" style={iconBtn}><X size={18} /></button>
           </div>
         </div>
 
-        {!card ? <div style={{ padding: 24, color: 'var(--text-muted)' }}>Carregando…</div> : (
+        {(!isCreate && !card) ? <div style={{ padding: 24, color: 'var(--text-muted)' }}>Carregando…</div> : (
           <div style={{ padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <input className="ds-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Título" style={{ width: '100%', fontSize: 16, fontWeight: 600, padding: '10px 12px' }} />
 
@@ -209,9 +221,10 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 18px' }}>{saving ? 'Salvando…' : 'Salvar alterações'}</button>
+              <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 18px' }}>{saving ? 'Salvando…' : (isCreate ? 'Adicionar card' : 'Salvar alterações')}</button>
             </div>
 
+            {card && (<>
             {/* Checklist */}
             <Section title={`Checklist${card.checklist.length ? ` (${card.checklist.filter(i => i.is_done).length}/${card.checklist.length})` : ''}`}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -285,6 +298,7 @@ export function KanbanCardModal({ cardId, boardLabels, fields, users, onClose, o
                 </div>
               )}
             </Section>
+            </>)}
           </div>
         )}
       </div>

@@ -24,8 +24,7 @@ export default function ClientKanbanBoardPage() {
   const [openCardId, setOpenCardId] = useState<number | null>(null)
   const [addingColumn, setAddingColumn] = useState(false)
   const [newColName, setNewColName] = useState('')
-  const [addingCardCol, setAddingCardCol] = useState<number | null>(null)
-  const [newCardTitle, setNewCardTitle] = useState('')
+  const [createInColumn, setCreateInColumn] = useState<number | null>(null)
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [fieldsOpen, setFieldsOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
@@ -132,17 +131,6 @@ export default function ClientKanbanBoardPage() {
     if (!name || name === col.name) return
     try { await kanbanApi.updateColumn(col.id, { name }); load() } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
-  async function addCard(colId: number) {
-    const title = newCardTitle.trim(); if (!title) { setAddingCardCol(null); return }
-    try {
-      const card = await kanbanApi.addCard(colId, { title })
-      setNewCardTitle(''); setAddingCardCol(null)
-      await load()
-      // Abre já o card recém-criado (modal completo) p/ preencher os demais campos no cadastro.
-      if (card?.id) setOpenCardId(card.id)
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
-  }
-
   return (
     <AppLayout title={board?.name ?? 'Kanban'}>
       <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - var(--env-banner-h, 0px) - 56px)' }}>
@@ -219,17 +207,7 @@ export default function ClientKanbanBoardPage() {
                             </Draggable>
                           ))}
                           {prov.placeholder}
-                          {addingCardCol === col.id ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              <textarea autoFocus className="ds-input" value={newCardTitle} onChange={e => setNewCardTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addCard(col.id) } if (e.key === 'Escape') setAddingCardCol(null) }} placeholder="Título do card…" rows={2} style={{ fontSize: 13, padding: 8, resize: 'none', fontFamily: 'inherit' }} />
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                <button onClick={() => addCard(col.id)} className="ds-btn-primary" style={{ fontSize: 12, padding: '5px 10px' }}>Adicionar</button>
-                                <button onClick={() => { setAddingCardCol(null); setNewCardTitle('') }} className="ds-btn-ghost" style={{ fontSize: 12, padding: '5px 8px' }}>Cancelar</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button onClick={() => { setAddingCardCol(col.id); setNewCardTitle('') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12.5, padding: '6px 4px', textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Adicionar card</button>
-                          )}
+                          <button onClick={() => setCreateInColumn(col.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12.5, padding: '6px 4px', textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Adicionar card</button>
                         </div>
                       )}
                     </Droppable>
@@ -253,6 +231,9 @@ export default function ClientKanbanBoardPage() {
         )}
       </div>
 
+      {createInColumn != null && board && (
+        <KanbanCardModal columnId={createInColumn} boardLabels={board.labels} fields={board.fields} users={users} onClose={() => setCreateInColumn(null)} onSaved={() => { setCreateInColumn(null); load() }} />
+      )}
       {openCardId && board && (
         <KanbanCardModal cardId={openCardId} boardLabels={board.labels} fields={board.fields} users={users} onClose={() => setOpenCardId(null)} onSaved={load} />
       )}
