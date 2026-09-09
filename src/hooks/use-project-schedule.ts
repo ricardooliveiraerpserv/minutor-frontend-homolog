@@ -120,6 +120,7 @@ export interface TeamLoadItem {
   overloaded: boolean
   raia?: string | null
   raia_label?: string | null
+  activities?: { id: number; name: string; raia: string; raia_label: string }[]
 }
 
 export function useProjectSchedule(projectId: number | null | undefined) {

@@ -515,22 +515,33 @@ function InternalCronogramaPage() {
                     const pctP = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 101 : 0)
                     const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
                     return (
-                      <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ flex: '1 1 90px', minWidth: 60, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
-                        {t.raia_label && (() => {
-                          const c = t.raia === 'in_progress' ? ['var(--primary-soft)', 'var(--primary)']
-                            : t.raia === 'review' ? ['rgba(168,85,247,0.15)', '#a855f7']
-                            : t.raia === 'waiting_client' ? ['var(--warning-bg)', 'var(--warning)']
-                            : t.raia === 'done' ? ['var(--success-bg)', 'var(--success)']
-                            : ['var(--surface-hover)', 'var(--text-muted)']
-                          return <span style={{ flex: '0 0 auto', fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 999, whiteSpace: 'nowrap', background: c[0], color: c[1] }}>{t.raia_label}</span>
-                        })()}
-                        <div style={{ flex: '0 1 70px', height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 30 }}>
-                          <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
+                      <div key={t.user.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ flex: '1 1 90px', minWidth: 60, fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
+                          <div style={{ flex: '0 1 70px', height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden', minWidth: 30 }}>
+                            <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
+                          </div>
+                          <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                            Disp. <strong style={{ color: 'var(--text)' }}>{Math.round(planned)}h</strong> · Apont. <strong style={{ color: 'var(--text)' }}>{Math.round(actual)}h</strong> · Saldo <strong style={{ color: (planned - actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{Math.round(planned - actual)}h</strong>
+                          </span>
                         </div>
-                        <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                          Disp. <strong style={{ color: 'var(--text)' }}>{Math.round(planned)}h</strong> · Apont. <strong style={{ color: 'var(--text)' }}>{Math.round(actual)}h</strong> · Saldo <strong style={{ color: (planned - actual) < 0 ? 'var(--danger)' : 'var(--text)' }}>{Math.round(planned - actual)}h</strong>
-                        </span>
+                        {(t.activities?.length ?? 0) > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 4 }}>
+                            {t.activities!.map(a => {
+                              const c = a.raia === 'in_progress' ? ['var(--primary-soft)', 'var(--primary)']
+                                : a.raia === 'review' ? ['rgba(168,85,247,0.15)', '#a855f7']
+                                : a.raia === 'waiting_client' ? ['var(--warning-bg)', 'var(--warning)']
+                                : a.raia === 'done' ? ['var(--success-bg)', 'var(--success)']
+                                : ['var(--surface-hover)', 'var(--text-muted)']
+                              return (
+                                <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
+                                  <span style={{ color: 'var(--text-muted)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
+                                  <span style={{ fontWeight: 600, padding: '0px 6px', borderRadius: 999, whiteSpace: 'nowrap', background: c[0], color: c[1] }}>{a.raia_label}</span>
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
