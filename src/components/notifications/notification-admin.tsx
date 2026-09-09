@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown, Ban } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -201,6 +201,12 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
     try { await api.post(`/notifications/${n.id}/resend`, { channel }); toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : 'Reenviado (e-mail + pop-up)'); load(); onChanged?.() }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao reenviar') }
   }
+  // Encerra a campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas). Não apaga.
+  const encerrar = async (n: Notif) => {
+    if (!confirm(`Encerrar a campanha "${n.title}" agora?\n\nPara de re-perguntar sozinho, o pop-up some para todos e novas respostas ficam bloqueadas. As respostas já dadas continuam registradas (nada é apagado).`)) return
+    try { await api.post(`/notifications/${n.id}/encerrar`, {}); toast.success('Campanha encerrada'); load(); onChanged?.() }
+    catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao encerrar') }
+  }
   // Usar um modelo → abre o form prefilled como NOVA notificação (sem id, sem flag de modelo).
   const useTemplate = (t: Notif) => setEditing({ ...t, id: undefined, is_template: false, template_name: null, target_users: (t as Draft).target_users })
 
@@ -258,6 +264,9 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
                 </>
               )}
             </div>
+            {(!!n.actions?.length || (n.recurrence && n.recurrence !== 'none')) && (
+              <button title="Encerrar campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas)" onClick={() => encerrar(n)}><Ban size={14} style={{ color: 'var(--primary)' }} /></button>
+            )}
             <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
             <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
           </div>
