@@ -271,6 +271,8 @@ export default function UsersPage() {
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
+  const [bulkHdLoading, setBulkHdLoading] = useState(false)
+  const [bulkHdProfile, setBulkHdProfile] = useState('')
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
 
   useEffect(() => {
@@ -423,6 +425,21 @@ export default function UsersPage() {
     finally { setBulkSustLoading(false) }
   }
 
+  // Aplica o Perfil HD aos selecionados. O BE pula os incompatíveis (agente×cliente).
+  const applyBulkHdProfile = async () => {
+    if (selectedIds.size === 0) return
+    setBulkHdLoading(true)
+    try {
+      const r = await api.patch<{ data: { applied: number; skipped: number } }>('/help-desk/people/access-profile/bulk', {
+        user_ids: [...selectedIds], access_profile_id: bulkHdProfile ? Number(bulkHdProfile) : null,
+      })
+      const applied = r?.data?.applied ?? 0, skipped = r?.data?.skipped ?? 0
+      toast.success(`Perfil HD aplicado a ${applied} usuário(s)${skipped ? ` — ${skipped} ignorado(s) por incompatibilidade de tipo` : ''}`)
+      setSelectedIds(new Set()); setBulkHdProfile(''); load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aplicar o perfil de Help Desk') }
+    finally { setBulkHdLoading(false) }
+  }
+
   const bulkSetContractType = async () => {
     if (selectedIds.size === 0) return
     setBulkContractLoading(true)
@@ -570,6 +587,30 @@ export default function UsersPage() {
                   {bulkContractLoading ? 'Aplicando...' : 'Aplicar'}
                 </button>
               </div>
+
+              {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) ── */}
+              {hdProfiles.length > 0 && (
+                <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                  <span className="text-[11px] text-[var(--text-light)]">Perfil HD:</span>
+                  <select
+                    value={bulkHdProfile}
+                    onChange={e => setBulkHdProfile(e.target.value)}
+                    className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-7 px-2 max-w-[170px]"
+                  >
+                    <option value="">Sem perfil</option>
+                    {hdProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.kind === 'cliente' ? 'cliente' : 'agente'})</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={applyBulkHdProfile}
+                    disabled={bulkHdLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Check size={12} />
+                    {bulkHdLoading ? 'Aplicando...' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
             </>
           )}
           {canDelete && (
