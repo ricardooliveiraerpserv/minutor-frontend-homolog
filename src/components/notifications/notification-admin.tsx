@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown, Ban } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell, Download, ChevronDown, Ban, Copy } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -210,6 +210,9 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   }
   // Usar um modelo → abre o form prefilled como NOVA notificação (sem id, sem flag de modelo).
   const useTemplate = (t: Notif) => setEditing({ ...t, id: undefined, is_template: false, template_name: null, target_users: (t as Draft).target_users })
+  // Copiar = nova publicação a partir de uma existente (mesmo encerrada): sem id (vira POST),
+  // prazo/recorrência zerados p/ o usuário definir de novo. Preserva texto/botões/destinatários.
+  const copiar = (n: Notif) => setEditing({ ...n, id: undefined, is_template: false, template_name: null, expires_at: null, resent_at: null, version: 1, target_users: (n as Draft).target_users })
 
   const recurLabel = (n: Notif) => n.recurrence && n.recurrence !== 'none'
     ? (n.recurrence === 'every_days' ? `a cada ${n.recurrence_value}d`
@@ -295,6 +298,8 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
               {n.expires_at && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· encerrada {fmtDateTime(n.expires_at)}</span>}
               {n.type === 'poll' && <button title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--text-light)' }} /></button>}
               <button title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--text-light)' }} /></button>
+              <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
+              <button title="Copiar — nova publicação a partir desta" onClick={() => copiar(n)}><Copy size={14} style={{ color: 'var(--primary)' }} /></button>
               <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
             </div>
           ))}
