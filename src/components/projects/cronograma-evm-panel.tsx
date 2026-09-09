@@ -196,6 +196,12 @@ function evmBlock(data: Evm, canEdit: boolean, busy: boolean, freeze: () => void
         <Bar label="Planejado (PV)" pct={m.pct_planned ?? 0} hours={m.pv} color={COL_PV} />
         <div className="h-2" />
         <Bar label="Real (EV)" pct={m.pct_real ?? 0} hours={m.ev} color={COL_EV} />
+        {(m.pct_planned ?? 0) >= 100 && (
+          <p className="text-[11px] mt-2 flex items-start gap-1" style={{ color: 'var(--text-light)' }}>
+            <Info size={12} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span>Prazo do plano já passou — o cronograma previa <b style={{ color: 'var(--text-muted)' }}>100% concluído até hoje</b> (por isso o Planejado está em 100%, não pelas horas contratadas). O Real (EV) mostra o que de fato foi concluído: <b style={{ color: 'var(--text-muted)' }}>{m.pct_real ?? 0}%</b>.</span>
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
