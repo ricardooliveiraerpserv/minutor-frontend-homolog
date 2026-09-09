@@ -29,6 +29,7 @@ interface TicketRow {
 }
 interface ServiceOpt { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }
 interface Meta { priorities: string[]; statuses: StatusOpt[]; categories: CategoryOpt[]; teams: Ref[]; services?: ServiceOpt[]; my_inform?: Record<string, boolean>; can_open?: boolean; my_perms?: Record<string, boolean> }
+interface SavedView { id: number; name: string; filters: Record<string, unknown>; is_shared: boolean; is_own: boolean; owner_name?: string | null }
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -73,6 +74,13 @@ export default function HelpDeskTicketsPage() {
   const [open, setOpen] = useState(false)
   const [breached, setBreached] = useState(false)
   const [devOverdue, setDevOverdue] = useState(false)
+  // Visualizações salvas (filtros nomeados) — pessoais + compartilhadas.
+  const [views, setViews] = useState<SavedView[]>([])
+  const [viewPerms, setViewPerms] = useState<{ can_personal: boolean; can_shared: boolean }>({ can_personal: false, can_shared: false })
+  const [curView, setCurView] = useState('')
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [saveShared, setSaveShared] = useState(false)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
 
   const qs = useMemo(() => {
@@ -102,6 +110,35 @@ export default function HelpDeskTicketsPage() {
     if (typeof s.filters.breached === 'boolean') setBreached(s.filters.breached)
     if (typeof s.filters.devOverdue === 'boolean') setDevOverdue(s.filters.devOverdue)
   }, [])
+
+  // ── Visualizações salvas ────────────────────────────────────────────────────
+  const loadViews = useCallback(() => {
+    api.get<{ data: SavedView[]; can_personal: boolean; can_shared: boolean }>('/help-desk/saved-views')
+      .then(r => { setViews(r?.data ?? []); setViewPerms({ can_personal: !!r?.can_personal, can_shared: !!r?.can_shared }) })
+      .catch(() => {})
+  }, [])
+  useEffect(() => { loadViews() }, [loadViews])
+
+  const applyView = (v: SavedView) => {
+    const fl = v.filters || {}
+    setF(prev => ({ ...prev, ...F0, ...Object.fromEntries(Object.entries(fl).filter(([k]) => k in F0 && typeof fl[k] === 'string')) as Record<string, string> }))
+    setMine(!!fl.mine); setOpen(!!fl.open); setBreached(!!fl.breached); setDevOverdue(!!fl.devOverdue)
+  }
+
+  const saveView = async () => {
+    const name = saveName.trim()
+    if (!name) { toast.error('Dê um nome à visualização.'); return }
+    try {
+      await api.post('/help-desk/saved-views', { name, filters: { ...f, mine, open, breached, devOverdue }, is_shared: saveShared })
+      toast.success('Visualização salva.')
+      setSaveOpen(false); setSaveName(''); setSaveShared(false); loadViews()
+    } catch (e) { toast.error((e as Error)?.message || 'Erro ao salvar visualização') }
+  }
+
+  const deleteView = async (id: number) => {
+    try { await api.delete(`/help-desk/saved-views/${id}`); toast.success('Visualização excluída.'); setCurView(''); loadViews() }
+    catch (e) { toast.error((e as Error)?.message || 'Erro ao excluir') }
+  }
 
   // Inicia/atualiza a sessão de atendimento e abre o chamado (preserva a ordem exibida).
   const openTicket = (ticketId: number) => {
@@ -171,6 +208,36 @@ export default function HelpDeskTicketsPage() {
             </button>
           ))}
         </div>
+
+        {/* Visualizações salvas (filtros nomeados) */}
+        {(views.length > 0 || viewPerms.can_personal) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <select className={fieldCls} style={inputStyle} value={curView}
+            onChange={e => { const id = e.target.value; setCurView(id); const v = views.find(x => String(x.id) === id); if (v) applyView(v) }}>
+            <option value="">Visualizações…</option>
+            {views.some(v => v.is_own) && <optgroup label="Minhas">{views.filter(v => v.is_own).map(v => <option key={v.id} value={String(v.id)}>{v.name}{v.is_shared ? ' (compartilhada)' : ''}</option>)}</optgroup>}
+            {views.some(v => !v.is_own) && <optgroup label="Compartilhadas">{views.filter(v => !v.is_own).map(v => <option key={v.id} value={String(v.id)}>{v.name} · {v.owner_name}</option>)}</optgroup>}
+          </select>
+          {views.some(v => String(v.id) === curView && v.is_own) && (
+            <button onClick={() => deleteView(Number(curView))} className={fieldCls} style={{ ...inputStyle, color: 'var(--danger-border)', cursor: 'pointer' }} title="Excluir visualização">Excluir</button>
+          )}
+          {viewPerms.can_personal && !saveOpen && (
+            <button onClick={() => { setSaveOpen(true); setSaveName(''); setSaveShared(false) }} className={fieldCls} style={{ ...inputStyle, cursor: 'pointer' }}>Salvar visualização atual</button>
+          )}
+          {saveOpen && (
+            <>
+              <input className={`${fieldCls} w-52`} style={inputStyle} placeholder="Nome da visualização" value={saveName} onChange={e => setSaveName(e.target.value)} autoFocus />
+              {viewPerms.can_shared && (
+                <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-light)' }}>
+                  <input type="checkbox" checked={saveShared} onChange={e => setSaveShared(e.target.checked)} /> Compartilhar com todos
+                </label>
+              )}
+              <button onClick={saveView} className={fieldCls} style={{ ...inputStyle, cursor: 'pointer', color: 'var(--primary)' }}>Salvar</button>
+              <button onClick={() => setSaveOpen(false)} className={fieldCls} style={{ ...inputStyle, cursor: 'pointer' }}>Cancelar</button>
+            </>
+          )}
+        </div>
+        )}
 
         {/* Filtros */}
         <div className="flex items-center gap-2 flex-wrap">
