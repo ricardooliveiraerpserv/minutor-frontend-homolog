@@ -9,7 +9,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users, Mail } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ApiError } from '@/lib/api'
-import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport } from '@/lib/client-kanban'
+import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport, type KBoardInvite } from '@/lib/client-kanban'
 import { KanbanCardModal } from '@/components/kanban/kanban-card-modal'
 import { KanbanFieldsManager } from '@/components/kanban/kanban-fields-manager'
 
@@ -392,7 +392,12 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [inviting, setInviting] = useState<number | null>(null)
-  useEffect(() => { kanbanApi.boardMembers(boardId).then(r => setSel(r.user_ids ?? [])).catch(() => {}).finally(() => setLoading(false)) }, [boardId])
+  const [invites, setInvites] = useState<KBoardInvite[]>([])
+  const loadInvites = () => kanbanApi.boardInvites(boardId).then(r => setInvites(r.items ?? [])).catch(() => {})
+  useEffect(() => {
+    kanbanApi.boardMembers(boardId).then(r => setSel(r.user_ids ?? [])).catch(() => {}).finally(() => setLoading(false))
+    loadInvites()
+  }, [boardId])
   function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   async function invite(userId: number) {
     setInviting(userId)
@@ -400,9 +405,11 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
       const r = await kanbanApi.invite(boardId, userId)
       // NÃO dá acesso na hora: o convidado só vira membro ao ACEITAR (e-mail/notificação).
       toast.success(`Convite enviado${r?.data?.email ? ` para ${r.data.email}` : ''} — o acesso é liberado quando aceitar`)
+      loadInvites()   // atualiza o log
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
     finally { setInviting(null) }
   }
+  const fmtDT = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''
   async function save() {
     setSaving(true)
     try { await kanbanApi.setBoardMembers(boardId, sel); toast.success('Acesso atualizado'); onClose() }
@@ -429,6 +436,31 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {invites.length > 0 && (
+            <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 8 }}>Convites</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {invites.map(iv => {
+                  const aceito = iv.status === 'accepted'
+                  return (
+                    <div key={iv.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{iv.user_name ?? `#${iv.user_id}`}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                          {aceito ? `aceito ${fmtDT(iv.accepted_at)}` : `enviado ${fmtDT(iv.sent_at)}`}{iv.inviter_name ? ` · por ${iv.inviter_name}` : ''}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap',
+                        color: aceito ? 'var(--success-border)' : 'var(--warning-border)',
+                        background: aceito ? 'var(--success-bg)' : 'var(--warning-bg)' }}>
+                        {aceito ? 'Aceito' : 'Pendente'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
