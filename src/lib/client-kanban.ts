@@ -139,6 +139,7 @@ export const kanbanApi = {
   cardHistory: (id: number) => api.get<{ items: KCardEvent[] }>(`${base}/cards/${id}/history`),
   boardMembers: (boardId: number) => api.get<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`),
   setBoardMembers: (boardId: number, userIds: number[]) => api.put<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`, { user_ids: userIds }),
+  invite: (boardId: number, userId: number) => api.post<{ data: { sent: boolean; email: string } }>(`${base}/boards/${boardId}/invite`, { user_id: userId }),
   report: (boardId: number) => api.get<KReport>(`${base}/boards/${boardId}/report`),
 }
 

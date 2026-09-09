@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users, Mail } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport } from '@/lib/client-kanban'
@@ -359,8 +359,18 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   const [sel, setSel] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [inviting, setInviting] = useState<number | null>(null)
   useEffect(() => { kanbanApi.boardMembers(boardId).then(r => setSel(r.user_ids ?? [])).catch(() => {}).finally(() => setLoading(false)) }, [boardId])
   function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
+  async function invite(userId: number) {
+    setInviting(userId)
+    try {
+      const r = await kanbanApi.invite(boardId, userId)
+      setSel(prev => prev.includes(userId) ? prev : [...prev, userId])  // convidado passa a ter acesso
+      toast.success(`Convite enviado${r?.data?.email ? ` para ${r.data.email}` : ''}`)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
+    finally { setInviting(null) }
+  }
   async function save() {
     setSaving(true)
     try { await kanbanApi.setBoardMembers(boardId, sel); toast.success('Acesso atualizado'); onClose() }
@@ -375,9 +385,17 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
           {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {users.map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', padding: '4px 0' }}>
-                  <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} /> {u.name}
-                </label>
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                    <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+                  </label>
+                  <button type="button" onClick={() => invite(u.id)} disabled={inviting === u.id}
+                    className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+                    title="Enviar convite por e-mail para acessar este quadro">
+                    <Mail size={12} /> {inviting === u.id ? 'Enviando…' : 'Convite'}
+                  </button>
+                </div>
               ))}
             </div>
           )}
