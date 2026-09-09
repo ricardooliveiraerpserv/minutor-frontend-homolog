@@ -5354,7 +5354,7 @@ function KanbanContent() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout fullBleed>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -5966,7 +5966,7 @@ function KanbanContent() {
 
         {/* Board */}
         {viewMode === 'kanban' && <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 board-hscroll">
+          <div className="flex-1 overflow-x-scroll overflow-y-hidden min-h-0 board-hscroll">
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
