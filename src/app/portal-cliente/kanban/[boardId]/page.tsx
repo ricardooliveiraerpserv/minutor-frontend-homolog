@@ -29,6 +29,7 @@ export default function ClientKanbanBoardPage() {
   const [fieldsOpen, setFieldsOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+  const [acceptedPopup, setAcceptedPopup] = useState<string | null>(null)  // convite aceito → pop-up de boas-vindas
   // Fase 3: view lista/kanban, busca e filtros
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [search, setSearch] = useState('')
@@ -91,7 +92,26 @@ export default function ClientKanbanBoardPage() {
     setLoading(true)
     kanbanApi.board(boardId).then(setBoard).catch(() => toast.error('Erro ao carregar o quadro')).finally(() => setLoading(false))
   }
-  useEffect(() => { if (boardId) { load(); kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {}) } }, [boardId])
+  useEffect(() => {
+    if (!boardId) return
+    kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {})
+    // Chegou pelo link do convite (?convite=token): ACEITA antes de carregar — senão o
+    // quadro daria 403 (o convidado só vira membro ao aceitar). Depois limpa o token da URL.
+    let token = ''
+    try { token = new URLSearchParams(window.location.search).get('convite') ?? '' } catch { /* ignore */ }
+    if (token) {
+      setLoading(true)
+      kanbanApi.acceptInvite(token)
+        .then(r => setAcceptedPopup(r?.data?.board_name ?? ''))
+        .catch(e => toast.error(e instanceof ApiError ? e.message : 'Não foi possível aceitar o convite'))
+        .finally(() => {
+          try { window.history.replaceState(null, '', `/portal-cliente/kanban/${boardId}`) } catch { /* ignore */ }
+          load()
+        })
+    } else {
+      load()
+    }
+  }, [boardId])
 
   async function onDragEnd(result: DropResult) {
     const { source, destination, draggableId } = result
@@ -249,6 +269,18 @@ export default function ClientKanbanBoardPage() {
       {reportOpen && board && (
         <ReportModal boardId={boardId} onClose={() => setReportOpen(false)} />
       )}
+      {acceptedPopup !== null && (
+        <div onClick={() => setAcceptedPopup(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 14, maxWidth: 420, width: '100%', padding: 24, textAlign: 'center', boxShadow: '0 12px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, color: 'var(--text)' }}>Convite aceito!</h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13.5, color: 'var(--text-muted)' }}>
+              Você agora tem acesso ao quadro{acceptedPopup ? <> <b style={{ color: 'var(--text)' }}>{acceptedPopup}</b></> : ''} em Meus Processos.
+            </p>
+            <button className="ds-btn-primary" style={{ width: '100%' }} onClick={() => setAcceptedPopup(null)}>Começar</button>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
@@ -366,8 +398,8 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
     setInviting(userId)
     try {
       const r = await kanbanApi.invite(boardId, userId)
-      setSel(prev => prev.includes(userId) ? prev : [...prev, userId])  // convidado passa a ter acesso
-      toast.success(`Convite enviado${r?.data?.email ? ` para ${r.data.email}` : ''}`)
+      // NÃO dá acesso na hora: o convidado só vira membro ao ACEITAR (e-mail/notificação).
+      toast.success(`Convite enviado${r?.data?.email ? ` para ${r.data.email}` : ''} — o acesso é liberado quando aceitar`)
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
     finally { setInviting(null) }
   }

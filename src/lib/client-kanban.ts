@@ -140,8 +140,14 @@ export const kanbanApi = {
   boardMembers: (boardId: number) => api.get<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`),
   setBoardMembers: (boardId: number, userIds: number[]) => api.put<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`, { user_ids: userIds }),
   invite: (boardId: number, userId: number) => api.post<{ data: { sent: boolean; email: string } }>(`${base}/boards/${boardId}/invite`, { user_id: userId }),
+  boardInvites: (boardId: number) => api.get<{ items: KBoardInvite[] }>(`${base}/boards/${boardId}/invites`),
+  acceptInvite: (token: string) => api.post<{ data: { board_id: number; board_name: string; accepted: boolean } }>(`${base}/invites/accept`, { token }),
+  myInvites: () => api.get<{ items: KMyInvite[] }>(`${base}/my-invites`),
   report: (boardId: number) => api.get<KReport>(`${base}/boards/${boardId}/report`),
 }
+
+export interface KBoardInvite { user_id: number; user_name?: string; inviter_name?: string; status: 'pending' | 'accepted'; sent_at?: string | null; accepted_at?: string | null }
+export interface KMyInvite { token: string; board_id: number; board_name?: string; inviter_name?: string; sent_at?: string | null }
 
 export const PRIORITY_META: Record<string, { label: string; color: string }> = {
   low: { label: 'Baixa', color: '#94a3b8' },
