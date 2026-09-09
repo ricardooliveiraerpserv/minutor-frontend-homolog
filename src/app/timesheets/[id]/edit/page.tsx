@@ -188,13 +188,16 @@ export default function EditTimesheetPage() {
 
   // Garante que o CLIENTE do apontamento esteja no dropdown mesmo fora do escopo (user-linked):
   // parceiro editando apontamento próprio em projeto de sustentação não recebia o cliente na lista.
+  // Depende de `customers` p/ re-injetar caso o fetch de /customers/user-linked resolva DEPOIS
+  // e sobrescreva a lista (o guard `.some` devolve prev quando já está presente → sem loop).
   useEffect(() => {
-    if (!ts?.customer?.id) return
-    setCustomers(prev => prev.some(c => String(c.id) === String(ts.customer!.id))
+    const c = ts?.customer ?? (ts?.project as any)?.customer
+    if (!c?.id) return
+    setCustomers(prev => prev.some(x => String(x.id) === String(c.id))
       ? prev
-      : [{ id: ts.customer!.id, name: ts.customer!.name || 'Cliente' }, ...prev])
+      : [{ id: c.id, name: c.name || 'Cliente' }, ...prev])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ts?.customer?.id])
+  }, [ts?.customer?.id, (ts?.project as any)?.customer?.id, customers])
 
   // Sync is_billable_only separately so it's picked up even if backend returns it after pre-fill
   useEffect(() => {
