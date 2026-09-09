@@ -5966,7 +5966,7 @@ function KanbanContent() {
 
         {/* Board */}
         {viewMode === 'kanban' && <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0 board-hscroll">
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
