@@ -188,6 +188,7 @@ export default function FechamentoParceiroPage() {
   // Relatório (preview): vem do MESMO Blade do servidor que gera o PDF/e-mail → tela = e-mail.
   const [reportHtmlSrv, setReportHtmlSrv] = useState<string | null>(null)
   const [loadingReport,  setLoadingReport]  = useState(false)
+  const [reportNonce, setReportNonce] = useState(0)   // bump p/ re-buscar o relatório após salvar ajustes
   useEffect(() => {
     if (tab !== 'relatorio' || !partnerId || !yearMonth) return
     setLoadingReport(true)
@@ -195,7 +196,7 @@ export default function FechamentoParceiroPage() {
       .then(r => setReportHtmlSrv(r.html ?? null))
       .catch(() => setReportHtmlSrv(null))
       .finally(() => setLoadingReport(false))
-  }, [tab, partnerId, yearMonth, reportMode])
+  }, [tab, partnerId, yearMonth, reportMode, reportNonce])
   const [apontamentos, setApontamentos] = useState<ApontamentoRow[]>([])
 
   const [loadingConsult, setLoadingConsult]   = useState(false)
@@ -830,6 +831,7 @@ export default function FechamentoParceiroPage() {
       }
       setStatus(prev => (prev && prev.partner_id === partnerId ? { ...prev, ...patch } : prev))
       setParceiros(prev => prev.map(p => (p.partner_id === partnerId ? { ...p, ...patch } : p)))
+      setReportNonce(n => n + 1)   // relatório (BE) lê os ajustes salvos → re-busca p/ refletir o novo Total a Pagar
       toast.success('Ajustes salvos.')
     } catch (err: unknown) {
       toast.error(`Erro ao salvar ajustes: ${err instanceof Error ? err.message : 'falha na API'}`)
