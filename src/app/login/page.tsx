@@ -33,9 +33,12 @@ function LoginForm() {
     try {
       // trim: senha colada do e-mail costuma vir com espaço/quebra invisível ao redor,
       // o que fazia o login falhar como "Credenciais inválidas" mesmo com a senha certa.
-      const { requiresPasswordChange } = await login(email.trim(), password.trim())
-      // Sempre entra no Meu Dia (/inicio). Cliente é redirecionado pelo guard do /inicio p/ o portal dele.
-      router.replace(requiresPasswordChange ? '/alterar-senha' : '/inicio')
+      const { user, requiresPasswordChange } = await login(email.trim(), password.trim())
+      // Tela padrão após logon: perfil de acesso do HD pode mandar direto p/ a lista de tickets.
+      // Cliente cai no /inicio (guard redireciona p/ o portal dele).
+      const landing = (user?.is_helpdesk_agent && user?.helpdesk_default_screen === 'tickets')
+        ? '/help-desk/tickets' : '/inicio'
+      router.replace(requiresPasswordChange ? '/alterar-senha' : landing)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Credenciais inválidas')
     } finally {

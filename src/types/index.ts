@@ -13,6 +13,8 @@ export interface User {
   is_executive?: boolean | null
   // Agente do Help Desk = vinculado a alguma equipe (helpdesk_team_user). Vem do /user.
   is_helpdesk_agent?: boolean | null
+  // Tela padrão após o logon (perfil de acesso do HD): 'principal' | 'tickets'. Vem do /user.
+  helpdesk_default_screen?: 'principal' | 'tickets' | null
   extra_permissions?: string[] | null
   consultant_type?: string | null
   daily_hours?: number | null

@@ -10,6 +10,7 @@ interface Ref { type: string; id: number }
 interface Atencao { severity: 'danger' | 'warning' | 'info' | 'ok'; code: string; message: string; suggested_playbook: { id: number; name: string } | null }
 interface Ctx {
   financeiro_visivel: boolean
+  contrato_chart_visivel?: boolean
   atencoes: Atencao[]
   blocos: {
     cliente: { empresa: string; cnpj: string | null; segmento: string | null; classificacao: string | null; responsavel_comercial: string | null; responsavel_tecnico: string | null; solicitante: { nome: string; email: string | null } | null; ref: Ref }
@@ -128,6 +129,7 @@ export function Customer360Panel({ ticketId, customerId, onRunPlaybook }: { tick
             <Line k="Tipo" v={b.contrato.tipo ?? '—'} />
             <Line k="Vencimento" v={fmtDate(b.contrato.data_vencimento)} />
             {b.contrato.financeiro?.valor_hora ? <Line k="Valor/hora" v={fmtBRL(b.contrato.financeiro.valor_hora)} /> : null}
+            {ctx.contrato_chart_visivel !== false && (
             <div className="pt-1">
               <div className="flex items-center justify-between text-[11px]" style={{ color: 'var(--text-light)' }}><span>Banco de horas</span><span>{fmtH(bh.consumidas)} / {fmtH(bh.contratadas)}</span></div>
               <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
@@ -135,6 +137,7 @@ export function Customer360Panel({ ticketId, customerId, onRunPlaybook }: { tick
               </div>
               <Line k="Saldo" v={fmtH(bh.saldo)} danger={bh.saldo < 0} />
             </div>
+            )}
           </> : <span style={{ color: 'var(--text-muted)' }}>Sem contrato vinculado.</span>}
         </Block>
 
