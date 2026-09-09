@@ -94,7 +94,7 @@ type NavItem = {
   // que precisam ser alcançáveis independentemente do módulo do perfil.
   alwaysVisible?: boolean
 }
-type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean; badge?: NavItem['badge'] }
+type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean; badge?: NavItem['badge']; matchPaths?: string[] }
 type NavSubGroup = {
   kind: 'subgroup'
   label: string
@@ -504,6 +504,12 @@ const BADGE_BY_HREF: Record<string, NavItem['badge']> = {
   '/timesheets/atrasos': 'atrasos',
 }
 
+// Rotas que devem manter um item de menu ativo (ex.: detalhe de projeto abre em
+// /projetos/[id] ou /portal-cliente/projetos/[id], mas o menu deve seguir em "Demandas e Projetos").
+const MATCHPATHS_BY_HREF: Record<string, string[]> = {
+  '/contratos/pipeline': ['/projetos', '/portal-cliente/projetos'],
+}
+
 // Converte a árvore de um módulo (nav_modules.items) em NavEntry[] (grupos/subgrupos/itens),
 // já filtrando por ativo + permissão (perfil OU usuário).
 function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, effProfiles: string[], userId: number): NavEntry[] {
@@ -536,12 +542,12 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   // Item folha respeita o nome POR NÓ do Configurador (n.label) antes de cair no
   // rótulo da tela (lbl = nav_screens.label / catálogo / href cru). Sem isso, renomear
   // uma tela no Configurador não surtia efeito no menu (só grupos usavam n.label).
-  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!), badge: BADGE_BY_HREF[n.screen!.split('?')[0]] })
+  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!), badge: BADGE_BY_HREF[n.screen!.split('?')[0]], matchPaths: MATCHPATHS_BY_HREF[n.screen!.split('?')[0]] })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen), badge: BADGE_BY_HREF[n.screen.split('?')[0]] }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen), badge: BADGE_BY_HREF[n.screen.split('?')[0]], matchPaths: MATCHPATHS_BY_HREF[n.screen.split('?')[0]] }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
@@ -683,8 +689,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         .map(([, item]) => item)
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
-        { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
-        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
+        { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2, exactMatch: true },
+        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid, matchPaths: ['/portal-cliente/projetos', '/projetos'] },
         { type: 'item', label: 'Centros de Custo',    href: '/portal-cliente/centros-custo', icon: Landmark },
       ]
       if (dashItems.length > 0) {
@@ -799,9 +805,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     return true
   }
   const isNavLink = (x: NavLink | NavSubGroup): x is NavLink => (x as any).href !== undefined
-  const subGroupActive = (sg: NavSubGroup) => sg.items.some(i => isActive(i.href, undefined, i.exactMatch))
+  const subGroupActive = (sg: NavSubGroup) => sg.items.some(i => isActive(i.href, i.matchPaths, i.exactMatch))
   const groupActive = (g: NavGroup) => g.items.some(i =>
-    isNavLink(i) ? isActive(i.href, undefined, i.exactMatch) : subGroupActive(i)
+    isNavLink(i) ? isActive(i.href, i.matchPaths, i.exactMatch) : subGroupActive(i)
   )
 
   // ── Busca no menu ──
@@ -1022,7 +1028,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               <div key={group.label} className="space-y-0.5">
                 {flatLinks(group.items).map(sub => {
                   const SubIcon = sub.icon
-                  const subActive = isActive(sub.href, undefined, sub.exactMatch)
+                  const subActive = isActive(sub.href, sub.matchPaths, sub.exactMatch)
                   const subItem = (
                     <Link
                       key={sub.href}
@@ -1081,7 +1087,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                             <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--border)' }}>
                               {sub.items.map(leaf => {
                                 const LeafIcon = leaf.icon
-                                const leafActive = isActive(leaf.href, undefined, leaf.exactMatch)
+                                const leafActive = isActive(leaf.href, leaf.matchPaths, leaf.exactMatch)
                                 return (
                                   <Link
                                     key={leaf.href}
@@ -1103,7 +1109,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     }
                     // Link folha tradicional
                     const SubIcon = sub.icon
-                    const subActive = isActive(sub.href, undefined, sub.exactMatch)
+                    const subActive = isActive(sub.href, sub.matchPaths, sub.exactMatch)
                     const subBadge = badgeInfo(sub.badge)
                     return (
                       <Link
