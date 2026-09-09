@@ -16,6 +16,19 @@ import { useAuth } from '@/hooks/use-auth'
 
 interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null }
 
+// Observação é textarea (texto puro). Apontamentos vindos do Help Desk trazem HTML (<p>, <br>);
+// converte pra texto plano ao editar, senão as tags aparecem cruas.
+function stripHtml(s: string): string {
+  if (!s || !/<[a-z/][^>]*>/i.test(s)) return s
+  return s
+    .replace(/<\/(p|div|li)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>').replace(/&#39;|&apos;/gi, "'").replace(/&quot;/gi, '"')
+    .replace(/\n{3,}/g, '\n\n').trim()
+}
+
 // ─── SearchSelect ─────────────────────────────────────────────────────────────
 
 function SearchSelect({ value, onChange, options, placeholder, disabled }: {
@@ -173,6 +186,16 @@ export default function EditTimesheetPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ts?.user?.id])
 
+  // Garante que o CLIENTE do apontamento esteja no dropdown mesmo fora do escopo (user-linked):
+  // parceiro editando apontamento próprio em projeto de sustentação não recebia o cliente na lista.
+  useEffect(() => {
+    if (!ts?.customer?.id) return
+    setCustomers(prev => prev.some(c => String(c.id) === String(ts.customer!.id))
+      ? prev
+      : [{ id: ts.customer!.id, name: ts.customer!.name || 'Cliente' }, ...prev])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ts?.customer?.id])
+
   // Sync is_billable_only separately so it's picked up even if backend returns it after pre-fill
   useEffect(() => {
     if (!ts || !initialized) return
@@ -195,7 +218,7 @@ export default function EditTimesheetPage() {
       end_time:             ts.end_time ?? '',
       total_hours:          '',
       ticket:               ts.ticket ?? '',
-      observation:          ts.observation ?? '',
+      observation:          stripHtml(ts.observation ?? ''),
       is_billable_only:     ts.is_billable_only ?? false,
       client_extra_pct:     ts.client_extra_pct != null ? String(ts.client_extra_pct) : '',
       consultant_extra_pct: ts.consultant_extra_pct != null ? String(ts.consultant_extra_pct) : '',
@@ -221,7 +244,16 @@ export default function EditTimesheetPage() {
       qs.set('consultant_only', 'true')
     }
     api.get<{ items: any[] }>(`/projects?${qs}`)
-      .then(r => { if (!cancelled) setProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
+      .then(r => {
+        if (cancelled) return
+        let list = Array.isArray(r?.items) ? r.items.map(mapProj) : []
+        // Injeta o projeto do próprio apontamento se o escopo (consultant_only) não o trouxe
+        // — ex.: parceiro editando apontamento em projeto de sustentação onde não é consultor.
+        if (ts?.project?.id && String(ts.project.id) === form.project_id && !list.some((p: SelectOption) => String(p.id) === String(ts.project!.id))) {
+          list = [...list, mapProj(ts.project as any)]
+        }
+        setProjects(list)
+      })
       .catch(() => {})
 
     // Candidatos a "Projeto Real": TODOS os projetos abertos do cliente, SEM consultant_only.
