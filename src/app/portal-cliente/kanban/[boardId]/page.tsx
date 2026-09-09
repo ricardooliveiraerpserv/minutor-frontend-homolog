@@ -134,8 +134,13 @@ export default function ClientKanbanBoardPage() {
   }
   async function addCard(colId: number) {
     const title = newCardTitle.trim(); if (!title) { setAddingCardCol(null); return }
-    try { await kanbanApi.addCard(colId, { title }); setNewCardTitle(''); setAddingCardCol(null); load() }
-    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
+    try {
+      const card = await kanbanApi.addCard(colId, { title })
+      setNewCardTitle(''); setAddingCardCol(null)
+      await load()
+      // Abre já o card recém-criado (modal completo) p/ preencher os demais campos no cadastro.
+      if (card?.id) setOpenCardId(card.id)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') }
   }
 
   return (
