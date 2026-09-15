@@ -402,7 +402,8 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   const [sel, setSel] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [inviting, setInviting] = useState<number | null>(null)
+  const [inviting, setInviting] = useState(false)
+  const [confirmInvite, setConfirmInvite] = useState<{ ids: number[]; label: string } | null>(null)   // modal de confirmação (single/massa)
   const [invites, setInvites] = useState<KBoardInvite[]>([])
   const loadInvites = () => kanbanApi.boardInvites(boardId).then(r => setInvites(r.items ?? [])).catch(() => {})
   useEffect(() => {
@@ -410,18 +411,18 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
     loadInvites()
   }, [boardId])
   function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
-  async function invite(userId: number) {
-    const u = users.find(x => x.id === userId)
-    // Confirmação: envia e-mail REAL (o ambiente tem SMTP ativo) — evita clique acidental.
-    if (!window.confirm(`Enviar um e-mail de convite REAL para ${u?.name ?? 'este usuário'}?`)) return
-    setInviting(userId)
-    try {
-      const r = await kanbanApi.invite(boardId, userId)
-      // NÃO dá acesso na hora: o convidado só vira membro ao ACEITAR (e-mail/notificação).
-      toast.success(`Convite enviado${r?.data?.email ? ` para ${r.data.email}` : ''} — o acesso é liberado quando aceitar`)
-      loadInvites()   // atualiza o log
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
-    finally { setInviting(null) }
+  // Envia convite para 1 ou vários usuários (o convidado só vira membro ao ACEITAR).
+  async function doInvite(ids: number[]) {
+    if (ids.length === 0) return
+    setInviting(true)
+    let ok = 0, fail = 0
+    for (const id of ids) {
+      try { await kanbanApi.invite(boardId, id); ok++ } catch { fail++ }
+    }
+    setInviting(false)
+    loadInvites()
+    if (ok) toast.success(`${ok} convite(s) enviado(s) — o acesso é liberado quando aceitar${fail ? ` · ${fail} falhou(aram)` : ''}`)
+    else toast.error('Não foi possível enviar o(s) convite(s)')
   }
   const fmtDT = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''
   async function save() {
@@ -430,11 +431,18 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') } finally { setSaving(false) }
   }
   return (
+    <>
     <div onClick={onClose} style={mOverlay}>
       <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 440 }}>
         <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
         <div style={{ padding: 18, overflowY: 'auto' }}>
-          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Selecione quem pode ver e usar este quadro. <b>Sem ninguém marcado, todos os usuários da sua empresa têm acesso.</b></p>
+          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Selecione quem pode ver e usar este quadro. <b>Sem ninguém marcado, só quem criou o quadro tem acesso.</b></p>
+          {sel.length > 0 && (
+            <button type="button" onClick={() => setConfirmInvite({ ids: sel, label: `${sel.length} usuário(s) marcado(s)` })} disabled={inviting}
+              className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <Mail size={13} /> Enviar convite aos marcados ({sel.length})
+            </button>
+          )}
           {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {users.map(u => (
@@ -443,10 +451,10 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
                     <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
                   </label>
-                  <button type="button" onClick={() => invite(u.id)} disabled={inviting === u.id}
+                  <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], label: u.name })} disabled={inviting}
                     className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
                     title="Enviar convite por e-mail para acessar este quadro">
-                    <Mail size={12} /> {inviting === u.id ? 'Enviando…' : 'Convite'}
+                    <Mail size={12} /> Convite
                   </button>
                 </div>
               ))}
@@ -484,6 +492,21 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
         </div>
       </div>
     </div>
+    {confirmInvite && (
+      <div onClick={() => setConfirmInvite(null)} style={{ ...mOverlay, zIndex: 1200 }}>
+        <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 380 }}>
+          <div style={mHead}><h3 style={mTitle}>Enviar convite</h3><button onClick={() => setConfirmInvite(null)} style={mX}><X size={18} /></button></div>
+          <div style={{ padding: 18 }}>
+            <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 0 }}>Enviar convite por e-mail para <b>{confirmInvite.label}</b> acessar este quadro?</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setConfirmInvite(null)} className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }}>Cancelar</button>
+              <button onClick={() => { const ids = confirmInvite.ids; setConfirmInvite(null); doInvite(ids) }} disabled={inviting} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>{inviting ? 'Enviando…' : 'Enviar convite'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
