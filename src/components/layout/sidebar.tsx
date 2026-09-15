@@ -1131,7 +1131,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" data-brand-mark="minutor" />
           )}
           {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
-          <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={40} height={40} className="object-contain rounded-lg" data-brand-mark="conecta" />
+          <div className="conecta-footer-logo items-center gap-2">
+            <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={32} height={32} className="object-contain rounded-md shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-[16px] tracking-tight" style={{ color: 'var(--text)' }}>conecta</span>
+              <span className="text-[8.5px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
+            </div>
+          </div>
         </div>
       )}
 
