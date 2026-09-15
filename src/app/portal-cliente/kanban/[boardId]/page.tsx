@@ -12,11 +12,13 @@ import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport, type KBoardInvite } from '@/lib/client-kanban'
 import { KanbanCardModal } from '@/components/kanban/kanban-card-modal'
 import { KanbanFieldsManager } from '@/components/kanban/kanban-fields-manager'
+import { useAuth } from '@/hooks/use-auth'
 
 const COLUMN_COLORS = ['#94a3b8', '#3b82f6', '#f59e0b', '#22c55e', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
 export default function ClientKanbanBoardPage() {
   const params = useParams()
+  const { user: authUser } = useAuth()
   const boardId = Number(params?.boardId)
   const [board, setBoard] = useState<KBoardFull | null>(null)
   const [users, setUsers] = useState<KUserRef[]>([])
@@ -43,12 +45,12 @@ export default function ClientKanbanBoardPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   const hasFilters = !!(search || fResp || fPrio || fLabel || fCol || dueFrom || dueTo)
-  // Opções de alocação (responsável/participantes) = quem tem ACESSO ao quadro. Com membros
-  // definidos, só eles; sem membros, todos da empresa (regra do modal). Assim, usuário removido
-  // do quadro (ou com convite cancelado/não aceito) some das opções de alocar no card.
+  // Opções de alocação (responsável/participantes) = SÓ os membros do quadro (convidados que
+  // aceitaram / adicionados) + você mesmo. Ninguém convidado ⇒ dropdown vazio (só você). NÃO
+  // lista todos da empresa. Usuário removido / convite cancelado ou não aceito não aparece.
   const allocatableUsers = useMemo(
-    () => (memberIds.length > 0 ? users.filter(u => memberIds.includes(u.id)) : users),
-    [users, memberIds],
+    () => users.filter(u => memberIds.includes(u.id) || (authUser?.id != null && u.id === authUser.id)),
+    [users, memberIds, authUser?.id],
   )
   function matchCard(c: KCardSummary): boolean {
     if (search.trim()) {
