@@ -1187,8 +1187,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <>
               <div className="flex items-center gap-3">
                 <MinutorIcon size={34} />
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="minutor">Minutor</span>
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="conecta">conecta</span>
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>
@@ -1431,7 +1430,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         })}
       </nav>
 
-      {/* ── Company logo ── */}
+      {/* ── Company logo (por tenant: ERPServ no grupo, Conecta no tenant conecta) ── */}
       {!collapsed && (
         <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <Image
@@ -1440,6 +1439,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             width={90}
             height={36}
             className="object-contain sidebar-erpserv-logo"
+            data-brand-mark="minutor"
+          />
+          <Image
+            src="/conecta-logo.jpg"
+            alt="Conecta ERP"
+            width={40}
+            height={40}
+            className="object-contain rounded-lg"
+            data-brand-mark="conecta"
           />
         </div>
       )}
