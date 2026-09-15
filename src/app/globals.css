@@ -1302,3 +1302,7 @@ html.dark[data-tenant="conecta"] {
 [data-brand-mark="conecta"] { display: none; }
 [data-tenant="conecta"] [data-brand-mark="minutor"] { display: none; }
 [data-tenant="conecta"] [data-brand-mark="conecta"] { display: inline-block; }
+
+/* Rodapé CONECTA: logo completo (símbolo + nome + slogan) — flex, só no tenant */
+.conecta-footer-logo { display: none; }
+[data-tenant="conecta"] .conecta-footer-logo { display: flex; }
