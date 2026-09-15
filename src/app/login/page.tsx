@@ -220,7 +220,8 @@ export default function LoginPage() {
               </div>
               <div>
                 <h1 className="login-title" style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.05 }}>
-                  Minutor
+                  <span data-brand-mark="minutor">Minutor</span>
+                  <span data-brand-mark="conecta">conecta</span>
                 </h1>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
                   Controle de horas e contratos em um só lugar

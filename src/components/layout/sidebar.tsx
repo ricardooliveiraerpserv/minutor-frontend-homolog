@@ -877,7 +877,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <>
               <div className="flex items-center gap-3">
                 <MinutorIcon size={34} />
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="minutor">Minutor</span>
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="conecta">conecta</span>
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>

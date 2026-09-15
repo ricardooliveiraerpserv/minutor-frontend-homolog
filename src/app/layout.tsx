@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Geist } from 'next/font/google'
 import './globals.css'
+import { headers } from 'next/headers'
+import { tenantSlugFromHost } from '@/lib/tenant'
 import { Providers } from './providers'
 import { ImpersonationBanner } from '@/components/impersonation-banner'
 
@@ -47,9 +49,13 @@ const ENV_BANNER_TEXT =
   APP_ENV === 'local'   ? 'REPLICA — DADOS COPIADOS DE PROD • localhost:3001' :
                           null
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Tenant pelo header X-Tenant OU pelo Host → data-tenant no <html> aplica paleta/marca
+  // do tenant via CSS. Grupo (sem tenant) fica inalterado.
+  const h = await headers()
+  const tenant = (h.get('x-tenant') ?? '').trim() || tenantSlugFromHost(h.get('x-forwarded-host') ?? h.get('host'))
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="pt-BR" data-tenant={tenant || undefined} className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="h-full">
         {ENV_BANNER_TEXT && (
           <div

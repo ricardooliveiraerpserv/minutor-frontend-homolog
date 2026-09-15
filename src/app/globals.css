@@ -1213,3 +1213,29 @@ html.dark .logo-bizify-dark { display: block; }
   /* célula sem rótulo (checkbox/ações) alinha o conteúdo à esquerda */
   table.ds-table > tbody > tr > td:not([data-label]) { align-items: flex-start; }
 }
+.hd-syscard svg  { color: var(--text-light); flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TENANT CONECTA — paleta + marca (só em conecta.minutor.com.br)
+   Ativado por data-tenant="conecta" no <html> (layout raiz, via Host).
+   Grupo (app.minutor.com.br) fica inalterado.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Paleta — cor oficial do brandbook (Pantone 2725C #5f12d3) */
+html[data-tenant="conecta"]:not(.dark) {
+  --brand-primary:        #5f12d3;
+  --brand-primary-strong: #4a0ea8;
+  --brand-primary-dim:    #efe8fc;
+  --brand-logo:           #5f12d3;
+}
+html.dark[data-tenant="conecta"] {
+  --brand-primary:        #8b5cf6;   /* roxo mais claro p/ fundo escuro */
+  --brand-primary-strong: #7c4ddb;
+  --brand-primary-dim:    rgba(139, 92, 246, 0.12);
+  --brand-logo:           #8b5cf6;
+}
+
+/* Marca — mostra a do tenant ativo (SSR-safe, sem flash) */
+[data-brand-mark="conecta"] { display: none; }
+[data-tenant="conecta"] [data-brand-mark="minutor"] { display: none; }
+[data-tenant="conecta"] [data-brand-mark="conecta"] { display: inline-block; }
