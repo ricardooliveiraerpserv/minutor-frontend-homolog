@@ -38,7 +38,12 @@ function LoginForm() {
       // Cliente cai no /inicio (guard redireciona p/ o portal dele).
       const landing = (user?.is_helpdesk_agent && user?.helpdesk_default_screen === 'tickets')
         ? '/help-desk/tickets' : '/inicio'
-      router.replace(requiresPasswordChange ? '/alterar-senha' : landing)
+      // Se o usuário chegou por um link protegido (ex.: convite do Kanban ?convite=token),
+      // o guard mandou p/ /login?redirect=<url> — volta pra lá após autenticar. Só caminho
+      // interno (começa com "/" e não "//") p/ não virar open-redirect.
+      const redirectTo = searchParams.get('redirect')
+      const safeRedirect = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : null
+      router.replace(requiresPasswordChange ? '/alterar-senha' : (safeRedirect ?? landing))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Credenciais inválidas')
     } finally {

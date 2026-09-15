@@ -87,7 +87,9 @@ async function request<T>(
       try {
         await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: stoken ? { Authorization: `Bearer ${stoken}` } : {} })
       } catch { /* segue mesmo se falhar */ }
-      window.location.href = '/login'
+      // Preserva a rota atual (com query) p/ voltar após reautenticar.
+      const next = window.location.pathname + window.location.search
+      window.location.href = next && !next.startsWith('/login') ? `/login?redirect=${encodeURIComponent(next)}` : '/login'
     }
 
     throw new ApiError(401, message)

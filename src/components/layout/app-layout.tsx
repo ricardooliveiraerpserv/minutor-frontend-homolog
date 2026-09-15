@@ -44,7 +44,11 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
   useEffect(() => { setMobileNavOpen(false) }, [pathname])
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/login')
+    if (!loading && !user) {
+      // Preserva a rota (com query, ex.: ?convite=token) p/ voltar após o login.
+      const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : ''
+      router.replace(next && !next.startsWith('/login') ? `/login?redirect=${encodeURIComponent(next)}` : '/login')
+    }
   }, [loading, user, router])
 
   useEffect(() => {
