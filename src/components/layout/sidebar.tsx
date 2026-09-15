@@ -678,6 +678,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
+        { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
         { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
         { type: 'item', label: 'Centros de Custo',    href: '/portal-cliente/centros-custo', icon: Landmark },
       ]

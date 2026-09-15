@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
+import { ClientKanbanInvitePopup } from '@/components/notifications/client-kanban-invite-popup'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { Building2, User, Lock } from 'lucide-react'
@@ -43,7 +44,11 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
   useEffect(() => { setMobileNavOpen(false) }, [pathname])
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/login')
+    if (!loading && !user) {
+      // Preserva a rota (com query, ex.: ?convite=token) p/ voltar após o login.
+      const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : ''
+      router.replace(next && !next.startsWith('/login') ? `/login?redirect=${encodeURIComponent(next)}` : '/login')
+    }
   }, [loading, user, router])
 
   useEffect(() => {
@@ -78,6 +83,8 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
       {/* Cliente: pop-up de comunicações novas (não lidas) — aparece em qualquer tela, exceto Comunicados. */}
       {user.type === 'cliente' && <ClientCommunicationPopup />}
+      {/* Cliente: pop-up de convite p/ quadro de Meus Processos (igual ao dos consultores). */}
+      {user.type === 'cliente' && <ClientKanbanInvitePopup />}
 
       <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">

@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { toast } from 'sonner'
+import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { kanbanApi, type KMyInvite } from '@/lib/client-kanban'
 import {
   Megaphone, ChevronDown, ChevronLeft, ChevronRight, CalendarDays,
-  CheckCircle2, AlertTriangle,
+  CheckCircle2, AlertTriangle, Mail, ArrowRight,
 } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 
@@ -58,8 +60,22 @@ export default function ComunicadosPage() {
   const [busy, setBusy] = useState<number | null>(null)
   const [cursor, setCursor] = useState(() => startOfDay(new Date()))
   const [holidays, setHolidays] = useState<{ data: string; titulo: string }[]>([])
+  const [invites, setInvites] = useState<KMyInvite[]>([])          // convites pendentes p/ quadros
+  const [acceptingTok, setAcceptingTok] = useState<string | null>(null)
 
   useEffect(() => { if (user && user.type !== 'cliente') router.replace('/inicio') }, [user, router])
+
+  useEffect(() => { kanbanApi.myInvites().then(r => setInvites(r.items ?? [])).catch(() => {}) }, [])
+  const acceptInvite = async (inv: KMyInvite) => {
+    setAcceptingTok(inv.token)
+    try {
+      const r = await kanbanApi.acceptInvite(inv.token)
+      router.push(`/portal-cliente/kanban/${r?.data?.board_id ?? inv.board_id}?aceito=1`)
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível aceitar o convite')
+      setAcceptingTok(null)
+    }
+  }
 
   useEffect(() => {
     if (!resolvedTheme) return
@@ -135,6 +151,32 @@ export default function ComunicadosPage() {
             </p>
           )}
         </div>
+
+        {/* Convites pendentes para quadros de Meus Processos — o acesso só é liberado ao aceitar. */}
+        {invites.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>
+              Convite{invites.length > 1 ? 's' : ''} pendente{invites.length > 1 ? 's' : ''}
+            </p>
+            {invites.map(inv => (
+              <div key={inv.token} className="ds-card flex items-center gap-3 p-3.5" style={{ borderLeft: '3px solid var(--primary)' }}>
+                <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
+                  <Mail size={17} style={{ color: 'var(--primary)' }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13.5px]" style={{ color: 'var(--text)' }}>
+                    {inv.inviter_name ? <><b>{inv.inviter_name}</b> convidou você</> : 'Você foi convidado(a)'} para o quadro{inv.board_name ? <> <b>{inv.board_name}</b></> : ''} em Meus Processos.
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>Aceite para liberar o acesso e abrir o quadro.</p>
+                </div>
+                <button onClick={() => acceptInvite(inv)} disabled={acceptingTok === inv.token}
+                  className="ds-btn-primary shrink-0 text-sm px-4 py-2 rounded-lg font-medium inline-flex items-center gap-1.5">
+                  {acceptingTok === inv.token ? 'Aceitando…' : <>Aceitar e acessar <ArrowRight size={14} /></>}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</div>

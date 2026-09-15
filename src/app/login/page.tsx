@@ -34,7 +34,12 @@ function LoginForm() {
       // trim: senha colada do e-mail costuma vir com espaço/quebra invisível ao redor,
       // o que fazia o login falhar como "Credenciais inválidas" mesmo com a senha certa.
       const { requiresPasswordChange } = await login(email.trim(), password.trim())
-      router.replace(requiresPasswordChange ? '/alterar-senha' : '/inicio')
+      // Se o usuário chegou por um link protegido (ex.: convite do Kanban ?convite=token),
+      // o guard mandou p/ /login?redirect=<url> — volta pra lá após autenticar. Só caminho
+      // interno (começa com "/" e não "//") p/ não virar open-redirect.
+      const redirectTo = searchParams.get('redirect')
+      const safeRedirect = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : null
+      router.replace(requiresPasswordChange ? '/alterar-senha' : (safeRedirect ?? '/inicio'))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Credenciais inválidas')
     } finally {
