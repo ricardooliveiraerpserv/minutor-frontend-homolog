@@ -3,8 +3,9 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { LayoutGrid, Plus, Trash2, Copy, ArrowRight, X } from 'lucide-react'
+import { LayoutGrid, Plus, Trash2, Copy, ArrowRight, X, Mail } from 'lucide-react'
 import { kanbanApi, type KBoardListItem } from '@/lib/client-kanban'
 import { ApiError } from '@/lib/api'
 
@@ -18,12 +19,50 @@ export default function ClientKanbanBoardsPage() {
   const [description, setDescription] = useState('')
   const [color, setColor] = useState(BOARD_COLORS[0])
   const [saving, setSaving] = useState(false)
+  // Aceite de convite: modal de confirmação ao chegar por ?convite=token.
+  const [pendingInvite, setPendingInvite] = useState<{ token: string; boardId: number; boardName: string } | null>(null)
+  const [accepting, setAccepting] = useState(false)
+  const router = useRouter()
 
   function load() {
     setLoading(true)
     kanbanApi.boards().then(r => setBoards(r.items ?? [])).catch(() => {}).finally(() => setLoading(false))
   }
   useEffect(load, [])
+
+  // Chegou pelo link do convite (?convite=token): busca o convite e abre o modal de
+  // confirmação. Só ao confirmar é que o acesso é liberado e o quadro abre.
+  useEffect(() => {
+    let token = ''
+    try { token = new URLSearchParams(window.location.search).get('convite') ?? '' } catch { /* ignore */ }
+    if (!token) return
+    const clean = () => { try { window.history.replaceState(null, '', '/portal-cliente/kanban') } catch { /* ignore */ } }
+    kanbanApi.myInvites()
+      .then(r => {
+        const inv = (r.items ?? []).find(i => i.token === token)
+        if (inv) setPendingInvite({ token, boardId: inv.board_id, boardName: inv.board_name ?? '' })
+        else { toast.info('Este convite não está mais disponível (pode já ter sido aceito).'); clean() }
+      })
+      .catch(() => { toast.error('Não foi possível abrir o convite.'); clean() })
+  }, [])
+
+  async function acceptPending() {
+    if (!pendingInvite) return
+    setAccepting(true)
+    try {
+      const r = await kanbanApi.acceptInvite(pendingInvite.token)
+      const bid = r?.data?.board_id ?? pendingInvite.boardId
+      setPendingInvite(null)
+      router.push(`/portal-cliente/kanban/${bid}?aceito=1`)
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível aceitar o convite')
+      setAccepting(false)
+    }
+  }
+  function declinePending() {
+    setPendingInvite(null)
+    try { window.history.replaceState(null, '', '/portal-cliente/kanban') } catch { /* ignore */ }
+  }
 
   async function create() {
     if (!name.trim()) { toast.error('Dê um nome ao quadro.'); return }
@@ -92,6 +131,24 @@ export default function ClientKanbanBoardsPage() {
           </div>
         )}
       </div>
+
+      {pendingInvite && (
+        <div style={overlay}>
+          <div style={{ ...modal, textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--primary-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <Mail size={22} style={{ color: 'var(--primary)' }} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 6px', color: 'var(--text)' }}>Convite para um quadro</h3>
+            <p style={{ fontSize: 13.5, color: 'var(--text-muted)', margin: '0 0 18px' }}>
+              Você foi convidado(a) para o quadro{pendingInvite.boardName ? <> <b style={{ color: 'var(--text)' }}>{pendingInvite.boardName}</b></> : ''} em Meus Processos. Deseja aceitar e acessar?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={declinePending} disabled={accepting} className="ds-btn-ghost" style={{ flex: 1, fontSize: 13, padding: '9px 14px' }}>Agora não</button>
+              <button onClick={acceptPending} disabled={accepting} className="ds-btn-primary" style={{ flex: 1, fontSize: 13, padding: '9px 14px' }}>{accepting ? 'Aceitando…' : 'Aceitar e acessar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {creating && (
         <div onClick={() => setCreating(false)} style={overlay}>

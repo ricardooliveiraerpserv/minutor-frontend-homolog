@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
@@ -18,6 +18,7 @@ const COLUMN_COLORS = ['#94a3b8', '#3b82f6', '#f59e0b', '#22c55e', '#ef4444', '#
 
 export default function ClientKanbanBoardPage() {
   const params = useParams()
+  const router = useRouter()
   const { user: authUser } = useAuth()
   const boardId = Number(params?.boardId)
   const [board, setBoard] = useState<KBoardFull | null>(null)
@@ -104,24 +105,21 @@ export default function ClientKanbanBoardPage() {
   }
   useEffect(() => {
     if (!boardId) return
-    kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {})
-    kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {})
-    // Chegou pelo link do convite (?convite=token): ACEITA antes de carregar — senão o
-    // quadro daria 403 (o convidado só vira membro ao aceitar). Depois limpa o token da URL.
+    // Chegou pelo link do convite (?convite=token): NÃO aceita aqui. Manda para "Meus
+    // Processos", onde um modal confirma o aceite; só depois de aceitar o quadro abre.
     let token = ''
     try { token = new URLSearchParams(window.location.search).get('convite') ?? '' } catch { /* ignore */ }
-    if (token) {
-      setLoading(true)
-      kanbanApi.acceptInvite(token)
-        .then(r => setAcceptedPopup(r?.data?.board_name ?? ''))
-        .catch(e => toast.error(e instanceof ApiError ? e.message : 'Não foi possível aceitar o convite'))
-        .finally(() => {
-          try { window.history.replaceState(null, '', `/portal-cliente/kanban/${boardId}`) } catch { /* ignore */ }
-          load()
-        })
-    } else {
-      load()
-    }
+    if (token) { router.replace(`/portal-cliente/kanban?convite=${encodeURIComponent(token)}`); return }
+    // Voltou da confirmação de aceite (?aceito=1) → pop-up de boas-vindas e limpa a URL.
+    try {
+      if (new URLSearchParams(window.location.search).get('aceito') === '1') {
+        setAcceptedPopup('')
+        window.history.replaceState(null, '', `/portal-cliente/kanban/${boardId}`)
+      }
+    } catch { /* ignore */ }
+    kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {})
+    kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {})
+    load()
   }, [boardId])
 
   async function onDragEnd(result: DropResult) {
