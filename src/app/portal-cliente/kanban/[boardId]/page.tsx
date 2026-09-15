@@ -415,14 +415,20 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   async function doInvite(ids: number[]) {
     if (ids.length === 0) return
     setInviting(true)
-    let ok = 0, fail = 0
+    let ok = 0, skip = 0, fail = 0, lastMsg = ''
     for (const id of ids) {
-      try { await kanbanApi.invite(boardId, id); ok++ } catch { fail++ }
+      try { await kanbanApi.invite(boardId, id); ok++ }
+      catch (e) {
+        const msg = (e instanceof ApiError ? e.message : '') || ''
+        if (/já tem acesso|already/i.test(msg)) skip++           // já é membro → não precisa convite
+        else { fail++; lastMsg = msg }
+      }
     }
     setInviting(false)
     loadInvites()
-    if (ok) toast.success(`${ok} convite(s) enviado(s) — o acesso é liberado quando aceitar${fail ? ` · ${fail} falhou(aram)` : ''}`)
-    else toast.error('Não foi possível enviar o(s) convite(s)')
+    if (ok) toast.success(`${ok} convite(s) enviado(s) — o acesso é liberado quando aceitar${skip ? ` · ${skip} já tinha(m) acesso` : ''}${fail ? ` · ${fail} falhou(aram)` : ''}`)
+    else if (skip && !fail) toast.info(ids.length === 1 ? 'Este usuário já tem acesso ao quadro.' : 'Todos os marcados já têm acesso ao quadro.')
+    else toast.error(lastMsg || 'Não foi possível enviar o(s) convite(s)')
   }
   const fmtDT = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''
   async function save() {
