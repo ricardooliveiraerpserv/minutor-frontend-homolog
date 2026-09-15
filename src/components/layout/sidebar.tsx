@@ -1443,9 +1443,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           />
           <div className="conecta-footer-logo items-center gap-2">
             <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={32} height={32} className="object-contain rounded-md shrink-0" />
-            <div className="flex flex-col leading-tight">
-              <span className="font-bold text-[16px] tracking-tight" style={{ color: 'var(--text)' }}>conecta</span>
-              <span className="text-[8.5px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
+            <div className="flex flex-col leading-tight w-fit">
+              {/* "conecta" espalhado p/ ocupar a MESMA largura do slogan */}
+              <span className="font-bold text-[16px] flex justify-between" style={{ color: 'var(--text)' }} aria-label="conecta">
+                {'conecta'.split('').map((ch, i) => <span key={i}>{ch}</span>)}
+              </span>
+              <span className="text-[9px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
             </div>
           </div>
         </div>
