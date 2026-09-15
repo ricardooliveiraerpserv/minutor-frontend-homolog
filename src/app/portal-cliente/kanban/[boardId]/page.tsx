@@ -400,6 +400,9 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   }, [boardId])
   function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   async function invite(userId: number) {
+    const u = users.find(x => x.id === userId)
+    // Confirmação: envia e-mail REAL (o ambiente tem SMTP ativo) — evita clique acidental.
+    if (!window.confirm(`Enviar um e-mail de convite REAL para ${u?.name ?? 'este usuário'}?`)) return
     setInviting(userId)
     try {
       const r = await kanbanApi.invite(boardId, userId)
