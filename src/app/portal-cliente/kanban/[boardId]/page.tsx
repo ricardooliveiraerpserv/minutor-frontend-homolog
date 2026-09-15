@@ -403,7 +403,7 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [inviting, setInviting] = useState(false)
-  const [confirmInvite, setConfirmInvite] = useState<{ ids: number[]; label: string } | null>(null)   // modal de confirmação (single/massa)
+  const [confirmInvite, setConfirmInvite] = useState<{ ids: number[]; targets: { name: string; email?: string | null }[] } | null>(null)   // modal de confirmação (single/massa)
   const [invites, setInvites] = useState<KBoardInvite[]>([])
   const loadInvites = () => kanbanApi.boardInvites(boardId).then(r => setInvites(r.items ?? [])).catch(() => {})
   useEffect(() => {
@@ -438,7 +438,7 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
         <div style={{ padding: 18, overflowY: 'auto' }}>
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Selecione quem pode ver e usar este quadro. <b>Sem ninguém marcado, só quem criou o quadro tem acesso.</b></p>
           {sel.length > 0 && (
-            <button type="button" onClick={() => setConfirmInvite({ ids: sel, label: `${sel.length} usuário(s) marcado(s)` })} disabled={inviting}
+            <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: users.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
               className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
               <Mail size={13} /> Enviar convite aos marcados ({sel.length})
             </button>
@@ -451,7 +451,7 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
                     <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
                   </label>
-                  <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], label: u.name })} disabled={inviting}
+                  <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
                     className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
                     title="Enviar convite por e-mail para acessar este quadro">
                     <Mail size={12} /> Convite
@@ -497,7 +497,15 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
         <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 380 }}>
           <div style={mHead}><h3 style={mTitle}>Enviar convite</h3><button onClick={() => setConfirmInvite(null)} style={mX}><X size={18} /></button></div>
           <div style={{ padding: 18 }}>
-            <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 0 }}>Enviar convite por e-mail para <b>{confirmInvite.label}</b> acessar este quadro?</p>
+            <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 0 }}>Enviar convite por e-mail {confirmInvite.targets.length > 1 ? `para ${confirmInvite.targets.length} usuário(s)` : 'para'} acessar este quadro?</p>
+            <div style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
+              {confirmInvite.targets.map((t, i) => (
+                <div key={i} style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <b style={{ color: 'var(--text)' }}>{t.name}</b>
+                  <span style={{ color: t.email ? 'var(--text-muted)' : 'var(--danger-border)' }}> — {t.email || 'sem e-mail cadastrado'}</span>
+                </div>
+              ))}
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button onClick={() => setConfirmInvite(null)} className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }}>Cancelar</button>
               <button onClick={() => { const ids = confirmInvite.ids; setConfirmInvite(null); doInvite(ids) }} disabled={inviting} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>{inviting ? 'Enviando…' : 'Enviar convite'}</button>

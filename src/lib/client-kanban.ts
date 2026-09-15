@@ -2,7 +2,7 @@ import { api } from '@/lib/api'
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 export interface KLabel { id: number; name: string; color?: string | null }
-export interface KUserRef { id: number; name: string }
+export interface KUserRef { id: number; name: string; email?: string | null }
 
 export type KFieldType = 'text' | 'textarea' | 'number' | 'money' | 'date' | 'datetime' | 'select' | 'multiselect' | 'checkbox' | 'link_user'
 export interface KField {
