@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
+import { ClientKanbanInvitePopup } from '@/components/notifications/client-kanban-invite-popup'
 import { HelpFloatingTab } from '@/components/help-desk/help-floating-tab'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
@@ -83,6 +84,8 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
       {/* Cliente: pop-up de comunicações novas (não lidas) — aparece em qualquer tela, exceto Comunicados. */}
       {user.type === 'cliente' && <ClientCommunicationPopup />}
+      {/* Cliente: pop-up de convite p/ quadro de Meus Processos (igual ao dos consultores). */}
+      {user.type === 'cliente' && <ClientKanbanInvitePopup />}
 
       {/* Aba flutuante GLOBAL "Preciso de ajuda?" — abre a abertura de chamado num painel lateral. */}
       <HelpFloatingTab />
