@@ -1,3 +1,5 @@
+import { tenantSlugFromHost } from '@/lib/tenant'
+
 const API_URL = '/api/v1'
 
 /**
@@ -36,6 +38,14 @@ export function apiMessage(e: unknown, fallback = 'Ocorreu um erro'): string {
   return fallback
 }
 
+// Multi-tenant: em `<slug>.minutor.com.br` (exceto app/api/www) envia X-Tenant=<slug>.
+// O backend resolve o schema do tenant por esse header (robusto atrás do BFF, que reescreve
+// o Host). Em app.minutor.com.br / localhost NÃO envia nada → grupo (schema public).
+function tenantHeader(host: string): Record<string, string> {
+  const slug = tenantSlugFromHost(host)
+  return slug ? { 'X-Tenant': slug } : {}
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -53,6 +63,7 @@ async function request<T>(
     // Tela de ORIGEM (pathname+query) → o backend usa p/ o guard de ações por-tela do Configurador
     // (AccessControl::allowsRequest). Resolve telas servidas pelo mesmo controller (ex.: contratos kanban/pipeline).
     ...(typeof window !== 'undefined' ? { 'X-Screen-Path': window.location.pathname + window.location.search } : {}),
+    ...(typeof window !== 'undefined' ? tenantHeader(window.location.hostname) : {}),
     ...options.headers,
   }
 
@@ -85,7 +96,7 @@ async function request<T>(
       const stoken = window.sessionStorage.getItem('minutor_token')
       try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
       try {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: stoken ? { Authorization: `Bearer ${stoken}` } : {} })
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: { ...(stoken ? { Authorization: `Bearer ${stoken}` } : {}), ...(typeof window !== 'undefined' ? tenantHeader(window.location.hostname) : {}) } })
       } catch { /* segue mesmo se falhar */ }
       // Preserva a rota atual (com query) p/ voltar após reautenticar.
       const next = window.location.pathname + window.location.search
@@ -125,6 +136,7 @@ export async function downloadFile(path: string, filename: string): Promise<void
       Accept: 'application/octet-stream',
       ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
       ...(typeof window !== 'undefined' ? { 'X-Screen-Path': window.location.pathname + window.location.search } : {}),
+      ...(typeof window !== 'undefined' ? tenantHeader(window.location.hostname) : {}),
     },
   })
   if (!res.ok) {

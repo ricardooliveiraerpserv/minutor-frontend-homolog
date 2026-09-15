@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { tenantSlugFromHost } from '@/lib/tenant'
 
 const TOKEN_COOKIE = 'minutor_token'
 const COOKIE_MAX_AGE = 60 * 60 * 24 // 24h, alinhado com SANCTUM_TOKEN_EXPIRATION
@@ -12,9 +13,13 @@ export async function POST(req: Request) {
 
   const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000'
 
+  // Multi-tenant: repassa o tenant (do header do client ou do host da request) para o
+  // backend autenticar contra o schema certo. Vazio = grupo (public).
+  const tenant = (req.headers.get('x-tenant') ?? '').trim() || tenantSlugFromHost(req.headers.get('host'))
+
   const upstream = await fetch(`${backendUrl}/api/v1/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(tenant ? { 'X-Tenant': tenant } : {}) },
     body: JSON.stringify(body),
   })
 
