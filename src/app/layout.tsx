@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Geist } from 'next/font/google'
 import './globals.css'
 import { headers } from 'next/headers'
+import { tenantSlugFromHost } from '@/lib/tenant'
 import { Providers } from './providers'
 import { ImpersonationBanner } from '@/components/impersonation-banner'
 
@@ -56,9 +57,13 @@ const ENV_BANNER_TEXT =
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Nonce da CSP (setado pelo proxy) — repassado ao next-themes p/ o script inline de tema
   // não ser bloqueado pelo 'strict-dynamic'.
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  const h = await headers()
+  const nonce = h.get('x-nonce') ?? undefined
+  // Tenant pelo header X-Tenant (ModHeader em homolog) OU pelo Host (prod) → data-tenant
+  // no <html> aplica paleta/marca do tenant via CSS. Grupo (sem tenant) fica inalterado.
+  const tenant = (h.get('x-tenant') ?? '').trim() || tenantSlugFromHost(h.get('x-forwarded-host') ?? h.get('host'))
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="pt-BR" data-tenant={tenant || undefined} className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="h-full" style={{ '--env-banner-h': ENV_BANNER_TEXT ? '24px' : '0px' } as React.CSSProperties}>
         {ENV_BANNER_TEXT && (
           <div
