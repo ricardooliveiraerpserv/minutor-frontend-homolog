@@ -62,6 +62,7 @@ interface TicketDetail {
   merged_into_id?: number | null
   merged_into?: { id: number; ticket_number: string | null; subject: string } | null
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
+  company_id?: number | null // multi-empresa: dona do ticket (define os agentes elegíveis)
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   has_source_code?: boolean
   gmud_source_status?: string | null
@@ -317,6 +318,9 @@ function TicketDetailInner({ id }: { id: number }) {
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [services, setServices] = useState<{ id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]>([])
   const [teams, setTeams] = useState<AgentTeam[]>([])
+  // Multi-empresa: agentes elegíveis à ATRIBUIÇÃO = os que atendem a empresa DO TICKET (perfil),
+  // incluindo os "ambas". Um grupo único "Agentes" quando o ticket tem empresa; senão, equipes.
+  const [companyTeams, setCompanyTeams] = useState<AgentTeam[] | null>(null)
   const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
   const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
   const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
@@ -530,6 +534,14 @@ function TicketDetailInner({ id }: { id: number }) {
       }).catch(() => {})
   }, [coreReady])
   useEffect(() => { if (!coreReady) return; cachedGet<{ data: AgentTeam[] }>('/help-desk/teams?all=1', 300000).then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [coreReady])
+  // Agentes que atendem a empresa do ticket (para o picker de responsável — inclui os "ambas").
+  useEffect(() => {
+    const cid = t?.company_id
+    if (!cid) { setCompanyTeams(null); return }
+    api.get<{ data: { id: number; name: string }[] }>(`/help-desk/agents?company_id=${cid}`)
+      .then(r => setCompanyTeams([{ id: 0, name: 'Agentes', members: r?.data ?? [] }]))
+      .catch(() => setCompanyTeams(null))
+  }, [t?.company_id])
 
   const changeStatus = async (statusId: string, justificationId?: number | null, extra?: { dev_delivery_at?: string }) => {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null, dev_delivery_at: extra?.dev_delivery_at ?? null }); loadTicket(); loadEvents() }
@@ -1489,7 +1501,7 @@ function TicketDetailInner({ id }: { id: number }) {
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span style={{ color: 'var(--text-light)' }}>Agente</span>
                 <div className="w-[60%]">
-                  <AgentSelect teams={teams} value={t.assignee?.id ?? null} fallbackName={t.assignee?.name} onChange={(aid, teamId) => assign(aid, teamId)} />
+                  <AgentSelect teams={companyTeams ?? teams} value={t.assignee?.id ?? null} fallbackName={t.assignee?.name} onChange={(aid, teamId) => assign(aid, teamId)} />
                   {user && t.assignee?.id !== user.id && (
                     <button onClick={() => assign(user.id)} className="text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><UserCheck size={11} /> Eu mesmo</button>
                   )}

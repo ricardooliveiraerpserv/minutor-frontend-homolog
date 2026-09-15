@@ -34,6 +34,7 @@ interface TicketRow {
   interactions_count?: number | null // qtd de interações (comentários reais) — só na visão do admin
   dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
   dev_delivery_overdue?: boolean   // vencida em DIAS ÚTEIS (calculado no BE, considera feriados)
+  company?: { id: number; name: string; slug?: string | null; color?: string | null } | null // multi-empresa: dona do ticket
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -146,6 +147,7 @@ export default function HelpDeskFilaPage() {
   // Perfil de acesso: se este agente enxerga a coluna "Novo" (tickets ainda não distribuídos).
   const [seeNewColumn, setSeeNewColumn] = useState(true)
   const [canTriage, setCanTriage] = useState(false) // card "Triagem" liberado pelo perfil de acesso
+  const [isMultiCompany, setIsMultiCompany] = useState(false) // perfil atende 2+ empresas → mostra selo de empresa
   const [viewScope, setViewScope] = useState('all') // escopo de visão: 'all' vê de outros; 'assigned' só os próprios
   // Só faz sentido oferecer "apenas meus chamados" se o agente enxerga chamados além dos dele.
   const canSeeOthers = viewScope === 'all' || viewScope === 'parent' || viewScope === 'assigned_or_parent'
@@ -292,8 +294,8 @@ export default function HelpDeskFilaPage() {
     return () => { window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
   }, [load])
   useEffect(() => {
-    api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean; can_triage?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
-      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setCanTriage(!!r?.data?.can_triage); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
+    api.get<{ data: { statuses: StatusOpt[]; teams: Ref[]; see_new_column?: boolean; can_triage?: boolean; is_multi_company?: boolean } & NovoChamadoMeta }>('/help-desk/meta')
+      .then(r => { setStatuses((r?.data?.statuses ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)); setTeams(r?.data?.teams ?? []); if (r?.data) setNovoMeta(r.data); setSeeNewColumn(r?.data?.see_new_column !== false); setCanTriage(!!r?.data?.can_triage); setIsMultiCompany(!!r?.data?.is_multi_company); setViewScope((r?.data as { view_scope?: string })?.view_scope ?? 'all') })
       .catch(() => {})
   }, [])
   // Agentes (para o picker de Responsável na ação em massa).
@@ -684,7 +686,10 @@ export default function HelpDeskFilaPage() {
                         <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleSel(t.id)} title="Selecionar" />
                       </td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
-                      <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
+                      <td className="px-3 py-2" style={{ color: 'var(--text)' }}>
+                        {isMultiCompany && t.company && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1.5 align-middle whitespace-nowrap" style={{ background: t.company.color ? t.company.color + '22' : 'var(--primary-soft)', color: t.company.color || 'var(--primary)', border: `1px solid ${t.company.color || 'var(--primary)'}` }}>{t.company.name}</span>}
+                        {t.subject}
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap text-center"><span className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} title="Interações no chamado">💬 {t.interactions_count ?? 0}</span></td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? '—'}</td>
@@ -746,7 +751,10 @@ export default function HelpDeskFilaPage() {
                                     <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ color: sla.color, background: sla.bg }}>{sla.icon} {sla.label}</span>
                                   </div>
                                   {/* 2 — Título */}
-                                  <div className="text-[12px] font-semibold line-clamp-2" style={{ color: 'var(--text)' }}>{t.subject}</div>
+                                  <div className="text-[12px] font-semibold line-clamp-2" style={{ color: 'var(--text)' }}>
+                                    {isMultiCompany && t.company && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1 align-middle whitespace-nowrap" style={{ background: t.company.color ? t.company.color + '22' : 'var(--primary-soft)', color: t.company.color || 'var(--primary)', border: `1px solid ${t.company.color || 'var(--primary)'}` }}>{t.company.name}</span>}
+                                    {t.subject}
+                                  </div>
                                   {/* 3 — Cliente */}
                                   {t.customer?.name && <div className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>🏢 {t.customer.name}</div>}
                                   {/* 4 — Responsável • Solicitante (uma linha) */}

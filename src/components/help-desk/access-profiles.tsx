@@ -17,6 +17,7 @@ type Ctrl =
   | { key: string; label: string; type: 'toggle' }
   | { key: string; label: string; type: 'radio'; options: { value: string; label: string }[] }
   | { key: string; label: string; type: 'toggles'; items: { key: string; label: string }[] }
+  | { key: string; label: string; type: 'companies'; hint?: string }
 interface Section { title?: string; controls: Ctrl[] }
 interface Tab { id: string; label: string; sections: Section[] }
 
@@ -62,6 +63,9 @@ const SCHEMA: Record<Kind, Tab[]> = {
       ] },
     ] },
     { id: 'policies', label: 'Políticas de acesso', sections: [
+      { title: 'Empresas', controls: [
+        { key: 'policies.companies', label: 'Empresas que atende', type: 'companies', hint: 'Define quais empresas do grupo o agente atende. Com 1 empresa vê só a fila dela; com 2+ vê tudo unificado (com selo por empresa) e pode ser atribuído como responsável em qualquer uma delas.' },
+      ] },
       { controls: [
         { key: 'policies.all_catalog', label: 'Acesso a todos os itens do catálogo de serviços', type: 'toggle' },
         { key: 'policies.can_be_assignee', label: 'Pode ser atribuído como responsável', type: 'toggle' },
@@ -125,6 +129,7 @@ function defaultsFor(kind: Kind): Record<string, unknown> {
   for (const tab of SCHEMA[kind]) for (const s of tab.sections) for (const c of s.controls) {
     if (c.type === 'radio') p[c.key] = c.options[0].value
     else if (c.type === 'toggle') p[c.key] = on.has(c.key)
+    else if (c.type === 'companies') p[c.key] = []
     else c.items.forEach(i => { p[i.key] = on.has(i.key) })
   }
   return p
@@ -187,6 +192,9 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
   const [perms, setPerms] = useState<Record<string, unknown>>(() => ({ ...defaultsFor(p?.kind ?? 'agent'), ...(p?.permissions ?? {}) }))
   const [tab, setTab] = useState(SCHEMA[p?.kind ?? 'agent'][0].id)
   const [saving, setSaving] = useState(false)
+  // Empresas do grupo — p/ o multi-select "Empresas que atende" (perfil de agente).
+  const [companies, setCompanies] = useState<{ id: number; name: string; color?: string | null }[]>([])
+  useEffect(() => { api.get<{ data: { id: number; name: string; color?: string | null }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {}) }, [])
 
   const switchKind = (k: Kind) => { setKind(k); setPerms({ ...defaultsFor(k), ...(p?.kind === k ? (p?.permissions ?? {}) : {}) }); setTab(SCHEMA[k][0].id) }
   const set = (key: string, v: unknown) => setPerms(s => ({ ...s, [key]: v }))
@@ -253,6 +261,27 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
                     <div className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>{c.label}</div>
                     <div className="grid grid-cols-2 gap-1 pl-1">
                       {c.items.map(i => <Toggle key={i.key} on={!!perms[i.key]} onChange={v => set(i.key, v)} label={i.label} />)}
+                    </div>
+                  </div>
+                )}
+                {c.type === 'companies' && (
+                  <div>
+                    <div className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>{c.label}</div>
+                    {c.hint && <div className="text-[11px] mb-1.5" style={{ color: 'var(--text-light)' }}>{c.hint}</div>}
+                    <div className="flex flex-wrap gap-1.5 pl-1">
+                      {companies.map(co => {
+                        const cur = Array.isArray(perms[c.key]) ? (perms[c.key] as number[]) : []
+                        const sel = cur.includes(co.id)
+                        return (
+                          <button key={co.id} type="button"
+                            onClick={() => set(c.key, sel ? cur.filter(x => x !== co.id) : [...cur, co.id])}
+                            className="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                            style={{ borderColor: sel ? (co.color || 'var(--primary)') : 'var(--border)', background: sel ? 'var(--primary-soft)' : 'var(--surface)', color: sel ? 'var(--primary)' : 'var(--text-muted)' }}>
+                            {sel ? '✓ ' : ''}{co.name}
+                          </button>
+                        )
+                      })}
+                      {companies.length === 0 && <span className="text-xs" style={{ color: 'var(--text-light)' }}>Carregando empresas…</span>}
                     </div>
                   </div>
                 )}
