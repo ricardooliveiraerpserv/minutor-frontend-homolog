@@ -877,8 +877,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <>
               <div className="flex items-center gap-3">
                 <MinutorIcon size={34} />
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="minutor">Minutor</span>
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }} data-brand-mark="conecta">conecta</span>
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>
@@ -1125,12 +1124,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           {isBizify ? (
             <>
               {/* claro: roxo · escuro: roxo→branco (troca por CSS via html.dark) */}
-              <Image src="/logo-bizify.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-light" />
-              <Image src="/logo-bizify-dark.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-dark" />
+              <Image src="/logo-bizify.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-light" data-brand-mark="minutor" />
+              <Image src="/logo-bizify-dark.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-dark" data-brand-mark="minutor" />
             </>
           ) : (
-            <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" />
+            <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" data-brand-mark="minutor" />
           )}
+          {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
+          <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={40} height={40} className="object-contain rounded-lg" data-brand-mark="conecta" />
         </div>
       )}
 
