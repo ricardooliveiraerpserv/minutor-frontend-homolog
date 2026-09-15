@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { tenantSlugFromHost } from '@/lib/tenant'
 
 const TOKEN_COOKIE = 'minutor_token'
 
@@ -8,6 +9,8 @@ export async function POST(req: Request) {
   // Per-aba: revoga o token DESTA aba (Authorization vindo do sessionStorage) se presente; senão o cookie.
   const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || cookieStore.get(TOKEN_COOKIE)?.value
   const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000'
+
+  const tenant = (req.headers.get('x-tenant') ?? '').trim() || tenantSlugFromHost(req.headers.get('host'))
 
   // Tenta revogar o token no backend; se falhar, ainda limpa o cookie local.
   if (token) {
@@ -18,6 +21,7 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
           'Content-Type': 'application/json',
+          ...(tenant ? { 'X-Tenant': tenant } : {}),
         },
         body: '{}',
       })
