@@ -20,6 +20,7 @@ export default function ClientKanbanBoardPage() {
   const boardId = Number(params?.boardId)
   const [board, setBoard] = useState<KBoardFull | null>(null)
   const [users, setUsers] = useState<KUserRef[]>([])
+  const [memberIds, setMemberIds] = useState<number[]>([])   // membros do quadro (acesso)
   const [loading, setLoading] = useState(true)
   const [openCardId, setOpenCardId] = useState<number | null>(null)
   const [addingColumn, setAddingColumn] = useState(false)
@@ -42,6 +43,13 @@ export default function ClientKanbanBoardPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   const hasFilters = !!(search || fResp || fPrio || fLabel || fCol || dueFrom || dueTo)
+  // Opções de alocação (responsável/participantes) = quem tem ACESSO ao quadro. Com membros
+  // definidos, só eles; sem membros, todos da empresa (regra do modal). Assim, usuário removido
+  // do quadro (ou com convite cancelado/não aceito) some das opções de alocar no card.
+  const allocatableUsers = useMemo(
+    () => (memberIds.length > 0 ? users.filter(u => memberIds.includes(u.id)) : users),
+    [users, memberIds],
+  )
   function matchCard(c: KCardSummary): boolean {
     if (search.trim()) {
       const q = search.trim().toLowerCase()
@@ -95,6 +103,7 @@ export default function ClientKanbanBoardPage() {
   useEffect(() => {
     if (!boardId) return
     kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {})
+    kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {})
     // Chegou pelo link do convite (?convite=token): ACEITA antes de carregar — senão o
     // quadro daria 403 (o convidado só vira membro ao aceitar). Depois limpa o token da URL.
     let token = ''
@@ -252,10 +261,10 @@ export default function ClientKanbanBoardPage() {
       </div>
 
       {createInColumn != null && board && (
-        <KanbanCardModal columnId={createInColumn} boardLabels={board.labels} fields={board.fields} users={users} onClose={() => setCreateInColumn(null)} onSaved={() => { setCreateInColumn(null); load() }} />
+        <KanbanCardModal columnId={createInColumn} boardLabels={board.labels} fields={board.fields} users={allocatableUsers} onClose={() => setCreateInColumn(null)} onSaved={() => { setCreateInColumn(null); load() }} />
       )}
       {openCardId && board && (
-        <KanbanCardModal cardId={openCardId} boardLabels={board.labels} fields={board.fields} users={users} onClose={() => setOpenCardId(null)} onSaved={load} />
+        <KanbanCardModal cardId={openCardId} boardLabels={board.labels} fields={board.fields} users={allocatableUsers} onClose={() => setOpenCardId(null)} onSaved={load} />
       )}
       {labelsOpen && board && (
         <LabelsManager boardId={boardId} labels={board.labels} onClose={() => setLabelsOpen(false)} onChanged={load} />
@@ -264,7 +273,7 @@ export default function ClientKanbanBoardPage() {
         <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
       {membersOpen && board && (
-        <BoardMembersManager boardId={boardId} users={users} onClose={() => setMembersOpen(false)} />
+        <BoardMembersManager boardId={boardId} users={users} onClose={() => { setMembersOpen(false); kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {}) }} />
       )}
       {reportOpen && board && (
         <ReportModal boardId={boardId} onClose={() => setReportOpen(false)} />
