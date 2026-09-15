@@ -141,6 +141,7 @@ export const kanbanApi = {
   setBoardMembers: (boardId: number, userIds: number[]) => api.put<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`, { user_ids: userIds }),
   invite: (boardId: number, userId: number) => api.post<{ data: { sent: boolean; email: string } }>(`${base}/boards/${boardId}/invite`, { user_id: userId }),
   boardInvites: (boardId: number) => api.get<{ items: KBoardInvite[] }>(`${base}/boards/${boardId}/invites`),
+  removeInvite: (boardId: number, userId: number) => api.delete<void>(`${base}/boards/${boardId}/invites/${userId}`),
   acceptInvite: (token: string) => api.post<{ data: { board_id: number; board_name: string; accepted: boolean } }>(`${base}/invites/accept`, { token }),
   myInvites: () => api.get<{ items: KMyInvite[] }>(`${base}/my-invites`),
   report: (boardId: number) => api.get<KReport>(`${base}/boards/${boardId}/report`),

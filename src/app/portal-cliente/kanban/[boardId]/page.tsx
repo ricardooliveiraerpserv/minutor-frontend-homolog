@@ -399,17 +399,16 @@ function LabelsManager({ boardId, labels, onClose, onChanged }: { boardId: numbe
 }
 
 function BoardMembersManager({ boardId, users, onClose }: { boardId: number; users: KUserRef[]; onClose: () => void }) {
-  const [sel, setSel] = useState<number[]>([])
+  const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [inviting, setInviting] = useState(false)
+  const [removing, setRemoving] = useState<number | null>(null)
   const [confirmInvite, setConfirmInvite] = useState<{ ids: number[]; targets: { name: string; email?: string | null }[] } | null>(null)   // modal de confirmação (single/massa)
   const [invites, setInvites] = useState<KBoardInvite[]>([])
+  const [memberIds, setMemberIds] = useState<number[]>([])   // quem ACEITOU o convite (tem acesso)
   const loadInvites = () => kanbanApi.boardInvites(boardId).then(r => setInvites(r.items ?? [])).catch(() => {})
-  useEffect(() => {
-    kanbanApi.boardMembers(boardId).then(r => setSel(r.user_ids ?? [])).catch(() => {}).finally(() => setLoading(false))
-    loadInvites()
-  }, [boardId])
+  const loadMembers = () => kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {})
+  useEffect(() => { Promise.all([loadMembers(), loadInvites()]).finally(() => setLoading(false)) }, [boardId])
   function toggle(id: number) { setSel(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
   // Envia convite para 1 ou vários usuários (o convidado só vira membro ao ACEITAR).
   async function doInvite(ids: number[]) {
@@ -420,21 +419,22 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
       try { await kanbanApi.invite(boardId, id); ok++ }
       catch (e) {
         const msg = (e instanceof ApiError ? e.message : '') || ''
-        if (/já tem acesso|already/i.test(msg)) skip++           // já é membro → não precisa convite
+        if (/já (tem|aceitou)|already/i.test(msg)) skip++        // já aceitou → não precisa convite
         else { fail++; lastMsg = msg }
       }
     }
-    setInviting(false)
-    loadInvites()
+    setInviting(false); setSel([])
+    loadInvites(); loadMembers()
     if (ok) toast.success(`${ok} convite(s) enviado(s) — o acesso é liberado quando aceitar${skip ? ` · ${skip} já tinha(m) acesso` : ''}${fail ? ` · ${fail} falhou(aram)` : ''}`)
     else if (skip && !fail) toast.info(ids.length === 1 ? 'Este usuário já tem acesso ao quadro.' : 'Todos os marcados já têm acesso ao quadro.')
     else toast.error(lastMsg || 'Não foi possível enviar o(s) convite(s)')
   }
   const fmtDT = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''
-  async function save() {
-    setSaving(true)
-    try { await kanbanApi.setBoardMembers(boardId, sel); toast.success('Acesso atualizado'); onClose() }
-    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro') } finally { setSaving(false) }
+  async function removeAccess(userId: number) {
+    setRemoving(userId)
+    try { await kanbanApi.removeInvite(boardId, userId); toast.success('Removido'); loadInvites(); loadMembers() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao remover') }
+    finally { setRemoving(null) }
   }
   return (
     <>
@@ -442,7 +442,7 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
       <div onClick={e => e.stopPropagation()} style={{ ...mBox, maxWidth: 440 }}>
         <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
         <div style={{ padding: 18, overflowY: 'auto' }}>
-          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Selecione quem pode ver e usar este quadro. <b>Sem ninguém marcado, só quem criou o quadro tem acesso.</b></p>
+          <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Convide quem deve ter acesso — a pessoa entra ao <b>aceitar</b> o convite. <b>Só quem criou o quadro tem acesso até alguém aceitar.</b></p>
           {sel.length > 0 && (
             <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: users.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
               className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
@@ -451,19 +451,25 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
           )}
           {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {users.map(u => (
+              {users.map(u => {
+                const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
+                return (
                 <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', flex: 1, minWidth: 0 }}>
-                    <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: temAcesso ? 'default' : 'pointer', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
+                    <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} disabled={temAcesso} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
                   </label>
-                  <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
-                    className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
-                    title="Enviar convite por e-mail para acessar este quadro">
-                    <Mail size={12} /> Convite
-                  </button>
+                  {temAcesso ? (
+                    <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
+                      className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+                      title="Enviar convite por e-mail para acessar este quadro">
+                      <Mail size={12} /> Convite
+                    </button>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
           {invites.length > 0 && (
@@ -485,6 +491,11 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
                         background: aceito ? 'var(--success-bg)' : 'var(--warning-bg)' }}>
                         {aceito ? 'Aceito' : 'Pendente'}
                       </span>
+                      <button type="button" onClick={() => removeAccess(iv.user_id)} disabled={removing === iv.user_id}
+                        title={aceito ? 'Revogar acesso' : 'Cancelar convite'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-border)', padding: 2, display: 'inline-flex', flexShrink: 0 }}>
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   )
                 })}
@@ -492,8 +503,7 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-            <button onClick={onClose} className="ds-btn-ghost" style={{ fontSize: 13, padding: '8px 14px' }}>Cancelar</button>
-            <button onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>{saving ? 'Salvando…' : 'Salvar acesso'}</button>
+            <button onClick={onClose} className="ds-btn-primary" style={{ fontSize: 13, padding: '8px 16px' }}>Fechar</button>
           </div>
         </div>
       </div>
