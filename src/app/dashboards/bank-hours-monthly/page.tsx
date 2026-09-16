@@ -353,6 +353,10 @@ export default function BankHoursMonthlyPage() {
     return `Mês vigente — ${MONTH_NAMES_PT[now.getMonth()]} ${now.getFullYear()}`
   })()
 
+  // Período que abrange mais de um mês → o card soma o range inteiro; rótulo vira "do Período".
+  const isMultiMonthPeriod = !!(dateFrom && dateTo) && dateFrom.slice(0, 7) !== dateTo.slice(0, 7)
+  const consumptionCardLabel = isMultiMonthPeriod ? 'Consumo do Período' : 'Consumo do Mês'
+
   return (
     <AppLayout title="Dashboard — Banco de Horas Mensais">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -618,7 +622,7 @@ export default function BankHoursMonthlyPage() {
                           </div>
                         )}
                       </div>
-                      <KpiCard label="Consumo do Mês" value={fmtH(summary.month_consumed_hours)} hint={monthConsumptionHint} />
+                      <KpiCard label={consumptionCardLabel} value={fmtH(summary.month_consumed_hours)} hint={monthConsumptionHint} />
                       <KpiCard
                         label="Saldo de Horas"
                         value={fmtH(summary.hours_balance)}
@@ -719,7 +723,7 @@ export default function BankHoursMonthlyPage() {
                 {summary && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard label="Consumo Acumulado" value={fmtH(summary.maintenance_consumed_hours ?? 0)} accent="primary" />
-                    <KpiCard label="Consumo do Mês"    value={fmtH(summary.maintenance_month_consumed_hours ?? 0)} hint={monthConsumptionHint} />
+                    <KpiCard label={consumptionCardLabel}    value={fmtH(summary.maintenance_month_consumed_hours ?? 0)} hint={monthConsumptionHint} />
                   </div>
                 )}
                 <ExportButton onClick={() => exportMaintenanceToXLSX('maintenance', mxRows)} disabled={mxRows.length === 0} />
