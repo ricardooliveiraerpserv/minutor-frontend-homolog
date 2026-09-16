@@ -12,7 +12,7 @@ import { sanitizeEmail } from '@/lib/sanitize-html'
  * e-mail executa). `allow-same-origin` só p/ medir a altura; `allow-popups` p/ links abrirem.
  * Renderiza sobre "papel" branco (e-mail é desenhado p/ fundo claro) — legível em qualquer tema.
  */
-export function EmailFrame({ html }: { html: string }) {
+export function EmailFrame({ html, flush = false }: { html: string; flush?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(60)
 
@@ -27,7 +27,7 @@ export function EmailFrame({ html }: { html: string }) {
 <meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank">
 <style>
   html,body{margin:0;padding:0}
-  body{font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;background:#fff;padding:12px 14px;word-wrap:break-word;overflow-wrap:break-word}
+  body{font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#1f2937;background:#fff;padding:${flush ? '0' : '12px 14px'};word-wrap:break-word;overflow-wrap:break-word}
   img{max-width:100%;height:auto}
   table{max-width:100%}
   a{color:#2563eb}
@@ -40,7 +40,7 @@ export function EmailFrame({ html }: { html: string }) {
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       srcDoc={srcDoc}
       onLoad={() => { resize(); setTimeout(resize, 60); setTimeout(resize, 350) }}
-      style={{ width: '100%', height, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', display: 'block', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}
+      style={{ width: '100%', height, border: '1px solid #e5e7eb', borderRadius: flush ? 0 : 8, background: '#fff', display: 'block', boxShadow: flush ? 'none' : '0 1px 2px rgba(0,0,0,0.06)' }}
     />
   )
 }
