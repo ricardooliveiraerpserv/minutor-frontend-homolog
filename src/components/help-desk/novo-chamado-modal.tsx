@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { X, FileCode } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
+import { useActiveCompany } from '@/hooks/use-active-company'
 
 // Modal de abertura de chamado — compartilhado entre a lista de Chamados e a Fila (Kanban),
 // para o botão "Novo chamado" abrir o formulário INLINE (sem navegar para outra tela).
@@ -18,6 +19,8 @@ export interface NovoChamadoMeta {
   services?: NovoChamadoServiceOpt[]
   my_inform?: Record<string, boolean>
   my_perms?: Record<string, boolean>
+  companies_scope?: { id: number; name: string; slug?: string | null; color?: string | null }[] // multi-empresa: empresas que o agente atende
+  is_multi_company?: boolean
 }
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
@@ -34,6 +37,13 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
+  // Multi-empresa: quem atende 2+ empresas escolhe a EMPRESA DO GRUPO onde o chamado é aberto.
+  const { active } = useActiveCompany()
+  const companyOpts = meta?.companies_scope ?? []
+  const showCompanyPicker = !!meta?.is_multi_company && companyOpts.length > 1
+  const [companyId, setCompanyId] = useState<string>('')
+  // Default = empresa ativa (se estiver no escopo), senão a 1ª do escopo.
+  const effectiveCompanyId = companyId || (companyOpts.some(c => c.id === active?.id) ? String(active?.id) : String(companyOpts[0]?.id ?? ''))
 
   const submit = async () => {
     if (!subject.trim()) return toast.error('Informe o assunto.')
@@ -43,6 +53,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         subject: subject.trim(), description: description.trim() || null, priority,
         category_id: categoryId || null, service_id: serviceId || null,
         customer_id: customerId || erpserv?.id || null, // vazio (interno) → ERPSERV
+        company_id: showCompanyPicker && effectiveCompanyId ? Number(effectiveCompanyId) : null, // empresa do grupo escolhida
       })
       toast.success('Chamado aberto')
       onCreated(r.data.id)
@@ -68,6 +79,24 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         <a href="/help-desk/codigo-fonte" onClick={onClose} className="flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
           <FileCode size={13} /> Precisa de código-fonte? Abrir o assistente de solicitação →
         </a>
+        {showCompanyPicker && (
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa do chamado *</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {companyOpts.map(c => {
+                const sel = effectiveCompanyId === String(c.id)
+                return (
+                  <button key={c.id} type="button" onClick={() => setCompanyId(String(c.id))}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors"
+                    style={{ borderColor: sel ? (c.color || 'var(--primary)') : 'var(--border)', background: sel ? (c.color ? c.color + '22' : 'var(--primary-soft)') : 'var(--surface)', color: sel ? (c.color || 'var(--primary)') : 'var(--text-muted)' }}>
+                    {sel ? '✓ ' : ''}{c.name}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Você atende mais de uma empresa — escolha em qual o chamado será aberto.</p>
+          </div>
+        )}
         <div className="space-y-2">
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label>
