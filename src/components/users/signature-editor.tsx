@@ -194,8 +194,8 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
           </div>
         </div>
         {view === 'email'
-          ? <EmailFrame key={html.length} html={html} />
-          : <div className="rounded-lg p-4 overflow-auto" style={{ background: '#ffffff', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: html }} />}
+          ? <EmailFrame key={html.length} html={html} flush={isConecta} />
+          : <div className={isConecta ? 'overflow-auto' : 'rounded-lg p-4 overflow-auto'} style={{ background: '#ffffff', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: html }} />}
         {!isConecta && !(value.role ?? '').trim() && !(value.mobile ?? '').trim() && <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Sem cargo/celular, mostramos a assinatura institucional da empresa (fallback).</p>}
       </div>
     </div>
