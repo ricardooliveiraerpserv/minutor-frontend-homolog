@@ -77,6 +77,9 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
   // e a nota (A-F + correções) vai numa interação interna por arquivo.
   const [hasFonte, setHasFonte] = useState<boolean | null>(null)
   const [zipFile, setZipFile] = useState<File | null>(null)
+  // Modal que aparece NA FRENTE do formulário de GMUD perguntando do código-fonte. Em edição
+  // (initial preenchido) já pula direto pro formulário.
+  const [sourceAsked, setSourceAsked] = useState<boolean>(!!initial)
   const procRef = useRef<RichEditorHandle>(null)
   const dRef = useRef<RichEditorHandle>(null)
   const aRef = useRef<RichEditorHandle>(null)
@@ -107,40 +110,6 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-4 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🔧 GMUD em Produção + Detalhamento da Solução</div>
-
-        {/* Segundo formulário: haverá código-fonte a anexar? Se sim, o zip é analisado (CodeAnalysis)
-            e a nota (A-F + correções) sai em interação interna por arquivo. */}
-        <div className="rounded-xl p-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
-          <div className="text-sm font-bold mb-2" style={{ color: 'var(--primary)' }}>📦 Haverá código-fonte a anexar?</div>
-          <div className="flex gap-2">
-            {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
-              const sel = hasFonte === val
-              return (
-                <button key={lab} type="button" onClick={() => {
-                    if (val) {
-                      if (window.confirm('⚠️ Não será possível FINALIZAR a GMUD sem enviar o código-fonte zipado (.zip). Deseja continuar?')) setHasFonte(true)
-                    } else {
-                      if (window.confirm('Tem CERTEZA de que NÃO há código-fonte a anexar nesta GMUD?')) { setHasFonte(false); setZipFile(null) }
-                    }
-                  }}
-                  className="px-4 py-1.5 rounded-lg text-sm font-semibold border"
-                  style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
-                  {lab}
-                </button>
-              )
-            })}
-          </div>
-          {hasFonte === true && (
-            <div className="mt-2">
-              <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer rounded-lg px-3 py-2" style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', background: 'var(--surface)' }}>
-                <Paperclip size={14} /> {zipFile ? 'Trocar arquivo' : 'Anexar código-fonte (.zip)'}
-                <input type="file" accept=".zip" className="hidden" onChange={e => setZipFile(e.target.files?.[0] ?? null)} />
-              </label>
-              {zipFile && <span className="text-xs ml-2" style={{ color: 'var(--text)' }}>{zipFile.name} · {(zipFile.size / 1024).toFixed(0)} KB</span>}
-              <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>O fonte será analisado (CodeAnalysis) e a nota (A-F + possíveis correções) sairá em <b>interação interna por arquivo</b>. Legenda: A/B verde · C amarelo · demais vermelho.</p>
-            </div>
-          )}
-        </div>
 
         {/* 1. Itens Alterados */}
         <div>
@@ -217,6 +186,48 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>
         </div>
       </div>
+
+      {/* Modal que aparece NA FRENTE do formulário de GMUD: pergunta do código-fonte primeiro. */}
+      {!sourceAsked && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="ds-card p-5 w-full max-w-md space-y-3" style={{ background: 'var(--surface)' }}>
+            <div className="text-base font-bold" style={{ color: 'var(--text)' }}>📦 Código-fonte da GMUD</div>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Haverá código-fonte a anexar nesta GMUD?</p>
+            <div className="flex gap-2">
+              {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
+                const sel = hasFonte === val
+                return (
+                  <button key={lab} type="button" onClick={() => {
+                      if (val) {
+                        if (window.confirm('⚠️ Não será possível FINALIZAR a GMUD sem enviar o código-fonte zipado (.zip). Deseja continuar?')) setHasFonte(true)
+                      } else {
+                        if (window.confirm('Tem CERTEZA de que NÃO há código-fonte a anexar nesta GMUD?')) { setHasFonte(false); setZipFile(null) }
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border"
+                    style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
+                    {lab}
+                  </button>
+                )
+              })}
+            </div>
+            {hasFonte === true && (
+              <div>
+                <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer rounded-lg px-3 py-2 w-full" style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', background: 'var(--surface)' }}>
+                  <Paperclip size={14} /> {zipFile ? 'Trocar arquivo' : 'Anexar código-fonte (.zip) *'}
+                  <input type="file" accept=".zip" className="hidden" onChange={e => setZipFile(e.target.files?.[0] ?? null)} />
+                </label>
+                {zipFile && <div className="text-xs mt-1" style={{ color: 'var(--text)' }}>{zipFile.name} · {(zipFile.size / 1024).toFixed(0)} KB</div>}
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>O fonte será analisado (CodeAnalysis) e a nota (A-F + possíveis correções) sairá em <b>interação interna por arquivo</b>. Legenda: A/B verde · C amarelo · demais vermelho.</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
+              <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg disabled:opacity-50" disabled={hasFonte === null || (hasFonte === true && !zipFile)} onClick={() => setSourceAsked(true)}>Continuar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
