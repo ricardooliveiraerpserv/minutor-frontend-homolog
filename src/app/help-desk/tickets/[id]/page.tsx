@@ -1517,6 +1517,7 @@ function TicketDetailInner({ id }: { id: number }) {
                       const q = new URLSearchParams({ ticket_id: String(t.id) })
                       if (t.ticket_number) q.set('ticket_number', t.ticket_number)
                       if (t.customer?.id) q.set('customer_id', String(t.customer.id))
+                      if (t.customer?.name) q.set('customer_name', t.customer.name)
                       router.push(`/help-desk/codigo-fonte?${q.toString()}`)
                     }}
                     className="ds-btn-secondary w-full inline-flex items-center justify-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"

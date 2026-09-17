@@ -29,6 +29,8 @@ const STEPS = ['Cliente', 'Chamado', 'Fontes', 'Confirmação']
 
 export default function CodigoFontePage() {
   const searchParams = useSearchParams()
+  const fromTicket = !!searchParams.get('ticket_id') // aberto de dentro de um chamado → cliente travado no do ticket
+  const [hasSources, setHasSources] = useState<boolean | null>(null) // cliente tem fontes nos diretórios?
   const [step, setStep] = useState(0) // 0..3
 
   // Passo 1 — Cliente
@@ -99,10 +101,23 @@ export default function CodigoFontePage() {
     const found = customers.find(c => String(c.id) === cid)
     if (found) {
       setCustomer(found)
-      if (searchParams.get('ticket_id')) setStep(2)
+      if (fromTicket) setStep(2)
+    } else if (fromTicket) {
+      // Aberto do chamado mas cliente sem repositório na lista → NÃO cai na lista de clientes:
+      // trava no cliente do ticket e o passo Fontes mostra "sem fontes disponíveis".
+      setCustomer({ id: Number(cid), name: searchParams.get('customer_name') ?? 'Cliente do chamado', has_contract: true } as Customer)
+      setStep(2)
     }
     prefillCustDone.current = true
-  }, [customers, searchParams])
+  }, [customers, searchParams, fromTicket])
+  // Aberto do chamado: verifica se o cliente tem algum fonte nos diretórios (para avisar quando não há).
+  useEffect(() => {
+    if (!fromTicket || !customer) { return }
+    setHasSources(null)
+    api.get<{ data: { has_sources: boolean } }>(`/source-code/clients/${customer.id}/has-sources`)
+      .then(r => setHasSources(!!r?.data?.has_sources))
+      .catch(() => setHasSources(false))
+  }, [fromTicket, customer])
 
   const pickCustomer = (c: Customer) => { setCustomer(c); if (!lockedTicket) { setTicket(null); setTickets([]) } setSources([null]) }
 
@@ -110,7 +125,7 @@ export default function CodigoFontePage() {
   const canNext =
     (step === 0 && !!customer) ||
     (step === 1 && (ticketMode === 'new' || !!ticket)) ||
-    (step === 2 && chosenSources.length > 0) ||
+    (step === 2 && chosenSources.length > 0 && hasSources !== false) ||
     step === 3
 
   const addSlot = () => { if (sources.length < MAX_SOURCES) setSources(s => [...s, null]) }
@@ -262,7 +277,18 @@ export default function CodigoFontePage() {
           )}
 
           {/* PASSO 3 — FONTES */}
-          {step === 2 && (
+          {step === 2 && fromTicket && hasSources === false && (
+            <div className="rounded-xl p-4 text-center" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--warning-border)' }}>Não há fontes disponíveis para este cliente.</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{customer?.name} não possui código-fonte nos diretórios configurados. Solicite o fonte original diretamente ao cliente.</p>
+            </div>
+          )}
+          {step === 2 && fromTicket && hasSources === null && (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm" style={{ color: 'var(--text-light)' }}>
+              <Loader2 size={16} className="animate-spin" /> Verificando fontes do cliente…
+            </div>
+          )}
+          {step === 2 && !(fromTicket && hasSources !== true) && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Fontes solicitados</h2>
@@ -348,9 +374,14 @@ export default function CodigoFontePage() {
 
           {/* Navegação */}
           <div className="flex items-center justify-between mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-            <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || phase !== 'form'} className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)', opacity: (step === 0 || phase !== 'form') ? 0.4 : 1 }}>
-              <ChevronLeft size={14} /> Voltar
-            </button>
+            {/* Aberto do chamado: o cliente é o do ticket — NÃO pode voltar aos passos Cliente/Chamado
+                (que abririam a lista de clientes). Some o Voltar; só reaparece no passo Confirmação
+                para voltar a Fontes. Fora do chamado, comportamento normal. */}
+            {(fromTicket ? step > 2 : true) && phase === 'form' ? (
+              <button onClick={() => setStep(s => Math.max(fromTicket ? 2 : 0, s - 1))} disabled={step === 0} className="inline-flex items-center gap-1 text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text-muted)', opacity: step === 0 ? 0.4 : 1 }}>
+                <ChevronLeft size={14} /> Voltar
+              </button>
+            ) : <span />}
             {phase === 'form' && step < 3 && (
               <button onClick={() => setStep(s => s + 1)} disabled={!canNext} className="inline-flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg" style={{ background: 'var(--primary)', color: 'var(--primary-fg)', opacity: canNext ? 1 : 0.5 }}>
                 Avançar <ChevronRight size={14} />
