@@ -94,7 +94,8 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
     if (nonSpaceLen(full.procedimento) < 10) { toast.error('Descreva o Procedimento Executado.'); return }
     const short = ([['Diagnóstico', sol.diagnostico], ['Ação Realizada', sol.acao], ['Validação', sol.validacao]] as const).filter(([, h]) => nonSpaceLen(h) < MIN).map(([l]) => l)
     if (short.length) { toast.error(`Mínimo ${MIN} caracteres (sem espaços): ${short.join(', ')}.`); return }
-    if (hasFonte === true && !zipFile) { toast.error('Anexe o código-fonte zipado (.zip) ou marque "Não".'); return }
+    if (hasFonte === null) { toast.error('Responda: haverá código-fonte a anexar?'); return }
+    if (hasFonte === true && !zipFile) { toast.error('É obrigatório enviar o código-fonte zipado (.zip) para finalizar a GMUD.'); return }
     setSaving(true)
     try { await onSubmit(full, composeGmudBody(full), hasFonte === true ? zipFile : null) } finally { setSaving(false) }
   }
@@ -115,7 +116,13 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
             {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
               const sel = hasFonte === val
               return (
-                <button key={lab} type="button" onClick={() => { setHasFonte(val); if (!val) setZipFile(null) }}
+                <button key={lab} type="button" onClick={() => {
+                    if (val) {
+                      if (window.confirm('⚠️ Não será possível FINALIZAR a GMUD sem enviar o código-fonte zipado (.zip). Deseja continuar?')) setHasFonte(true)
+                    } else {
+                      if (window.confirm('Tem CERTEZA de que NÃO há código-fonte a anexar nesta GMUD?')) { setHasFonte(false); setZipFile(null) }
+                    }
+                  }}
                   className="px-4 py-1.5 rounded-lg text-sm font-semibold border"
                   style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
                   {lab}
