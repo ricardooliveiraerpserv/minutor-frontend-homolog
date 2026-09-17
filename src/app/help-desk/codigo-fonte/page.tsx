@@ -110,14 +110,16 @@ export default function CodigoFontePage() {
     }
     prefillCustDone.current = true
   }, [customers, searchParams, fromTicket])
-  // Aberto do chamado: verifica se o cliente tem algum fonte nos diretórios (para avisar quando não há).
+  // Verifica se o cliente selecionado tem algum fonte nos diretórios. Se NÃO tiver, o passo Fontes
+  // nem oferece a caixa de pesquisa (mostra a mensagem). Vale em qualquer contexto (ticket ou não).
+  // Fail-open: em erro de checagem, mantém a busca (não bloqueia por hiccup).
   useEffect(() => {
-    if (!fromTicket || !customer) { return }
+    if (!customer) { setHasSources(null); return }
     setHasSources(null)
     api.get<{ data: { has_sources: boolean } }>(`/source-code/clients/${customer.id}/has-sources`)
       .then(r => setHasSources(!!r?.data?.has_sources))
-      .catch(() => setHasSources(false))
-  }, [fromTicket, customer])
+      .catch(() => setHasSources(true))
+  }, [customer])
 
   const pickCustomer = (c: Customer) => { setCustomer(c); if (!lockedTicket) { setTicket(null); setTickets([]) } setSources([null]) }
 
@@ -276,19 +278,19 @@ export default function CodigoFontePage() {
             </div>
           )}
 
-          {/* PASSO 3 — FONTES */}
-          {step === 2 && fromTicket && hasSources === false && (
+          {/* PASSO 3 — FONTES. Sem fontes no repositório → nem mostra a busca. */}
+          {step === 2 && hasSources === false && (
             <div className="rounded-xl p-4 text-center" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
               <p className="text-sm font-semibold" style={{ color: 'var(--warning-border)' }}>Não há fontes disponíveis para este cliente.</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{customer?.name} não possui código-fonte nos diretórios configurados. Solicite o fonte original diretamente ao cliente.</p>
             </div>
           )}
-          {step === 2 && fromTicket && hasSources === null && (
+          {step === 2 && hasSources === null && (
             <div className="flex items-center justify-center gap-2 py-6 text-sm" style={{ color: 'var(--text-light)' }}>
               <Loader2 size={16} className="animate-spin" /> Verificando fontes do cliente…
             </div>
           )}
-          {step === 2 && !(fromTicket && hasSources !== true) && (
+          {step === 2 && hasSources === true && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Fontes solicitados</h2>
