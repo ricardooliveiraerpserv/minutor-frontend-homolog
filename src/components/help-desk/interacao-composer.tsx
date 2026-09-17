@@ -559,17 +559,20 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          {/* Toggle segmentado EVIDENTE: o segmento ativo é preenchido (verde = resposta ao
-              cliente, roxo = nota interna) com texto branco; o inativo fica esmaecido. */}
-          <div className="inline-flex items-center rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+          {/* Toggle segmentado BEM EVIDENTE: o segmento ativo é preenchido e forte (verde =
+              resposta ao cliente, roxo = nota interna) com texto branco; o inativo é um botão
+              claramente clicável (borda + texto na cor). É a 1ª decisão do envio. */}
+          <div className="inline-flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
             {(['customer', 'internal'] as const).map(v => {
               const active = visibility === v
-              const accent = v === 'internal' ? '#7c3aed' : 'var(--primary)'
+              const accent = v === 'internal' ? '#7c3aed' : '#059669'
               return (
                 <button key={v} onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } }}
-                  className="px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
-                  style={{ background: active ? accent : 'transparent', color: active ? '#ffffff' : 'var(--text-muted)', boxShadow: active ? '0 1px 3px rgba(0,0,0,.15)' : 'none' }}>
-                  {v === 'internal' ? <Lock size={14} /> : <Send size={14} />}
+                  className="px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-bold transition-all"
+                  style={active
+                    ? { background: accent, color: '#ffffff', boxShadow: '0 2px 8px ' + (v === 'internal' ? 'rgba(124,58,237,.35)' : 'rgba(5,150,105,.35)'), transform: 'scale(1.03)' }
+                    : { background: 'var(--surface)', color: accent, border: `1.5px solid ${accent}` }}>
+                  {v === 'internal' ? <Lock size={15} /> : <Send size={15} />}
                   {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
                 </button>
               )
