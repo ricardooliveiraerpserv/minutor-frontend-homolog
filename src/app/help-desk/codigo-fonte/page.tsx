@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Search, Plus, X, Check, ChevronLeft, ChevronRight, FileCode, Loader2, Building2, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Search, Plus, X, Check, ChevronLeft, ChevronRight, ChevronDown, FileCode, Folder, Loader2, Building2, AlertTriangle, ExternalLink } from 'lucide-react'
 
 /**
  * Fase 1B — Wizard de Solicitação de Código-Fonte (Help Desk).
@@ -432,12 +432,40 @@ function ConsolidatedSource({ item, onChange }: { item: SearchItem; onChange: ()
 }
 
 /** Busca fuzzy de fontes dentro dos repos do cliente (debounce próprio). Não seleciona sozinho. */
+type FileEntry = { path: string; name: string }
+type TreeRepo = { owner: string; repository: string; branch: string; tipo: string; truncated?: boolean; files: FileEntry[] }
+type FolderNode = { name: string; dirs: Record<string, FolderNode>; files: FileEntry[] }
+
+function buildTree(files: FileEntry[]): FolderNode {
+  const root: FolderNode = { name: '', dirs: {}, files: [] }
+  for (const f of files) {
+    const parts = (f.path || '').split('/')
+    const fileName = parts.pop() ?? f.name
+    let node = root
+    for (const seg of parts) {
+      if (!seg) continue
+      if (!node.dirs[seg]) node.dirs[seg] = { name: seg, dirs: {}, files: [] }
+      node = node.dirs[seg]
+    }
+    node.files.push({ path: f.path, name: fileName })
+  }
+  return root
+}
+
 function SourcePicker({ customerId, onPick }: { customerId: number; onPick: (i: SearchItem) => void }) {
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<SearchItem[]>([])
   const [truncated, setTruncated] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [repos, setRepos] = useState<TreeRepo[] | null>(null)   // árvore de navegação
+  const [resolving, setResolving] = useState<string | null>(null) // path sendo resolvido ao clicar
+
+  useEffect(() => {
+    api.get<{ data: { repos: TreeRepo[] } }>(`/source-code/clients/${customerId}/tree`)
+      .then(r => setRepos(r?.data?.repos ?? []))
+      .catch(() => setRepos([]))
+  }, [customerId])
 
   const run = useCallback((term: string) => {
     if (timer.current) clearTimeout(timer.current)
@@ -451,26 +479,94 @@ function SourcePicker({ customerId, onPick }: { customerId: number; onPick: (i: 
     }, 400)
   }, [customerId])
 
+  const pickFromTree = async (repo: TreeRepo, path: string) => {
+    setResolving(path)
+    try {
+      const r = await api.get<{ data: SearchItem }>(`/source-code/clients/${customerId}/resolve?repository=${encodeURIComponent(repo.repository)}&path=${encodeURIComponent(path)}`)
+      if (r?.data) onPick(r.data)
+    } catch { /* ignore */ } finally { setResolving(null) }
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 rounded-lg px-2.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {loading ? <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-light)' }} /> : <Search size={14} style={{ color: 'var(--text-light)' }} />}
         <input value={q} onChange={e => { setQ(e.target.value); run(e.target.value) }} placeholder="Nome ou parte do fonte (ex.: MATA410)…" className="flex-1 bg-transparent outline-none text-sm py-2" style={{ color: 'var(--text)' }} />
       </div>
-      {q.trim() && !loading && items.length === 0 && <p className="text-[11px] px-1 py-2" style={{ color: 'var(--text-light)' }}>Nenhum fonte encontrado nos repositórios do cliente.</p>}
-      <div className="mt-2 space-y-1">
-        {items.map((it, idx) => (
-          <button key={idx} onClick={() => onPick(it)} className="w-full text-left rounded-lg px-2.5 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>{it.name}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{it.tipo}</span>
-            </div>
-            <div className="text-[11px] truncate" style={{ color: 'var(--text-light)' }}>{it.repository} / {it.path}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Última alteração: {fmtDateTime(it.commit?.date)} · {it.branch} · {shortSha(it.commit?.sha)}</div>
-          </button>
-        ))}
-        {truncated && <p className="text-[10px] px-1" style={{ color: 'var(--text-light)' }}>Muitos arquivos no repositório — refine o termo.</p>}
-      </div>
+
+      {/* Resultados da BUSCA (quando há termo) */}
+      {q.trim() && (
+        <>
+          {!loading && items.length === 0 && <p className="text-[11px] px-1 py-2" style={{ color: 'var(--text-light)' }}>Nenhum fonte encontrado nos repositórios do cliente.</p>}
+          <div className="mt-2 space-y-1">
+            {items.map((it, idx) => (
+              <button key={idx} onClick={() => onPick(it)} className="w-full text-left rounded-lg px-2.5 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>{it.name}</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{it.tipo}</span>
+                </div>
+                <div className="text-[11px] truncate" style={{ color: 'var(--text-light)' }}>{it.repository} / {it.path}</div>
+                <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Última alteração: {fmtDateTime(it.commit?.date)} · {it.branch} · {shortSha(it.commit?.sha)}</div>
+              </button>
+            ))}
+            {truncated && <p className="text-[10px] px-1" style={{ color: 'var(--text-light)' }}>Muitos arquivos no repositório — refine o termo.</p>}
+          </div>
+        </>
+      )}
+
+      {/* ÁRVORE de navegação (quando SEM termo de busca) */}
+      {!q.trim() && (
+        <div className="mt-2 rounded-lg overflow-y-auto" style={{ border: '1px solid var(--border)', maxHeight: 340 }}>
+          {repos === null && <div className="flex items-center gap-2 px-2.5 py-3 text-xs" style={{ color: 'var(--text-light)' }}><Loader2 size={13} className="animate-spin" /> Carregando diretórios…</div>}
+          {repos && repos.length === 0 && <p className="px-2.5 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum diretório disponível.</p>}
+          {repos?.map((repo, ri) => <RepoTree key={ri} repo={repo} resolving={resolving} onPickFile={pickFromTree} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RepoTree({ repo, resolving, onPickFile }: { repo: TreeRepo; resolving: string | null; onPickFile: (r: TreeRepo, path: string) => void }) {
+  const [open, setOpen] = useState(true)
+  const tree = useMemo(() => buildTree(repo.files), [repo.files])
+  return (
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold" style={{ color: 'var(--text)' }}>
+        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<Building2 size={13} style={{ color: 'var(--primary)' }} /><span className="truncate">{repo.repository}</span>
+        <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>· {repo.branch}</span>
+      </button>
+      {open && <TreeLevel node={tree} depth={1} repo={repo} resolving={resolving} onPickFile={onPickFile} />}
+      {repo.truncated && <p className="px-2.5 py-1 text-[10px]" style={{ color: 'var(--text-light)' }}>Repositório grande — alguns arquivos podem não aparecer aqui; use a busca acima.</p>}
+    </div>
+  )
+}
+
+function TreeLevel({ node, depth, repo, resolving, onPickFile }: { node: FolderNode; depth: number; repo: TreeRepo; resolving: string | null; onPickFile: (r: TreeRepo, path: string) => void }) {
+  const dirs = Object.values(node.dirs).sort((a, b) => a.name.localeCompare(b.name))
+  const files = [...node.files].sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <div>
+      {dirs.map(d => <DirNode key={d.name} node={d} depth={depth} repo={repo} resolving={resolving} onPickFile={onPickFile} />)}
+      {files.map(f => (
+        <button key={f.path} onClick={() => onPickFile(repo, f.path)} disabled={resolving === f.path}
+          className="w-full flex items-center gap-1.5 py-1 text-left text-xs hover:bg-[var(--surface-hover)]"
+          style={{ paddingLeft: 10 + depth * 14, color: 'var(--text)', opacity: resolving && resolving !== f.path ? 0.6 : 1 }}>
+          {resolving === f.path ? <Loader2 size={12} className="animate-spin" /> : <FileCode size={12} style={{ color: 'var(--text-light)' }} />}
+          <span className="truncate">{f.name}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function DirNode({ node, depth, repo, resolving, onPickFile }: { node: FolderNode; depth: number; repo: TreeRepo; resolving: string | null; onPickFile: (r: TreeRepo, path: string) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-1.5 py-1 text-left text-xs font-medium hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 10 + depth * 14, color: 'var(--text-muted)' }}>
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}<Folder size={12} style={{ color: 'var(--warning-border)' }} /><span className="truncate">{node.name}</span>
+      </button>
+      {open && <TreeLevel node={node} depth={depth + 1} repo={repo} resolving={resolving} onPickFile={onPickFile} />}
     </div>
   )
 }
