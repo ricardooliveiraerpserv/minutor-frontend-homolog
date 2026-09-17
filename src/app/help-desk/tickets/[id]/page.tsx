@@ -1281,8 +1281,8 @@ function TicketDetailInner({ id }: { id: number }) {
                                       ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                           <img src={url} alt={nome} className="max-h-48 object-contain" />
                                         </button>
-                                      : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1.5" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                                          <Paperclip size={12} /> {nome} {a.human_size ? `· ${a.human_size}` : ''}
+                                      : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                          <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
                                         </a>
                                   })}
                                 </div>
@@ -1363,7 +1363,7 @@ function TicketDetailInner({ id }: { id: number }) {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${complexHtml ? `hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5 ${isInternal ? 'hd-bubble-internal' : ''}` : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {complexHtml
                               ? <EmailFrame html={pc?.email ?? ''} onImageClick={openImg} />
                               : html
@@ -1382,8 +1382,8 @@ function TicketDetailInner({ id }: { id: number }) {
                                 ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                     <img src={url} alt={nome} className="max-h-48 object-contain" />
                                   </button>
-                                : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1.5" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                                    <Paperclip size={12} /> {nome} {a.human_size ? `· ${a.human_size}` : ''}
+                                : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                    <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
                                   </a>
                             })}
                           </div>

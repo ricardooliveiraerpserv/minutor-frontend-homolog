@@ -1263,15 +1263,17 @@ html.dark .sidebar-erpserv-logo {
 /* Balões de texto puro brancos (iguais aos de HTML/e-mail); autor se distingue pelo lado + chip de papel. */
 .hd-bubble-client   { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
 .hd-bubble-agent    { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
-.hd-bubble-internal { background: var(--warning-bg);    border: 1px solid var(--warning-border); color: var(--text); }
+.hd-bubble-internal { background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.5); color: var(--text); }
 /* Balão de e-mail (HTML) — sempre branco por baixo do iframe, nos dois temas */
 .hd-bubble-html     { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
+/* Nota interna com corpo HTML: mantém o padrão ROXO da nota interna (vence o hd-bubble-html). */
+.hd-bubble-html.hd-bubble-internal { background: rgba(124,58,237,.08); border-color: rgba(124,58,237,.5); }
 
 /* Chip de papel (cliente / consultor / nota interna) */
 .hd-role          { font-size: 10px; line-height: 1; padding: 2px 6px; border-radius: 999px; font-weight: 600; }
 .hd-role-client   { background: var(--surface-sunken); color: var(--text-muted); }
 .hd-role-agent    { background: var(--info-bg);         color: var(--info); }
-.hd-role-internal { background: var(--warning-bg);      color: var(--warning); display: inline-flex; align-items: center; gap: 3px; }
+.hd-role-internal { background: rgba(124,58,237,.15);   color: #7c3aed; display: inline-flex; align-items: center; gap: 3px; }
 .hd-role-desc     { background: var(--primary-soft);    color: var(--primary); }
 
 /* Card de evento de sistema — centralizado, discreto, nunca parece e-mail */
