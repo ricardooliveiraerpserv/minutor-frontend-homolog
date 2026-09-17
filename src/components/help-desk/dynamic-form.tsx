@@ -177,6 +177,13 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   const [saving, setSaving] = useState(false)
   // Anexo ÚNICO do formulário inteiro (antes cada campo richtext tinha seu próprio "Anexar").
   const [formFiles, setFormFiles] = useState<File[]>([])
+  // GMUD: modal que aparece NA FRENTE do formulário perguntando do código-fonte. Só p/ o form de
+  // GMUD (status solucao_gmud) e quando é NOVO (edição pula). Se "Sim", o zip é obrigatório e entra
+  // nos anexos → o submit envia pro pacote (extração + CodeAnalysis → nota interna por arquivo).
+  const isGmudForm = form.status?.key === 'solucao_gmud'
+  const [srcAsked, setSrcAsked] = useState<boolean>(!isGmudForm || !!initial)
+  const [hasFonte, setHasFonte] = useState<boolean | null>(null)
+  const [srcZip, setSrcZip] = useState<File | null>(null)
   // Input criado IMPERATIVAMENTE fora da árvore React: o auth-context chama loadUser() no visibilitychange
   // (dispara quando o diálogo de arquivo abre) → remonta um <input> do JSX e a 1ª seleção se perde. Imune.
   const openFilePicker = () => {
@@ -316,6 +323,45 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   const lbl = 'text-[15px] font-bold'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      {/* GMUD: pergunta do código-fonte NA FRENTE do formulário (antes de preencher a GMUD). */}
+      {!srcAsked && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="ds-card p-5 w-full max-w-md space-y-3" style={{ background: 'var(--surface)' }}>
+            <div className="text-base font-bold" style={{ color: 'var(--text)' }}>📦 Código-fonte da GMUD</div>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Haverá código-fonte a anexar nesta GMUD?</p>
+            <div className="flex gap-2">
+              {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
+                const sel = hasFonte === val
+                return (
+                  <button key={lab} type="button" onClick={() => {
+                      if (val) { if (window.confirm('⚠️ Não será possível FINALIZAR a GMUD sem enviar o código-fonte zipado (.zip). Deseja continuar?')) setHasFonte(true) }
+                      else { if (window.confirm('Tem CERTEZA de que NÃO há código-fonte a anexar nesta GMUD?')) { setHasFonte(false); setSrcZip(null) } }
+                    }}
+                    className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border"
+                    style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
+                    {lab}
+                  </button>
+                )
+              })}
+            </div>
+            {hasFonte === true && (
+              <div>
+                <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer rounded-lg px-3 py-2 w-full" style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', background: 'var(--surface)' }}>
+                  <Paperclip size={14} /> {srcZip ? 'Trocar arquivo' : 'Anexar código-fonte (.zip) *'}
+                  <input type="file" accept=".zip,.rar,.7z,.tar,.gz" className="hidden" onChange={e => setSrcZip(e.target.files?.[0] ?? null)} />
+                </label>
+                {srcZip && <div className="text-xs mt-1" style={{ color: 'var(--text)' }}>{srcZip.name} · {(srcZip.size / 1024).toFixed(0)} KB</div>}
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>O fonte será analisado (CodeAnalysis) e a nota (A-F + possíveis correções) sairá em <b>interação interna por arquivo</b>. Legenda: A/B verde · C amarelo · demais vermelho.</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
+              <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg disabled:opacity-50" disabled={hasFonte === null || (hasFonte === true && !srcZip)}
+                onClick={() => { if (hasFonte === true && srcZip) setFormFiles(f => [...f, srcZip]); setSrcAsked(true) }}>Continuar</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
         <div className="flex items-center justify-between gap-2">
           <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
