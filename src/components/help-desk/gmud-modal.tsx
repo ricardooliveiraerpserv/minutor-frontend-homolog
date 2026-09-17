@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from './rich-editor'
+import { Paperclip } from 'lucide-react'
 import { type Solution, SolutionView, composeSolutionBody } from './solucao-modal'
 
 const MIN = 20
@@ -67,11 +68,15 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
   initial?: Gmud | null
   submitLabel?: string
   onClose: () => void
-  onSubmit: (g: Gmud, body: string) => Promise<void> | void
+  onSubmit: (g: Gmud, body: string, zip?: File | null) => Promise<void> | void
 }) {
   const start = initial ?? EMPTY
   const [g, setG] = useState<Gmud>(start)
   const [saving, setSaving] = useState(false)
+  // "Haverá código-fonte a anexar?" — se sim, anexa o zip AQUI; o fonte é analisado (CodeAnalysis)
+  // e a nota (A-F + correções) vai numa interação interna por arquivo.
+  const [hasFonte, setHasFonte] = useState<boolean | null>(null)
+  const [zipFile, setZipFile] = useState<File | null>(null)
   const procRef = useRef<RichEditorHandle>(null)
   const dRef = useRef<RichEditorHandle>(null)
   const aRef = useRef<RichEditorHandle>(null)
@@ -89,8 +94,9 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
     if (nonSpaceLen(full.procedimento) < 10) { toast.error('Descreva o Procedimento Executado.'); return }
     const short = ([['Diagnóstico', sol.diagnostico], ['Ação Realizada', sol.acao], ['Validação', sol.validacao]] as const).filter(([, h]) => nonSpaceLen(h) < MIN).map(([l]) => l)
     if (short.length) { toast.error(`Mínimo ${MIN} caracteres (sem espaços): ${short.join(', ')}.`); return }
+    if (hasFonte === true && !zipFile) { toast.error('Anexe o código-fonte zipado (.zip) ou marque "Não".'); return }
     setSaving(true)
-    try { await onSubmit(full, composeGmudBody(full)) } finally { setSaving(false) }
+    try { await onSubmit(full, composeGmudBody(full), hasFonte === true ? zipFile : null) } finally { setSaving(false) }
   }
 
   const lbl = 'text-[11px] font-semibold block mb-0.5'
@@ -100,6 +106,34 @@ export function GmudModal({ initial, submitLabel = 'Salvar e resolver (GMUD)', o
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-4 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🔧 GMUD em Produção + Detalhamento da Solução</div>
+
+        {/* Segundo formulário: haverá código-fonte a anexar? Se sim, o zip é analisado (CodeAnalysis)
+            e a nota (A-F + correções) sai em interação interna por arquivo. */}
+        <div className="rounded-xl p-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+          <div className="text-sm font-bold mb-2" style={{ color: 'var(--primary)' }}>📦 Haverá código-fonte a anexar?</div>
+          <div className="flex gap-2">
+            {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
+              const sel = hasFonte === val
+              return (
+                <button key={lab} type="button" onClick={() => { setHasFonte(val); if (!val) setZipFile(null) }}
+                  className="px-4 py-1.5 rounded-lg text-sm font-semibold border"
+                  style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
+                  {lab}
+                </button>
+              )
+            })}
+          </div>
+          {hasFonte === true && (
+            <div className="mt-2">
+              <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer rounded-lg px-3 py-2" style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', background: 'var(--surface)' }}>
+                <Paperclip size={14} /> {zipFile ? 'Trocar arquivo' : 'Anexar código-fonte (.zip)'}
+                <input type="file" accept=".zip" className="hidden" onChange={e => setZipFile(e.target.files?.[0] ?? null)} />
+              </label>
+              {zipFile && <span className="text-xs ml-2" style={{ color: 'var(--text)' }}>{zipFile.name} · {(zipFile.size / 1024).toFixed(0)} KB</span>}
+              <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>O fonte será analisado (CodeAnalysis) e a nota (A-F + possíveis correções) sairá em <b>interação interna por arquivo</b>. Legenda: A/B verde · C amarelo · demais vermelho.</p>
+            </div>
+          )}
+        </div>
 
         {/* 1. Itens Alterados */}
         <div>

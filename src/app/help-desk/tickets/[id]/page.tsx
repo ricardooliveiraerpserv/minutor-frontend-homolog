@@ -788,7 +788,7 @@ function TicketDetailInner({ id }: { id: number }) {
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar a solução') }
   }
 
-  const submitGmud = async (gm: Gmud, body: string) => {
+  const submitGmud = async (gm: Gmud, body: string, zip?: File | null) => {
     try {
       if (editGmud) {
         await api.patch(`/help-desk/tickets/${id}/comments/${editGmud.commentId}`, { body, solution: gm, form_kind: 'gmud' })
@@ -797,6 +797,15 @@ function TicketDetailInner({ id }: { id: number }) {
         if (resolveStatusId) await changeStatus(resolveStatusId) // status ANTES do post → e-mail reflete o novo status
         await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: gm, form_kind: 'gmud' })
         toast.success('Chamado resolvido com GMUD')
+        // Código-fonte anexado na GMUD → cria o pacote (extração + CodeAnalysis): a nota (A-F +
+        // correções) sai em interação interna por arquivo.
+        if (zip) {
+          try {
+            const fd = new FormData(); fd.append('file', zip)
+            await uploadDirect(`/help-desk/tickets/${id}/gmud/packages`, fd)
+            toast.info('Código-fonte enviado — análise em andamento (nota interna por arquivo).')
+          } catch { toast.error('Falha ao enviar o código-fonte para análise.') }
+        }
       }
       setGmudOpen(false); setEditGmud(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
