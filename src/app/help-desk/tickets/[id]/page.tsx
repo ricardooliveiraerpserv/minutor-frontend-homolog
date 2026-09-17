@@ -28,7 +28,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, Building2, type LucideIcon } from 'lucide-react'
 import { useTicketPresence } from '@/hooks/use-ticket-presence'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
@@ -321,6 +321,9 @@ function TicketDetailInner({ id }: { id: number }) {
   // Multi-empresa: agentes elegíveis à ATRIBUIÇÃO = os que atendem a empresa DO TICKET (perfil),
   // incluindo os "ambas". Um grupo único "Agentes" quando o ticket tem empresa; senão, equipes.
   const [companyTeams, setCompanyTeams] = useState<AgentTeam[] | null>(null)
+  // Multi-empresa: empresas que o usuário atende (p/ transferir o chamado de empresa).
+  const [companiesScope, setCompaniesScope] = useState<{ id: number; name: string; color?: string | null }[]>([])
+  const [transferOpen, setTransferOpen] = useState(false)
   const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
   const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
   const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
@@ -527,10 +530,11 @@ function TicketDetailInner({ id }: { id: number }) {
   }
   useEffect(() => {
     if (!coreReady) return
-    cachedGet<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta', 300000)
+    cachedGet<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[]; companies_scope?: { id: number; name: string; color?: string | null }[] } }>('/help-desk/meta', 300000)
       .then(r => {
         setStatuses(r?.data?.statuses ?? []); setJustifications(r?.data?.justifications ?? [])
         setCategories(r?.data?.categories ?? []); setServices(r?.data?.services ?? [])
+        setCompaniesScope(r?.data?.companies_scope ?? [])
       }).catch(() => {})
   }, [coreReady])
   useEffect(() => { if (!coreReady) return; cachedGet<{ data: AgentTeam[] }>('/help-desk/teams?all=1', 300000).then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [coreReady])
@@ -822,6 +826,14 @@ function TicketDetailInner({ id }: { id: number }) {
     try { await api.patch(`/help-desk/tickets/${id}/assign`, body); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atribuir') }
   }
+  // Transfere o chamado para outra empresa do grupo (multi-empresa).
+  const transferCompany = async (companyId: number) => {
+    try {
+      await api.patch(`/help-desk/tickets/${id}/company`, { company_id: companyId })
+      toast.success('Chamado transferido de empresa')
+      setTransferOpen(false); loadTicket(); loadEvents()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao transferir') }
+  }
 
 
   if (notFound) return <AppLayout title="Chamado"><div className="py-16 text-center space-y-3">
@@ -938,7 +950,8 @@ function TicketDetailInner({ id }: { id: number }) {
                     {t.can_view_sla && <OptItem icon={Gauge} onClick={() => { setOptOpen(false); setSlaOpen(true) }}>Detalhes do SLA</OptItem>}
                     <OptItem icon={Clock} onClick={() => { setOptOpen(false); setApontOpen(true) }}>Ver apontamentos</OptItem>
                     {t.can_print && <OptItem icon={FileText} onClick={() => { setOptOpen(false); setReportOpen(true) }}>Relatório de serviço (PDF)</OptItem>}
-                    {(t.can_merge || t.can_delete || t.can_clone || (t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal))) && <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Gestão do ticket</div>}
+                    {(companiesScope.length > 1 || t.can_merge || t.can_delete || t.can_clone || (t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal))) && <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Gestão do ticket</div>}
+                    {companiesScope.length > 1 && <OptItem icon={Building2} onClick={() => { setOptOpen(false); setTransferOpen(true) }}>Transferir para outra empresa</OptItem>}
                     {t.can_clone && <OptItem icon={Copy} onClick={() => { setOptOpen(false); setCloneOpen(true) }}>Clonar chamado</OptItem>}
                     {t.can_reopen && (t.status?.is_resolved || t.status?.is_terminal) && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); reopenTicket() }}>Reabrir chamado</OptItem>}
                     {t.can_reopen && t.reopen_scheduled_at && <OptItem icon={RotateCcw} onClick={() => { setOptOpen(false); cancelScheduledReopen() }}>Cancelar reabertura agendada</OptItem>}
@@ -1664,6 +1677,30 @@ function TicketDetailInner({ id }: { id: number }) {
       {slaOpen && t && <SlaDetailsModal ticketId={id} ticketNumber={t.ticket_number} onClose={() => setSlaOpen(false)} />}
       {apontOpen && t && <ApontamentosModal ticketId={id} ticketNumber={t.ticket_number} onClose={() => setApontOpen(false)} />}
       {cloneOpen && t && <CloneTicketModal ticketId={id} sourceSubject={t.subject ?? ''} onClose={() => setCloneOpen(false)} />}
+      {transferOpen && t && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.4)' }} onClick={() => setTransferOpen(false)}>
+          <div className="ds-card p-4 w-full max-w-sm space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Transferir para outra empresa</h2>
+              <button onClick={() => setTransferOpen(false)}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>O chamado passa para a fila da empresa escolhida. Se o responsável atual não atender a nova empresa, ele é desatribuído.</p>
+            <div className="space-y-1.5">
+              {companiesScope.filter(c => c.id !== t.company_id).map(c => (
+                <button key={c.id} type="button" onClick={() => transferCompany(c.id)}
+                  className="w-full text-left text-sm font-medium px-3 py-2 rounded-lg border ds-row-hover flex items-center gap-2"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || 'var(--primary)' }} />
+                  {c.name}
+                </button>
+              ))}
+              {companiesScope.filter(c => c.id !== t.company_id).length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma outra empresa disponível no seu perfil.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {reopenOpen && t && <ScheduleReopenModal ticketId={id} onClose={() => setReopenOpen(false)} onDone={() => { loadTicket(); loadEvents() }} />}
       {reportOpen && <ReportOptionsModal onClose={() => setReportOpen(false)} onGenerate={(ap) => openReport(ap)} />}
       {reuniaoOpen && t && <AgendarReuniaoModal originType="HELPDESK_TICKET" originId={id}
