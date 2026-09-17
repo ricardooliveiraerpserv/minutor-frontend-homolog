@@ -325,6 +325,9 @@ function TicketDetailInner({ id }: { id: number }) {
   const [companiesScope, setCompaniesScope] = useState<{ id: number; name: string; color?: string | null }[]>([])
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferTarget, setTransferTarget] = useState<number | null>(null)          // empresa destino escolhida
+  // Triagem: Contrato/Projeto de apontamento (sustentação/cloud do cliente). 1 opção = trava; 2+ = obriga.
+  type ApontOpt = { contract_id: number; project_id: number; label: string; project_name?: string }
+  const [apontOptions, setApontOptions] = useState<ApontOpt[]>([])
   const [transferAgents, setTransferAgents] = useState<{ id: number; name: string }[]>([]) // agentes da empresa destino
   const [transferAssignee, setTransferAssignee] = useState<number | null>(null)        // responsável opcional
   const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
@@ -549,6 +552,20 @@ function TicketDetailInner({ id }: { id: number }) {
       .then(r => setCompanyTeams([{ id: 0, name: 'Agentes', members: r?.data ?? [] }]))
       .catch(() => setCompanyTeams(null))
   }, [t?.company_id])
+  // Opções de Contrato/Projeto de apontamento (sustentação/cloud do cliente). 1 opção → preenche
+  // e trava; 2+ → em branco e obrigatório. Auto-preenche quando há exatamente 1 e o ticket ainda
+  // não tem projeto definido.
+  useEffect(() => {
+    if (!coreReady) return
+    api.get<{ data: { options: ApontOpt[]; auto: ApontOpt | null; current: { contract_id: number | null; project_id: number | null } } }>(`/help-desk/tickets/${id}/apontamento-options`)
+      .then(r => {
+        const d = r?.data
+        setApontOptions(d?.options ?? [])
+        if (d?.auto && !d?.current?.project_id) {
+          updateField({ contract_id: d.auto.contract_id, project_id: d.auto.project_id })
+        }
+      }).catch(() => setApontOptions([]))
+  }, [id, coreReady])
   // Ao escolher a empresa DESTINO da transferência, busca os agentes que a atendem (p/ direcionar).
   useEffect(() => {
     if (!transferTarget) { setTransferAgents([]); return }
@@ -1171,7 +1188,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     currentDevDelivery={t.dev_delivery_at}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
-                    classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id }}
+                    classFilled={{ category: !!t.category?.id, service: !!t.service?.id, priority: !!t.priority, level: !!t.level, agent: !!t.assignee?.id, project: !(apontOptions.length > 1 && !t.project?.id) }}
                     isManager={user?.type === 'admin' || user?.type === 'coordenador'}
                     /* Tipo padrão da ação (perfil de acesso): 'internal' abre em ação interna; senão pública. */
                     defaultVisibility={t.default_action === 'internal' ? 'internal' : 'customer'}
@@ -1566,6 +1583,26 @@ function TicketDetailInner({ id }: { id: number }) {
             <div className="ds-card p-4 space-y-2">
               <div className={lbl} style={{ color: 'var(--text-light)' }}>Detalhes</div>
               <Row label="Cliente" value={t.customer?.name ?? '— (interno)'} />
+              {/* Contrato/Projeto de apontamento — 1 opção trava (só leitura); 2+ obriga escolher. */}
+              {apontOptions.length > 0 && (() => {
+                const optLabel = (o: ApontOpt) => apontOptions.filter(x => x.label === o.label).length > 1 && o.project_name ? `${o.label} · ${o.project_name}` : o.label
+                if (apontOptions.length === 1) return <Row label="Contrato/Projeto" value={optLabel(apontOptions[0])} />
+                const needs = !t.project?.id
+                return (
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span style={{ color: needs ? 'var(--danger-border)' : 'var(--text-light)' }}>Contrato/Projeto{needs ? ' *' : ''}</span>
+                    <div className="w-[62%]">
+                      <select value={t.project?.id ? String(t.project.id) : ''}
+                        onChange={e => { const o = apontOptions.find(x => String(x.project_id) === e.target.value); if (o) updateField({ contract_id: o.contract_id, project_id: o.project_id }, { project: { id: o.project_id, name: o.project_name ?? '' } }) }}
+                        className="text-sm rounded-lg px-2.5 py-1.5 w-full outline-none"
+                        style={{ background: 'var(--surface)', border: `1px solid ${needs ? 'var(--danger-border)' : 'var(--border)'}`, color: 'var(--text)' }}>
+                        <option value="">— selecione —</option>
+                        {apontOptions.map(o => <option key={o.project_id} value={o.project_id}>{optLabel(o)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )
+              })()}
               <RequesterField name={t.solicitante?.name ?? t.contact?.name ?? t.requester_name} email={t.solicitante?.email ?? t.requester_email ?? t.contact?.email}
                 onPick={cid => updateField({ customer_contact_id: cid })} />
               <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>

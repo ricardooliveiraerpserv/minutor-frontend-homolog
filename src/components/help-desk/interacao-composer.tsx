@@ -52,7 +52,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Motivo p/ bloquear a conclusão (ex.: classificação incompleta). Se setado, envio com status
   // resolvido é barrado com essa mensagem.
   // Trava de classificação: quais campos estão preenchidos + se o usuário é gestor (admin/coord).
-  classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean; agent: boolean }
+  classFilled?: { category: boolean; service: boolean; priority: boolean; level: boolean; agent: boolean; project?: boolean }
   isManager?: boolean
   // Tipo PADRÃO da nova ação (perfil de acesso, service.default_action): 'customer' (pública) | 'internal'.
   defaultVisibility?: 'customer' | 'internal'
@@ -101,26 +101,28 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (!s) return ''
     const concluir = !!s.is_resolved || !!s.is_terminal
     if (s.id === currentStatusId && !concluir) return ''
-    const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true }
+    const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true, project: true }
     const m: string[] = []
     if (!cf.agent) m.push('Agente')
     if ((!isManager || concluir) && !cf.category) m.push('Categoria')
     if (!cf.service) m.push('Serviço')
     if (!cf.priority) m.push('Urgência')
     if (!cf.level) m.push('Nível')
+    if (cf.project === false) m.push('Contrato/Projeto')
     return m.length ? `Preencha a triagem antes: ${m.join(', ')}.` : ''
   }
   const classBlock = blockFor(selStatus)
   // Relação de campos da triagem que faltam (independe do status) — mostrada ANTES de escolher o
   // status. Agente/Serviço/Urgência/Nível p/ todos; Categoria p/ agente (gestor só ao concluir).
   const baseMissing = (() => {
-    const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true }
+    const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true, project: true }
     const m: string[] = []
     if (!cf.agent) m.push('Agente')
     if (!isManager && !cf.category) m.push('Categoria')
     if (!cf.service) m.push('Serviço')
     if (!cf.priority) m.push('Urgência')
     if (!cf.level) m.push('Nível')
+    if (cf.project === false) m.push('Contrato/Projeto')
     return m
   })()
   // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
