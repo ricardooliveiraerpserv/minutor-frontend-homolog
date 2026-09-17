@@ -559,16 +559,17 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-xs">
+          {/* Toggle segmentado EVIDENTE: o segmento ativo é preenchido (verde = resposta ao
+              cliente, roxo = nota interna) com texto branco; o inativo fica esmaecido. */}
+          <div className="inline-flex items-center rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
             {(['customer', 'internal'] as const).map(v => {
               const active = visibility === v
-              // Nota interna ATIVA destaca em ROXO (bem evidente que é interno).
-              const bg = active ? (v === 'internal' ? '#7c3aed' : 'var(--primary-soft)') : 'transparent'
-              const fg = active ? (v === 'internal' ? '#ffffff' : 'var(--primary)') : 'var(--text-muted)'
+              const accent = v === 'internal' ? '#7c3aed' : 'var(--primary)'
               return (
-                <button key={v} onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } }} className="px-2 py-1 rounded-md inline-flex items-center gap-1 font-medium"
-                  style={{ background: bg, color: fg }}>
-                  {v === 'internal' && <Lock size={12} />}
+                <button key={v} onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } }}
+                  className="px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
+                  style={{ background: active ? accent : 'transparent', color: active ? '#ffffff' : 'var(--text-muted)', boxShadow: active ? '0 1px 3px rgba(0,0,0,.15)' : 'none' }}>
+                  {v === 'internal' ? <Lock size={14} /> : <Send size={14} />}
                   {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
                 </button>
               )
