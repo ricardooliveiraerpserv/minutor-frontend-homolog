@@ -1533,13 +1533,18 @@ function TicketDetailInner({ id }: { id: number }) {
                 </div>
               </div>
               <Row label="Equipe" value={t.team?.name ?? '—'} />
-              {user && t.assignee?.id !== user.id && (
-                <div className="pt-1">
+              <div className="flex items-center gap-2 pt-1">
+                {user && t.assignee?.id !== user.id && (
                   <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" onClick={() => assign(user.id)}>
                     <UserCheck size={13} /> Assumir
                   </button>
-                </div>
-              )}
+                )}
+                {companiesScope.length > 1 && (
+                  <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" onClick={() => setTransferOpen(true)} title="Mover o chamado para outra empresa do grupo">
+                    <Building2 size={13} /> Transferir empresa
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Reabertura agendada — banner de destaque quando há agendamento pendente */}
