@@ -324,6 +324,9 @@ function TicketDetailInner({ id }: { id: number }) {
   // Multi-empresa: empresas que o usuário atende (p/ transferir o chamado de empresa).
   const [companiesScope, setCompaniesScope] = useState<{ id: number; name: string; color?: string | null }[]>([])
   const [transferOpen, setTransferOpen] = useState(false)
+  const [transferTarget, setTransferTarget] = useState<number | null>(null)          // empresa destino escolhida
+  const [transferAgents, setTransferAgents] = useState<{ id: number; name: string }[]>([]) // agentes da empresa destino
+  const [transferAssignee, setTransferAssignee] = useState<number | null>(null)        // responsável opcional
   const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
   const [commentsTotal, setCommentsTotal] = useState(c0?.commentsTotal ?? 0)   // total de interações (p/ "carregar mais antigas")
   const [allComments, setAllComments] = useState(c0?.allComments ?? false)   // se já carregou TODAS (senão traz só as 40 recentes)
@@ -546,6 +549,14 @@ function TicketDetailInner({ id }: { id: number }) {
       .then(r => setCompanyTeams([{ id: 0, name: 'Agentes', members: r?.data ?? [] }]))
       .catch(() => setCompanyTeams(null))
   }, [t?.company_id])
+  // Ao escolher a empresa DESTINO da transferência, busca os agentes que a atendem (p/ direcionar).
+  useEffect(() => {
+    if (!transferTarget) { setTransferAgents([]); return }
+    setTransferAssignee(null)
+    api.get<{ data: { id: number; name: string }[] }>(`/help-desk/agents?company_id=${transferTarget}`)
+      .then(r => setTransferAgents(r?.data ?? []))
+      .catch(() => setTransferAgents([]))
+  }, [transferTarget])
 
   const changeStatus = async (statusId: string, justificationId?: number | null, extra?: { dev_delivery_at?: string }) => {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null, dev_delivery_at: extra?.dev_delivery_at ?? null }); loadTicket(); loadEvents() }
@@ -826,12 +837,13 @@ function TicketDetailInner({ id }: { id: number }) {
     try { await api.patch(`/help-desk/tickets/${id}/assign`, body); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atribuir') }
   }
-  // Transfere o chamado para outra empresa do grupo (multi-empresa).
-  const transferCompany = async (companyId: number) => {
+  // Transfere o chamado para outra empresa do grupo (multi-empresa), opcionalmente já
+  // direcionando a um responsável que atenda a empresa de destino.
+  const transferCompany = async (companyId: number, assigneeId?: number | null) => {
     try {
-      await api.patch(`/help-desk/tickets/${id}/company`, { company_id: companyId })
+      await api.patch(`/help-desk/tickets/${id}/company`, { company_id: companyId, assignee_id: assigneeId ?? null })
       toast.success('Chamado transferido de empresa')
-      setTransferOpen(false); loadTicket(); loadEvents()
+      setTransferOpen(false); setTransferTarget(null); setTransferAssignee(null); loadTicket(); loadEvents()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao transferir') }
   }
 
@@ -1678,25 +1690,48 @@ function TicketDetailInner({ id }: { id: number }) {
       {apontOpen && t && <ApontamentosModal ticketId={id} ticketNumber={t.ticket_number} onClose={() => setApontOpen(false)} />}
       {cloneOpen && t && <CloneTicketModal ticketId={id} sourceSubject={t.subject ?? ''} onClose={() => setCloneOpen(false)} />}
       {transferOpen && t && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.4)' }} onClick={() => setTransferOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.4)' }} onClick={() => { setTransferOpen(false); setTransferTarget(null) }}>
           <div className="ds-card p-4 w-full max-w-sm space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Transferir para outra empresa</h2>
-              <button onClick={() => setTransferOpen(false)}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
+              <button onClick={() => { setTransferOpen(false); setTransferTarget(null) }}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>O chamado passa para a fila da empresa escolhida. Se o responsável atual não atender a nova empresa, ele é desatribuído.</p>
-            <div className="space-y-1.5">
-              {companiesScope.filter(c => c.id !== t.company_id).map(c => (
-                <button key={c.id} type="button" onClick={() => transferCompany(c.id)}
-                  className="w-full text-left text-sm font-medium px-3 py-2 rounded-lg border ds-row-hover flex items-center gap-2"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || 'var(--primary)' }} />
-                  {c.name}
-                </button>
-              ))}
-              {companiesScope.filter(c => c.id !== t.company_id).length === 0 && (
-                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma outra empresa disponível no seu perfil.</p>
-              )}
+            {/* Passo 1: empresa de destino */}
+            <div>
+              <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-light)' }}>Empresa de destino</div>
+              <div className="space-y-1.5">
+                {companiesScope.filter(c => c.id !== t.company_id).map(c => {
+                  const sel = transferTarget === c.id
+                  return (
+                    <button key={c.id} type="button" onClick={() => setTransferTarget(c.id)}
+                      className="w-full text-left text-sm font-medium px-3 py-2 rounded-lg border flex items-center gap-2"
+                      style={{ borderColor: sel ? (c.color || 'var(--primary)') : 'var(--border)', background: sel ? (c.color ? c.color + '22' : 'var(--primary-soft)') : 'var(--surface)', color: 'var(--text)' }}>
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || 'var(--primary)' }} />
+                      {sel ? '✓ ' : ''}{c.name}
+                    </button>
+                  )
+                })}
+                {companiesScope.filter(c => c.id !== t.company_id).length === 0 && (
+                  <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma outra empresa disponível no seu perfil.</p>
+                )}
+              </div>
+            </div>
+            {/* Passo 2: responsável (opcional) */}
+            {transferTarget && (
+              <div>
+                <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-light)' }}>Direcionar para (opcional)</div>
+                <select className="text-sm rounded-lg px-2.5 py-1.5 w-full outline-none" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  value={transferAssignee ?? ''} onChange={e => setTransferAssignee(e.target.value ? Number(e.target.value) : null)}>
+                  <option value="">— Sem responsável —</option>
+                  {transferAgents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Em branco = transfere sem responsável (o atual sai se não atender a empresa).</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => { setTransferOpen(false); setTransferTarget(null) }} className="text-sm px-3 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+              <button disabled={!transferTarget} onClick={() => transferTarget && transferCompany(transferTarget, transferAssignee)}
+                className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg disabled:opacity-50">Transferir</button>
             </div>
           </div>
         </div>
