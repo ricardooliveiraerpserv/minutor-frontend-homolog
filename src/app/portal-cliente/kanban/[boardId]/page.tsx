@@ -473,16 +473,19 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
                 {loading ? <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando…</span> : (() => {
                   const renderRow = (u: KUserRef) => {
                     const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
+                    const checked = sel.includes(u.id)
                     return (
-                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 4px', borderRadius: 6 }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: temAcesso ? 'default' : 'pointer', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
-                          <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} disabled={temAcesso} />
+                      // Linha inteira clicável p/ (des)marcar. Checkbox é só visual; o botão Convite não propaga.
+                      <div key={u.id} onClick={() => { if (!temAcesso) toggle(u.id) }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 6px', borderRadius: 6, cursor: temAcesso ? 'default' : 'pointer', background: checked ? 'var(--accent-bg, rgba(13,148,136,0.10))' : 'transparent' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
+                          <input type="checkbox" checked={checked} readOnly disabled={temAcesso} tabIndex={-1} style={{ pointerEvents: 'none' }} />
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
-                        </label>
+                        </span>
                         {temAcesso ? (
                           <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
                         ) : (
-                          <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] }) }} disabled={inviting}
                             className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
                             title="Enviar convite por e-mail para acessar este quadro">
                             <Mail size={12} /> Convite
