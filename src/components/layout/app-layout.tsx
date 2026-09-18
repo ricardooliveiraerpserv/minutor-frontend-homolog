@@ -83,8 +83,8 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
       {/* Cliente: pop-up de comunicações novas (não lidas) — aparece em qualquer tela, exceto Comunicados. */}
       {user.type === 'cliente' && <ClientCommunicationPopup />}
-      {/* Cliente: pop-up de convite p/ quadro de Meus Processos (igual ao dos consultores). */}
-      {user.type === 'cliente' && <ClientKanbanInvitePopup />}
+      {/* Convite p/ quadro de Meus Processos — vale p/ TODOS os perfis (cliente e equipe ERPSERV). */}
+      <ClientKanbanInvitePopup />
 
       <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">

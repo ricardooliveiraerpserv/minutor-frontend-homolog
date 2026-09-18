@@ -713,13 +713,35 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // ou cliente, mantém o NAV hardcoded (fallback seguro). Itens "home" (Meu Dia/Meu Painel) são
   // prefixados, sem duplicar telas que já estão na árvore.
   const moduleNav = useMemo(() => {
+    // "Meus Processos" (Kanban pessoal) vale p/ TODOS os perfis. GOVERNÁVEL no Configurador
+    // (catálogo NAV_CATALOG): sem config → visível a todos (default); com config → respeita
+    // ativo/perfis/módulos. Injetado aqui (idempotente) pois a árvore pode não trazer a rota.
+    const KANBAN_HREF = '/portal-cliente/kanban'
+    const MEUS_PROCESSOS: NavEntry = { type: 'item', label: itemConfig[KANBAN_HREF]?.label || 'Meus Processos', href: KANBAN_HREF, icon: LayoutGrid }
+    const kanbanAllowed = (): boolean => {
+      const c = itemConfig[KANBAN_HREF]
+      if (!c) return true                 // sem config → default: todos
+      if (!c.active) return false         // desativado no Configurador
+      if (isCliente || !selectedModule) return true
+      const effK = effectiveProfiles(user)
+      return (effK.some(p => c.profiles.includes(p)) || c.users.includes(user?.id ?? 0)) && c.modules.includes(selectedModule)
+    }
+    const withProcessos = (nav: NavEntry[]): NavEntry[] => {
+      if (nav.some(e => e.type === 'item' && e.href.split('?')[0] === KANBAN_HREF)) return nav
+      if (!kanbanAllowed()) return nav
+      // Logo após os itens "home" do topo (Meu Dia/Meu Painel/Home), senão no topo.
+      let i = 0
+      while (i < nav.length && nav[i].type === 'item') i++
+      const cut = Math.min(Math.max(i, 1), nav.length)
+      return [...nav.slice(0, cut), MEUS_PROCESSOS, ...nav.slice(cut)]
+    }
     // Perfis de módulo único (consultor/parceiro/coordenador/administrativo) DEVEM montar do
     // config (Configurador), não do visibleNav hardcoded — escapam do fallback de módulo único.
     const configDrivenSingle = isConsultor || isParceiroAdmin || isCoordenador || isAdministrativo
-    if (isCliente || !selectedModule || (allowedModules.length <= 1 && !configDrivenSingle)) return visibleNav
+    if (isCliente || !selectedModule || (allowedModules.length <= 1 && !configDrivenSingle)) return withProcessos(visibleNav)
     const eff = effectiveProfiles(user)
     const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
-    if (built.length === 0) return visibleNav
+    if (built.length === 0) return withProcessos(visibleNav)
     const builtHrefs = new Set<string>()
     built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })
     // home (Meu Dia/Meu Painel…): itens do topo do NAV, sem duplicar a árvore e respeitando o módulo
@@ -732,7 +754,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    return [...home, ...built]
+    return withProcessos([...home, ...built])
   }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
