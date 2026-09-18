@@ -184,6 +184,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
   const [srcAsked, setSrcAsked] = useState<boolean>(!isGmudForm || !!initial)
   const [hasFonte, setHasFonte] = useState<boolean | null>(null)
   const [srcZip, setSrcZip] = useState<File | null>(null)
+  const [confirmChoice, setConfirmChoice] = useState<boolean | null>(null) // 2ª confirmação (modal estilizado)
   // Input criado IMPERATIVAMENTE fora da árvore React: o auth-context chama loadUser() no visibilitychange
   // (dispara quando o diálogo de arquivo abre) → remonta um <input> do JSX e a 1ª seleção se perde. Imune.
   const openFilePicker = () => {
@@ -333,10 +334,7 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
               {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
                 const sel = hasFonte === val
                 return (
-                  <button key={lab} type="button" onClick={() => {
-                      if (val) { if (window.confirm('⚠️ Não será possível FINALIZAR a GMUD sem enviar o código-fonte zipado (.zip). Deseja continuar?')) setHasFonte(true) }
-                      else { if (window.confirm('Tem CERTEZA de que NÃO há código-fonte a anexar nesta GMUD?')) { setHasFonte(false); setSrcZip(null) } }
-                    }}
+                  <button key={lab} type="button" onClick={() => setConfirmChoice(val)}
                     className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border"
                     style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
                     {lab}
@@ -359,6 +357,33 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, curr
               <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg disabled:opacity-50" disabled={hasFonte === null || (hasFonte === true && !srcZip)}
                 onClick={() => { if (hasFonte === true && srcZip) setFormFiles(f => [...f, srcZip]); setSrcAsked(true) }}>Continuar</button>
             </div>
+
+            {/* 2ª confirmação — modal estilizado (substitui o window.confirm nativo). */}
+            {confirmChoice !== null && (
+              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                <div className="ds-card p-5 w-full max-w-sm space-y-3" style={{ background: 'var(--surface)' }}>
+                  {confirmChoice ? (
+                    <>
+                      <div className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--warning-border)' }}>⚠️ Atenção</div>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>Ao marcar <b>Sim</b>, <b>não será possível finalizar a GMUD sem enviar o código-fonte zipado (.zip)</b>. O fonte será analisado e a pontuação (A-F) sairá em nota interna. Deseja continuar?</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--text)' }}>Confirmar</div>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>Tem <b>certeza</b> de que <b>NÃO há código-fonte</b> a anexar nesta GMUD? Sem o fonte, o chamado não terá análise de código.</p>
+                    </>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setConfirmChoice(null)}>Voltar</button>
+                    <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg"
+                      style={confirmChoice ? undefined : { background: 'var(--warning-border)', color: '#fff' }}
+                      onClick={() => { if (confirmChoice) setHasFonte(true); else { setHasFonte(false); setSrcZip(null) } setConfirmChoice(null) }}>
+                      {confirmChoice ? 'Sim, vou anexar' : 'Confirmar (sem fonte)'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
