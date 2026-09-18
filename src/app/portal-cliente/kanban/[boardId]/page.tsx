@@ -276,7 +276,7 @@ export default function ClientKanbanBoardPage() {
         <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
       {membersOpen && board && (
-        <BoardMembersManager boardId={boardId} users={users} erpservUsers={erpservUsers} onClose={() => { setMembersOpen(false); kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {}) }} />
+        <BoardMembersManager boardId={boardId} users={users} erpservUsers={erpservUsers} isInternal={!authUser?.customer_id} onClose={() => { setMembersOpen(false); kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {}) }} />
       )}
       {reportOpen && board && (
         <ReportModal boardId={boardId} onClose={() => setReportOpen(false)} />
@@ -399,13 +399,26 @@ function LabelsManager({ boardId, labels, onClose, onChanged }: { boardId: numbe
   )
 }
 
-function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardId: number; users: KUserRef[]; erpservUsers: KUserRef[]; onClose: () => void }) {
-  // Pool combinado (equipe ERPSERV + contatos do cliente) p/ resolver alvos de convite.
+function BoardMembersManager({ boardId, users, erpservUsers, isInternal, onClose }: { boardId: number; users: KUserRef[]; erpservUsers: KUserRef[]; isInternal: boolean; onClose: () => void }) {
+  // AGENTE (interno): escolher um Cliente e convidar seus usuários.
+  const [custList, setCustList] = useState<{ id: number; name: string }[]>([])
+  const [custOpen, setCustOpen] = useState(false)
+  const [custQ, setCustQ] = useState('')
+  const [selectedCust, setSelectedCust] = useState<{ id: number; name: string } | null>(null)
+  const [custUsers, setCustUsers] = useState<KUserRef[]>([])
+  const [custUserQ, setCustUserQ] = useState('')
+  const [custUserOpen, setCustUserOpen] = useState(false)
+  useEffect(() => { if (isInternal) kanbanApi.customers().then(r => setCustList(r.items ?? [])).catch(() => {}) }, [isInternal])
+  useEffect(() => {
+    if (!selectedCust) { setCustUsers([]); return }
+    kanbanApi.customerUsers(selectedCust.id).then(r => setCustUsers(r.items ?? [])).catch(() => setCustUsers([]))
+  }, [selectedCust])
+  // Pool combinado (equipe ERPSERV + contatos + usuários do cliente escolhido) p/ resolver alvos de convite.
   const allCandidates = useMemo(() => {
     const seen = new Set<number>(); const out: KUserRef[] = []
-    for (const u of [...erpservUsers, ...users]) { if (!seen.has(u.id)) { seen.add(u.id); out.push(u) } }
+    for (const u of [...erpservUsers, ...users, ...custUsers]) { if (!seen.has(u.id)) { seen.add(u.id); out.push(u) } }
     return out
-  }, [erpservUsers, users])
+  }, [erpservUsers, users, custUsers])
   const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
   const [q, setQ] = useState('')                 // busca por texto (nome/e-mail)
   const [open, setOpen] = useState(false)        // combobox aberto (lista só aparece ao focar/pesquisar)
@@ -447,6 +460,33 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao remover') }
     finally { setRemoving(null) }
   }
+  // Linha de usuário: clique na linha inteira (des)marca; checkbox é só visual; Convite não propaga.
+  const renderRow = (u: KUserRef) => {
+    const temAcesso = memberIds.includes(u.id)
+    const checked = sel.includes(u.id)
+    return (
+      <div key={u.id} onClick={() => { if (!temAcesso) toggle(u.id) }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 6px', borderRadius: 6, cursor: temAcesso ? 'default' : 'pointer', background: checked ? 'var(--accent-bg, rgba(13,148,136,0.10))' : 'transparent' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
+          <input type="checkbox" checked={checked} readOnly disabled={temAcesso} tabIndex={-1} style={{ pointerEvents: 'none' }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+        </span>
+        {temAcesso ? (
+          <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
+        ) : (
+          <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] }) }} disabled={inviting}
+            className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+            title="Enviar convite por e-mail para acessar este quadro">
+            <Mail size={12} /> Convite
+          </button>
+        )}
+      </div>
+    )
+  }
+  const sectionHead = (t: string) => (
+    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
+  )
+  const matchCust = (u: KUserRef) => { const t = norm(custUserQ.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
   return (
     <>
     <div onClick={onClose} style={mOverlay}>
@@ -474,32 +514,6 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
               <div onMouseDown={(e) => e.preventDefault()}
                 style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 280, overflowY: 'auto', padding: 8 }}>
                 {loading ? <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando…</span> : (() => {
-                  const renderRow = (u: KUserRef) => {
-                    const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
-                    const checked = sel.includes(u.id)
-                    return (
-                      // Linha inteira clicável p/ (des)marcar. Checkbox é só visual; o botão Convite não propaga.
-                      <div key={u.id} onClick={() => { if (!temAcesso) toggle(u.id) }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 6px', borderRadius: 6, cursor: temAcesso ? 'default' : 'pointer', background: checked ? 'var(--accent-bg, rgba(13,148,136,0.10))' : 'transparent' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
-                          <input type="checkbox" checked={checked} readOnly disabled={temAcesso} tabIndex={-1} style={{ pointerEvents: 'none' }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
-                        </span>
-                        {temAcesso ? (
-                          <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
-                        ) : (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] }) }} disabled={inviting}
-                            className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
-                            title="Enviar convite por e-mail para acessar este quadro">
-                            <Mail size={12} /> Convite
-                          </button>
-                        )}
-                      </div>
-                    )
-                  }
-                  const sectionHead = (t: string) => (
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
-                  )
                   const erpFiltered = erpservUsers.filter(matchQ)
                   const cliFiltered = users.filter(matchQ)
                   if (!erpFiltered.length && !cliFiltered.length) {
@@ -521,6 +535,79 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
               </div>
             )}
           </div>
+          {/* AGENTE (interno): escolher a empresa cliente e convidar seus usuários. */}
+          {isInternal && (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 6 }}>Cliente</div>
+                <div style={{ position: 'relative' }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setCustOpen(false) }}>
+                  <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
+                  <input value={selectedCust ? selectedCust.name : custQ}
+                    onChange={e => { setCustQ(e.target.value); setSelectedCust(null); setCustOpen(true) }} onFocus={() => setCustOpen(true)}
+                    placeholder="Escolha a empresa cliente…"
+                    type="search" role="combobox" aria-expanded={custOpen} name="board-customer-search"
+                    autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                    data-1p-ignore data-lpignore="true" data-form-type="other"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--field)', color: 'var(--text)' }} />
+                  {selectedCust ? (
+                    <button type="button" tabIndex={-1} aria-label="Trocar cliente" onClick={() => { setSelectedCust(null); setCustQ(''); setCustUserQ('') }}
+                      style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
+                      <X size={15} />
+                    </button>
+                  ) : (
+                    <button type="button" tabIndex={-1} aria-label="Abrir lista" onClick={() => setCustOpen(o => !o)}
+                      style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
+                      <ChevronDown size={16} style={{ transform: custOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                    </button>
+                  )}
+                  {custOpen && !selectedCust && (
+                    <div onMouseDown={(e) => e.preventDefault()}
+                      style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 240, overflowY: 'auto', padding: 6 }}>
+                      {(() => {
+                        const t = norm(custQ.trim())
+                        const list = custList.filter(c => !t || norm(c.name).includes(t))
+                        if (!list.length) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{custList.length ? 'Nenhum cliente encontrado.' : 'Nenhum cliente disponível.'}</span>
+                        return list.map(c => (
+                          <div key={c.id} onClick={() => { setSelectedCust(c); setCustOpen(false); setCustUserOpen(true) }}
+                            style={{ padding: '6px 6px', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.name}
+                          </div>
+                        ))
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {selectedCust && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 6 }}>Usuários do cliente</div>
+                  <div style={{ position: 'relative' }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setCustUserOpen(false) }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
+                    <input value={custUserQ} onChange={e => { setCustUserQ(e.target.value); setCustUserOpen(true) }} onFocus={() => setCustUserOpen(true)}
+                      placeholder="Buscar usuário do cliente…"
+                      type="search" role="combobox" aria-expanded={custUserOpen} name="board-customer-user-search"
+                      autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                      data-1p-ignore data-lpignore="true" data-form-type="other"
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--field)', color: 'var(--text)' }} />
+                    <button type="button" tabIndex={-1} aria-label="Abrir lista" onClick={() => setCustUserOpen(o => !o)}
+                      style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
+                      <ChevronDown size={16} style={{ transform: custUserOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                    </button>
+                    {custUserOpen && (
+                      <div onMouseDown={(e) => e.preventDefault()}
+                        style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 260, overflowY: 'auto', padding: 8 }}>
+                        {(() => {
+                          const list = custUsers.filter(matchCust)
+                          if (!list.length) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{custUsers.length ? `Nenhum resultado para “${custUserQ.trim()}”.` : 'Este cliente não tem usuários.'}</span>
+                          return <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{list.map(renderRow)}</div>
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           {/* Selecionados (marcados, ainda sem convite enviado) — chips + envio em massa. */}
           {sel.length > 0 && (
             <div style={{ marginBottom: 12 }}>
