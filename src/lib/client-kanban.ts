@@ -135,6 +135,7 @@ export const kanbanApi = {
   deleteComment: (id: number) => api.delete(`${base}/comments/${id}`),
 
   assignableUsers: () => api.get<{ items: KUserRef[] }>(`${base}/assignable-users`),
+  erpservUsers: () => api.get<{ items: KUserRef[] }>(`${base}/erpserv-users`),
 
   cardHistory: (id: number) => api.get<{ items: KCardEvent[] }>(`${base}/cards/${id}/history`),
   boardMembers: (boardId: number) => api.get<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`),

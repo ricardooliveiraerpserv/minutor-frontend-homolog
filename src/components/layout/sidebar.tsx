@@ -1012,10 +1012,21 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // Fallbacks preservados: sem módulo resolvido ou árvore vazia → NAV hardcoded.
   // Itens "home" (Meu Dia/Meu Painel) são prefixados, sem duplicar telas já na árvore.
   const moduleNav = useMemo(() => {
-    if (isCliente || !selectedModule) return visibleNav
+    // "Meus Processos" (Kanban pessoal) vale p/ TODOS os perfis. Injetado aqui, de forma
+    // idempotente, pois a árvore do Configurador não modela essa rota (igual ao Prosight).
+    const MEUS_PROCESSOS: NavEntry = { type: 'item', label: 'Meus Processos', href: '/portal-cliente/kanban', icon: LayoutGrid }
+    const withProcessos = (nav: NavEntry[]): NavEntry[] => {
+      if (nav.some(e => e.type === 'item' && e.href.split('?')[0] === '/portal-cliente/kanban')) return nav
+      // Logo após os itens "home" do topo (Meu Dia/Meu Painel/Home), senão no topo.
+      let i = 0
+      while (i < nav.length && nav[i].type === 'item') i++
+      const cut = Math.min(Math.max(i, 1), nav.length)
+      return [...nav.slice(0, cut), MEUS_PROCESSOS, ...nav.slice(cut)]
+    }
+    if (isCliente || !selectedModule) return withProcessos(visibleNav)
     const eff = effectiveProfiles(user)
     const built = buildModuleNav(selectedModule, navModules, itemConfig, user)
-    if (built.length === 0) return visibleNav
+    if (built.length === 0) return withProcessos(visibleNav)
     const builtHrefs = new Set<string>()
     built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })
     // home (Meu Dia/Meu Painel…): itens do topo do NAV, sem duplicar a árvore e respeitando o módulo
@@ -1042,7 +1053,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...notDup(sysGroup.items)]
       else built.push({ type: 'group', label: 'Sistema', icon: Settings, items: extras })
     }
-    return [...home, ...built]
+    return withProcessos([...home, ...built])
   }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo, canAccessProsight])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,

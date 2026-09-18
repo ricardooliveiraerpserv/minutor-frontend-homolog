@@ -22,7 +22,8 @@ export default function ClientKanbanBoardPage() {
   const { user: authUser } = useAuth()
   const boardId = Number(params?.boardId)
   const [board, setBoard] = useState<KBoardFull | null>(null)
-  const [users, setUsers] = useState<KUserRef[]>([])
+  const [users, setUsers] = useState<KUserRef[]>([])          // contatos do cliente
+  const [erpservUsers, setErpservUsers] = useState<KUserRef[]>([])   // equipe ERPSERV (interna)
   const [memberIds, setMemberIds] = useState<number[]>([])   // membros do quadro (acesso)
   const [loading, setLoading] = useState(true)
   const [openCardId, setOpenCardId] = useState<number | null>(null)
@@ -49,10 +50,11 @@ export default function ClientKanbanBoardPage() {
   // Opções de alocação (responsável/participantes) = SÓ os membros do quadro (convidados que
   // aceitaram / adicionados) + você mesmo. Ninguém convidado ⇒ dropdown vazio (só você). NÃO
   // lista todos da empresa. Usuário removido / convite cancelado ou não aceito não aparece.
-  const allocatableUsers = useMemo(
-    () => users.filter(u => memberIds.includes(u.id) || (authUser?.id != null && u.id === authUser.id)),
-    [users, memberIds, authUser?.id],
-  )
+  const allocatableUsers = useMemo(() => {
+    const seen = new Set<number>(); const pool: KUserRef[] = []
+    for (const u of [...users, ...erpservUsers]) { if (!seen.has(u.id)) { seen.add(u.id); pool.push(u) } }
+    return pool.filter(u => memberIds.includes(u.id) || (authUser?.id != null && u.id === authUser.id))
+  }, [users, erpservUsers, memberIds, authUser?.id])
   function matchCard(c: KCardSummary): boolean {
     if (search.trim()) {
       const q = search.trim().toLowerCase()
@@ -118,6 +120,7 @@ export default function ClientKanbanBoardPage() {
       }
     } catch { /* ignore */ }
     kanbanApi.assignableUsers().then(r => setUsers(r.items ?? [])).catch(() => {})
+    kanbanApi.erpservUsers().then(r => setErpservUsers(r.items ?? [])).catch(() => {})
     kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {})
     load()
   }, [boardId])
@@ -273,7 +276,7 @@ export default function ClientKanbanBoardPage() {
         <KanbanFieldsManager boardId={boardId} fields={board.fields} onClose={() => setFieldsOpen(false)} onChanged={load} />
       )}
       {membersOpen && board && (
-        <BoardMembersManager boardId={boardId} users={users} onClose={() => { setMembersOpen(false); kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {}) }} />
+        <BoardMembersManager boardId={boardId} users={users} erpservUsers={erpservUsers} onClose={() => { setMembersOpen(false); kanbanApi.boardMembers(boardId).then(r => setMemberIds(r.user_ids ?? [])).catch(() => {}) }} />
       )}
       {reportOpen && board && (
         <ReportModal boardId={boardId} onClose={() => setReportOpen(false)} />
@@ -396,7 +399,13 @@ function LabelsManager({ boardId, labels, onClose, onChanged }: { boardId: numbe
   )
 }
 
-function BoardMembersManager({ boardId, users, onClose }: { boardId: number; users: KUserRef[]; onClose: () => void }) {
+function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardId: number; users: KUserRef[]; erpservUsers: KUserRef[]; onClose: () => void }) {
+  // Pool combinado (equipe ERPSERV + contatos do cliente) p/ resolver alvos de convite.
+  const allCandidates = useMemo(() => {
+    const seen = new Set<number>(); const out: KUserRef[] = []
+    for (const u of [...erpservUsers, ...users]) { if (!seen.has(u.id)) { seen.add(u.id); out.push(u) } }
+    return out
+  }, [erpservUsers, users])
   const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
@@ -442,16 +451,15 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
         <div style={{ padding: 18, overflowY: 'auto' }}>
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Convide quem deve ter acesso — a pessoa entra ao <b>aceitar</b> o convite. <b>Só quem criou o quadro tem acesso até alguém aceitar.</b></p>
           {sel.length > 0 && (
-            <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: users.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
+            <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: allCandidates.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
               className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
               <Mail size={13} /> Enviar convite aos marcados ({sel.length})
             </button>
           )}
-          {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {users.map(u => {
-                const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
-                return (
+          {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (() => {
+            const renderRow = (u: KUserRef) => {
+              const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
+              return (
                 <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: temAcesso ? 'default' : 'pointer', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
                     <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} disabled={temAcesso} />
@@ -467,9 +475,27 @@ function BoardMembersManager({ boardId, users, onClose }: { boardId: number; use
                     </button>
                   )}
                 </div>
-              )})}
-            </div>
-          )}
+              )
+            }
+            const sectionHead = (t: string) => (
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
+            )
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {/* Equipe ERPSERV: convidar alguém da equipe interna (agente ou cliente). */}
+                {sectionHead('Equipe ERPSERV')}
+                {erpservUsers.length ? erpservUsers.map(renderRow) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum usuário da equipe disponível.</span>}
+                {/* Pessoas do cliente: só aparece quando há contatos (perfil cliente). */}
+                {users.length > 0 && (
+                  <>
+                    <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0 2px' }} />
+                    {sectionHead('Pessoas do cliente')}
+                    {users.map(renderRow)}
+                  </>
+                )}
+              </div>
+            )
+          })()}
           {invites.length > 0 && (
             <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 8 }}>Convites</div>
