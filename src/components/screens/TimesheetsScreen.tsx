@@ -452,30 +452,59 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
   const [projectId, setProjectId]   = useState('')
   const [projects, setProjects]     = useState<SelectOption[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
+  // Metadados p/ saber se o projeto escolhido é investimento (exige "Projeto Real").
+  const [projMeta, setProjMeta] = useState<Record<string, { inv: boolean; cat: string | null }>>({})
+  const [realProjectId, setRealProjectId] = useState('')
+  const [realOptions, setRealOptions]     = useState<SelectOption[]>([])
+  const [loadingReal, setLoadingReal]     = useState(false)
 
   // Projetos do cliente escolhido (mesmo endpoint minimal usado nos filtros).
   useEffect(() => {
     setProjectId('')
     setProjects([])
+    setProjMeta({})
     if (!customerId) return
     setLoadingProjects(true)
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     // Quando há 1 só consultor na seleção, oferece apenas projetos em que ele está ALOCADO.
     const allocParam = consultantUserId ? `&consultant_user_id=${consultantUserId}` : ''
     api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}${allocParam}`)
-      .then(r => setProjects(items(r).map((p: any) => ({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name }))))
-      .catch(() => setProjects([]))
+      .then(r => {
+        const list = items(r)
+        setProjects(list.map((p: any) => ({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name })))
+        const meta: Record<string, { inv: boolean; cat: string | null }> = {}
+        list.forEach((p: any) => { meta[String(p.id)] = { inv: !!p.is_investimento_comercial, cat: p.categoria_interna ?? null } })
+        setProjMeta(meta)
+      })
+      .catch(() => { setProjects([]); setProjMeta({}) })
       .finally(() => setLoadingProjects(false))
   }, [customerId, consultantUserId])
+
+  // Investimento (Projeto/Suporte) exige Projeto Real — carrega as opções do consultor.
+  const selMeta = projMeta[projectId]
+  const needsReal = !!selMeta?.inv && ['Projeto', 'Suporte'].includes(selMeta?.cat ?? '')
+  useEffect(() => {
+    setRealProjectId('')
+    setRealOptions([])
+    if (!projectId || !needsReal) return
+    setLoadingReal(true)
+    const uidParam = consultantUserId ? `?user_id=${consultantUserId}` : ''
+    api.get<any>(`/projects/${projectId}/real-project-options${uidParam}`)
+      .then(r => setRealOptions((Array.isArray(r?.items) ? r.items : []).map((p: any) => ({ id: p.id, name: p.name }))))
+      .catch(() => setRealOptions([]))
+      .finally(() => setLoadingReal(false))
+  }, [projectId, needsReal, consultantUserId])
 
   // Sub-3 Lote · Estrutural (troca cliente/projeto, INCLUI aprovados) — Cat B. useAsyncAction; semântica intacta.
   const saveAction = useAsyncAction(async () => {
     if (!customerId) { toast.error('Selecione o cliente'); return }
     if (!projectId)  { toast.error('Selecione o projeto'); return }
+    if (needsReal && realOptions.length > 0 && !realProjectId) { toast.error('Selecione o projeto real'); return }
     await api.put('/timesheets/bulk-update-project-customer', {
       ids,
       customer_id: Number(customerId),
       project_id:  Number(projectId),
+      ...(needsReal && realProjectId ? { real_project_id: Number(realProjectId) } : {}),
     })
     toast.success(`Cliente/projeto atualizado em ${ids.length} apontamento${ids.length > 1 ? 's' : ''}`)
     onSaved()
@@ -521,6 +550,22 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
               />
             </div>
           </div>
+          {needsReal && (
+            <div>
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Projeto Real</label>
+              <div className="mt-1">
+                <SearchSelect
+                  value={realProjectId}
+                  onChange={setRealProjectId}
+                  options={realOptions}
+                  placeholder={loadingReal ? 'Carregando…' : realOptions.length === 0 ? 'Nenhum projeto real disponível' : 'Selecionar projeto real...'}
+                />
+              </div>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                Investimento exige o projeto real onde as horas serão consumidas.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 mt-5 justify-end">
@@ -529,7 +574,7 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
             style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
             Cancelar
           </button>
-          <button onClick={save} disabled={saving || !customerId || !projectId}
+          <button onClick={save} disabled={saving || !customerId || !projectId || (needsReal && realOptions.length > 0 && !realProjectId)}
             className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
             style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Aplicar'}
