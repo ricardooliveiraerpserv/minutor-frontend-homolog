@@ -421,7 +421,9 @@ function BoardMembersManager({ boardId, users, erpservUsers, isInternal, onClose
   }, [erpservUsers, users, custUsers])
   const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
   const [q, setQ] = useState('')                 // busca por texto (nome/e-mail)
-  const [open, setOpen] = useState(false)        // combobox aberto (lista só aparece ao focar/pesquisar)
+  const [open, setOpen] = useState(false)        // combobox Equipe ERPSERV
+  const [teamQ, setTeamQ] = useState('')         // busca no campo Pessoas do cliente
+  const [teamOpen, setTeamOpen] = useState(false)
   const norm = (s: string) => s.normalize('NFD').replace(new RegExp('[\u0300-\u036f]', 'g'), '').toLowerCase()
   const matchQ = (u: KUserRef) => { const t = norm(q.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
   const [loading, setLoading] = useState(true)
@@ -483,10 +485,8 @@ function BoardMembersManager({ boardId, users, erpservUsers, isInternal, onClose
       </div>
     )
   }
-  const sectionHead = (t: string) => (
-    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
-  )
   const matchCust = (u: KUserRef) => { const t = norm(custUserQ.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
+  const matchTeam = (u: KUserRef) => { const t = norm(teamQ.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
   return (
     <>
     <div onClick={onClose} style={mOverlay}>
@@ -494,7 +494,8 @@ function BoardMembersManager({ boardId, users, erpservUsers, isInternal, onClose
         <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
         <div style={{ padding: 18, overflowY: 'auto' }}>
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Convide quem deve ter acesso — a pessoa entra ao <b>aceitar</b> o convite. <b>Só quem criou o quadro tem acesso até alguém aceitar.</b></p>
-          {/* Campo de lista (combobox): os nomes só aparecem no dropdown ao focar/pesquisar. */}
+          {/* Campo Equipe ERPSERV — combobox: os nomes só aparecem no dropdown ao focar/pesquisar. */}
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 6 }}>Equipe ERPSERV</div>
           <div style={{ position: 'relative', marginBottom: 12 }}
             onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
@@ -515,26 +516,43 @@ function BoardMembersManager({ boardId, users, erpservUsers, isInternal, onClose
                 style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 280, overflowY: 'auto', padding: 8 }}>
                 {loading ? <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando…</span> : (() => {
                   const erpFiltered = erpservUsers.filter(matchQ)
-                  const cliFiltered = users.filter(matchQ)
-                  if (!erpFiltered.length && !cliFiltered.length) {
-                    return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{q.trim() ? `Nenhum resultado para “${q.trim()}”.` : 'Nenhum usuário disponível.'}</span>
+                  if (!erpFiltered.length) {
+                    return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{q.trim() ? `Nenhum resultado para “${q.trim()}”.` : 'Nenhum usuário da equipe disponível.'}</span>
                   }
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {erpFiltered.length > 0 && (<>{sectionHead('Equipe ERPSERV')}{erpFiltered.map(renderRow)}</>)}
-                      {cliFiltered.length > 0 && (
-                        <>
-                          {erpFiltered.length > 0 && <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 2px' }} />}
-                          {sectionHead('Pessoas do cliente')}
-                          {cliFiltered.map(renderRow)}
-                        </>
-                      )}
-                    </div>
-                  )
+                  return <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{erpFiltered.map(renderRow)}</div>
                 })()}
               </div>
             )}
           </div>
+          {/* Campo Pessoas do cliente — a própria equipe do cliente (perfil cliente). */}
+          {users.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 6 }}>Pessoas do cliente</div>
+              <div style={{ position: 'relative' }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTeamOpen(false) }}>
+                <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
+                <input value={teamQ} onChange={e => { setTeamQ(e.target.value); setTeamOpen(true) }} onFocus={() => setTeamOpen(true)}
+                  placeholder="Buscar pessoa do cliente…"
+                  type="search" role="combobox" aria-expanded={teamOpen} name="board-client-user-search"
+                  autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+                  data-1p-ignore data-lpignore="true" data-form-type="other"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--field)', color: 'var(--text)' }} />
+                <button type="button" tabIndex={-1} aria-label="Abrir lista" onClick={() => setTeamOpen(o => !o)}
+                  style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
+                  <ChevronDown size={16} style={{ transform: teamOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                </button>
+                {teamOpen && (
+                  <div onMouseDown={(e) => e.preventDefault()}
+                    style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 260, overflowY: 'auto', padding: 8 }}>
+                    {(() => {
+                      const list = users.filter(matchTeam)
+                      if (!list.length) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{teamQ.trim() ? `Nenhum resultado para “${teamQ.trim()}”.` : 'Nenhuma pessoa disponível.'}</span>
+                      return <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{list.map(renderRow)}</div>
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {/* AGENTE (interno): escolher a empresa cliente e convidar seus usuários. */}
           {isInternal && (
             <>
