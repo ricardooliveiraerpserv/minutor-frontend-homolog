@@ -11,6 +11,8 @@ export interface CatalogItem {
 export const NAV_CATALOG: CatalogItem[] = [
   // Home / Configurador
   { key: '/meu-painel',          label: 'Meu Painel',                 group: 'Home' },
+  // Kanban pessoal — governável no Configurador; por padrão visível a todos os perfis.
+  { key: '/portal-cliente/kanban', label: 'Meus Processos',           group: 'Home' },
   { key: '/configurador',        label: 'Configurador de Menus',      group: 'Configurador' },
 
   // Serviços — Projetos / Sustentação / Operação
