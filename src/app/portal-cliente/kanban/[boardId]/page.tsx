@@ -469,7 +469,10 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
               <ChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
             </button>
             {open && (
-              <div style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 280, overflowY: 'auto', padding: 8 }}>
+              // preventDefault no mousedown: mantém o foco no input (o onBlur do container não
+              // fecha) → o clique na LINHA registra o toggle antes do dropdown sumir.
+              <div onMouseDown={(e) => e.preventDefault()}
+                style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 280, overflowY: 'auto', padding: 8 }}>
                 {loading ? <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando…</span> : (() => {
                   const renderRow = (u: KUserRef) => {
                     const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
