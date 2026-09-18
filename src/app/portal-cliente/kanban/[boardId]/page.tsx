@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users, Mail } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, X, Tag, MessageSquare, CheckSquare, Calendar, AlertTriangle, SlidersHorizontal, LayoutGrid, List, Filter, Download, Search, BarChart3, Users, Mail, ChevronDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KBoardFull, type KColumn, type KCardSummary, type KUserRef, type KLabel, type KField, type KReport, type KBoardInvite } from '@/lib/client-kanban'
@@ -408,6 +408,7 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
   }, [erpservUsers, users])
   const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
   const [q, setQ] = useState('')                 // busca por texto (nome/e-mail)
+  const [open, setOpen] = useState(false)        // combobox aberto (lista só aparece ao focar/pesquisar)
   const norm = (s: string) => s.normalize('NFD').replace(new RegExp('[\u0300-\u036f]', 'g'), '').toLowerCase()
   const matchQ = (u: KUserRef) => { const t = norm(q.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
   const [loading, setLoading] = useState(true)
@@ -453,65 +454,88 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
         <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
         <div style={{ padding: 18, overflowY: 'auto' }}>
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Convide quem deve ter acesso — a pessoa entra ao <b>aceitar</b> o convite. <b>Só quem criou o quadro tem acesso até alguém aceitar.</b></p>
-          <div style={{ position: 'relative', marginBottom: 12 }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome ou e-mail…"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
-          </div>
-          {sel.length > 0 && (
-            <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: allCandidates.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
-              className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <Mail size={13} /> Enviar convite aos marcados ({sel.length})
+          {/* Campo de lista (combobox): os nomes só aparecem no dropdown ao focar/pesquisar. */}
+          <div style={{ position: 'relative', marginBottom: 12 }}
+            onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false) }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
+            <input value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)}
+              placeholder="Clique e busque por nome ou e-mail…"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+            <button type="button" tabIndex={-1} aria-label="Abrir lista" onClick={() => setOpen(o => !o)}
+              style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
+              <ChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
             </button>
-          )}
-          {loading ? <span style={{ color: 'var(--text-muted)' }}>Carregando…</span> : (() => {
-            const renderRow = (u: KUserRef) => {
-              const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
-              return (
-                <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: temAcesso ? 'default' : 'pointer', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
-                    <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} disabled={temAcesso} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
-                  </label>
-                  {temAcesso ? (
-                    <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
-                  ) : (
-                    <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
-                      className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
-                      title="Enviar convite por e-mail para acessar este quadro">
-                      <Mail size={12} /> Convite
-                    </button>
-                  )}
-                </div>
-              )
-            }
-            const sectionHead = (t: string) => (
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
-            )
-            const erpFiltered = erpservUsers.filter(matchQ)
-            const cliFiltered = users.filter(matchQ)
-            const noResult = <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum resultado para “{q.trim()}”.</span>
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {/* Equipe (admin/administrativo/coordenador/consultor/parceiro) — lista com busca. */}
-                {sectionHead('Equipe ERPSERV')}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
-                  {erpservUsers.length === 0 ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum usuário da equipe disponível.</span>
-                    : erpFiltered.length ? erpFiltered.map(renderRow) : noResult}
-                </div>
-                {/* Pessoas do cliente: só aparece quando há contatos (perfil cliente). */}
-                {users.length > 0 && (
-                  <>
-                    <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0 2px' }} />
-                    {sectionHead('Pessoas do cliente')}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
-                      {cliFiltered.length ? cliFiltered.map(renderRow) : noResult}
+            {open && (
+              <div style={{ marginTop: 4, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', maxHeight: 280, overflowY: 'auto', padding: 8 }}>
+                {loading ? <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando…</span> : (() => {
+                  const renderRow = (u: KUserRef) => {
+                    const temAcesso = memberIds.includes(u.id)   // já aceitou → tem acesso
+                    return (
+                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 4px', borderRadius: 6 }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: temAcesso ? 'default' : 'pointer', flex: 1, minWidth: 0, opacity: temAcesso ? 0.7 : 1 }}>
+                          <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggle(u.id)} disabled={temAcesso} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+                        </label>
+                        {temAcesso ? (
+                          <span style={{ fontSize: 11, color: 'var(--success-border)', flexShrink: 0 }}>✓ com acesso</span>
+                        ) : (
+                          <button type="button" onClick={() => setConfirmInvite({ ids: [u.id], targets: [{ name: u.name, email: u.email }] })} disabled={inviting}
+                            className="ds-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
+                            title="Enviar convite por e-mail para acessar este quadro">
+                            <Mail size={12} /> Convite
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }
+                  const sectionHead = (t: string) => (
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
+                  )
+                  const erpFiltered = erpservUsers.filter(matchQ)
+                  const cliFiltered = users.filter(matchQ)
+                  if (!erpFiltered.length && !cliFiltered.length) {
+                    return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{q.trim() ? `Nenhum resultado para “${q.trim()}”.` : 'Nenhum usuário disponível.'}</span>
+                  }
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {erpFiltered.length > 0 && (<>{sectionHead('Equipe ERPSERV')}{erpFiltered.map(renderRow)}</>)}
+                      {cliFiltered.length > 0 && (
+                        <>
+                          {erpFiltered.length > 0 && <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0 2px' }} />}
+                          {sectionHead('Pessoas do cliente')}
+                          {cliFiltered.map(renderRow)}
+                        </>
+                      )}
                     </div>
-                  </>
-                )}
+                  )
+                })()}
               </div>
-            )
-          })()}
+            )}
+          </div>
+          {/* Selecionados (marcados, ainda sem convite enviado) — chips + envio em massa. */}
+          {sel.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                {sel.map(id => {
+                  const u = allCandidates.find(x => x.id === id)
+                  if (!u) return null
+                  return (
+                    <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 999, padding: '3px 4px 3px 10px', color: 'var(--text)' }}>
+                      {u.name}
+                      <button type="button" onClick={() => toggle(id)} title="Remover da seleção"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', display: 'inline-flex', padding: 2 }}>
+                        <X size={12} />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+              <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: allCandidates.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
+                className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Mail size={13} /> Enviar convite aos marcados ({sel.length})
+              </button>
+            </div>
+          )}
           {invites.length > 0 && (
             <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', marginBottom: 8 }}>Convites</div>
