@@ -407,6 +407,9 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
     return out
   }, [erpservUsers, users])
   const [sel, setSel] = useState<number[]>([])   // seleção p/ convite em massa (NÃO são membros)
+  const [q, setQ] = useState('')                 // busca por texto (nome/e-mail)
+  const norm = (s: string) => s.normalize('NFD').replace(new RegExp('[\u0300-\u036f]', 'g'), '').toLowerCase()
+  const matchQ = (u: KUserRef) => { const t = norm(q.trim()); return !t || norm(u.name).includes(t) || norm(u.email ?? '').includes(t) }
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [removing, setRemoving] = useState<number | null>(null)
@@ -450,6 +453,11 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
         <div style={mHead}><h3 style={mTitle}>Acesso ao quadro</h3><button onClick={onClose} style={mX}><X size={18} /></button></div>
         <div style={{ padding: 18, overflowY: 'auto' }}>
           <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>Convide quem deve ter acesso — a pessoa entra ao <b>aceitar</b> o convite. <b>Só quem criou o quadro tem acesso até alguém aceitar.</b></p>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome ou e-mail…"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+          </div>
           {sel.length > 0 && (
             <button type="button" onClick={() => setConfirmInvite({ ids: sel, targets: allCandidates.filter(u => sel.includes(u.id)).map(u => ({ name: u.name, email: u.email })) })} disabled={inviting}
               className="ds-btn-secondary" style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
@@ -480,17 +488,25 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
             const sectionHead = (t: string) => (
               <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-light)', margin: '4px 0 6px' }}>{t}</div>
             )
+            const erpFiltered = erpservUsers.filter(matchQ)
+            const cliFiltered = users.filter(matchQ)
+            const noResult = <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum resultado para “{q.trim()}”.</span>
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {/* Equipe ERPSERV: convidar alguém da equipe interna (agente ou cliente). */}
+                {/* Equipe (admin/administrativo/coordenador/consultor/parceiro) — lista com busca. */}
                 {sectionHead('Equipe ERPSERV')}
-                {erpservUsers.length ? erpservUsers.map(renderRow) : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum usuário da equipe disponível.</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                  {erpservUsers.length === 0 ? <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Nenhum usuário da equipe disponível.</span>
+                    : erpFiltered.length ? erpFiltered.map(renderRow) : noResult}
+                </div>
                 {/* Pessoas do cliente: só aparece quando há contatos (perfil cliente). */}
                 {users.length > 0 && (
                   <>
                     <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0 2px' }} />
                     {sectionHead('Pessoas do cliente')}
-                    {users.map(renderRow)}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                      {cliFiltered.length ? cliFiltered.map(renderRow) : noResult}
+                    </div>
                   </>
                 )}
               </div>
