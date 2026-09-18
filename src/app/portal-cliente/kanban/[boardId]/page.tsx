@@ -460,7 +460,10 @@ function BoardMembersManager({ boardId, users, erpservUsers, onClose }: { boardI
             <Search size={14} style={{ position: 'absolute', left: 10, top: 19, transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
             <input value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)}
               placeholder="Clique e busque por nome ou e-mail…"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+              type="search" role="combobox" aria-expanded={open} name="board-member-search"
+              autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+              data-1p-ignore data-lpignore="true" data-form-type="other"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 30px 8px 32px', fontSize: 13, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--field)', color: 'var(--text)' }} />
             <button type="button" tabIndex={-1} aria-label="Abrir lista" onClick={() => setOpen(o => !o)}
               style={{ position: 'absolute', right: 8, top: 19, transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, display: 'inline-flex' }}>
               <ChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
