@@ -136,6 +136,8 @@ export const kanbanApi = {
 
   assignableUsers: () => api.get<{ items: KUserRef[] }>(`${base}/assignable-users`),
   erpservUsers: () => api.get<{ items: KUserRef[] }>(`${base}/erpserv-users`),
+  customers: () => api.get<{ items: { id: number; name: string }[] }>(`${base}/customers`),
+  customerUsers: (customerId: number) => api.get<{ items: KUserRef[] }>(`${base}/customers/${customerId}/users`),
 
   cardHistory: (id: number) => api.get<{ items: KCardEvent[] }>(`${base}/cards/${id}/history`),
   boardMembers: (boardId: number) => api.get<{ user_ids: number[] }>(`${base}/boards/${boardId}/members`),
