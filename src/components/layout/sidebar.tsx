@@ -558,6 +558,7 @@ const putIcon = (href: string, icon: LucideIcon) => {
 // Telas que não vivem no NAV estático (nascem em ramos por perfil) mas podem ser
 // referenciadas na árvore do Configurador — registra o ícone p/ não cair no FileText.
 putIcon('/meus-projetos', FolderOpen)
+putIcon('/portal-cliente/kanban', LayoutGrid)   // Meus Processos (Kanban pessoal)
 
 type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
 
@@ -1012,11 +1013,25 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // Fallbacks preservados: sem módulo resolvido ou árvore vazia → NAV hardcoded.
   // Itens "home" (Meu Dia/Meu Painel) são prefixados, sem duplicar telas já na árvore.
   const moduleNav = useMemo(() => {
-    // "Meus Processos" (Kanban pessoal) vale p/ TODOS os perfis. Injetado aqui, de forma
-    // idempotente, pois a árvore do Configurador não modela essa rota (igual ao Prosight).
-    const MEUS_PROCESSOS: NavEntry = { type: 'item', label: 'Meus Processos', href: '/portal-cliente/kanban', icon: LayoutGrid }
+    // "Meus Processos" (Kanban pessoal) vale p/ TODOS os perfis. É GOVERNÁVEL no
+    // Configurador (catálogo `NAV_CATALOG`): sem config → visível a todos (default);
+    // com config → respeita ativo/perfis/módulos. Injetado aqui (idempotente) porque a
+    // árvore do Configurador pode não trazer a rota (igual ao Prosight). Se o admin
+    // colocar a tela explicitamente na árvore do módulo, `built` já a traz e o
+    // idempotente evita duplicar.
+    const KANBAN_HREF = '/portal-cliente/kanban'
+    const MEUS_PROCESSOS: NavEntry = { type: 'item', label: itemConfig[KANBAN_HREF]?.label || 'Meus Processos', href: KANBAN_HREF, icon: LayoutGrid }
+    const kanbanAllowed = (): boolean => {
+      const c = itemConfig[KANBAN_HREF]
+      if (!c) return true                 // sem config no Configurador → default: todos
+      if (!c.active) return false         // desativado no Configurador
+      if (isCliente || !selectedModule) return true
+      const eff = effectiveProfiles(user)
+      return (eff.some(p => c.profiles.includes(p)) || c.users.includes(user?.id ?? 0)) && c.modules.includes(selectedModule)
+    }
     const withProcessos = (nav: NavEntry[]): NavEntry[] => {
-      if (nav.some(e => e.type === 'item' && e.href.split('?')[0] === '/portal-cliente/kanban')) return nav
+      if (nav.some(e => e.type === 'item' && e.href.split('?')[0] === KANBAN_HREF)) return nav
+      if (!kanbanAllowed()) return nav
       // Logo após os itens "home" do topo (Meu Dia/Meu Painel/Home), senão no topo.
       let i = 0
       while (i < nav.length && nav[i].type === 'item') i++
