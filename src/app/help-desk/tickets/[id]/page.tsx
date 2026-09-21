@@ -1621,7 +1621,10 @@ function TicketDetailInner({ id }: { id: number }) {
                 )
               })()}
               <RequesterField name={t.solicitante?.name ?? t.contact?.name ?? t.requester_name} email={t.solicitante?.email ?? t.requester_email ?? t.contact?.email}
-                onPick={cid => updateField({ customer_contact_id: cid })} />
+                customerId={t.customer?.id ?? null}
+                onPick={h => updateField(h.kind === 'user'
+                  ? { requester_user_id: h.id, customer_contact_id: null }
+                  : { customer_contact_id: h.id, requester_user_id: null })} />
               <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
                 <CcField emails={t.cc_emails ?? []} onSave={list => updateField({ cc_emails: list })} />
               </div>
@@ -2013,19 +2016,23 @@ function CcField({ emails, onSave }: { emails: string[]; onSave: (list: string[]
   )
 }
 
-interface ContactHit { id: number; name: string; email: string | null; customer_id: number | null }
-/** Solicitante EDITÁVEL — clica e busca contato por nome/e-mail (estilo "Buscar solicitante"). */
-function RequesterField({ name, email, onPick }: { name?: string | null; email?: string | null; onPick: (contactId: number) => void }) {
+interface ContactHit { kind?: 'user' | 'contact'; id: number; name: string; email: string | null; customer_id?: number | null }
+/** Solicitante EDITÁVEL — clica e busca SÓ solicitantes da empresa do chamado (usuários do portal + contatos). */
+function RequesterField({ name, email, customerId, onPick }: { name?: string | null; email?: string | null; customerId?: number | null; onPick: (hit: ContactHit) => void }) {
   const [editing, setEditing] = useState(false)
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<ContactHit[]>([])
   useEffect(() => {
     if (!editing) return
     const h = setTimeout(() => {
-      api.get<{ data: ContactHit[] }>(`/help-desk/contacts?search=${encodeURIComponent(q)}`).then(r => setHits(r?.data ?? [])).catch(() => {})
+      // Escopo pela EMPRESA do chamado: só os solicitantes daquele cliente (nunca de outras empresas).
+      const url = customerId
+        ? `/help-desk/requesters?customer_id=${customerId}&search=${encodeURIComponent(q)}`
+        : `/help-desk/contacts?search=${encodeURIComponent(q)}`
+      api.get<{ data: ContactHit[] }>(url).then(r => setHits(r?.data ?? [])).catch(() => {})
     }, 250)
     return () => clearTimeout(h)
-  }, [q, editing])
+  }, [q, editing, customerId])
 
   if (!editing) return (
     <div className="flex items-start justify-between gap-2 text-sm">
@@ -2050,7 +2057,7 @@ function RequesterField({ name, email, onPick }: { name?: string | null; email?:
       </div>
       <div className="mt-1 max-h-52 overflow-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
         {hits.map(c => (
-          <button key={c.id} onClick={() => { onPick(c.id); setEditing(false) }} className="block w-full text-left px-2 py-1.5 ds-row-hover">
+          <button key={`${c.kind ?? 'contact'}:${c.id}`} onClick={() => { onPick(c); setEditing(false) }} className="block w-full text-left px-2 py-1.5 ds-row-hover">
             <div style={{ color: 'var(--text)' }}>{c.name}</div>
             {c.email && <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{c.email}</div>}
           </button>

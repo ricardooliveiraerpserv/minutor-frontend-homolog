@@ -44,8 +44,22 @@ export default function AcervoPage() {
 function AcervoRouter() {
   const sp = useSearchParams()
   const router = useRouter()
+  const company = useProsightCompany()
   const customerId = sp.get('customer_id') ? Number(sp.get('customer_id')) : null
   const docId = sp.get('doc') ? Number(sp.get('doc')) : null
+
+  // Seletor GLOBAL de empresa → NAVEGA o Acervo. Pula o 1º render (para não sobrescrever um
+  // deep-link com a empresa persistida): quem manda na entrada é a URL; depois disso, trocar
+  // a empresa no seletor abre a empresa escolhida (ou volta à lista em "Todas as empresas").
+  const firstRun = useRef(true)
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return }
+    const gid = company?.companyId ?? null
+    if (gid && gid !== customerId) router.replace(buildAcervoHref({ customer_id: gid }))
+    else if (gid === null && customerId) router.replace('/central-fontes/acervo')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.companyId])
+
   // Dentro de uma empresa (ou ao abrir uma fonte): árvore escopada + ficha ao lado (split-view).
   if (customerId || docId) return <TreeExplorer customerId={customerId} initialDoc={docId} />
   // Entrada sem empresa: lista de empresas (mesma da Visão Geral).
