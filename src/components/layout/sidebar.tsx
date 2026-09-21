@@ -1074,8 +1074,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (sysGroup && sysGroup.type === 'group') sysGroup.items = [...sysGroup.items, ...notDup(sysGroup.items)]
       else built.push({ type: 'group', label: 'Sistema', icon: Settings, items: extras })
     }
+    // Interno NÃO-agente (consultor/coordenador/administrativo/comercial): item "Chamados"
+    // (portal) — visão de chamados igual à do cliente. A árvore do Configurador não modela
+    // isso, então injeta-se aqui, em qualquer módulo do usuário. Agente usa a visão de agente.
+    const isInternalNonAgent = !!user && user.type !== 'cliente' && !(user.type === 'admin' || user.is_helpdesk_agent)
+    if (isInternalNonAgent && !builtHrefs.has('/help-desk/portal') && !home.some(e => e.type === 'item' && 'href' in e && e.href === '/help-desk/portal')) {
+      built.push({ type: 'item', label: 'Chamados', href: '/help-desk/portal', icon: Headphones })
+    }
     return withProcessos([...home, ...built])
-  }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo, canAccessProsight])
+  }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, user?.is_helpdesk_agent, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo, canAccessProsight])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.
