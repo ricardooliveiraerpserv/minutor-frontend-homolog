@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { X, FileCode, Paperclip, Trash2 } from 'lucide-react'
@@ -49,6 +49,17 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
+
+  // "Solicitação de Fontes" NÃO é selecionável na abertura manual — é acionado
+  // automaticamente pelo assistente de código-fonte. Remove o nó (e descendentes) do seletor.
+  const visibleServices = useMemo(() => {
+    const all = meta?.services ?? []
+    const hidden = new Set<number>()
+    all.forEach(s => { if (/solicita[çc][aã]o\s+de\s+fontes/i.test(s.name)) hidden.add(s.id) })
+    let grew = true
+    while (grew) { grew = false; all.forEach(s => { if (s.parent_id && hidden.has(s.parent_id) && !hidden.has(s.id)) { hidden.add(s.id); grew = true } }) }
+    return all.filter(s => !hidden.has(s.id))
+  }, [meta?.services])
 
   // Solicitante: usuários do PORTAL do cliente + contatos do cadastro (interno/ERPSERV não tem).
   useEffect(() => {
@@ -284,7 +295,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         {(meta?.my_inform?.service ?? true) && (
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Serviço</label>
-            <ServiceTreeSelect services={meta?.services ?? []} value={serviceId ? Number(serviceId) : null} onChange={id => setServiceId(id ? String(id) : '')} />
+            <ServiceTreeSelect services={visibleServices} value={serviceId ? Number(serviceId) : null} onChange={id => setServiceId(id ? String(id) : '')} />
           </div>
         )}
         <div>
