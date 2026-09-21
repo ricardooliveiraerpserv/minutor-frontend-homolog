@@ -427,12 +427,13 @@ function Filas() {
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<{ data: Agent[] }>('/help-desk/agents?candidates=1').then(r => setAgents(r?.data ?? [])).catch(() => {}) }, [])
   // Empresas do grupo (ERPSERV/BIZIFY) p/ vincular a equipe.
-  useEffect(() => { api.get<{ data: CompanyOpt[] }>('/companies').then(r => setCompanies((r?.data ?? []).filter(c => (c.type ?? 'internal') === 'internal'))).catch(() => {}) }, [])
+  useEffect(() => { api.get<{ data: CompanyOpt[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {}) }, [])
   const bizifyId = companies.find(c => c.slug === 'bizify' || /bizify/i.test(c.name))?.id ?? null
   const add = async () => { if (!name.trim()) return toast.error('Informe o nome.'); if (!newCompanyId) return toast.error('Selecione a empresa da equipe.'); try { await api.post('/help-desk/teams', { name: name.trim(), color, company_id: Number(newCompanyId) }); setName(''); setNewCompanyId(''); toast.success('Equipe criada'); load() } catch { toast.error('Erro') } }
   const del = async (t: Team) => { if (!confirm(`Excluir "${t.name}"?`)) return; try { await api.delete(`/help-desk/teams/${t.id}`); load() } catch { toast.error('Erro') } }
   const saveName = async (t: Team) => { const v = renameVal.trim(); if (!v) return toast.error('Informe o nome.'); try { await api.put(`/help-desk/teams/${t.id}`, { name: v }); setRenameId(null); toast.success('Equipe renomeada'); load() } catch { toast.error('Erro ao renomear') } }
   const saveColor = async (t: Team, color: string) => { try { await api.put(`/help-desk/teams/${t.id}`, { color }); toast.success('Cor atualizada'); load() } catch { toast.error('Erro ao salvar cor') } }
+  const saveCompany = async (t: Team, cid: string) => { try { await api.put(`/help-desk/teams/${t.id}`, { company_id: cid ? Number(cid) : null }); toast.success('Empresa da equipe atualizada'); load() } catch { toast.error('Erro ao trocar empresa') } }
   return (
     <div className="space-y-3">
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Equipes de atendimento. <strong>Ao vincular um consultor a uma equipe, ele é automaticamente promovido a Agente</strong> (passa a poder responder e ser atribuído a chamados).</p>
@@ -486,7 +487,12 @@ function Filas() {
                 </span>
               )}
               <div className="flex items-center gap-3 text-sm">
-                {t.company_id && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{companies.find(c => c.id === t.company_id)?.name ?? 'Empresa'}</span>}
+                <select title="Empresa da equipe" className="text-[11px] font-semibold rounded-lg px-2 py-1 outline-none"
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}
+                  value={t.company_id ? String(t.company_id) : ''} onChange={e => saveCompany(t, e.target.value)}>
+                  <option value="">— empresa —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
                 <span style={{ color: 'var(--text-muted)' }}>{(t.members?.length ?? 0)} membro(s){t.lead ? ` · resp. ${t.lead.name}` : ''}</span>
                 <button className="ds-link text-xs" style={{ color: 'var(--primary)' }} onClick={() => setEditId(editId === t.id ? null : t.id)}>{editId === t.id ? 'Fechar' : 'Membros'}</button>
                 <button onClick={() => del(t)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
