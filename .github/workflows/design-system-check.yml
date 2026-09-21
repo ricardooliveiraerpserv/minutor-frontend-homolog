@@ -1,8 +1,15 @@
 name: Design System check
 
 # Detecta cores hardcoded e classes Tailwind dark-only em arquivos
-# alterados pelo PR. Reporta como warnings inline (annotations) — NÃO
-# bloqueia o build. Política descrita em docs/DESIGN_SYSTEM.md.
+# alterados pelo PR. Em caso de violacoes:
+#  - Reporta como warnings inline (annotations)
+#  - Adiciona/remove label "design-system-warning"
+#  - Posta/atualiza comentario unico no PR (com lista de arquivos + contagem)
+# NUNCA bloqueia o build (exit 0 sempre).
+#
+# Excecoes:
+#  - Whitelist: src/app/globals.css (define os tokens)
+#  - Por linha: comentario "// ds-ignore" na propria linha ou na anterior
 
 on:
   pull_request:
@@ -15,76 +22,198 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Detect hardcoded colors and dark-only Tailwind classes
+      - name: Detect violations
+        id: detect
         shell: bash
         run: |
           set -euo pipefail
           BASE_REF="origin/${{ github.base_ref }}"
 
-          # Lista arquivos alterados (Added/Modified) restritos a src/**
-          # Ignora globals.css (que LEGITIMAMENTE define os tokens)
+          # Whitelist de arquivos que podem conter cores hardcoded legitimamente
+          WHITELIST_REGEX='^(src/app/globals\.css)$'
+
+          # Lista arquivos alterados (Added/Modified) em src/**
           mapfile -t FILES < <(
             git diff "$BASE_REF"...HEAD --name-only --diff-filter=AM \
               | grep -E '^src/.+\.(tsx?|css)$' \
-              | grep -v '^src/app/globals\.css$' \
+              | grep -vE "$WHITELIST_REGEX" \
               || true
           )
 
+          # Cria diretorio de outputs
+          mkdir -p /tmp/ds
+          : > /tmp/ds/files.txt
+          : > /tmp/ds/raw.txt
+
           if [ ${#FILES[@]} -eq 0 ]; then
             echo "Nenhum arquivo .tsx/.ts/.css relevante alterado."
+            echo "total=0" >> "$GITHUB_OUTPUT"
+            echo "files_count=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Arquivos sob análise: ${#FILES[@]}"
+          echo "Arquivos sob analise: ${#FILES[@]}"
 
-          TOTAL_HEX_RGBA=0
-          TOTAL_DARK_TW=0
+          # Padroes de detecao
+          # 1. Hex literal: #fff ou #ffffff (palavra delimitada)
+          # 2. rgb()/rgba()
+          # 3. Classes Tailwind dark-only
+          PATTERN_HEX='#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?\b'
+          PATTERN_RGB='rgba?\('
+          PATTERN_TW='\b(bg|text|border)-(zinc|neutral|slate|gray)-(1|2|3|4|5|6|7|8|9)[0-9]{2}\b'
+          # Pra bg/border: dark-only sao 7XX/8XX/9XX
+          # Pra text: cinzas em qualquer tonalidade quebram contraste no light
+          # Filtramos por separado:
+          PATTERN_TW_BG='\bbg-(zinc|neutral|slate|gray)-(8|9)[0-9]{2}\b'
+          PATTERN_TW_BORDER='\bborder-(zinc|neutral|slate|gray)-(7|8|9)[0-9]{2}\b'
+          PATTERN_TW_TEXT='\btext-(zinc|neutral|slate|gray)-(1|2|3|4|5|6|7|8|9)[0-9]{2}\b'
+
+          TOTAL=0
+          AFFECTED_FILES=0
 
           for f in "${FILES[@]}"; do
             [ -f "$f" ] || continue
 
-            # 1. Hex literais (#fff, #ffffff) ou rgb()/rgba() em código
-            #    Exclui linhas que começam com comentário CSS (* ou /*) ou JS (//)
-            HITS_HEX=$(
-              grep -nE '#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?\b|rgba?\(' "$f" \
-                | grep -vE ':\s*(\*|//|/\*)' \
-                || true
-            )
-            if [ -n "$HITS_HEX" ]; then
-              while IFS= read -r line; do
-                LINE_NUM=$(echo "$line" | cut -d':' -f1)
-                CONTENT=$(echo "$line" | cut -d':' -f2- | sed 's/^ *//' | head -c 200)
-                printf '::warning file=%s,line=%s::Cor hardcoded — usar token do DS (var(--surface), var(--text), etc.). Conteudo: %s\n' "$f" "$LINE_NUM" "$CONTENT"
-                TOTAL_HEX_RGBA=$((TOTAL_HEX_RGBA + 1))
-              done <<< "$HITS_HEX"
-            fi
+            FILE_HITS=0
+            # Le arquivo linha por linha pra suportar // ds-ignore
+            prev_line=""
+            line_num=0
+            while IFS= read -r line || [ -n "$line" ]; do
+              line_num=$((line_num + 1))
 
-            # 2. Classes Tailwind dark-only que quebram o tema light:
-            #    bg-(zinc|neutral|slate|gray)-(8|9)XX
-            #    border-(zinc|neutral|slate|gray)-(7|8|9)XX
-            HITS_TW=$(
-              grep -nE '\b(bg-(zinc|neutral|slate|gray)-(8|9)[0-9]{2}|border-(zinc|neutral|slate|gray)-(7|8|9)[0-9]{2})\b' "$f" \
-                || true
-            )
-            if [ -n "$HITS_TW" ]; then
-              while IFS= read -r line; do
-                LINE_NUM=$(echo "$line" | cut -d':' -f1)
-                CONTENT=$(echo "$line" | cut -d':' -f2- | sed 's/^ *//' | head -c 200)
-                printf '::warning file=%s,line=%s::Classe Tailwind dark-only — usar token do DS / .ds-card. Conteudo: %s\n' "$f" "$LINE_NUM" "$CONTENT"
-                TOTAL_DARK_TW=$((TOTAL_DARK_TW + 1))
-              done <<< "$HITS_TW"
+              # ds-ignore: pula se na linha atual ou anterior
+              if echo "$line" | grep -q 'ds-ignore' || echo "$prev_line" | grep -q 'ds-ignore'; then
+                prev_line="$line"
+                continue
+              fi
+
+              # Pula linhas que sao comentarios puros (CSS /* ou JS //)
+              if echo "$line" | grep -qE '^\s*(\*|//|/\*)'; then
+                prev_line="$line"
+                continue
+              fi
+
+              # Match hex/rgb/rgba
+              if echo "$line" | grep -qE "$PATTERN_HEX|$PATTERN_RGB"; then
+                CONTENT=$(echo "$line" | sed 's/^ *//' | head -c 180)
+                printf '::warning file=%s,line=%s::Cor hardcoded — usar token do DS (ver docs/DESIGN_SYSTEM.md). %s\n' "$f" "$line_num" "$CONTENT"
+                FILE_HITS=$((FILE_HITS + 1))
+                TOTAL=$((TOTAL + 1))
+              fi
+
+              # Match Tailwind dark-only (bg/border/text com escala cinza)
+              MATCHED_TW=""
+              if echo "$line" | grep -qE "$PATTERN_TW_BG"; then MATCHED_TW="bg cinza escuro"; fi
+              if echo "$line" | grep -qE "$PATTERN_TW_BORDER"; then MATCHED_TW="border cinza escuro"; fi
+              if echo "$line" | grep -qE "$PATTERN_TW_TEXT"; then MATCHED_TW="text cinza"; fi
+              if [ -n "$MATCHED_TW" ]; then
+                CONTENT=$(echo "$line" | sed 's/^ *//' | head -c 180)
+                printf '::warning file=%s,line=%s::Classe Tailwind problematica (%s) — usar token do DS / .ds-* class. %s\n' "$f" "$line_num" "$MATCHED_TW" "$CONTENT"
+                FILE_HITS=$((FILE_HITS + 1))
+                TOTAL=$((TOTAL + 1))
+              fi
+
+              prev_line="$line"
+            done < "$f"
+
+            if [ "$FILE_HITS" -gt 0 ]; then
+              AFFECTED_FILES=$((AFFECTED_FILES + 1))
+              printf '%s|%d\n' "$f" "$FILE_HITS" >> /tmp/ds/files.txt
             fi
           done
 
           echo ""
-          echo "Resumo: $TOTAL_HEX_RGBA cor(es) hex/rgba | $TOTAL_DARK_TW classe(s) dark-only"
-          echo "Detalhes nas annotations do PR. Politica em docs/DESIGN_SYSTEM.md."
-          # Exit 0 sempre — warnings nao bloqueiam o merge.
-          exit 0
+          echo "Resumo: $TOTAL violacao(es) em $AFFECTED_FILES arquivo(s)"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "files_count=$AFFECTED_FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Update label and comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const total = parseInt('${{ steps.detect.outputs.total }}' || '0', 10);
+            const filesCount = parseInt('${{ steps.detect.outputs.files_count }}' || '0', 10);
+            const LABEL = 'design-system-warning';
+            const MARKER = '<!-- ds-check-bot -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            // Lista comentarios existentes pra encontrar o nosso (idempotencia)
+            const existing = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 },
+            );
+            const mine = existing.find(c => c.body && c.body.includes(MARKER));
+
+            if (total === 0) {
+              // Sem violacoes: remove label se existir, deleta comentario se existir
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name: LABEL });
+                core.info(`Label '${LABEL}' removido (sem violacoes).`);
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+              if (mine) {
+                await github.rest.issues.deleteComment({ owner, repo, comment_id: mine.id });
+                core.info('Comentario do bot removido (sem violacoes).');
+              }
+              return;
+            }
+
+            // Garantir que o label existe no repo (cria se nao)
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner, repo, name: LABEL,
+                  color: 'fbca04',
+                  description: 'PR introduz cores hardcoded ou classes Tailwind dark-only',
+                });
+              } else { throw e; }
+            }
+
+            // Aplica label
+            await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [LABEL] });
+
+            // Monta corpo do comentario
+            let body = `${MARKER}\n## 🎨 Design System — atenção\n\n`;
+            body += `Este PR introduz **${total}** ocorrência(s) de cores hardcoded ou classes Tailwind dark-only em **${filesCount}** arquivo(s).\n\n`;
+            body += `Detalhes inline nas annotations (aba **Files changed** → linhas com warning amarelo).\n\n`;
+
+            // Lista arquivos do /tmp/ds/files.txt
+            try {
+              const filesData = fs.readFileSync('/tmp/ds/files.txt', 'utf8').trim().split('\n').filter(Boolean);
+              body += `### Arquivos afetados\n\n`;
+              body += `| Arquivo | Ocorrências |\n|---|---|\n`;
+              for (const line of filesData) {
+                const [path, count] = line.split('|');
+                body += `| \`${path}\` | ${count} |\n`;
+              }
+              body += '\n';
+            } catch (e) {
+              core.warning('Nao foi possivel ler /tmp/ds/files.txt: ' + e.message);
+            }
+
+            body += `### O que fazer\n\n`;
+            body += `- Substituir cores por tokens (\`var(--surface)\`, \`var(--text)\`, \`var(--primary)\`, etc.) ou utility classes (\`.ds-card\`, \`.ds-btn-primary\`, \`.ds-status-*\`)\n`;
+            body += `- Para casos legítimos: adicionar comentário \`// ds-ignore\` na linha ou linha anterior pra suprimir o warning\n`;
+            body += `- Guia: [\`docs/DESIGN_SYSTEM.md\`](../blob/${context.sha}/docs/DESIGN_SYSTEM.md)\n\n`;
+            body += `> ⚠️ Warnings **não bloqueiam o merge** — servem como guia para o reviewer.`;
+
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+              core.info('Comentario do bot atualizado.');
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+              core.info('Comentario do bot criado.');
+            }
