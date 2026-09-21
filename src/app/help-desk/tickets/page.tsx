@@ -23,6 +23,7 @@ interface Sla {
 interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string
   customer?: Ref | null; category?: CategoryOpt | null; assignee?: Ref | null
+  requester_user_id?: number | null
   status?: StatusOpt | null; updated_at: string; sla?: Sla | null
   dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
   dev_delivery_overdue?: boolean   // vencida em DIAS ÚTEIS (BE, considera feriados)
@@ -71,6 +72,7 @@ export default function HelpDeskTicketsPage() {
   const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '', assignee_id: '', customer_id: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const [mine, setMine] = useState(false)
+  const [openedByMe, setOpenedByMe] = useState(false) // abri, mas não sou responsável
   const [open, setOpen] = useState(false)
   const [breached, setBreached] = useState(false)
   const [devOverdue, setDevOverdue] = useState(false)
@@ -87,11 +89,12 @@ export default function HelpDeskTicketsPage() {
     const p = new URLSearchParams()
     Object.entries(f).forEach(([k, v]) => { if (v) p.set(k, v) })
     if (mine) p.set('mine', '1')
+    if (openedByMe) p.set('opened_by_me', '1')
     if (open) p.set('open', '1')
     if (breached) p.set('breached', '1')
     if (devOverdue) p.set('dev_overdue', '1')
     return p.toString()
-  }, [f, mine, open, breached, devOverdue])
+  }, [f, mine, openedByMe, open, breached, devOverdue])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -108,6 +111,7 @@ export default function HelpDeskTicketsPage() {
     if (typeof s.filters.mine === 'boolean') setMine(s.filters.mine)
     if (typeof s.filters.open === 'boolean') setOpen(s.filters.open)
     if (typeof s.filters.breached === 'boolean') setBreached(s.filters.breached)
+    if (typeof s.filters.opened_by_me === "boolean") setOpenedByMe(s.filters.opened_by_me)
     if (typeof s.filters.devOverdue === 'boolean') setDevOverdue(s.filters.devOverdue)
   }, [])
 
@@ -122,14 +126,14 @@ export default function HelpDeskTicketsPage() {
   const applyView = (v: SavedView) => {
     const fl = v.filters || {}
     setF(prev => ({ ...prev, ...F0, ...Object.fromEntries(Object.entries(fl).filter(([k]) => k in F0 && typeof fl[k] === 'string')) as Record<string, string> }))
-    setMine(!!fl.mine); setOpen(!!fl.open); setBreached(!!fl.breached); setDevOverdue(!!fl.devOverdue)
+    setMine(!!fl.mine); setOpenedByMe(!!fl.opened_by_me); setOpen(!!fl.open); setBreached(!!fl.breached); setDevOverdue(!!fl.devOverdue)
   }
 
   const saveView = async () => {
     const name = saveName.trim()
     if (!name) { toast.error('Dê um nome à visualização.'); return }
     try {
-      await api.post('/help-desk/saved-views', { name, filters: { ...f, mine, open, breached, devOverdue }, is_shared: saveShared })
+      await api.post('/help-desk/saved-views', { name, filters: { ...f, mine, opened_by_me: openedByMe, open, breached, devOverdue }, is_shared: saveShared })
       toast.success('Visualização salva.')
       setSaveOpen(false); setSaveName(''); setSaveShared(false); loadViews()
     } catch (e) { toast.error((e as Error)?.message || 'Erro ao salvar visualização') }
@@ -142,7 +146,7 @@ export default function HelpDeskTicketsPage() {
 
   // Inicia/atualiza a sessão de atendimento e abre o chamado (preserva a ordem exibida).
   const openTicket = (ticketId: number) => {
-    startSession({ source: 'list', label: 'Chamados', ids: rows.map(r => r.id), filters: { ...f, mine, open, breached, devOverdue } })
+    startSession({ source: 'list', label: 'Chamados', ids: rows.map(r => r.id), filters: { ...f, mine, opened_by_me: openedByMe, open, breached, devOverdue } })
     router.push(`/help-desk/tickets/${ticketId}`)
   }
 
@@ -164,6 +168,7 @@ export default function HelpDeskTicketsPage() {
       semAtendente: rows.filter(t => !t.assignee).length,
       atraso: rows.filter(t => t.sla?.first_response_breached || t.sla?.resolution_breached || t.sla?.first_response_overdue || t.sla?.resolution_overdue).length,
       meus: rows.filter(t => t.assignee?.id === user?.id).length,
+      abriNaoResp: rows.filter(t => t.requester_user_id === user?.id && t.assignee?.id !== user?.id).length,
       // Entregas vencidas (dias úteis, considera feriados) — flag calculado no BE.
       entregasVencidas: rows.filter(t => !!t.dev_delivery_overdue).length,
     }
@@ -192,13 +197,14 @@ export default function HelpDeskTicketsPage() {
         </div>
 
         {/* KPIs / filtros rápidos */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
           {[
             { k: 'abertos', label: 'Abertos', v: counters.abertos, active: open, onClick: () => setOpen(o => !o), danger: false },
             { k: 'sem', label: 'Sem atendente', v: counters.semAtendente, active: false, onClick: () => set('status_key', ''), danger: false },
             { k: 'atraso', label: 'Em atraso (SLA)', v: counters.atraso, active: breached, onClick: () => setBreached(b => !b), danger: false },
             { k: 'entrega', label: 'Entregas vencidas', v: counters.entregasVencidas, active: devOverdue, onClick: () => setDevOverdue(v => !v), danger: true },
             { k: 'meus', label: 'Meus chamados', v: counters.meus, active: mine, onClick: () => setMine(m => !m), danger: false },
+            { k: 'abri', label: 'Abri (não sou resp.)', v: counters.abriNaoResp, active: openedByMe, onClick: () => setOpenedByMe(v => !v), danger: false },
           ].map(c => (
             <button key={c.k} onClick={c.onClick}
               className="ds-card text-left px-3 py-2 rounded-lg transition"
