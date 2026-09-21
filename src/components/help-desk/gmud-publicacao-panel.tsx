@@ -59,8 +59,7 @@ const STATUS_META: Record<string, { label: string; variant: string }> = {
 }
 
 // Linha de resultado do CodeAnalysis por fonte: Fonte · Nota · #interação · Autor + expandir (cards).
-function SourceQualityRow({ file, seq, author }: { file: QualityFile; seq?: number | null; author?: string | null }) {
-  const [open, setOpen] = useState(false)
+function SourceQualityRow({ file, seq, author, open, onToggle }: { file: QualityFile; seq?: number | null; author?: string | null; open: boolean; onToggle: () => void }) {
   const n = file.findings?.length ?? 0
   return (
     <div className="rounded-md" style={{ background: 'var(--surface-sunken)' }}>
@@ -72,7 +71,7 @@ function SourceQualityRow({ file, seq, author }: { file: QualityFile; seq?: numb
         {seq != null && <span className="font-mono px-1 rounded" title="Interação da publicação" style={{ color: 'var(--primary)', background: 'var(--primary-soft)' }}>#{seq}</span>}
         {author && <span style={{ color: 'var(--text-light)' }}>· {author}</span>}
         {n > 0 && (
-          <button onClick={() => setOpen((v) => !v)} className="ml-auto inline-flex items-center gap-1 font-medium" style={{ color: 'var(--primary)' }}>
+          <button onClick={onToggle} className="ml-auto inline-flex items-center gap-1 font-medium" style={{ color: 'var(--primary)' }}>
             {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}{open ? 'Ocultar' : 'Ver críticas'}
           </button>
         )}
@@ -92,6 +91,13 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
   const [forbidden, setForbidden] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Fontes com "críticas" expandidas (controlado no painel p/ ter "Fechar tudo").
+  const [openFiles, setOpenFiles] = useState<Set<number>>(new Set())
+  const toggleFile = (id: number) => setOpenFiles((prev) => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
 
   const loadList = useCallback(async () => {
     try {
@@ -134,6 +140,11 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
           <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Publicação de Fontes (GMUD)</span>
         </div>
         <div className="flex items-center gap-2">
+          {openFiles.size > 0 && (
+            <button onClick={() => setOpenFiles(new Set())} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" title="Recolher todas as críticas abertas">
+              <ChevronRight size={13} /> Fechar tudo
+            </button>
+          )}
           <button onClick={() => void loadList()} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" title="Atualizar"><RefreshCw size={13} /></button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg disabled:opacity-60">
             <UploadCloud size={14} /> {uploading ? 'Enviando…' : 'Enviar ZIP'}
@@ -169,7 +180,7 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
                   <div className="border-t px-2 py-2 space-y-1" style={{ borderColor: 'var(--border)' }}>
                     <div className="text-[10px] uppercase tracking-wide px-1" style={{ color: 'var(--text-light)' }}>CodeAnalysis por fonte</div>
                     {analyzed.map((f) => (
-                      <SourceQualityRow key={f.id} file={f} seq={p.interaction_seq} author={p.uploaded_by_name} />
+                      <SourceQualityRow key={f.id} file={f} seq={p.interaction_seq} author={p.uploaded_by_name} open={openFiles.has(f.id)} onToggle={() => toggleFile(f.id)} />
                     ))}
                   </div>
                 )}
