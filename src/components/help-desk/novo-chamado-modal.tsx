@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { X, FileCode } from 'lucide-react'
+import { X, FileCode, Paperclip, Trash2 } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { useActiveCompany } from '@/hooks/use-active-company'
@@ -36,6 +36,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [customerId, setCustomerId] = useState('')
   const [contactId, setContactId] = useState('')
   const [contacts, setContacts] = useState<{ id: number; name: string; email: string | null }[]>([])
+  const [files, setFiles] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
@@ -60,17 +61,47 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   // Default = empresa ativa (se estiver no escopo), senão a 1ª do escopo.
   const effectiveCompanyId = companyId || (companyOpts.some(c => c.id === active?.id) ? String(active?.id) : String(companyOpts[0]?.id ?? ''))
 
+  // Cliente "interno" acompanha a EMPRESA do chamado: BIZIFY → cliente BIZIFY; senão ERPSERV.
+  const effectiveCompany = companyOpts.find(c => String(c.id) === effectiveCompanyId)
+  const internalCustomer = (effectiveCompany
+    ? customers.find(c => c.name.toLowerCase() === effectiveCompany.name.toLowerCase())
+    : null) ?? erpserv
+  const internalIds = new Set(
+    ([erpserv?.id, ...companyOpts.map(co => customers.find(c => c.name.toLowerCase() === co.name.toLowerCase())?.id)]
+      .filter(Boolean) as number[]),
+  )
+  const isInternalClient = !customerId || internalIds.has(Number(customerId))
+
+  // Anexos (inclui colar prints da área de transferência).
+  const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
+  const removeFile = (idx: number) => setFiles(f => f.filter((_, i) => i !== idx))
+  const onPaste = (e: React.ClipboardEvent) => {
+    const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/'))
+    if (!imgs.length) return
+    e.preventDefault()
+    const picked = imgs.map(it => it.getAsFile()).filter((f): f is File => !!f)
+    if (picked.length) { addFiles(picked); toast.success(`${picked.length} print anexado`) }
+  }
+
   const submit = async () => {
     if (!subject.trim()) return toast.error('Informe o assunto.')
+    if (!description.trim()) return toast.error('Informe a descrição.')
+    if (!priority) return toast.error('Informe a urgência.')
     setSaving(true)
     try {
       const r = await api.post<{ data: { id: number } }>('/help-desk/tickets', {
         subject: subject.trim(), description: description.trim() || null, priority,
         category_id: categoryId || null, service_id: serviceId || null,
-        customer_id: customerId || erpserv?.id || null, // vazio (interno) → ERPSERV
+        customer_id: customerId || internalCustomer?.id || null, // vazio (interno) → empresa do chamado (ERPSERV/BIZIFY)
         customer_contact_id: contactId ? Number(contactId) : null, // solicitante (contato do cliente)
         company_id: showCompanyPicker && effectiveCompanyId ? Number(effectiveCompanyId) : null, // empresa do grupo escolhida
       })
+      // Anexos: enviados 1 a 1 após criar o chamado (endpoint aceita um arquivo por request).
+      for (const f of files) {
+        const fd = new FormData(); fd.append('file', f)
+        try { await api.post(`/help-desk/tickets/${r.data.id}/attachments`, fd) }
+        catch { toast.error(`Falha ao anexar ${f.name}`) }
+      }
       toast.success('Chamado aberto')
       onCreated(r.data.id)
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao abrir chamado') } finally { setSaving(false) }
@@ -120,13 +151,13 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
           </div>
         </div>
         <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição</label>
-          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={4} value={description} onChange={e => setDescription(e.target.value)} />
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição *</label>
+          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={4} value={description} onChange={e => setDescription(e.target.value)} onPaste={onPaste} placeholder="Descreva o chamado… (pode colar prints aqui)" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           {(meta?.my_inform?.urgency ?? true) && (
             <div>
-              <label className={lbl} style={{ color: 'var(--text-light)' }}>Urgência</label>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Urgência *</label>
               <select className={`${fieldCls} w-full`} style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>
                 {(meta?.priorities ?? ['baixa', 'normal', 'alta', 'urgente']).map(p => <option key={p} value={p}>{PRIO_LABEL[p] ?? p}</option>)}
               </select>
@@ -151,9 +182,9 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Cliente</label>
           <SearchSelect fullWidth placeholder="Buscar cliente…" value={customerId} onChange={setCustomerId}
-            options={[{ id: '', name: 'ERPSERV (interno)' }, ...customers.filter(c => c.id !== erpserv?.id).map(c => ({ id: c.id, name: c.name }))]} />
+            options={[{ id: '', name: `${effectiveCompany?.name ?? 'ERPSERV'} (interno)` }, ...customers.filter(c => !internalIds.has(c.id)).map(c => ({ id: c.id, name: c.name }))]} />
         </div>
-        {!!customerId && customerId !== String(erpserv?.id ?? '') && (
+        {!isInternalClient && (
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Solicitante</label>
             <SearchSelect fullWidth disabled={contacts.length === 0}
@@ -162,6 +193,25 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
               options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: c.id, name: c.email ? `${c.name} · ${c.email}` : c.name }))]} />
           </div>
         )}
+        <div>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Anexos</label>
+          <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold rounded-lg px-2.5 py-2 w-fit"
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+            <Paperclip size={13} /> Anexar arquivos
+            <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
+          </label>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Você também pode colar prints (Ctrl+V) no campo Descrição.</p>
+          {files.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {files.map((f, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 text-xs rounded-lg px-2 py-1" style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}>
+                  <span className="truncate">{f.name} <span style={{ color: 'var(--text-light)' }}>· {(f.size / 1024).toFixed(0)} KB</span></span>
+                  <button type="button" onClick={() => removeFile(i)} title="Remover"><Trash2 size={13} style={{ color: 'var(--danger)' }} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Abrindo…' : 'Abrir chamado'}</button>
