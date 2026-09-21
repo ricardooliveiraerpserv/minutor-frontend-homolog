@@ -442,11 +442,12 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 // ─── Modal: ajuste em massa de Cliente/Projeto ───────────────────────────────
 // Reatribui cliente+projeto dos apontamentos selecionados (incl. APROVADOS — o
 // endpoint bulk-update-project-customer não checa status). Cores via tokens DS.
-function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUserId, onClose, onSaved }: {
+function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUserId, allProjects = false, onClose, onSaved }: {
   ids: number[]
   customers: SelectOption[]
   approvedCount: number
   consultantUserId?: number | null
+  allProjects?: boolean   // ADMIN: lista TODOS os projetos do cliente (sem filtrar por alocação)
   onClose: () => void
   onSaved: () => void
 }) {
@@ -470,7 +471,8 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
     setLoadingProjects(true)
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     // Quando há 1 só consultor na seleção, oferece apenas projetos em que ele está ALOCADO.
-    const allocParam = consultantUserId ? `&consultant_user_id=${consultantUserId}` : ''
+    // ADMIN (allProjects) ignora o filtro de alocação e lista TODOS os projetos do cliente.
+    const allocParam = (consultantUserId && !allProjects) ? `&consultant_user_id=${consultantUserId}` : ''
     api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}${allocParam}`)
       .then(r => {
         const list = items(r)
@@ -481,7 +483,7 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
       })
       .catch(() => { setProjects([]); setProjMeta({}) })
       .finally(() => setLoadingProjects(false))
-  }, [customerId, consultantUserId])
+  }, [customerId, consultantUserId, allProjects])
 
   // Investimento (Projeto/Suporte) exige Projeto Real — carrega as opções do consultor.
   const selMeta = projMeta[projectId]
@@ -2076,6 +2078,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
           customers={customers}
           approvedCount={selectedApprovedCount}
           consultantUserId={selectedConsultantId}
+          allProjects={isAdmin}
           onClose={() => setBulkPcOpen(false)}
           onSaved={async () => {
             const changed = Array.from(selectedIds)
