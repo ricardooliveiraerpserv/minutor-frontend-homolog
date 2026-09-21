@@ -156,6 +156,7 @@ export default function HelpDeskFilaPage() {
   const [statusSel, setStatusSel] = useState<number[]>([]) // chips de status — MULTI-seleção
   const [listSort, setListSort] = useState<{ col: string; dir: 'asc' | 'desc' }>({ col: 'updated', dir: 'desc' }) // ordenação da Lista
   const [view, setView] = useState<'kanban' | 'lista'>('lista')          // visão do board: abre sempre em Lista
+  const [queueTab, setQueueTab] = useState<'fila' | 'abri'>('fila')       // aba: fila da equipe × chamados que EU abri (não sou resp.)
   const [f, setF] = useState({ search: '', ticket: '' })
   const [loaded, setLoaded] = useState('') // "<search> <ticket>" que o `local` já reflete (busca server-side concluída)
   const [mine, setMine] = useState(false)
@@ -346,8 +347,11 @@ export default function HelpDeskFilaPage() {
   const isNossaPendencia = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return isPendente(t) && s?.key !== 'aguardando_cliente' }
   // Meus tickets pendentes — atribuídos a mim e com pendência nossa (independe dos filtros do board).
   const meusPendentes = user ? local.filter(t => t.assignee?.id === user.id && isNossaPendencia(t)).length : 0
-  // "Abri, mas não sou responsável": chamados que EU abri (solicitante) e cujo responsável não sou eu.
-  const abriNaoResp = user ? local.filter(t => (t.created_by_id === user.id || t.requester_user_id === user.id) && t.assignee?.id !== user.id).length : 0
+  // "Abri, mas não sou responsável": chamados que EU abri (criei OU solicitante) e cujo responsável não sou eu.
+  const mineOpened = (t: TicketRow) => (t.created_by_id === user?.id || t.requester_user_id === user?.id) && t.assignee?.id !== user?.id
+  const abriNaoResp = user ? local.filter(mineOpened).length : 0
+  // Separação por ABA: "Fila" esconde os que EU abri (vão p/ a aba "Abri"); "Abri" mostra só esses.
+  const tabPass = (t: TicketRow) => queueTab === 'abri' ? mineOpened(t) : !mineOpened(t)
   // Admin: pendentes de TODA a equipe (todos os responsáveis) com pendência nossa.
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
@@ -388,7 +392,7 @@ export default function HelpDeskFilaPage() {
     { key: 'updated', label: 'Atualizado', num: true, get: t => tt(t.updated_at ?? t.created_at) },
   ]
   const listCol = listCols.find(c => c.key === listSort.col) ?? listCols[listCols.length - 1]
-  const listRows = flt.filter(pendPass).slice().sort((a, b) => {
+  const listRows = flt.filter(t => tabPass(t) && pendPass(t)).slice().sort((a, b) => {
     const va = listCol.get(a), vb = listCol.get(b)
     const r = listCol.num ? (va as number) - (vb as number) : String(va).localeCompare(String(vb))
     return listSort.dir === 'asc' ? r : -r
@@ -407,7 +411,6 @@ export default function HelpDeskFilaPage() {
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
     ...(canTriage ? [{ label: 'Triagem', value: naoAtribuidos, cor: '#0ea5e9', icon: '🗂️', highlight: naoAtribuidos > 0, hint: 'sem responsável · clique p/ ver', onClick: () => setPendFilter(p => p === 'triagem' ? '' : 'triagem'), active: pendFilter === 'triagem' }] : []),
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
-    { label: 'Abri (não sou resp.)', value: abriNaoResp, cor: '#6366f1', hint: 'abri e não sou o responsável · clique p/ ver', icon: '📨', onClick: () => setPendFilter(p => p === 'opened' ? '' : 'opened'), active: pendFilter === 'opened' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
     { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
@@ -461,6 +464,19 @@ export default function HelpDeskFilaPage() {
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
         <TicketTabs />
+        {/* Abas: Fila da equipe × Chamados que EU abri (não sou responsável) — separados p/ não misturar. */}
+        <div className="flex items-center gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
+          {([['fila', 'Fila da equipe', null], ['abri', 'Abri (não sou resp.)', abriNaoResp]] as const).map(([id, label, count]) => (
+            <button key={id} onClick={() => { setQueueTab(id); setPendFilter('') }}
+              className="relative inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 -mb-px border-b-2 transition"
+              style={{ borderColor: queueTab === id ? 'var(--primary)' : 'transparent', color: queueTab === id ? 'var(--primary)' : 'var(--text-muted)' }}>
+              {label}
+              {count != null && count > 0 && (
+                <span className="text-[11px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{count}</span>
+              )}
+            </button>
+          ))}
+        </div>
         {/* Barra de filtros rápidos + ações — rola junto com o conteúdo (não fixa). */}
         <div className="space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
           {/* ─── NÍVEL 2 — filtros mais usados (esq.) · Modo isolado + Novo chamado (dir.) */}
@@ -557,7 +573,7 @@ export default function HelpDeskFilaPage() {
             fazendo a faixa INTEIRA (inclusive os cards de contagem, que nem usam status) sumir. Com
             statuses (estável, carregado 1x) OU local (tickets, cacheado) a faixa não pisca mais; os chips
             de Resumo já se auto-limpam quando statColumns está vazio. */}
-        {(statuses.length > 0 || local.length > 0) && (
+        {queueTab === 'fila' && (statuses.length > 0 || local.length > 0) && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-4 flex-wrap">
               <button onClick={() => setResumoOpen(!resumoOpen)} className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>
@@ -718,7 +734,7 @@ export default function HelpDeskFilaPage() {
           {/* Scroll horizontal PRÓPRIO do board (barra) — evita a página inteira rolar para o lado. */}
           <div className="flex gap-2 pb-2 overflow-x-auto max-w-full hd-kanban-scroll">
             {boardStatuses.map(col => {
-              const items = (byColumn[col.id] ?? []).filter(pendPass)
+              const items = (byColumn[col.id] ?? []).filter(t => tabPass(t) && pendPass(t))
               return (
                 <Droppable droppableId={String(col.id)} key={col.id}>
                   {(provided, snapshot) => (
