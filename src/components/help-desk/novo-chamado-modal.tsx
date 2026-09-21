@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { X, FileCode } from 'lucide-react'
@@ -34,9 +34,24 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [categoryId, setCategoryId] = useState('')
   const [serviceId, setServiceId] = useState('')
   const [customerId, setCustomerId] = useState('')
+  const [contactId, setContactId] = useState('')
+  const [contacts, setContacts] = useState<{ id: number; name: string; email: string | null }[]>([])
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
+
+  // Solicitante: contatos do cliente selecionado (interno/ERPSERV não tem solicitante externo).
+  useEffect(() => {
+    setContactId('')
+    setContacts([])
+    if (!customerId || customerId === String(erpserv?.id ?? '')) return
+    let alive = true
+    api.get<{ data: { id: number; name: string; email: string | null }[] }>(`/help-desk/contacts?customer_id=${customerId}`)
+      .then(r => { if (alive) setContacts(r.data ?? []) })
+      .catch(() => { if (alive) setContacts([]) })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId])
   // Multi-empresa: quem atende 2+ empresas escolhe a EMPRESA DO GRUPO onde o chamado é aberto.
   const { active } = useActiveCompany()
   const companyOpts = meta?.companies_scope ?? []
@@ -53,6 +68,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         subject: subject.trim(), description: description.trim() || null, priority,
         category_id: categoryId || null, service_id: serviceId || null,
         customer_id: customerId || erpserv?.id || null, // vazio (interno) → ERPSERV
+        customer_contact_id: contactId ? Number(contactId) : null, // solicitante (contato do cliente)
         company_id: showCompanyPicker && effectiveCompanyId ? Number(effectiveCompanyId) : null, // empresa do grupo escolhida
       })
       toast.success('Chamado aberto')
@@ -137,6 +153,15 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
           <SearchSelect fullWidth placeholder="Buscar cliente…" value={customerId} onChange={setCustomerId}
             options={[{ id: '', name: 'ERPSERV (interno)' }, ...customers.filter(c => c.id !== erpserv?.id).map(c => ({ id: c.id, name: c.name }))]} />
         </div>
+        {!!customerId && customerId !== String(erpserv?.id ?? '') && (
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Solicitante</label>
+            <SearchSelect fullWidth disabled={contacts.length === 0}
+              placeholder={contacts.length === 0 ? 'Cliente sem contatos cadastrados' : 'Selecionar solicitante…'}
+              value={contactId} onChange={setContactId}
+              options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: c.id, name: c.email ? `${c.name} · ${c.email}` : c.name }))]} />
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Abrindo…' : 'Abrir chamado'}</button>
