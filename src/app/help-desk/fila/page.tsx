@@ -464,18 +464,22 @@ export default function HelpDeskFilaPage() {
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
         <TicketTabs />
-        {/* Abas: Fila da equipe × Chamados que EU abri (não sou responsável) — separados p/ não misturar. */}
-        <div className="flex items-center gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
-          {([['fila', 'Fila da equipe', null], ['abri', 'Abri (não sou resp.)', abriNaoResp]] as const).map(([id, label, count]) => (
-            <button key={id} onClick={() => { setQueueTab(id); setPendFilter('') }}
-              className="relative inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 -mb-px border-b-2 transition"
-              style={{ borderColor: queueTab === id ? 'var(--primary)' : 'transparent', color: queueTab === id ? 'var(--primary)' : 'var(--text-muted)' }}>
-              {label}
-              {count != null && count > 0 && (
-                <span className="text-[11px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{count}</span>
-              )}
-            </button>
-          ))}
+        {/* Abas (segmented, evidente): Fila do agente × Chamados que EU abri (não sou responsável). */}
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+          {([['fila', 'Fila do agente', null], ['abri', 'Abri (não sou resp.)', abriNaoResp]] as const).map(([id, label, count]) => {
+            const active = queueTab === id
+            return (
+              <button key={id} onClick={() => { setQueueTab(id); setPendFilter('') }}
+                className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg transition"
+                style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)', boxShadow: active ? '0 1px 3px rgba(15,23,42,.18)' : 'none' }}>
+                {label}
+                {count != null && count > 0 && (
+                  <span className="text-[11px] font-bold rounded-full px-1.5 py-0.5"
+                    style={{ background: active ? 'rgba(255,255,255,.25)' : 'var(--primary-soft)', color: active ? 'var(--primary-fg)' : 'var(--primary)' }}>{count}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
         {/* Barra de filtros rápidos + ações — rola junto com o conteúdo (não fixa). */}
         <div className="space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
