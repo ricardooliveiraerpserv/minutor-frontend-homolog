@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ds'
 import { toast } from 'sonner'
-import { UploadCloud, RefreshCw, FileCode, ShieldCheck, FolderGit2 } from 'lucide-react'
+import { UploadCloud, RefreshCw, FileCode, ShieldCheck, FolderGit2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react'
+import { FindingCards, gradeColor, type CaFinding } from '@/components/help-desk/code-analysis-comment'
 
 /**
  * GMUD — Publicação Governada de Fontes. ENTRADA COMPACTA no chamado: só um lançador (Enviar ZIP +
@@ -12,6 +13,14 @@ import { UploadCloud, RefreshCw, FileCode, ShieldCheck, FolderGit2 } from 'lucid
  * aberto ao gravar a GMUD ou por este lançador. Nada é publicado no Git sem o aceite explícito no modal.
  */
 
+type QualityFile = {
+  id: number
+  filename: string
+  grade: string | null
+  score: number | null
+  findings: CaFinding[]
+  analyzed_at: string | null
+}
 type Manifest = {
   id: number
   customer_id: number | null
@@ -20,6 +29,9 @@ type Manifest = {
   status: string
   received_at: string | null
   files_count: number
+  uploaded_by_name?: string | null
+  interaction_seq?: number | null
+  quality_files?: QualityFile[]
 }
 
 const IN_PROGRESS = new Set(['received', 'extracting', 'analyzing'])
@@ -44,6 +56,30 @@ const STATUS_META: Record<string, { label: string; variant: string }> = {
   publishing: { label: 'Publicando', variant: 'primary' },
   published:  { label: 'Publicado',  variant: 'success' },
   publish_failed: { label: 'Falha ao publicar', variant: 'danger' },
+}
+
+// Linha de resultado do CodeAnalysis por fonte: Fonte · Nota · #interação · Autor + expandir (cards).
+function SourceQualityRow({ file, seq, author }: { file: QualityFile; seq?: number | null; author?: string | null }) {
+  const [open, setOpen] = useState(false)
+  const n = file.findings?.length ?? 0
+  return (
+    <div className="rounded-md" style={{ background: 'var(--surface-sunken)' }}>
+      <div className="flex items-center gap-2 px-2 py-1.5 text-[11px] flex-wrap">
+        <BarChart3 size={12} style={{ color: 'var(--text-light)' }} />
+        <span className="font-mono truncate" style={{ color: 'var(--text)' }}>{file.filename}</span>
+        <span className="font-semibold" style={{ color: gradeColor(file.grade) }}>{file.grade ?? '—'}{file.score != null ? ` · ${file.score}/100` : ''}</span>
+        <span style={{ color: 'var(--text-light)' }}>· {n} achado(s)</span>
+        {seq != null && <span className="font-mono px-1 rounded" title="Interação da publicação" style={{ color: 'var(--primary)', background: 'var(--primary-soft)' }}>#{seq}</span>}
+        {author && <span style={{ color: 'var(--text-light)' }}>· {author}</span>}
+        {n > 0 && (
+          <button onClick={() => setOpen((v) => !v)} className="ml-auto inline-flex items-center gap-1 font-medium" style={{ color: 'var(--primary)' }}>
+            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}{open ? 'Ocultar' : 'Ver críticas'}
+          </button>
+        )}
+      </div>
+      {open && n > 0 && <div className="px-2 pb-2"><FindingCards findings={file.findings} /></div>}
+    </div>
+  )
 }
 
 export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: {
@@ -117,15 +153,26 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
           {packages.map((p) => {
             const st = STATUS_META[p.status] ?? { label: p.status, variant: 'default' }
             const busy = IN_PROGRESS.has(p.status)
+            const analyzed = (p.quality_files ?? []).filter((f) => f.analyzed_at)
             return (
-              <div key={p.id} className="flex items-center gap-2 rounded-lg border px-2.5 py-2" style={{ borderColor: 'var(--border)' }}>
-                <FileCode size={14} style={{ color: 'var(--primary)' }} />
-                <span className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{p.original_name}</span>
-                <Badge variant={st.variant}>{st.label}</Badge>
-                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{p.files_count} fonte(s) · {human(p.size_bytes)} · {fmt(p.received_at)}</span>
-                <button onClick={() => onPublish(p.id)} className="ml-auto ds-btn-primary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg">
-                  {busy ? 'Acompanhar' : p.status === 'published' ? 'Ver publicação' : 'Abrir publicação'}
-                </button>
+              <div key={p.id} className="rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2 px-2.5 py-2">
+                  <FileCode size={14} style={{ color: 'var(--primary)' }} />
+                  <span className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{p.original_name}</span>
+                  <Badge variant={st.variant}>{st.label}</Badge>
+                  <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{p.files_count} fonte(s) · {human(p.size_bytes)} · {fmt(p.received_at)}</span>
+                  <button onClick={() => onPublish(p.id)} className="ml-auto ds-btn-primary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg">
+                    {busy ? 'Acompanhar' : p.status === 'published' ? 'Ver publicação' : 'Abrir publicação'}
+                  </button>
+                </div>
+                {analyzed.length > 0 && (
+                  <div className="border-t px-2 py-2 space-y-1" style={{ borderColor: 'var(--border)' }}>
+                    <div className="text-[10px] uppercase tracking-wide px-1" style={{ color: 'var(--text-light)' }}>CodeAnalysis por fonte</div>
+                    {analyzed.map((f) => (
+                      <SourceQualityRow key={f.id} file={f} seq={p.interaction_seq} author={p.uploaded_by_name} />
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}

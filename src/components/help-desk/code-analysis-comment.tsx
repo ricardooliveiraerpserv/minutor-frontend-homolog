@@ -40,11 +40,43 @@ function sevLabel(sev: string): string {
   if (s === 'MINOR') return 'Recomendação'
   return s || '—'
 }
-function gradeColor(grade?: string | null): string {
+export function gradeColor(grade?: string | null): string {
   const g = (grade || '').toUpperCase()
   if (g === 'A' || g === 'B') return 'var(--success, #059669)'
   if (g === 'C') return 'var(--warning, #d97706)'
   return 'var(--danger, #dc2626)'
+}
+
+// Cards dos achados (críticas/recomendações) — reutilizado no comentário e no painel GMUD.
+export function FindingCards({ findings }: { findings: CaFinding[] }) {
+  return (
+    <div className="space-y-2 mt-2">
+      {findings.map((f, i) => {
+        const line = f.line ?? f.start_line ?? null
+        return (
+          <div key={i} className="rounded-xl p-3" style={{ background: 'var(--bg, var(--surface))', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={sevVariant(f.severity)}>{sevLabel(f.severity)}</Badge>
+              {f.category && <span className="text-xs" style={{ color: 'var(--text-light)' }}>{f.category}</span>}
+              {f.rule && <span className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>{f.rule}</span>}
+              {f.count && f.count > 1 ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>×{f.count}</span> : null}
+            </div>
+            <div className="text-sm font-medium mt-1" style={{ color: 'var(--text)' }}>{f.title || f.rule || 'Achado'}</div>
+            {f.description && <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{f.description}</p>}
+            {line != null && (
+              <div className="flex items-center gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-light)' }}>
+                <span>Linha {line}</span>
+              </div>
+            )}
+            {f.snippet && (
+              <pre className="text-xs mt-2 p-2 rounded-lg overflow-x-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{f.snippet}</pre>
+            )}
+            {f.recommendation && <p className="text-xs mt-1.5" style={{ color: 'var(--text-light)' }}><b>Sugestão:</b> {f.recommendation}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 // base64 (UTF-8) embutido no corpo -> CaData. Retorna null se não houver/for inválido.
