@@ -21,6 +21,7 @@ import { GmudPublishModal } from '@/components/help-desk/gmud-publish-modal'
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { HdRichHtml } from '@/components/help-desk/hd-rich-html'
+import { CodeAnalysisComment, parseCaComment, type CaData } from '@/components/help-desk/code-analysis-comment'
 import { ImageLightbox } from '@/components/help-desk/image-lightbox'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, sanitizeEmail, isHtmlBody } from '@/lib/sanitize-html'
@@ -341,12 +342,13 @@ function TicketDetailInner({ id }: { id: number }) {
   // mudam — não a cada re-render. Sem isso, os ~15 setState do mount re-sanitizavam as 40 interações
   // (HTML pesado do Movidesk) a cada render, travando a main thread por segundos.
   const renderedComments = useMemo(() => {
-    const m = new Map<number, { html: boolean; complexHtml: boolean; rich: string; email: string }>()
+    const m = new Map<number, { html: boolean; complexHtml: boolean; rich: string; email: string; ca: CaData | null }>()
     for (const c of comments) {
       const body = c.body ?? ''
-      const html = !!c.body && isHtmlBody(body)
+      const ca = parseCaComment(body)          // comentário de CodeAnalysis (JSON embutido)
+      const html = !ca && !!c.body && isHtmlBody(body)
       const complexHtml = html && /<table\b/i.test(body)
-      m.set(c.id, { html, complexHtml, rich: html && !complexHtml ? sanitizeRich(body) : '', email: complexHtml ? sanitizeEmail(body) : '' })
+      m.set(c.id, { html, complexHtml, rich: html && !complexHtml ? sanitizeRich(body) : '', email: complexHtml ? sanitizeEmail(body) : '', ca })
     }
     return m
   }, [comments])
@@ -1367,6 +1369,8 @@ function TicketDetailInner({ id }: { id: number }) {
                           </div>
                         ) : c.solution && c.form_kind === 'dynamic' ? (
                           <div className="w-full"><DynamicFormView instance={c.solution as unknown as FormInstance} /></div>
+                        ) : pc?.ca ? (
+                          <div className="w-full"><CodeAnalysisComment data={pc.ca} /></div>
                         ) : c.solution && c.form_kind === 'gmud' ? (
                           <div className="w-full"><GmudView gmud={c.solution as Gmud} /></div>
                         ) : c.solution ? (
