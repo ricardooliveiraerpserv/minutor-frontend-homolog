@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { X, FileCode, Paperclip, Trash2 } from 'lucide-react'
+import { sanitizeRich } from '@/lib/sanitize-html'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { useActiveCompany } from '@/hooks/use-active-company'
@@ -72,20 +73,60 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   )
   const isInternalClient = !customerId || internalIds.has(Number(customerId))
 
-  // Anexos (inclui colar prints da área de transferência).
+  // Anexos (arquivos avulsos, ex.: .pdf/.zip). Prints são colados NO CORPO (inline).
   const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
   const removeFile = (idx: number) => setFiles(f => f.filter((_, i) => i !== idx))
-  const onPaste = (e: React.ClipboardEvent) => {
+
+  // Descrição = editor rico: aceita colar print direto no corpo (inline, redimensionável).
+  const edRef = useRef<HTMLDivElement>(null)
+  const [descEmpty, setDescEmpty] = useState(true)
+  const syncDesc = () => {
+    const ed = edRef.current; if (!ed) return
+    const hasContent = !!(ed.textContent?.trim() || ed.querySelector('img'))
+    setDescEmpty(!hasContent)
+    setDescription(hasContent ? sanitizeRich(ed.innerHTML) : '')
+  }
+  // Reduz o print antes de embutir (evita base64 gigante que estoura o POST).
+  const MAX_W = 1400
+  const downscale = (file: File): Promise<string> => new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, MAX_W / img.width)
+      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale))
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d'); URL.revokeObjectURL(url)
+      if (!ctx) return resolve('')
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h)
+      ctx.drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', 0.9))
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve('') }
+    img.src = url
+  })
+  const insertImage = (dataUrl: string) => {
+    const ed = edRef.current; if (!ed) return
+    ed.focus()
+    document.execCommand('insertHTML', false,
+      `<span class="hd-img" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
+      `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
+    syncDesc()
+  }
+  const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/'))
-    if (!imgs.length) return
-    e.preventDefault()
-    const picked = imgs.map(it => it.getAsFile()).filter((f): f is File => !!f)
-    if (picked.length) { addFiles(picked); toast.success(`${picked.length} print anexado`) }
+    if (imgs.length) {
+      e.preventDefault()
+      imgs.forEach(async it => { const f = it.getAsFile(); if (!f) return; const data = await downscale(f); if (data) { insertImage(data); toast.success('Print colado no corpo') } })
+    } else {
+      e.preventDefault()
+      document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+      syncDesc()
+    }
   }
 
   const submit = async () => {
     if (!subject.trim()) return toast.error('Informe o assunto.')
-    if (!description.trim()) return toast.error('Informe a descrição.')
+    if (descEmpty) return toast.error('Informe a descrição.')
     if (!priority) return toast.error('Informe a urgência.')
     setSaving(true)
     try {
@@ -116,7 +157,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
       onClick={drawer ? undefined : onClose}
     >
       <div
-        className={`ds-card p-4 space-y-3 ${drawer ? 'pointer-events-auto fixed right-4 bottom-4 w-[min(92vw,420px)] max-h-[82vh] overflow-y-auto shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200' : 'w-full max-w-lg'}`}
+        className={`ds-card p-4 space-y-3 ${drawer ? 'pointer-events-auto fixed right-4 bottom-4 w-[min(94vw,560px)] max-h-[88vh] overflow-y-auto shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200' : 'w-full max-w-2xl max-h-[88vh] overflow-y-auto'}`}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -152,7 +193,25 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         </div>
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição *</label>
-          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={4} value={description} onChange={e => setDescription(e.target.value)} onPaste={onPaste} placeholder="Descreva o chamado… (pode colar prints aqui)" />
+          <div className="relative">
+            <div
+              ref={edRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={syncDesc}
+              onKeyUp={syncDesc}
+              onMouseUp={syncDesc}
+              onPaste={onPaste}
+              onDrop={() => setTimeout(syncDesc, 0)}
+              className="hd-rich w-full text-sm rounded-lg px-3 py-2.5 outline-none overflow-y-auto"
+              style={{ background: '#ffffff', color: '#1f2937', border: '1px solid var(--border)', minHeight: 240, maxHeight: 520, resize: 'vertical' }}
+            />
+            {descEmpty && (
+              <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: 'var(--text-light)' }}>
+                Descreva o chamado… (cole prints com Ctrl+V direto no corpo)
+              </span>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {(meta?.my_inform?.urgency ?? true) && (
@@ -200,7 +259,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
             <Paperclip size={13} /> Anexar arquivos
             <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
           </label>
-          <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Você também pode colar prints (Ctrl+V) no campo Descrição.</p>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Arquivos avulsos (PDF, ZIP, etc.). Prints podem ser colados direto no corpo da Descrição.</p>
           {files.length > 0 && (
             <ul className="mt-2 space-y-1">
               {files.map((f, i) => (
