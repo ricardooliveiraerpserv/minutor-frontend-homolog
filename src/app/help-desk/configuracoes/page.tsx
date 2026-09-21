@@ -23,7 +23,9 @@ const lbl = 'text-[11px] font-semibold block mb-0.5'
 interface Ref { id: number; name: string }
 interface Category { id: number; name: string; color: string | null; active: boolean; default_team_id: number | null; sla_policy_id: number | null }
 interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; allows_scheduling: boolean; active: boolean }
-interface Team { id: number; name: string; color: string | null; active: boolean; lead?: Ref | null; members?: Ref[] }
+interface Team { id: number; name: string; color: string | null; active: boolean; company_id?: number | null; lead?: Ref | null; members?: Ref[] }
+interface Agent { id: number; name: string; type?: string; is_bizify?: boolean }
+interface CompanyOpt { id: number; name: string; slug?: string | null; type?: string | null }
 interface Tag { id: number; name: string; color: string | null }
 interface SlaPause { status_key: string }
 interface SlaTarget { id?: number; priority: string; name?: string | null; enabled?: boolean; first_response_minutes: number | null; resolution_minutes: number | null; first_response_channels?: string[] | null; pause_on_approval?: boolean; max_agent_actions?: number | null; pauses?: SlaPause[] }
@@ -414,16 +416,20 @@ function StatusBlock({ status, justs, reload }: { status: Status; justs: Justifi
 
 function Filas() {
   const [rows, setRows] = useState<Team[]>([])
-  const [agents, setAgents] = useState<Ref[]>([])
-  const [name, setName] = useState(''); const [color, setColor] = useState('#0ea5e9')
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [companies, setCompanies] = useState<CompanyOpt[]>([])
+  const [name, setName] = useState(''); const [color, setColor] = useState('#0ea5e9'); const [newCompanyId, setNewCompanyId] = useState('')
   const [editId, setEditId] = useState<number | null>(null)
   const [renameId, setRenameId] = useState<number | null>(null); const [renameVal, setRenameVal] = useState('')
   const [orphans, setOrphans] = useState<{ id: number; name: string; email: string | null; type: string }[]>([])
   const loadOrphans = useCallback(() => { api.get<{ data: typeof orphans }>('/help-desk/agents/without-team').then(r => setOrphans(r?.data ?? [])).catch(() => {}) }, [])
   const load = useCallback(() => { api.get<{ data: Team[] }>('/help-desk/teams?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}); loadOrphans() }, [loadOrphans])
   useEffect(() => { load() }, [load])
-  useEffect(() => { api.get<{ data: Ref[] }>('/help-desk/agents?candidates=1').then(r => setAgents(r?.data ?? [])).catch(() => {}) }, [])
-  const add = async () => { if (!name.trim()) return toast.error('Informe o nome.'); try { await api.post('/help-desk/teams', { name: name.trim(), color }); setName(''); toast.success('Equipe criada'); load() } catch { toast.error('Erro') } }
+  useEffect(() => { api.get<{ data: Agent[] }>('/help-desk/agents?candidates=1').then(r => setAgents(r?.data ?? [])).catch(() => {}) }, [])
+  // Empresas do grupo (ERPSERV/BIZIFY) p/ vincular a equipe.
+  useEffect(() => { api.get<{ data: CompanyOpt[] }>('/companies').then(r => setCompanies((r?.data ?? []).filter(c => (c.type ?? 'internal') === 'internal'))).catch(() => {}) }, [])
+  const bizifyId = companies.find(c => c.slug === 'bizify' || /bizify/i.test(c.name))?.id ?? null
+  const add = async () => { if (!name.trim()) return toast.error('Informe o nome.'); if (!newCompanyId) return toast.error('Selecione a empresa da equipe.'); try { await api.post('/help-desk/teams', { name: name.trim(), color, company_id: Number(newCompanyId) }); setName(''); setNewCompanyId(''); toast.success('Equipe criada'); load() } catch { toast.error('Erro') } }
   const del = async (t: Team) => { if (!confirm(`Excluir "${t.name}"?`)) return; try { await api.delete(`/help-desk/teams/${t.id}`); load() } catch { toast.error('Erro') } }
   const saveName = async (t: Team) => { const v = renameVal.trim(); if (!v) return toast.error('Informe o nome.'); try { await api.put(`/help-desk/teams/${t.id}`, { name: v }); setRenameId(null); toast.success('Equipe renomeada'); load() } catch { toast.error('Erro ao renomear') } }
   const saveColor = async (t: Team, color: string) => { try { await api.put(`/help-desk/teams/${t.id}`, { color }); toast.success('Cor atualizada'); load() } catch { toast.error('Erro ao salvar cor') } }
@@ -445,8 +451,13 @@ function Filas() {
           </div>
         </div>
       )}
-      <div className="ds-card p-3 flex items-end gap-2">
+      <div className="ds-card p-3 flex items-end gap-2 flex-wrap">
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome da equipe</label><input className={`${fieldCls} w-56`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
+        <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa *</label>
+          <select className={`${fieldCls} w-40`} style={inputStyle} value={newCompanyId} onChange={e => setNewCompanyId(e.target.value)}>
+            <option value="">— selecione —</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Cor</label><input type="color" className="h-8 w-12 rounded" value={color} onChange={e => setColor(e.target.value)} /></div>
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={add}><Plus size={15} /> Adicionar</button>
       </div>
@@ -475,12 +486,13 @@ function Filas() {
                 </span>
               )}
               <div className="flex items-center gap-3 text-sm">
+                {t.company_id && <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{companies.find(c => c.id === t.company_id)?.name ?? 'Empresa'}</span>}
                 <span style={{ color: 'var(--text-muted)' }}>{(t.members?.length ?? 0)} membro(s){t.lead ? ` · resp. ${t.lead.name}` : ''}</span>
                 <button className="ds-link text-xs" style={{ color: 'var(--primary)' }} onClick={() => setEditId(editId === t.id ? null : t.id)}>{editId === t.id ? 'Fechar' : 'Membros'}</button>
                 <button onClick={() => del(t)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
               </div>
             </div>
-            {editId === t.id && <TeamMembersEditor team={t} agents={agents} onSaved={() => { setEditId(null); load() }} />}
+            {editId === t.id && <TeamMembersEditor team={t} agents={agents} companies={companies} bizifyId={bizifyId} onSaved={() => { setEditId(null); load() }} />}
           </div>
         ))}
       </div>
@@ -488,34 +500,56 @@ function Filas() {
   )
 }
 
-function TeamMembersEditor({ team, agents, onSaved }: { team: Team; agents: Ref[]; onSaved: () => void }) {
+function TeamMembersEditor({ team, agents, companies, bizifyId, onSaved }: { team: Team; agents: Agent[]; companies: CompanyOpt[]; bizifyId: number | null; onSaved: () => void }) {
+  const [companyId, setCompanyId] = useState<string>(team.company_id ? String(team.company_id) : '')
   const [sel, setSel] = useState<number[]>(() => (team.members ?? []).map(m => m.id))
   const [leadId, setLeadId] = useState<string>(team.lead?.id ? String(team.lead.id) : '')
   const [saving, setSaving] = useState(false)
+  // Só os consultores da EMPRESA vinculada (is_bizify separa ERPSERV × BIZIFY).
+  const inCompany = (a: Agent) => !!a.is_bizify === (Number(companyId) === bizifyId)
+  const pool = companyId ? agents.filter(inCompany) : agents
   const toggle = (id: number) => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  const changeCompany = (cid: string) => {
+    setCompanyId(cid)
+    // Ao trocar a empresa, mantém só os membros/responsável que pertencem à nova empresa.
+    const belongs = (id: number) => { const a = agents.find(x => x.id === id); return a ? !!a.is_bizify === (Number(cid) === bizifyId) : false }
+    setSel(s => s.filter(belongs))
+    setLeadId(l => (l && belongs(Number(l))) ? l : '')
+  }
   const save = async () => {
+    if (!companyId) return toast.error('Selecione a empresa da equipe.')
     setSaving(true)
-    try { await api.put(`/help-desk/teams/${team.id}`, { member_ids: sel, lead_user_id: leadId || null }); toast.success('Fila atualizada'); onSaved() }
+    try { await api.put(`/help-desk/teams/${team.id}`, { member_ids: sel, lead_user_id: leadId || null, company_id: Number(companyId) }); toast.success('Equipe atualizada'); onSaved() }
     catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
   return (
     <div className="border-t px-3 py-3 space-y-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
-      <div>
-        <label className={lbl} style={{ color: 'var(--text-light)' }}>Responsável da equipe</label>
-        <div className="w-64"><SearchSelect value={leadId} onChange={setLeadId} options={[{ id: '', name: '— sem responsável —' }, ...agents]} placeholder="Buscar pessoa…" fullWidth /></div>
+      <div className="flex flex-wrap gap-4">
+        <div>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa da equipe *</label>
+          <select className={`${fieldCls} w-44`} style={inputStyle} value={companyId} onChange={e => changeCompany(e.target.value)}>
+            <option value="">— selecione —</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={lbl} style={{ color: 'var(--text-light)' }}>Responsável da equipe</label>
+          <div className="w-64"><SearchSelect value={leadId} onChange={setLeadId} options={[{ id: '', name: '— sem responsável —' }, ...pool.map(a => ({ id: a.id, name: a.name }))]} placeholder="Buscar pessoa…" fullWidth /></div>
+        </div>
       </div>
       <div>
-        <label className={lbl} style={{ color: 'var(--text-light)' }}>Membros ({sel.length})</label>
+        <label className={lbl} style={{ color: 'var(--text-light)' }}>Membros ({sel.length}){companyId ? '' : ' — selecione a empresa'}</label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-48 overflow-y-auto">
-          {agents.map(a => (
+          {pool.map(a => (
             <label key={a.id} className="flex items-center gap-1.5 text-sm cursor-pointer">
               <input type="checkbox" checked={sel.includes(a.id)} onChange={() => toggle(a.id)} />
               <span style={{ color: 'var(--text)' }}>{a.name}</span>
             </label>
           ))}
+          {companyId && pool.length === 0 && <span className="text-xs col-span-full" style={{ color: 'var(--text-light)' }}>Nenhum consultor cadastrado nesta empresa.</span>}
         </div>
       </div>
-      <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar membros</button>
+      <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar</button>
     </div>
   )
 }
