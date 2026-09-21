@@ -27,6 +27,13 @@ export interface NovoChamadoMeta {
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 const PRIO_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Média', alta: 'Alta', urgente: 'Urgente' }
+// Cores de prioridade (mesmas do detalhe do chamado / Kanban).
+const PRIO_META: Record<string, { color: string; bg: string }> = {
+  baixa: { color: '#16a34a', bg: 'rgba(22,163,74,.14)' },
+  normal: { color: '#ca8a04', bg: 'rgba(202,138,4,.14)' },
+  alta: { color: '#ea580c', bg: 'rgba(234,88,12,.14)' },
+  urgente: { color: '#dc2626', bg: 'rgba(220,38,38,.14)' },
+}
 
 export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant = 'modal', heading = 'Novo chamado' }: { meta: NovoChamadoMeta | null; customers: NovoChamadoRef[]; onClose: () => void; onCreated: (id: number) => void; variant?: 'modal' | 'drawer'; heading?: string }) {
   const [subject, setSubject] = useState('')
@@ -38,6 +45,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [contactId, setContactId] = useState('')
   const [contacts, setContacts] = useState<{ id: number; name: string; email: string | null }[]>([])
   const [files, setFiles] = useState<File[]>([])
+  const [prioOpen, setPrioOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
@@ -82,6 +90,9 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [descEmpty, setDescEmpty] = useState(true)
   const syncDesc = () => {
     const ed = edRef.current; if (!ed) return
+    // Enter perto do print pode fazer o browser deixar spans .hd-img vazios (quadros azuis
+    // sem imagem). Remove-os antes de medir/salvar.
+    ed.querySelectorAll('.hd-img').forEach(s => { if (!s.querySelector('img')) s.remove() })
     const hasContent = !!(ed.textContent?.trim() || ed.querySelector('img'))
     setDescEmpty(!hasContent)
     setDescription(hasContent ? sanitizeRich(ed.innerHTML) : '')
@@ -107,9 +118,12 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const insertImage = (dataUrl: string) => {
     const ed = edRef.current; if (!ed) return
     ed.focus()
+    // contenteditable=false → o container do print é ATÔMICO: apertar Enter ao lado não o
+    // divide (era o que gerava os quadros azuis vazios). Insere uma linha antes e depois p/
+    // o cursor ter onde ficar (permite dar espaço acima/abaixo).
     document.execCommand('insertHTML', false,
-      `<span class="hd-img" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
-      `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
+      `<p><br/></p><span class="hd-img" contenteditable="false" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
+      `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><p><br/></p>`)
     syncDesc()
   }
   const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -217,9 +231,42 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
           {(meta?.my_inform?.urgency ?? true) && (
             <div>
               <label className={lbl} style={{ color: 'var(--text-light)' }}>Urgência *</label>
-              <select className={`${fieldCls} w-full`} style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>
-                {(meta?.priorities ?? ['baixa', 'normal', 'alta', 'urgente']).map(p => <option key={p} value={p}>{PRIO_LABEL[p] ?? p}</option>)}
-              </select>
+              {(() => {
+                const opts = meta?.priorities ?? ['baixa', 'normal', 'alta', 'urgente']
+                const m = PRIO_META[priority] ?? { color: 'var(--text-muted)', bg: 'var(--surface)' }
+                return (
+                  <div className="relative">
+                    <button type="button" onClick={() => setPrioOpen(o => !o)}
+                      className={`${fieldCls} w-full flex items-center justify-between gap-2`}
+                      style={{ background: m.bg, border: `1px solid ${m.color}`, color: m.color, fontWeight: 600 }}>
+                      <span className="flex items-center gap-2">
+                        <span style={{ width: 9, height: 9, borderRadius: 999, background: m.color, display: 'inline-block' }} />
+                        {PRIO_LABEL[priority] ?? priority}
+                      </span>
+                      <span style={{ opacity: .7 }}>▾</span>
+                    </button>
+                    {prioOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setPrioOpen(false)} />
+                        <div className="absolute z-50 mt-1 w-full rounded-lg py-1 shadow-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                          {opts.map(p => {
+                            const pm = PRIO_META[p] ?? { color: 'var(--text-muted)', bg: 'transparent' }
+                            const sel = p === priority
+                            return (
+                              <button key={p} type="button" onClick={() => { setPriority(p); setPrioOpen(false) }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-sm text-left"
+                                style={{ background: sel ? pm.bg : 'transparent', color: 'var(--text)', fontWeight: sel ? 600 : 400 }}>
+                                <span style={{ width: 9, height: 9, borderRadius: 999, background: pm.color, display: 'inline-block' }} />
+                                {PRIO_LABEL[p] ?? p}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
           {(meta?.my_inform?.category ?? true) && (

@@ -1258,6 +1258,9 @@ html.dark .sidebar-erpserv-logo {
 .hd-rich li { margin: .1em 0; }
 .hd-rich a { color: var(--primary); text-decoration: underline; }
 .hd-rich img { max-width: 100%; height: auto; }
+/* Segurança: um container de print (.hd-img) que perdeu a imagem vira um quadro vazio
+   redimensionável (borda azul). Nunca deve aparecer. */
+.hd-rich span.hd-img:not(:has(img)) { display: none !important; }
 .hd-rich h1, .hd-rich h2, .hd-rich h3 { margin: .3em 0; font-weight: 700; }
 /* Hierarquia de cor por autor */
 /* Balões de texto puro brancos (iguais aos de HTML/e-mail); autor se distingue pelo lado + chip de papel. */
