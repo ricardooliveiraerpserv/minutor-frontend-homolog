@@ -426,6 +426,7 @@ function Filas() {
   const add = async () => { if (!name.trim()) return toast.error('Informe o nome.'); try { await api.post('/help-desk/teams', { name: name.trim(), color }); setName(''); toast.success('Equipe criada'); load() } catch { toast.error('Erro') } }
   const del = async (t: Team) => { if (!confirm(`Excluir "${t.name}"?`)) return; try { await api.delete(`/help-desk/teams/${t.id}`); load() } catch { toast.error('Erro') } }
   const saveName = async (t: Team) => { const v = renameVal.trim(); if (!v) return toast.error('Informe o nome.'); try { await api.put(`/help-desk/teams/${t.id}`, { name: v }); setRenameId(null); toast.success('Equipe renomeada'); load() } catch { toast.error('Erro ao renomear') } }
+  const saveColor = async (t: Team, color: string) => { try { await api.put(`/help-desk/teams/${t.id}`, { color }); toast.success('Cor atualizada'); load() } catch { toast.error('Erro ao salvar cor') } }
   return (
     <div className="space-y-3">
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Equipes de atendimento. <strong>Ao vincular um consultor a uma equipe, ele é automaticamente promovido a Agente</strong> (passa a poder responder e ser atribuído a chamados).</p>
@@ -464,7 +465,12 @@ function Filas() {
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 group" style={{ color: 'var(--text)' }}>
-                  <span className="w-3 h-3 rounded-full" style={{ background: t.color ?? 'var(--text-muted)' }} />{t.name}
+                  <label className="relative w-4 h-4 rounded-full cursor-pointer shrink-0" title="Alterar cor da equipe"
+                    style={{ background: t.color ?? 'var(--text-muted)', boxShadow: '0 0 0 1px var(--border)' }}>
+                    <input type="color" value={t.color ?? '#0ea5e9'} onChange={e => saveColor(t, e.target.value)}
+                      className="absolute inset-0 opacity-0 cursor-pointer" />
+                  </label>
+                  {t.name}
                   <button onClick={() => { setRenameId(t.id); setRenameVal(t.name) }} title="Renomear equipe"><Pencil size={13} style={{ color: 'var(--text-light)' }} /></button>
                 </span>
               )}
