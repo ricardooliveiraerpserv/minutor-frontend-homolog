@@ -76,7 +76,7 @@ interface TicketDetail {
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
-interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; can_candidate_kb?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean; solution?: Solution | Gmud | null; form_kind?: string | null }
+interface Comment { id: number; seq?: number | null; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; can_candidate_kb?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean; solution?: Solution | Gmud | null; form_kind?: string | null }
 
 // Data local (evita UTC empurrar p/ o dia seguinte à noite no Brasil).
 function localTodayStr(): string {
@@ -1308,6 +1308,9 @@ function TicketDetailInner({ id }: { id: number }) {
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
                       <div className={`flex flex-col min-w-0 ${editing ? 'w-full' : html ? 'max-w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${right ? 'items-end' : 'items-start'}`}>
                         <div className={`flex items-center gap-2 mb-0.5 text-[11px] ${right ? 'flex-row-reverse' : ''}`}>
+                          {c.seq != null && (
+                            <span className="font-mono font-semibold px-1.5 rounded" title={`Interação #${c.seq}`} style={{ color: 'var(--primary)', background: 'var(--primary-soft)' }}>#{c.seq}</span>
+                          )}
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           {isInternal
                             ? <span className="hd-role hd-role-internal"><Lock size={9} /> nota interna</span>
