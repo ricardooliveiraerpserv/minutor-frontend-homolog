@@ -26,7 +26,7 @@ interface Sla { first_response_breached: boolean; resolution_breached: boolean; 
 interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string; status_id: number | null
   team_id?: number | null; customer?: Ref | null; assignee?: Ref | null; sla?: Sla | null
-  solicitante_nome?: string | null; requester_name?: string | null; created_at?: string | null
+  solicitante_nome?: string | null; requester_name?: string | null; requester_user_id?: number | null; created_at?: string | null
   scheduled_until?: string | null; scheduled_all_day?: boolean
   updated_at?: string | null; last_activity_at?: string | null; resolution_due_at?: string | null
   last_agent_activity_at?: string | null // última interação DA EQUIPE (nota/resposta interna)
@@ -346,6 +346,8 @@ export default function HelpDeskFilaPage() {
   const isNossaPendencia = (t: TicketRow) => { const s = t.status_id != null ? statusById[t.status_id] : null; return isPendente(t) && s?.key !== 'aguardando_cliente' }
   // Meus tickets pendentes — atribuídos a mim e com pendência nossa (independe dos filtros do board).
   const meusPendentes = user ? local.filter(t => t.assignee?.id === user.id && isNossaPendencia(t)).length : 0
+  // "Abri, mas não sou responsável": chamados que EU abri (solicitante) e cujo responsável não sou eu.
+  const abriNaoResp = user ? local.filter(t => t.requester_user_id === user.id && t.assignee?.id !== user.id).length : 0
   // Admin: pendentes de TODA a equipe (todos os responsáveis) com pendência nossa.
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
@@ -359,6 +361,7 @@ export default function HelpDeskFilaPage() {
     if (statusSel.length > 0 && !(t.status_id != null && statusSel.includes(t.status_id))) return false
     if (pendFilter === '') return true
     if (pendFilter === 'mine') return t.assignee?.id === user?.id && isNossaPendencia(t)
+    if (pendFilter === 'opened') return t.requester_user_id === user?.id && t.assignee?.id !== user?.id // abri, mas não sou responsável
     if (pendFilter === 'team') return isNossaPendencia(t)
     if (pendFilter === 'open') return isPendente(t)
     if (pendFilter === 'novos') return isNovo(t)
@@ -404,6 +407,7 @@ export default function HelpDeskFilaPage() {
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
     ...(canTriage ? [{ label: 'Triagem', value: naoAtribuidos, cor: '#0ea5e9', icon: '🗂️', highlight: naoAtribuidos > 0, hint: 'sem responsável · clique p/ ver', onClick: () => setPendFilter(p => p === 'triagem' ? '' : 'triagem'), active: pendFilter === 'triagem' }] : []),
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
+    { label: 'Abri (não sou resp.)', value: abriNaoResp, cor: '#6366f1', hint: 'abri e não sou o responsável · clique p/ ver', icon: '📨', onClick: () => setPendFilter(p => p === 'opened' ? '' : 'opened'), active: pendFilter === 'opened' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
     { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
     { label: 'Estourado', value: slaCnt.r, cor: '#ef4444', icon: '🔴', hint: pendFilter === 'estourado' ? undefined : 'SLA estourado · clique p/ ver', onClick: () => setPendFilter(p => p === 'estourado' ? '' : 'estourado'), active: pendFilter === 'estourado' },
