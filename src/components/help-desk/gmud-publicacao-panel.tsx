@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ds'
 import { toast } from 'sonner'
-import { UploadCloud, RefreshCw, FileCode, ShieldCheck, FolderGit2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react'
+import { RefreshCw, FileCode, ShieldCheck, FolderGit2, ChevronDown, ChevronRight, BarChart3 } from 'lucide-react'
 import { FindingCards, gradeColor, type CaFinding } from '@/components/help-desk/code-analysis-comment'
 
 /**
@@ -165,10 +165,6 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
             </button>
           )}
           <button onClick={() => void loadList()} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" title="Atualizar"><RefreshCw size={13} /></button>
-          <button onClick={() => fileRef.current?.click()} disabled={uploading} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg disabled:opacity-60">
-            <UploadCloud size={14} /> {uploading ? 'Enviando…' : 'Enviar ZIP'}
-          </button>
-          <input ref={fileRef} type="file" accept=".zip" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onUpload(f) }} />
         </div>
       </div>
 
