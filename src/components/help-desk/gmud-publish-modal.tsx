@@ -24,8 +24,11 @@ type PackageFile = {
   match_status: MatchStatus
   matched_git_path: string | null
   match_candidates: Array<{ path: string; blob_sha: string; source_doc_id: number | null }> | null
+  dest_git_path?: string | null
+  action?: string | null
 }
-type Detail = { id: number; original_name: string; status: string; error: string | null; files: PackageFile[] }
+type Publication = { commit_sha: string | null; repo: string | null; branch: string | null; published: number | null; skipped: number | null; published_at: string | null }
+type Detail = { id: number; original_name: string; status: string; error: string | null; files: PackageFile[]; publication?: Publication | null }
 
 const IN_PROGRESS = new Set(['received', 'extracting', 'analyzing'])
 const ROOT_ID = ' root'
@@ -252,7 +255,7 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
       ) : analyzing ? (
         <Loading text={`Analisando "${detail.original_name}"… extraindo e casando fontes com o Git.`} />
       ) : alreadyPublished ? (
-        <div className="flex items-center gap-2 text-sm py-6" style={{ color: 'var(--success)' }}><CheckCircle2 size={18} /> Este pacote já foi publicado no Git.</div>
+        <AlreadyPublished detail={detail} onClose={onClose} />
       ) : sources.length === 0 ? (
         <div className="text-sm py-6" style={{ color: 'var(--text-muted)' }}>Nenhum fonte reconhecido no pacote — nada a publicar.</div>
       ) : (
@@ -399,6 +402,43 @@ export function GmudPublishModal({ packageId, ticketId, open, onClose, onPublish
 
 function Loading({ text }: { text: string }) {
   return <div className="flex items-center gap-2 text-sm py-6" style={{ color: 'var(--text-muted)' }}><Loader2 size={16} className="animate-spin" /> {text}</div>
+}
+
+function fmtPubDate(s: string | null | undefined): string {
+  if (!s) return '—'
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+// Pacote já publicado: mostra data/hora, repositório/branch, commit e ONDE cada fonte
+// ficou gravado na árvore do Git (dest_git_path).
+function AlreadyPublished({ detail, onClose }: { detail: Detail; onClose: () => void }) {
+  const pub = detail.publication
+  const published = detail.files.filter((f) => f.is_source && f.dest_git_path && f.action !== 'skip')
+  return (
+    <div className="space-y-3 py-2">
+      <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--success)' }}><CheckCircle2 size={18} /> Este pacote já foi publicado no Git.</div>
+      <div className="rounded-lg p-3 text-sm space-y-1.5" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>
+        <div>Publicado em: <b>{fmtPubDate(pub?.published_at)}</b></div>
+        {pub?.repo && <div className="flex items-center gap-1.5"><FolderGit2 size={14} /> Repositório: <b>{pub.repo}</b>{pub.branch ? ` @ ${pub.branch}` : ''}</div>}
+        {pub?.commit_sha && <div className="flex items-center gap-1.5"><GitCommit size={14} /> commit <span className="font-mono">{pub.commit_sha.slice(0, 10)}</span></div>}
+      </div>
+      {published.length > 0 && (
+        <div className="rounded-lg p-3 space-y-1.5" style={{ background: 'var(--surface-sunken)' }}>
+          <div className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Onde ficou gravado na árvore do Git</div>
+          {published.map((f) => (
+            <div key={f.id} className="flex items-start gap-2 text-xs flex-wrap">
+              <FileCode size={12} className="mt-0.5" style={{ color: 'var(--primary)' }} />
+              <span className="font-medium" style={{ color: 'var(--text)' }}>{f.filename}</span>
+              <span style={{ color: 'var(--text-light)' }}>→</span>
+              <span className="font-mono break-all" style={{ color: 'var(--text-muted)' }}>{f.dest_git_path}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end"><button onClick={onClose} className="ds-btn-primary px-3 py-1.5 rounded-lg text-sm">Fechar</button></div>
+    </div>
+  )
 }
 
 function Published({ result, onClose }: { result: { commit_sha: string; repo: string; branch: string; published: number; skipped: number }; onClose: () => void }) {
