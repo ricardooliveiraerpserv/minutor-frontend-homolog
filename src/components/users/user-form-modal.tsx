@@ -41,6 +41,7 @@ interface UserData {
   is_executive?: boolean
   type?: string | null
   helpdesk_access_profile_id?: number | null
+  helpdesk_team_ids?: number[]
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
@@ -346,6 +347,7 @@ const EMPTY_FORM = {
   guaranteed_hours: '',
   profiles: [] as ProfileType[],
   helpdesk_access_profile_id: '' as number | '',
+  helpdesk_team_ids: [] as number[],
   consultant_type: 'horista' as ConsultantType | '',
   contract_type: '' as ContractType | '',
   coordinator_type: '' as 'projetos' | 'sustentacao' | '',
@@ -407,10 +409,14 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   // Perfis de acesso do Help Desk (por kind) — seletor no formulário.
   const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  const [hdTeams, setHdTeams] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
     if (!open) return
     api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
       .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
+      .catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1')
+      .then(r => setHdTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name }))))
       .catch(() => {})
   }, [open])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
@@ -500,6 +506,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           guaranteed_hours:       item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
           profiles,
           helpdesk_access_profile_id: item.helpdesk_access_profile_id ?? '',
+          helpdesk_team_ids: item.helpdesk_team_ids ?? [],
           consultant_type:      consultant_type as ConsultantType | '',
           contract_type:        (item.contract_type as ContractType | undefined) ?? '',
           coordinator_type:     (item.coordinator_type as 'projetos' | 'sustentacao' | undefined) ?? '',
@@ -562,6 +569,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const save = async (hourlyRateEffectiveFrom?: string) => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
 
+    // Agente de Help Desk (não-cliente com perfil de acesso) precisa de ao menos uma equipe.
+    const isAgentProfile = !form.profiles.includes('cliente') && form.helpdesk_access_profile_id !== ''
+    if (isAgentProfile && form.helpdesk_team_ids.length === 0) { toast.error('Selecione ao menos uma equipe de Help Desk para o agente.'); return }
+
     const needsPartnerField = form.profiles.includes('parceiro_adm')
 
     setSaving(true)
@@ -584,6 +595,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         rate_type:    form.rate_type,
         set_as_partner_receiver: receiverIntentRef.current, // troca do responsável pelos recebimentos (confirmada)
       }
+      // Equipes de Help Desk (só p/ não-cliente); o BE sincroniza o pivot helpdesk_team_user.
+      if (!form.profiles.includes('cliente')) payload.helpdesk_team_ids = form.helpdesk_team_ids
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
       payload.home_company_id = form.home_company_id  // empresa da folha (o BE deriva is_bizify)
@@ -821,6 +834,30 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <p className="text-[10px] text-[var(--text-light)] mt-1">{isCli ? 'Perfis de CLIENTE' : 'Perfis de AGENTE'} — só perfis compatíveis com o tipo do usuário.</p>
+              {!isCli && (
+                <div className="mt-3">
+                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">
+                    Equipe(s) do Help Desk{form.helpdesk_access_profile_id !== '' ? <span style={{ color: 'var(--danger-border)' }}> *</span> : ''}
+                  </Label>
+                  {hdTeams.length === 0 ? (
+                    <p className="text-[10px] text-[var(--text-light)]">Nenhuma equipe cadastrada.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-lg p-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
+                      {hdTeams.map(tm => {
+                        const checked = form.helpdesk_team_ids.includes(tm.id)
+                        return (
+                          <label key={tm.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input type="checkbox" checked={checked}
+                              onChange={() => setForm(f => ({ ...f, helpdesk_team_ids: checked ? f.helpdesk_team_ids.filter(x => x !== tm.id) : [...f.helpdesk_team_ids, tm.id] }))} />
+                            <span style={{ color: 'var(--text)' }}>{tm.name}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-[var(--text-light)] mt-1">Agente de Help Desk precisa estar em ao menos uma equipe.</p>
+                </div>
+              )}
             </div>
           )
         })()}

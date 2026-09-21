@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil, Copy } from 'lucide-react'
+import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil, Copy, AlertTriangle, Check, X } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { AccessProfiles } from '@/components/help-desk/access-profiles'
 import { Departments } from '@/components/help-desk/departments'
@@ -417,14 +417,33 @@ function Filas() {
   const [agents, setAgents] = useState<Ref[]>([])
   const [name, setName] = useState(''); const [color, setColor] = useState('#0ea5e9')
   const [editId, setEditId] = useState<number | null>(null)
-  const load = useCallback(() => { api.get<{ data: Team[] }>('/help-desk/teams?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
+  const [renameId, setRenameId] = useState<number | null>(null); const [renameVal, setRenameVal] = useState('')
+  const [orphans, setOrphans] = useState<{ id: number; name: string; email: string | null; type: string }[]>([])
+  const loadOrphans = useCallback(() => { api.get<{ data: typeof orphans }>('/help-desk/agents/without-team').then(r => setOrphans(r?.data ?? [])).catch(() => {}) }, [])
+  const load = useCallback(() => { api.get<{ data: Team[] }>('/help-desk/teams?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}); loadOrphans() }, [loadOrphans])
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<{ data: Ref[] }>('/help-desk/agents?candidates=1').then(r => setAgents(r?.data ?? [])).catch(() => {}) }, [])
   const add = async () => { if (!name.trim()) return toast.error('Informe o nome.'); try { await api.post('/help-desk/teams', { name: name.trim(), color }); setName(''); toast.success('Equipe criada'); load() } catch { toast.error('Erro') } }
   const del = async (t: Team) => { if (!confirm(`Excluir "${t.name}"?`)) return; try { await api.delete(`/help-desk/teams/${t.id}`); load() } catch { toast.error('Erro') } }
+  const saveName = async (t: Team) => { const v = renameVal.trim(); if (!v) return toast.error('Informe o nome.'); try { await api.put(`/help-desk/teams/${t.id}`, { name: v }); setRenameId(null); toast.success('Equipe renomeada'); load() } catch { toast.error('Erro ao renomear') } }
   return (
     <div className="space-y-3">
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Equipes de atendimento. <strong>Ao vincular um consultor a uma equipe, ele é automaticamente promovido a Agente</strong> (passa a poder responder e ser atribuído a chamados).</p>
+      {orphans.length > 0 && (
+        <div className="ds-card p-3" style={{ borderLeft: '3px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
+          <div className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: 'var(--warning-border)' }}>
+            <AlertTriangle size={15} /> {orphans.length} agente(s) de Help Desk sem equipe
+          </div>
+          <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Não é permitido agente sem equipe. Inclua cada um em uma equipe abaixo (marcando em “Membros”).</p>
+          <div className="flex flex-wrap gap-1.5">
+            {orphans.map(o => (
+              <span key={o.id} className="inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5" style={{ background: 'var(--surface)', border: '1px solid var(--warning-border)', color: 'var(--text)' }}>
+                {o.name}{o.email ? <span style={{ color: 'var(--text-light)' }}> · {o.email}</span> : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="ds-card p-3 flex items-end gap-2">
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome da equipe</label><input className={`${fieldCls} w-56`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Cor</label><input type="color" className="h-8 w-12 rounded" value={color} onChange={e => setColor(e.target.value)} /></div>
@@ -435,7 +454,20 @@ function Filas() {
         {rows.map(t => (
           <div key={t.id} className="ds-card overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2">
-              <span className="inline-flex items-center gap-2" style={{ color: 'var(--text)' }}><span className="w-3 h-3 rounded-full" style={{ background: t.color ?? 'var(--text-muted)' }} />{t.name}</span>
+              {renameId === t.id ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full" style={{ background: t.color ?? 'var(--text-muted)' }} />
+                  <input autoFocus className={`${fieldCls} w-48`} style={inputStyle} value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveName(t); if (e.key === 'Escape') setRenameId(null) }} />
+                  <button onClick={() => saveName(t)} title="Salvar"><Check size={16} style={{ color: 'var(--success-border)' }} /></button>
+                  <button onClick={() => setRenameId(null)} title="Cancelar"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-2 group" style={{ color: 'var(--text)' }}>
+                  <span className="w-3 h-3 rounded-full" style={{ background: t.color ?? 'var(--text-muted)' }} />{t.name}
+                  <button onClick={() => { setRenameId(t.id); setRenameVal(t.name) }} title="Renomear equipe"><Pencil size={13} style={{ color: 'var(--text-light)' }} /></button>
+                </span>
+              )}
               <div className="flex items-center gap-3 text-sm">
                 <span style={{ color: 'var(--text-muted)' }}>{(t.members?.length ?? 0)} membro(s){t.lead ? ` · resp. ${t.lead.name}` : ''}</span>
                 <button className="ds-link text-xs" style={{ color: 'var(--primary)' }} onClick={() => setEditId(editId === t.id ? null : t.id)}>{editId === t.id ? 'Fechar' : 'Membros'}</button>
