@@ -58,6 +58,18 @@ const STATUS_META: Record<string, { label: string; variant: string }> = {
   publish_failed: { label: 'Falha ao publicar', variant: 'danger' },
 }
 
+// Pior nota (A melhor … F pior) entre os fontes — resumo do bloco recolhido.
+function worstGrade(files: QualityFile[]): string | null {
+  const order = 'ABCDEF'
+  let worst: string | null = null
+  for (const f of files) {
+    const g = (f.grade || '').toUpperCase()
+    if (!g || order.indexOf(g) < 0) continue
+    if (worst === null || order.indexOf(g) > order.indexOf(worst)) worst = g
+  }
+  return worst
+}
+
 // Linha de resultado do CodeAnalysis por fonte: Fonte · Nota · #interação · Autor + expandir (cards).
 function SourceQualityRow({ file, seq, author, open, onToggle }: { file: QualityFile; seq?: number | null; author?: string | null; open: boolean; onToggle: () => void }) {
   const n = file.findings?.length ?? 0
@@ -94,6 +106,13 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
   // Fontes com "críticas" expandidas (controlado no painel p/ ter "Fechar tudo").
   const [openFiles, setOpenFiles] = useState<Set<number>>(new Set())
   const toggleFile = (id: number) => setOpenFiles((prev) => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  // Pacotes com o bloco "CodeAnalysis por fonte" EXPANDIDO (padrão: recolhido/minimizado).
+  const [openPkgs, setOpenPkgs] = useState<Set<number>>(new Set())
+  const togglePkg = (id: number) => setOpenPkgs((prev) => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
     return next
@@ -140,8 +159,8 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
           <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Publicação de Fontes (GMUD)</span>
         </div>
         <div className="flex items-center gap-2">
-          {openFiles.size > 0 && (
-            <button onClick={() => setOpenFiles(new Set())} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" title="Recolher todas as críticas abertas">
+          {(openFiles.size > 0 || openPkgs.size > 0) && (
+            <button onClick={() => { setOpenFiles(new Set()); setOpenPkgs(new Set()) }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg" title="Recolher todos os blocos e críticas abertos">
               <ChevronRight size={13} /> Fechar tudo
             </button>
           )}
@@ -176,14 +195,26 @@ export function GmudPublicacaoPanel({ ticketId, gmudActive = true, onPublish }: 
                     {busy ? 'Acompanhar' : p.status === 'published' ? 'Ver publicação' : 'Abrir publicação'}
                   </button>
                 </div>
-                {analyzed.length > 0 && (
-                  <div className="border-t px-2 py-2 space-y-1" style={{ borderColor: 'var(--border)' }}>
-                    <div className="text-[10px] uppercase tracking-wide px-1" style={{ color: 'var(--text-light)' }}>CodeAnalysis por fonte</div>
-                    {analyzed.map((f) => (
-                      <SourceQualityRow key={f.id} file={f} seq={p.interaction_seq} author={p.uploaded_by_name} open={openFiles.has(f.id)} onToggle={() => toggleFile(f.id)} />
-                    ))}
-                  </div>
-                )}
+                {analyzed.length > 0 && (() => {
+                  const pkgOpen = openPkgs.has(p.id)
+                  const worst = worstGrade(analyzed)
+                  return (
+                    <div className="border-t px-2 py-2" style={{ borderColor: 'var(--border)' }}>
+                      <button onClick={() => togglePkg(p.id)} className="flex items-center gap-1.5 w-full text-[10px] uppercase tracking-wide px-1" style={{ color: 'var(--text-light)' }}>
+                        {pkgOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        <span>CodeAnalysis por fonte · {analyzed.length} fonte(s)</span>
+                        {worst && <span className="font-semibold" style={{ color: gradeColor(worst) }}>· pior nota {worst}</span>}
+                      </button>
+                      {pkgOpen && (
+                        <div className="space-y-1 mt-1.5">
+                          {analyzed.map((f) => (
+                            <SourceQualityRow key={f.id} file={f} seq={p.interaction_seq} author={p.uploaded_by_name} open={openFiles.has(f.id)} onToggle={() => toggleFile(f.id)} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )
           })}
