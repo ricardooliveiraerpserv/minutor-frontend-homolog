@@ -52,11 +52,13 @@ export default function HelpDeskPortalPage() {
   const [novo, setNovo] = useState(false)
   const [pageTab, setPageTab] = useState<'chamados' | 'reunioes'>('chamados')
   const { user } = useAuth()
-  const isCliente = user?.type === 'cliente' // "Abrir chamado" só para o cliente
+  // Pode abrir chamado no portal: cliente OU interno NÃO-agente (vê/abre só os próprios).
+  const isAgent = user?.type === 'admin' || !!user?.is_helpdesk_agent
+  const canOpen = user?.type === 'cliente' || (!!user && user.type !== 'cliente' && !isAgent)
   return (
     <AppLayout
       title="Help Desk"
-      actions={isCliente && pageTab === 'chamados' ? (
+      actions={canOpen && pageTab === 'chamados' ? (
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
           <Plus size={15} /> Abrir chamado
         </button>
@@ -251,7 +253,10 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   const [view, setView] = useState<'kanban' | 'lista'>('kanban') // visão do quadro
   const [cfg, setCfg] = useState<PortalColumn[]>(DEFAULT_COLUMNS) // colunas (config global do admin; default até carregar)
   const { user } = useAuth()
-  const isCliente = user?.type === 'cliente' // "Abrir chamado" só aparece para o cliente
+  // Interno NÃO-agente usa o portal como o cliente (abre/acompanha os próprios chamados).
+  const isAgent = user?.type === 'admin' || !!user?.is_helpdesk_agent
+  const isCliente = user?.type === 'cliente'
+  const canOpen = isCliente || (!!user && user.type !== 'cliente' && !isAgent)
   // Ordem das colunas do cliente (arrasta o cabeçalho p/ reordenar; salvo no navegador).
   const { ordered: colOrder, headerProps } = useColumnOrder('portal', cfg.map(c => c.label))
   const load = useCallback(() => {
@@ -270,7 +275,8 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
     const p = new URLSearchParams(window.location.search).get('ticket')
     if (!p || !/^\d+$/.test(p)) return
     if (!user) return // aguarda o usuário carregar para decidir o destino
-    if (user.type !== 'cliente') { window.location.replace(`/help-desk/tickets/${p}`); return }
+    // Só AGENTE/admin vai para a tela plena de atendimento; interno não-agente fica no portal.
+    if (isAgent) { window.location.replace(`/help-desk/tickets/${p}`); return }
     setSel(Number(p))
   }, [user])
 
@@ -405,7 +411,7 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
         <div className="ds-card py-10 px-4 text-center space-y-2">
           <LifeBuoy size={30} className="mx-auto" style={{ color: 'var(--text-light)' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Você ainda não tem chamados.</p>
-          {isCliente && <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>}
+          {canOpen && <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>}
         </div>
       ) : view === 'kanban' ? (
         <div className="flex gap-2 overflow-x-auto pb-2">

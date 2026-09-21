@@ -862,6 +862,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
           ],
         })
+      else
+        // Interno NÃO-agente: visão de Chamados igual à do cliente (abre/acompanha os próprios).
+        nav.push({ type: 'item', label: 'Chamados', href: '/help-desk/portal', icon: Headphones })
 
       // Configurações
       if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
@@ -982,6 +985,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
           ],
         })
+      else
+        // Interno NÃO-agente: visão de Chamados igual à do cliente (abre/acompanha os próprios).
+        baseNav.push({ type: 'item', label: 'Chamados', href: '/help-desk/portal', icon: Headphones })
 
       return baseNav
     }
