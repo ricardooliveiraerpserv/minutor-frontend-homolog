@@ -26,7 +26,7 @@ interface Sla { first_response_breached: boolean; resolution_breached: boolean; 
 interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string; status_id: number | null
   team_id?: number | null; customer?: Ref | null; assignee?: Ref | null; sla?: Sla | null
-  solicitante_nome?: string | null; requester_name?: string | null; requester_user_id?: number | null; created_at?: string | null
+  solicitante_nome?: string | null; requester_name?: string | null; requester_user_id?: number | null; created_by_id?: number | null; created_at?: string | null
   scheduled_until?: string | null; scheduled_all_day?: boolean
   updated_at?: string | null; last_activity_at?: string | null; resolution_due_at?: string | null
   last_agent_activity_at?: string | null // última interação DA EQUIPE (nota/resposta interna)
@@ -347,7 +347,7 @@ export default function HelpDeskFilaPage() {
   // Meus tickets pendentes — atribuídos a mim e com pendência nossa (independe dos filtros do board).
   const meusPendentes = user ? local.filter(t => t.assignee?.id === user.id && isNossaPendencia(t)).length : 0
   // "Abri, mas não sou responsável": chamados que EU abri (solicitante) e cujo responsável não sou eu.
-  const abriNaoResp = user ? local.filter(t => t.requester_user_id === user.id && t.assignee?.id !== user.id).length : 0
+  const abriNaoResp = user ? local.filter(t => (t.created_by_id === user.id || t.requester_user_id === user.id) && t.assignee?.id !== user.id).length : 0
   // Admin: pendentes de TODA a equipe (todos os responsáveis) com pendência nossa.
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
@@ -361,7 +361,7 @@ export default function HelpDeskFilaPage() {
     if (statusSel.length > 0 && !(t.status_id != null && statusSel.includes(t.status_id))) return false
     if (pendFilter === '') return true
     if (pendFilter === 'mine') return t.assignee?.id === user?.id && isNossaPendencia(t)
-    if (pendFilter === 'opened') return t.requester_user_id === user?.id && t.assignee?.id !== user?.id // abri, mas não sou responsável
+    if (pendFilter === 'opened') return (t.created_by_id === user?.id || t.requester_user_id === user?.id) && t.assignee?.id !== user?.id // abri (criei ou sou solicitante), mas nao sou responsavel
     if (pendFilter === 'team') return isNossaPendencia(t)
     if (pendFilter === 'open') return isPendente(t)
     if (pendFilter === 'novos') return isNovo(t)

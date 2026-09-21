@@ -24,6 +24,7 @@ interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string
   customer?: Ref | null; category?: CategoryOpt | null; assignee?: Ref | null
   requester_user_id?: number | null
+  created_by_id?: number | null
   status?: StatusOpt | null; updated_at: string; sla?: Sla | null
   dev_delivery_at?: string | null // previsão de entrega em homologação (Em Desenvolvimento)
   dev_delivery_overdue?: boolean   // vencida em DIAS ÚTEIS (BE, considera feriados)
@@ -168,7 +169,7 @@ export default function HelpDeskTicketsPage() {
       semAtendente: rows.filter(t => !t.assignee).length,
       atraso: rows.filter(t => t.sla?.first_response_breached || t.sla?.resolution_breached || t.sla?.first_response_overdue || t.sla?.resolution_overdue).length,
       meus: rows.filter(t => t.assignee?.id === user?.id).length,
-      abriNaoResp: rows.filter(t => t.requester_user_id === user?.id && t.assignee?.id !== user?.id).length,
+      abriNaoResp: rows.filter(t => (t.created_by_id === user?.id || t.requester_user_id === user?.id) && t.assignee?.id !== user?.id).length,
       // Entregas vencidas (dias úteis, considera feriados) — flag calculado no BE.
       entregasVencidas: rows.filter(t => !!t.dev_delivery_overdue).length,
     }
