@@ -42,21 +42,21 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [categoryId, setCategoryId] = useState('')
   const [serviceId, setServiceId] = useState('')
   const [customerId, setCustomerId] = useState('')
-  const [contactId, setContactId] = useState('')
-  const [contacts, setContacts] = useState<{ id: number; name: string; email: string | null }[]>([])
+  const [contactId, setContactId] = useState('') // codificado "user:<id>" | "contact:<id>"
+  const [contacts, setContacts] = useState<{ kind: 'user' | 'contact'; id: number; name: string; email: string | null }[]>([])
   const [files, setFiles] = useState<File[]>([])
   const [prioOpen, setPrioOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   // Chamado "interno" = cliente ERPSERV (resolvido pelo nome, sem hardcode de id).
   const erpserv = customers.find(c => /erpserv/i.test(c.name))
 
-  // Solicitante: contatos do cliente selecionado (interno/ERPSERV não tem solicitante externo).
+  // Solicitante: usuários do PORTAL do cliente + contatos do cadastro (interno/ERPSERV não tem).
   useEffect(() => {
     setContactId('')
     setContacts([])
     if (!customerId || customerId === String(erpserv?.id ?? '')) return
     let alive = true
-    api.get<{ data: { id: number; name: string; email: string | null }[] }>(`/help-desk/contacts?customer_id=${customerId}`)
+    api.get<{ data: { kind: 'user' | 'contact'; id: number; name: string; email: string | null }[] }>(`/help-desk/requesters?customer_id=${customerId}`)
       .then(r => { if (alive) setContacts(r.data ?? []) })
       .catch(() => { if (alive) setContacts([]) })
     return () => { alive = false }
@@ -148,7 +148,9 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
         subject: subject.trim(), description: description.trim() || null, priority,
         category_id: categoryId || null, service_id: serviceId || null,
         customer_id: customerId || internalCustomer?.id || null, // vazio (interno) → empresa do chamado (ERPSERV/BIZIFY)
-        customer_contact_id: contactId ? Number(contactId) : null, // solicitante (contato do cliente)
+        // Solicitante: usuário do portal → requester_user_id; contato do cadastro → customer_contact_id.
+        requester_user_id: contactId.startsWith('user:') ? Number(contactId.slice(5)) : null,
+        customer_contact_id: contactId.startsWith('contact:') ? Number(contactId.slice(8)) : null,
         company_id: showCompanyPicker && effectiveCompanyId ? Number(effectiveCompanyId) : null, // empresa do grupo escolhida
       })
       // Anexos: enviados 1 a 1 após criar o chamado (endpoint aceita um arquivo por request).
@@ -294,9 +296,9 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Solicitante</label>
             <SearchSelect fullWidth disabled={contacts.length === 0}
-              placeholder={contacts.length === 0 ? 'Cliente sem contatos cadastrados' : 'Selecionar solicitante…'}
+              placeholder={contacts.length === 0 ? 'Cliente sem solicitantes cadastrados' : 'Selecionar solicitante…'}
               value={contactId} onChange={setContactId}
-              options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: c.id, name: c.email ? `${c.name} · ${c.email}` : c.name }))]} />
+              options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: `${c.kind}:${c.id}`, name: c.email ? `${c.name} · ${c.email}` : c.name }))]} />
           </div>
         )}
         <div>
