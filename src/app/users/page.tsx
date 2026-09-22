@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
+import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { useRouter } from 'next/navigation'
@@ -540,17 +541,10 @@ export default function UsersPage() {
       {/* Filtros específicos da aba Help Desk: empresa / equipe / tipo. */}
       {hdMode && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <select value={hdCompany} onChange={e => setHdCompany(e.target.value)} title="Filtrar por empresa do grupo"
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Empresa (todas)</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select value={hdTeam} onChange={e => setHdTeam(e.target.value)} title="Filtrar por equipe"
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2 max-w-[180px]">
-            <option value="">Equipe (todas)</option>
-            <option value="none">— Sem equipe —</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <SearchSelect subtle value={hdCompany} onChange={setHdCompany} placeholder="Empresa (todas)"
+            options={companies.map(c => ({ id: c.id, name: c.name }))} />
+          <SearchSelect subtle value={hdTeam} onChange={setHdTeam} placeholder="Equipe (todas)"
+            options={[{ id: 'none', name: '— Sem equipe —' }, ...teams.map(t => ({ id: t.id, name: t.name }))]} />
           <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
             className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
             <option value="">Todos</option>
@@ -579,11 +573,8 @@ export default function UsersPage() {
           <option value="0">Inativos</option>
         </select>
         {hdMode && hdProfiles.length > 0 && (
-          <select value={filterHdProfile} onChange={e => setFilterHdProfile(e.target.value)} title="Filtrar por perfil de Help Desk"
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2 max-w-[180px]">
-            <option value="">Perfil HD (todos)</option>
-            {hdProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.kind === 'cliente' ? 'cliente' : 'agente'})</option>)}
-          </select>
+          <SearchSelect subtle value={filterHdProfile} onChange={setFilterHdProfile} placeholder="Perfil HD (todos)"
+            options={hdProfiles.map(p => ({ id: p.id, name: `${p.name} (${p.kind === 'cliente' ? 'cliente' : 'agente'})` }))} />
         )}
         <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['comercial', 'Comercial'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
@@ -599,22 +590,12 @@ export default function UsersPage() {
           ))}
         </div>
         {filterRole === 'parceiro_admin' && partners.length > 0 && (
-          <select
-            value={filterPartner}
-            onChange={e => { setFilterPartner(e.target.value); setPage(1) }}
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todas as empresas</option>
-            {partners.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-          </select>
+          <SearchSelect subtle value={filterPartner} onChange={v => { setFilterPartner(v); setPage(1) }} placeholder="Todas as empresas"
+            options={partners.map(p => ({ id: p.id, name: p.name }))} />
         )}
         {filterRole === 'cliente' && customers.length > 0 && (
-          <select
-            value={filterCustomer}
-            onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todos os clientes</option>
-            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </select>
+          <SearchSelect subtle value={filterCustomer} onChange={v => { setFilterCustomer(v); setPage(1) }} placeholder="Todos os clientes"
+            options={customers.map(c => ({ id: c.id, name: c.name }))} />
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
