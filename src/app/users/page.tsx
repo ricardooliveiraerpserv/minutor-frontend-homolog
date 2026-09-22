@@ -46,6 +46,7 @@ interface UserItem {
   can_timesheet_sustentacao?: boolean
   helpdesk_access_profile_id?: number | null
   helpdesk_department_id?: number | null
+  company_ids?: number[]
   // Pré-cadastro cliente pendente de convite (sem senha, desabilitado) — fase 1a/1b
   is_pending_invite?: boolean
   // Folha de pagamento
@@ -182,11 +183,24 @@ export default function UsersPage() {
   const [users,     setUsers]     = useState<UserItem[]>([])
   // Perfis de acesso do Help Desk (por kind) — atribuição inline na linha do usuário.
   const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  // Aba "Help Desk": empresas do grupo (ERPSERV/BIZIFY) para vincular por usuário.
+  const [hdMode, setHdMode] = useState(false)
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
     api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
       .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
       .catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {})
   }, [])
+  const setUserCompanies = async (u: UserItem, ids: number[]) => {
+    const prev = u.company_ids ?? []
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: ids } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/companies`, { company_ids: ids }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular empresa')
+    }
+  }
   const setHdProfile = async (u: UserItem, profileId: string) => {
     const prev = u.helpdesk_access_profile_id ?? null
     const next = profileId ? Number(profileId) : null
@@ -473,6 +487,17 @@ export default function UsersPage() {
 
   return (
     <AppLayout title="Usuários">
+      {/* Abas: Cadastro geral × Help Desk (perfil HD + empresas vinculadas por linha). */}
+      <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit mb-4" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+        {([['cadastro', 'Cadastro'], ['hd', 'Help Desk']] as const).map(([id, label]) => {
+          const active = (id === 'hd') === hdMode
+          return (
+            <button key={id} onClick={() => setHdMode(id === 'hd')}
+              className="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
+              style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{label}</button>
+          )
+        })}
+      </div>
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -661,8 +686,9 @@ export default function UsersPage() {
               )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
+              {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>}
+              {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
             </tr>
           </thead>
@@ -751,18 +777,43 @@ export default function UsersPage() {
                     )
                   })()}
                 </td>
-                <td className="px-3 py-2.5 hidden lg:table-cell">
-                  {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
-                    ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
-                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
-                </td>
-                <td className="px-3 py-2.5 hidden lg:table-cell">
-                  {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
-                    user.can_timesheet_sustentacao
-                      ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
-                      : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
-                  ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
-                </td>
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]">—</span> : (
+                      <div className="flex flex-wrap gap-1">
+                        {companies.map(c => {
+                          const on = (user.company_ids ?? []).includes(c.id)
+                          return (
+                            <button key={c.id} type="button"
+                              onClick={() => setUserCompanies(user, on ? (user.company_ids ?? []).filter(x => x !== c.id) : [...(user.company_ids ?? []), c.id])}
+                              className="text-[10px] font-semibold rounded-full px-2 py-0.5 border transition"
+                              style={on
+                                ? { background: 'var(--primary)', color: 'var(--primary-fg)', borderColor: 'var(--primary)' }
+                                : { background: 'transparent', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                              {c.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </td>
+                )}
+                {!hdMode && (
+                  <td className="px-3 py-2.5 hidden lg:table-cell">
+                    {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
+                      ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
+                      : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
+                {!hdMode && (
+                  <td className="px-3 py-2.5 hidden lg:table-cell">
+                    {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
+                      user.can_timesheet_sustentacao
+                        ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
+                        : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
+                    ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
                     ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'
