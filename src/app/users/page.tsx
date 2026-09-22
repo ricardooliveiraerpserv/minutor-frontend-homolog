@@ -192,6 +192,7 @@ export default function UsersPage() {
   const [hdCompany, setHdCompany] = useState('')   // '' | id
   const [hdTeam, setHdTeam] = useState('')          // '' | id | 'none' (sem equipe)
   const [hdKind, setHdKind] = useState('')          // '' | 'agents' | 'clients'
+  const [hdDeptFilter, setHdDeptFilter] = useState('')  // '' | id | 'none' (sem departamento)
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
@@ -519,9 +520,34 @@ export default function UsersPage() {
       if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
       if (hdKind === 'clients' && u.type !== 'cliente') return false
       if (hdKind === 'agents' && !isAgentUser(u)) return false
+      if (hdDeptFilter === 'none' && u.helpdesk_department_id) return false
+      if (hdDeptFilter && hdDeptFilter !== 'none' && Number(u.helpdesk_department_id) !== Number(hdDeptFilter)) return false
       return true
     })
-  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdProfiles])
+  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdDeptFilter, hdProfiles])
+
+  // Opções do filtro de departamento: agrega os departamentos de todos os clientes carregados
+  // (id é único por depto). Se um Cliente estiver selecionado, restringe a ele (sem sufixo).
+  const deptFilterOptions = useMemo(() => {
+    const custName = new Map(customers.map(c => [Number(c.id), c.name]))
+    const selCust = filterRole === 'cliente' && filterCustomer ? Number(filterCustomer) : null
+    const out: { id: number | string; name: string }[] = []
+    const seen = new Set<number>()
+    Object.entries(deptsByCustomer).forEach(([cid, list]) => {
+      const cidN = Number(cid)
+      if (selCust && cidN !== selCust) return
+      list.forEach(d => {
+        if (seen.has(d.id)) return
+        seen.add(d.id)
+        out.push({ id: d.id, name: selCust ? d.name : `${d.name} · ${custName.get(cidN) ?? '—'}` })
+      })
+    })
+    out.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    return [{ id: 'none', name: '— Sem departamento —' }, ...out]
+  }, [deptsByCustomer, customers, filterRole, filterCustomer])
+
+  // Sem cliente filtrado, o filtro de departamento fica escondido → zera para não filtrar oculto.
+  useEffect(() => { if (!(filterRole === 'cliente' && filterCustomer)) setHdDeptFilter('') }, [filterRole, filterCustomer])
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -551,8 +577,13 @@ export default function UsersPage() {
             <option value="agents">Só agentes</option>
             <option value="clients">Só clientes</option>
           </select>
-          {(hdCompany || hdTeam || hdKind) && (
-            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind('') }}
+          {/* Departamento é por cliente → só habilita quando um Cliente está filtrado. */}
+          {filterRole === 'cliente' && filterCustomer && (
+            <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} placeholder="Departamento (todos)"
+              options={deptFilterOptions} />
+          )}
+          {(hdCompany || hdTeam || hdKind || hdDeptFilter) && (
+            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind(''); setHdDeptFilter('') }}
               className="text-xs px-2.5 h-8 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Limpar filtros HD</button>
           )}
           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
