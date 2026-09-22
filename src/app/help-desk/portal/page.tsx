@@ -252,6 +252,9 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   const [dateTo, setDateTo] = useState('')
   const [view, setView] = useState<'kanban' | 'lista'>('kanban') // visão do quadro
   const [cfg, setCfg] = useState<PortalColumn[]>(DEFAULT_COLUMNS) // colunas (config global do admin; default até carregar)
+  // Multi-empresa: quando o cliente pode abrir nas duas empresas, o portal separa em abas.
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
+  const [companyTab, setCompanyTab] = useState<number | null>(null)
   const { user } = useAuth()
   // Interno NÃO-agente usa o portal como o cliente (abre/acompanha os próprios chamados).
   const isAgent = user?.type === 'admin' || !!user?.is_helpdesk_agent
@@ -261,9 +264,16 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
   const { ordered: colOrder, headerProps } = useColumnOrder('portal', cfg.map(c => c.label))
   const load = useCallback(() => {
     setLoading(true)
-    api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
-  }, [])
+    const qs = companyTab ? `?company_id=${companyTab}` : ''
+    api.get<{ data: PortalTicket[] }>(`/help-desk/portal/tickets${qs}`).then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
+  }, [companyTab])
   useEffect(() => { load() }, [load])
+  // Empresas que o cliente pode abrir (abas). Se >1, seleciona a 1ª por padrão.
+  useEffect(() => {
+    api.get<{ data: { companies?: { id: number; name: string }[] } }>('/help-desk/portal/permissions')
+      .then(r => { const cs = r?.data?.companies ?? []; setCompanies(cs); if (cs.length > 1) setCompanyTab(cs[0].id) })
+      .catch(() => {})
+  }, [])
   // Config global das colunas (quais status entram em cada uma). Silencioso: mantém o default se falhar.
   useEffect(() => {
     api.get<{ data: PortalColumn[] }>('/help-desk/portal/columns').then(r => { if (r?.data?.length) setCfg(r.data) }).catch(() => {})
@@ -348,6 +358,19 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
 
   return (
     <div className="space-y-4">
+      {/* Abas por empresa (ERPSERV/BIZIFY) — só quando o cliente pode abrir em mais de uma. */}
+      {companies.length > 1 && (
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+          {companies.map(c => {
+            const active = companyTab === c.id
+            return (
+              <button key={c.id} onClick={() => setCompanyTab(c.id)}
+                className="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
+                style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{c.name}</button>
+            )
+          })}
+        </div>
+      )}
       {/* Faixa por coluna (clicável) + contador único que muda conforme o filtro */}
       {rows.length > 0 && <KanbanStats columns={statColumns} total={filteredRows.length} activeColumn={fCol} onColumnClick={(l) => setFCol(prev => prev === l ? '' : l)} />}
 
@@ -504,7 +527,7 @@ function Chamados({ novo, setNovo }: { novo: boolean; setNovo: (v: boolean) => v
           </table>
         </div>
       )}
-      {novo && <AbrirChamadoModal onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); load(); setSel(id) }} />}
+      {novo && <AbrirChamadoModal companyId={companyTab} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); load(); setSel(id) }} />}
     </div>
   )
 }

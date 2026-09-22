@@ -26,7 +26,7 @@ function htmlIsBlank(html: string): boolean {
 
 /** Modal de abertura de chamado do cliente — reusável (portal e faixa "Precisa de ajuda?").
  *  Descrição com editor rico: COLAR PRINT entra inline no texto; anexos vão pelo próprio editor. */
-export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
+export function AbrirChamadoModal({ onClose, onCreated, companyId }: { onClose: () => void; onCreated: (id: number) => void; companyId?: number | null }) {
   const [subject, setSubject] = useState('')
   const [priority, setPriority] = useState('normal')
   const [categoryId, setCategoryId] = useState('')
@@ -53,9 +53,11 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   const [created, setCreated] = useState<{ id: number; numero: string | null } | null>(null)
   const descRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
-    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: string; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>('/help-desk/portal/permissions')
+    // Escopa categorias/serviços/tags à empresa da aba selecionada (multi-empresa).
+    const qs = companyId ? `?company_id=${companyId}` : ''
+    api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: string; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>(`/help-desk/portal/permissions${qs}`)
       .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []); setKbEnabled(!!d?.kb_suggestions); setOnBehalf(!!d?.open_on_behalf); setContacts(d?.contacts ?? []); setTagOptions(d?.tags ?? []) }).catch(() => {})
-  }, [])
+  }, [companyId])
   // Sugestão de artigos da KB conforme o cliente digita o assunto (só se o perfil permitir).
   useEffect(() => {
     if (!kbEnabled || subject.trim().length < 3) { setKbResults([]); return }
@@ -75,7 +77,7 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
       const cc = [...ccEmails]
       const pend = ccInput.trim().replace(/[;,]$/, '')
       if (pend && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pend) && !cc.includes(pend)) cc.push(pend)
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags, cc_emails: cc })
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags, cc_emails: cc, company_id: companyId ?? null })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
