@@ -752,6 +752,7 @@ export default function UsersPage() {
               )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Departamento</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Equipe(s)</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>}
@@ -826,22 +827,31 @@ export default function UsersPage() {
                     // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
                     const kind = user.type === 'cliente' ? 'cliente' : 'agent'
                     const opts = hdProfiles.filter(p => p.kind === kind)
-                    const depts = user.type === 'cliente' && user.customer_id ? (deptsByCustomer[user.customer_id] ?? []) : []
                     const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]'
                     return (
-                      <div className="flex flex-col gap-1">
-                        <select value={user.helpdesk_access_profile_id ?? ''} onChange={e => setHdProfile(user, e.target.value)} className={selCls}
-                          title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}>
-                          <option value="">Sem perfil</option>
-                          {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        {depts.length > 0 && (
-                          <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title="Departamento (Help Desk)">
-                            <option value="">Sem departamento</option>
-                            {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                          </select>
-                        )}
-                      </div>
+                      <select value={user.helpdesk_access_profile_id ?? ''} onChange={e => setHdProfile(user, e.target.value)} className={selCls}
+                        title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}>
+                        <option value="">Sem perfil</option>
+                        {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    )
+                  })()}
+                </td>
+                )}
+                {hdMode && (
+                <td className="px-3 py-2.5">
+                  {(() => {
+                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[180px]'
+                    // Departamento só para CLIENTE vinculado a uma empresa (customer) — usa os departamentos daquele cliente.
+                    if (user.type !== 'cliente') return <span className="text-[10px] text-[var(--text-muted)]" title="Departamento é só para usuário cliente">—</span>
+                    if (!user.customer_id) return <span className="text-[10px] text-[var(--text-muted)]" title="Vincule o cliente a uma empresa primeiro">—</span>
+                    const depts = deptsByCustomer[user.customer_id] ?? []
+                    if (depts.length === 0) return <span className="text-[10px] text-[var(--text-light)]">Empresa sem departamentos</span>
+                    return (
+                      <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title="Departamento do Help Desk">
+                        <option value="">Sem departamento</option>
+                        {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
                     )
                   })()}
                 </td>
