@@ -722,8 +722,8 @@ export default function UsersPage() {
       )}
 
       {/* Tabela */}
-      <div className="rounded-lg border border-[var(--border)] overflow-clip">
-        <table className="w-full text-xs">
+      <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
+        <table className={`w-full text-xs ${hdMode ? 'min-w-[1100px]' : ''}`}>
           <thead className="sticky top-0 z-10 bg-[var(--surface)]">
             <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               {canResetPwd && (
@@ -841,14 +841,14 @@ export default function UsersPage() {
                 {hdMode && (
                 <td className="px-3 py-2.5">
                   {(() => {
-                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[180px]'
+                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] min-w-[220px]'
                     // Departamento só para CLIENTE vinculado a uma empresa (customer) — usa os departamentos daquele cliente.
                     if (user.type !== 'cliente') return <span className="text-[10px] text-[var(--text-muted)]" title="Departamento é só para usuário cliente">—</span>
                     if (!user.customer_id) return <span className="text-[10px] text-[var(--text-muted)]" title="Vincule o cliente a uma empresa primeiro">—</span>
                     const depts = deptsByCustomer[user.customer_id] ?? []
                     if (depts.length === 0) return <span className="text-[10px] text-[var(--text-light)]">Empresa sem departamentos</span>
                     return (
-                      <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title="Departamento do Help Desk">
+                      <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title={depts.find(d => d.id === user.helpdesk_department_id)?.name || 'Departamento do Help Desk'}>
                         <option value="">Sem departamento</option>
                         {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
