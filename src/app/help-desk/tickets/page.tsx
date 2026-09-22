@@ -58,6 +58,8 @@ function Pill({ text, color, bg }: { text: string; color: string; bg: string }) 
 export default function HelpDeskTicketsPage() {
   const router = useRouter()
   const { user } = useAuth()
+  // Cliente não acessa a lista de chamados do agente — vai para o Portal.
+  useEffect(() => { if (user?.type === 'cliente') router.replace('/help-desk/portal') }, [user?.type, router])
   const [rows, setRows] = useState<TicketRow[]>([])
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState<Meta | null>(null)

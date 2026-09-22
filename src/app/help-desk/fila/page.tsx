@@ -133,6 +133,8 @@ function cacheFila(qs: string, d: TicketRow[]) { filaCache.set(qs, d); if (filaC
 export default function HelpDeskFilaPage() {
   const router = useRouter()
   const { user } = useAuth()
+  // Cliente não acessa a fila do agente — vai para o Portal (Central de Atendimento).
+  useEffect(() => { if (user?.type === 'cliente') router.replace('/help-desk/portal') }, [user?.type, router])
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
   const [teams, setTeams] = useState<Ref[]>([])
   const [local, setLocal] = useState<TicketRow[]>([])
