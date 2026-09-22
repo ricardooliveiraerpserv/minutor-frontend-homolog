@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { HelpCircle } from 'lucide-react'
 import { NovoChamadoModal, type NovoChamadoMeta } from './novo-chamado-modal'
+import { AbrirChamadoModal } from './abrir-chamado-modal'
 
 interface Ref { id: number; name: string }
 
 /**
  * Aba flutuante GLOBAL "Preciso de ajuda?" — fixa na borda direita (parte de baixo),
- * presente em todas as telas. Ao clicar, abre o formulário de abertura de chamado num
- * painel lateral (drawer) deslizando da direita. Carrega meta/clientes sob demanda.
+ * presente em todas as telas. Ao clicar, abre a abertura de chamado num painel lateral.
+ * Interno (agente) → NovoChamadoModal. Cliente → AbrirChamadoModal (fluxo do portal),
+ * com seletor de empresa quando o cliente pode abrir em mais de uma (ERPSERV/BIZIFY).
  */
 export function HelpFloatingTab() {
   const { user } = useAuth()
@@ -20,12 +22,22 @@ export function HelpFloatingTab() {
   const [open, setOpen] = useState(false)
   const [meta, setMeta] = useState<NovoChamadoMeta | null>(null)
   const [customers, setCustomers] = useState<Ref[]>([])
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
 
-  // Só para usuários internos (o formulário é a abertura de chamado do agente).
-  if (!user || user.type === 'cliente') return null
+  const isCliente = user?.type === 'cliente'
+
+  // Cliente: carrega as empresas permitidas (para o seletor de empresa do chamado).
+  useEffect(() => {
+    if (!isCliente) return
+    api.get<{ data: { companies?: { id: number; name: string }[] } }>('/help-desk/portal/permissions')
+      .then(r => setCompanies(r?.data?.companies ?? [])).catch(() => {})
+  }, [isCliente])
+
+  if (!user) return null
 
   const abrir = () => {
     setOpen(true)
+    if (isCliente) return // cliente usa AbrirChamadoModal (carrega permissions sozinho)
     if (!meta) {
       api.get<{ data: NovoChamadoMeta }>('/help-desk/meta').then(r => { if (r?.data) setMeta(r.data) }).catch(() => {})
     }
@@ -52,7 +64,13 @@ export function HelpFloatingTab() {
         <span className="text-sm font-semibold tracking-wide" style={{ writingMode: 'vertical-rl' }}>Preciso de ajuda?</span>
       </button>
 
-      {open && (
+      {open && (isCliente ? (
+        <AbrirChamadoModal
+          companies={companies}
+          onClose={() => setOpen(false)}
+          onCreated={(id) => { setOpen(false); router.push(`/help-desk/portal?ticket=${id}`) }}
+        />
+      ) : (
         <NovoChamadoModal
           meta={meta}
           customers={customers}
@@ -61,7 +79,7 @@ export function HelpFloatingTab() {
           onClose={() => setOpen(false)}
           onCreated={(id) => { setOpen(false); router.push(`/help-desk/tickets/${id}`) }}
         />
-      )}
+      ))}
     </>
   )
 }

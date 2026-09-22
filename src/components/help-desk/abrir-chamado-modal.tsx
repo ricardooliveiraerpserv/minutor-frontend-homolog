@@ -26,7 +26,11 @@ function htmlIsBlank(html: string): boolean {
 
 /** Modal de abertura de chamado do cliente — reusável (portal e faixa "Precisa de ajuda?").
  *  Descrição com editor rico: COLAR PRINT entra inline no texto; anexos vão pelo próprio editor. */
-export function AbrirChamadoModal({ onClose, onCreated, companyId }: { onClose: () => void; onCreated: (id: number) => void; companyId?: number | null }) {
+export function AbrirChamadoModal({ onClose, onCreated, companyId, companies }: { onClose: () => void; onCreated: (id: number) => void; companyId?: number | null; companies?: { id: number; name: string }[] }) {
+  // Quando não vem uma empresa fixa (ex.: aba do portal) e o cliente pode abrir em >1 empresa,
+  // deixa o usuário escolher a empresa do chamado aqui.
+  const [selCompany, setSelCompany] = useState<number | null>(companyId ?? (companies && companies.length ? companies[0].id : null))
+  const effectiveCompany = companyId ?? selCompany
   const [subject, setSubject] = useState('')
   const [priority, setPriority] = useState('normal')
   const [categoryId, setCategoryId] = useState('')
@@ -54,10 +58,10 @@ export function AbrirChamadoModal({ onClose, onCreated, companyId }: { onClose: 
   const descRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
     // Escopa categorias/serviços/tags à empresa da aba selecionada (multi-empresa).
-    const qs = companyId ? `?company_id=${companyId}` : ''
+    const qs = effectiveCompany ? `?company_id=${effectiveCompany}` : ''
     api.get<{ data: { inform?: Record<string, boolean>; categories?: { id: number; name: string }[]; services?: { id: number; name: string }[]; kb_suggestions?: boolean; open_on_behalf?: boolean; contacts?: { id: string; name: string; email?: string }[]; tags?: { id: number; name: string; color?: string | null }[] } }>(`/help-desk/portal/permissions${qs}`)
       .then(r => { const d = r?.data; if (d?.inform) setInform(d.inform); setCategories(d?.categories ?? []); setServices(d?.services ?? []); setKbEnabled(!!d?.kb_suggestions); setOnBehalf(!!d?.open_on_behalf); setContacts(d?.contacts ?? []); setTagOptions(d?.tags ?? []) }).catch(() => {})
-  }, [companyId])
+  }, [effectiveCompany])
   // Sugestão de artigos da KB conforme o cliente digita o assunto (só se o perfil permitir).
   useEffect(() => {
     if (!kbEnabled || subject.trim().length < 3) { setKbResults([]); return }
@@ -77,7 +81,7 @@ export function AbrirChamadoModal({ onClose, onCreated, companyId }: { onClose: 
       const cc = [...ccEmails]
       const pend = ccInput.trim().replace(/[;,]$/, '')
       if (pend && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pend) && !cc.includes(pend)) cc.push(pend)
-      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags, cc_emails: cc, company_id: companyId ?? null })
+      const r = await api.post<{ data: { id: number; numero: string | null } }>('/help-desk/portal/tickets', { subject: subject.trim(), description: htmlIsBlank(html) ? null : html, priority, category_id: categoryId ? Number(categoryId) : null, service_id: serviceId ? Number(serviceId) : null, on_behalf: contactId || null, tags: selectedTags, cc_emails: cc, company_id: effectiveCompany ?? null })
       const id = r.data.id
       for (const f of descFiles) {
         try { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd) }
@@ -108,6 +112,14 @@ export function AbrirChamadoModal({ onClose, onCreated, companyId }: { onClose: 
     <div className="fixed inset-0 z-[80] flex items-start justify-center pt-10 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
       <div className="ds-card w-full max-w-4xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between"><h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Abrir chamado</h2><button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button></div>
+        {/* Empresa do chamado — só quando não veio fixa (aba) e o cliente pode abrir em mais de uma. */}
+        {companyId == null && companies && companies.length > 1 && (
+          <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa *</label>
+            <select className={`${fieldCls} w-full`} style={inputStyle} value={selCompany ?? ''} onChange={e => setSelCompany(e.target.value ? Number(e.target.value) : null)}>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus /></div>
         {/* Sugestão de artigos da Base de Conhecimento (se o perfil permitir). */}
         {kbEnabled && kbResults.length > 0 && (
