@@ -583,6 +583,9 @@ const isHelpDeskAgent = (u?: User | null): boolean =>
 
 function screenConditionAllows(href: string, user?: User | null): boolean {
   const base = href.split('?')[0]
+  // Tela "Pessoas" do Help Desk descontinuada (gestão migrou p/ cadastro de usuários e membros
+  // por departamento). Esconde SEMPRE, mesmo que o nó ainda exista na árvore do Configurador.
+  if (base === '/help-desk/configuracoes' && href.includes('tab=pessoas')) return false
   // /help-desk/portal é a via do CLIENTE (abrir chamado), não do agente — sem condição.
   if (base === '/help-desk/portal' || base.startsWith('/help-desk/portal/')) return true
   if (base === '/help-desk' || base.startsWith('/help-desk/')) return isHelpDeskAgent(user)
