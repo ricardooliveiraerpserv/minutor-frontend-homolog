@@ -781,22 +781,21 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-wrap gap-1">
-                      {companies.length === 0 && <span className="text-[10px] text-[var(--text-muted)]">—</span>}
-                      {companies.map(c => {
-                        const on = (user.company_ids ?? []).includes(c.id)
-                        return (
-                          <button key={c.id} type="button" title={`${on ? 'Desvincular de' : 'Vincular a'} ${c.name}`}
-                            onClick={() => setUserCompanies(user, on ? (user.company_ids ?? []).filter(x => x !== c.id) : [...(user.company_ids ?? []), c.id])}
-                            className="text-[10px] font-semibold rounded-full px-2 py-0.5 border transition cursor-pointer"
-                            style={on
-                              ? { background: 'var(--primary)', color: 'var(--primary-fg)', borderColor: 'var(--primary)' }
-                              : { background: 'transparent', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-                            {c.name}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {companies.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]">—</span> : (() => {
+                      const allIds = companies.map(c => c.id)
+                      const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
+                      const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
+                      return (
+                        <select value={val}
+                          onChange={e => { const v = e.target.value; setUserCompanies(user, v === 'ambos' ? allIds : (v ? [Number(v)] : [])) }}
+                          className="text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[150px]"
+                          title="Empresa(s) do grupo vinculada(s)">
+                          <option value="">— nenhuma —</option>
+                          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {companies.length >= 2 && <option value="ambos">Ambos</option>}
+                        </select>
+                      )
+                    })()}
                   </td>
                 )}
                 {!hdMode && (
