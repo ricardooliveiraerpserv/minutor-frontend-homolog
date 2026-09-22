@@ -848,7 +848,7 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    {user.type === 'cliente' || companies.length === 0 || !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title={user.type === 'cliente' ? 'Cliente pertence a um cliente externo, não às empresas do grupo' : !user.helpdesk_access_profile_id ? 'Defina o Perfil HD primeiro' : undefined}>—</span> : (() => {
+                    {companies.length === 0 || !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title={!user.helpdesk_access_profile_id ? 'Defina o Perfil HD primeiro' : undefined}>—</span> : (() => {
                       const allIds = companies.map(c => c.id)
                       const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
                       const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
