@@ -936,11 +936,11 @@ function TicketDetailInner({ id }: { id: number }) {
           </div>
           <div className="flex items-center gap-2">
             {/* Olho: quem está visualizando o chamado agora — só se o perfil de acesso permitir a colisão. */}
-            {t.can_see_collision !== false && (
+            {(t.can_see_collision !== false || user?.type === 'admin') && (
             <span
               title={viewers.length ? `Visualizando agora: ${viewers.map(v => `${v.name} (${v.type === 'cliente' ? 'cliente' : v.type === 'consultor' ? 'consultor' : v.type === 'coordenador' ? 'coordenador' : v.type === 'admin' ? 'admin' : v.type === 'parceiro_admin' ? 'parceiro' : 'agente'})`).join(', ')}` : 'Ninguém mais está visualizando este chamado'}
               className="inline-flex items-center gap-1 text-sm px-2.5 py-2 rounded-lg"
-              style={{ border: '1px solid var(--border)', cursor: 'default', background: viewers.length ? 'rgba(34,197,94,0.12)' : 'var(--surface-sunken)', color: viewers.length ? 'var(--success)' : 'var(--text-light)' }}
+              style={{ border: `1px solid ${viewers.length ? 'var(--warning-border)' : 'var(--border)'}`, cursor: 'default', background: viewers.length ? 'var(--warning-bg)' : 'var(--surface-sunken)', color: viewers.length ? 'var(--warning-border)' : 'var(--text-light)' }}
             >
               <Eye size={16} />
               {viewers.length > 0 && <span className="text-xs font-semibold">{viewers.length}</span>}
