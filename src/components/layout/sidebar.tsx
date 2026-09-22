@@ -1082,6 +1082,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     if (isInternalNonAgent && !builtHrefs.has('/help-desk/portal') && !home.some(e => e.type === 'item' && 'href' in e && e.href === '/help-desk/portal')) {
       built.push({ type: 'item', label: 'Chamados', href: '/help-desk/portal', icon: Headphones })
     }
+    // "Departamentos" existe como aba de Configurações Help Desk, mas a árvore do Configurador
+    // não o modela — injeta no grupo de config (logo após "Perfis de Acesso") se ainda faltar.
+    if (!builtHrefs.has('/help-desk/configuracoes?tab=departamentos')) {
+      const cfgGroup = built.find(e => e.type === 'group' && e.items.some(it => 'href' in it && it.href === '/help-desk/configuracoes?tab=perfis'))
+      if (cfgGroup && cfgGroup.type === 'group') {
+        const idx = cfgGroup.items.findIndex(it => 'href' in it && it.href === '/help-desk/configuracoes?tab=perfis')
+        cfgGroup.items.splice(idx + 1, 0, { label: 'Departamentos', href: '/help-desk/configuracoes?tab=departamentos', icon: Building2 })
+      }
+    }
     return withProcessos([...home, ...built])
   }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, user?.is_helpdesk_agent, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo, canAccessProsight])
 
