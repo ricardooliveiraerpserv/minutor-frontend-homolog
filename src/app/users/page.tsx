@@ -541,25 +541,18 @@ export default function UsersPage() {
   // Opções do filtro de departamento: agrega os departamentos de todos os clientes carregados
   // (id é único por depto). Se um Cliente estiver selecionado, restringe a ele (sem sufixo).
   const deptFilterOptions = useMemo(() => {
-    const custName = new Map(customers.map(c => [Number(c.id), c.name]))
+    // Só lista departamentos quando um CLIENTE específico está selecionado (departamento é por cliente).
     const selCust = filterRole === 'cliente' && filterCustomer ? Number(filterCustomer) : null
+    if (!selCust) return []
     const out: { id: number | string; name: string }[] = []
-    const seen = new Set<number>()
-    Object.entries(deptsByCustomer).forEach(([cid, list]) => {
-      const cidN = Number(cid)
-      if (selCust && cidN !== selCust) return
-      list.forEach(d => {
-        if (seen.has(d.id)) return
-        seen.add(d.id)
-        out.push({ id: d.id, name: selCust ? d.name : `${d.name} · ${custName.get(cidN) ?? '—'}` })
-      })
-    })
+    ;(deptsByCustomer[selCust] ?? []).forEach(d => out.push({ id: d.id, name: d.name }))
     out.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     return [{ id: 'none', name: '— Sem departamento —' }, ...out]
-  }, [deptsByCustomer, customers, filterRole, filterCustomer])
+  }, [deptsByCustomer, filterRole, filterCustomer])
+  const deptFilterEnabled = filterRole === 'cliente' && !!filterCustomer
 
-  // Sem cliente filtrado, o filtro de departamento fica escondido → zera para não filtrar oculto.
-  useEffect(() => { if (filterRole !== 'cliente') setHdDeptFilter('') }, [filterRole])
+  // Sem CLIENTE específico selecionado o departamento não se aplica → zera para não filtrar oculto.
+  useEffect(() => { if (!(filterRole === 'cliente' && filterCustomer)) setHdDeptFilter('') }, [filterRole, filterCustomer])
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -590,7 +583,8 @@ export default function UsersPage() {
           )}
           {/* Departamento é por cliente → aparece quando a aba Cliente está ativa. */}
           {filterRole === 'cliente' && (
-            <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} placeholder="Departamento (todos)"
+            <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} disabled={!deptFilterEnabled}
+              placeholder={deptFilterEnabled ? 'Departamento (todos)' : 'Departamento (selecione o cliente)'}
               options={deptFilterOptions} />
           )}
           <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
