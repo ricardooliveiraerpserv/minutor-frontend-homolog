@@ -192,6 +192,7 @@ export default function UsersPage() {
   const [hdCompany, setHdCompany] = useState('')   // '' | id
   const [hdTeam, setHdTeam] = useState('')          // '' | id | 'none' (sem equipe)
   const [hdKind, setHdKind] = useState('')          // '' | 'agents' | 'clients'
+  const [hdManual, setHdManual] = useState('')      // '' | 'yes' | 'no' (aponta manual em sustentação)
   const [hdDeptFilter, setHdDeptFilter] = useState('')  // '' | id | 'none' (sem departamento)
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
@@ -529,11 +530,13 @@ export default function UsersPage() {
       if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
       if (hdKind === 'clients' && u.type !== 'cliente') return false
       if (hdKind === 'agents' && !isAgentUser(u)) return false
+      if (hdManual === 'yes' && !(u.type !== 'cliente' && u.can_timesheet_sustentacao)) return false
+      if (hdManual === 'no' && !(u.type !== 'cliente' && !u.can_timesheet_sustentacao)) return false
       if (hdDeptFilter === 'none' && u.helpdesk_department_id) return false
       if (hdDeptFilter && hdDeptFilter !== 'none' && Number(u.helpdesk_department_id) !== Number(hdDeptFilter)) return false
       return true
     })
-  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdDeptFilter, hdProfiles])
+  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdManual, hdDeptFilter, hdProfiles])
 
   // Opções do filtro de departamento: agrega os departamentos de todos os clientes carregados
   // (id é único por depto). Se um Cliente estiver selecionado, restringe a ele (sem sufixo).
@@ -586,13 +589,19 @@ export default function UsersPage() {
             <option value="agents">Só agentes</option>
             <option value="clients">Só clientes</option>
           </select>
+          <select value={hdManual} onChange={e => setHdManual(e.target.value)} title="Filtrar por 'Apontar manual' em sustentação"
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            <option value="">Apontar manual (todos)</option>
+            <option value="yes">Aponta manual: Sim</option>
+            <option value="no">Aponta manual: Não</option>
+          </select>
           {/* Departamento é por cliente → só habilita quando um Cliente está filtrado. */}
           {filterRole === 'cliente' && filterCustomer && (
             <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} placeholder="Departamento (todos)"
               options={deptFilterOptions} />
           )}
-          {(hdCompany || hdTeam || hdKind || hdDeptFilter) && (
-            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind(''); setHdDeptFilter('') }}
+          {(hdCompany || hdTeam || hdKind || hdManual || hdDeptFilter) && (
+            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind(''); setHdManual(''); setHdDeptFilter('') }}
               className="text-xs px-2.5 h-8 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Limpar filtros HD</button>
           )}
           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
