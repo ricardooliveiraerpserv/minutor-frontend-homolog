@@ -35,6 +35,7 @@ interface UserData {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  company_ids?: number[]
   allowed_modules?: string[] | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
@@ -354,6 +355,8 @@ const EMPTY_FORM = {
   is_partner_consultor: false,
   is_partner_adm: false,
   customer_id: '' as number | '',
+  // Empresas do grupo (ERPSERV/BIZIFY) vinculadas — define as abas do portal (cliente) / fila (agente).
+  company_ids: [] as number[],
   // Acesso a módulos do cliente. null = todos (legado); [] ou lista = recorte explícito.
   allowed_modules: null as string[] | null,
   partner_id: '' as number | '',
@@ -408,18 +411,28 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   // Perfis de acesso do Help Desk (por kind) — seletor no formulário.
-  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente'; is_default: boolean }[]>([])
   const [hdTeams, setHdTeams] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
     if (!open) return
-    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
-      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
+    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean; is_default?: boolean }[] }>('/help-desk/access-profiles?all=1')
+      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind, is_default: !!p.is_default }))))
       .catch(() => {})
     api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1')
       .then(r => setHdTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name }))))
       .catch(() => {})
   }, [open])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
+  // CLIENTE é OBRIGATÓRIO ter perfil HD → assim que os perfis carregam (ou ao abrir com cliente
+  // já selecionado), garante o perfil-padrão de cliente selecionado se estiver vazio.
+  useEffect(() => {
+    if (!open || hdProfiles.length === 0) return
+    setForm(f => {
+      if (!f.profiles.includes('cliente') || f.helpdesk_access_profile_id !== '') return f
+      const def = hdProfiles.find(hp => hp.kind === 'cliente' && hp.is_default) ?? hdProfiles.find(hp => hp.kind === 'cliente')
+      return def ? { ...f, helpdesk_access_profile_id: def.id } : f
+    })
+  }, [open, hdProfiles])
   // Usuário em edição (prefill) — equivale a `modal.item` da página de Usuários.
   const [editItem, setEditItem] = useState<UserData | null>(null)
   const [loadingItem, setLoadingItem] = useState(false)
@@ -513,6 +526,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           is_partner_consultor: false,
           is_partner_adm:       item.is_executive ?? false,
           customer_id:          item.customer_id ?? '',
+          company_ids:          item.company_ids ?? [],
           allowed_modules:      (item.allowed_modules ?? null) as string[] | null,
           partner_id:           item.partner_id  ?? '',
           extra_permissions:          item.extra_permissions ?? [],
@@ -572,6 +586,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
     // Agente de Help Desk (não-cliente com perfil de acesso) precisa de ao menos uma equipe.
     const isAgentProfile = !form.profiles.includes('cliente') && form.helpdesk_access_profile_id !== ''
     if (isAgentProfile && form.helpdesk_team_ids.length === 0) { toast.error('Selecione ao menos uma equipe de Help Desk para o agente.'); return }
+
+    // CLIENTE: perfil HD e empresa(s) do grupo (ERPSERV/BIZIFY) são OBRIGATÓRIOS.
+    if (form.profiles.includes('cliente')) {
+      if (form.helpdesk_access_profile_id === '') { toast.error('Selecione o Perfil de acesso do Help Desk do cliente.'); return }
+      if (form.company_ids.length === 0) { toast.error('Selecione ao menos uma empresa (ERPSERV / BIZIFY) para o cliente.'); return }
+    }
 
     const needsPartnerField = form.profiles.includes('parceiro_adm')
 
@@ -688,6 +708,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           })
         } catch { /* não bloqueia o cadastro principal */ }
       }
+      // Empresas do grupo (ERPSERV/BIZIFY): sincroniza p/ cliente (portal) — mesmo endpoint da aba HD.
+      if (savedUserId && form.profiles.includes('cliente')) {
+        try {
+          await api.patch(`/help-desk/people/${savedUserId}/companies`, { company_ids: form.company_ids })
+        } catch { /* não bloqueia o cadastro principal */ }
+      }
       onSaved()
       onClose()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
@@ -764,9 +790,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         allowed_modules:  profiles.includes('cliente')      ? f.allowed_modules : null,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
         // Perfil HD só continua se o KIND continuar compatível (cliente↔cliente, agente↔agente).
+        // CLIENTE é OBRIGATÓRIO → se ficar sem perfil compatível, cai no padrão de cliente.
         helpdesk_access_profile_id: (() => {
+          const isCli = profiles.includes('cliente')
           const cur = hdProfiles.find(hp => hp.id === f.helpdesk_access_profile_id)
-          return cur && (cur.kind === 'cliente') === profiles.includes('cliente') ? f.helpdesk_access_profile_id : ''
+          if (cur && (cur.kind === 'cliente') === isCli) return f.helpdesk_access_profile_id
+          if (isCli) return (hdProfiles.find(hp => hp.kind === 'cliente' && hp.is_default) ?? hdProfiles.find(hp => hp.kind === 'cliente'))?.id ?? ''
+          return ''
         })(),
       }
     })
@@ -826,14 +856,15 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           const opts = hdProfiles.filter(p => (p.kind === 'cliente') === isCli)
           return (
             <div>
-              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Perfil de acesso do Help Desk</Label>
+              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Perfil de acesso do Help Desk{isCli ? <span style={{ color: 'var(--danger-border)' }}> *</span> : ''}</Label>
               <select value={form.helpdesk_access_profile_id === '' ? '' : String(form.helpdesk_access_profile_id)}
                 onChange={e => setForm(f => ({ ...f, helpdesk_access_profile_id: e.target.value ? Number(e.target.value) : '' }))}
                 className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] h-9 text-xs rounded-lg px-2 outline-none focus:border-[var(--border-strong)]">
-                <option value="">Sem perfil</option>
+                {/* CLIENTE é obrigatório → sem opção "Sem perfil". */}
+                {!isCli && <option value="">Sem perfil</option>}
                 {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <p className="text-[10px] text-[var(--text-light)] mt-1">{isCli ? 'Perfis de CLIENTE' : 'Perfis de AGENTE'} — só perfis compatíveis com o tipo do usuário.</p>
+              <p className="text-[10px] text-[var(--text-light)] mt-1">{isCli ? 'Perfis de CLIENTE (obrigatório) — todo cliente entra com um perfil do Help Desk.' : 'Perfis de AGENTE — só perfis compatíveis com o tipo do usuário.'}</p>
               {!isCli && (
                 <div className="mt-3">
                   <Label className="text-xs text-[var(--text-muted)] mb-1 block">
@@ -1053,6 +1084,30 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 placeholder="Selecione a empresa..."
               />
             )}
+
+            {/* ── Cliente: empresa(s) do grupo ERPSERV/BIZIFY — define as abas do portal (OBRIGATÓRIO) ── */}
+            {isCliente && companies.length > 0 && (() => {
+              const ordered = [...companies].sort((a, b) => (/erpserv/i.test(b.name) ? 1 : 0) - (/erpserv/i.test(a.name) ? 1 : 0))
+              const toggle = (id: number) => setForm(f => ({ ...f, company_ids: f.company_ids.includes(id) ? f.company_ids.filter(x => x !== id) : [...f.company_ids, id] }))
+              return (
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">Empresas (ERPSERV / BIZIFY)<span style={{ color: 'var(--danger-border)' }}> *</span></Label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {ordered.map(c => {
+                      const sel = form.company_ids.includes(c.id)
+                      return (
+                        <button key={c.id} type="button" onClick={() => toggle(c.id)}
+                          className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                          style={{ borderColor: sel ? 'var(--primary)' : 'var(--border)', background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)', color: sel ? 'var(--primary)' : 'var(--text-muted)' }}>
+                          {sel ? '✓ ' : ''}{c.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[10px] text-[var(--text-light)] mt-1">Define em quais empresas (abas do portal) o cliente abre e acompanha chamados. Escolha ao menos uma.</p>
+                </div>
+              )
+            })()}
 
             {/* ── Cliente: o que o usuário acessa (Projetos / Help Desk) ── */}
             {isCliente && (() => {
