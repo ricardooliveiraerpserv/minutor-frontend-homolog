@@ -15,7 +15,7 @@ interface Settings {
   smtp_auth?: boolean; smtp_use_incoming_auth?: boolean; send_single?: boolean; show_in_ticket_sender?: boolean
 }
 interface Account {
-  id: number; name: string; email: string; brand: string | null; provider: string; enabled: boolean; receive_enabled: boolean
+  id: number; name: string; email: string; brand: string | null; provider: string; enabled: boolean; receive_enabled: boolean; company_id: number | null
   protocol: string; host: string | null; port: number | null; encryption: string; username: string | null; inbox: string
   smtp_host: string | null; smtp_port: number | null; smtp_encryption: string | null
   default_team_id: number | null; settings: Settings | null; has_password: boolean; connection_status: string
@@ -95,6 +95,9 @@ function EmailAccountForm({ account, onBack, onSaved }: { account: Account | 'ne
   const a = account === 'new' ? null : account
   const [tab, setTab] = useState<'principal' | 'recebimento' | 'envio'>('principal')
   const [name, setName] = useState(a?.name ?? ''); const [email, setEmail] = useState(a?.email ?? ''); const [brand, setBrand] = useState(a?.brand ?? '')
+  const [companyId, setCompanyId] = useState(a?.company_id ? String(a.company_id) : '')
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => { api.get<{ data: { id: number; name: string }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {}) }, [])
   const [enabled, setEnabled] = useState(a?.enabled ?? true)
   const [provider, setProvider] = useState(a?.provider ?? 'imap')
   const [receive, setReceive] = useState(a?.receive_enabled ?? true)
@@ -110,7 +113,7 @@ function EmailAccountForm({ account, onBack, onSaved }: { account: Account | 'ne
     if (!name.trim() || !email.trim()) { toast.error('Informe nome e e-mail.'); return null }
     setSaving(true)
     const body: Record<string, unknown> = {
-      name: name.trim(), email: email.trim(), brand: brand.trim() || null, provider, enabled, receive_enabled: receive,
+      name: name.trim(), email: email.trim(), brand: brand.trim() || null, company_id: companyId ? Number(companyId) : null, provider, enabled, receive_enabled: receive,
       protocol, host: host.trim() || null, port: port ? Number(port) : null, encryption: enc, username: username.trim() || null, inbox: inbox.trim() || 'INBOX',
       smtp_host: smtpHost.trim() || null, smtp_port: smtpPort ? Number(smtpPort) : null, smtp_encryption: smtpEnc, settings: s,
     }
@@ -158,6 +161,13 @@ function EmailAccountForm({ account, onBack, onSaved }: { account: Account | 'ne
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-full`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Endereço de e-mail</label><input className={`${fieldCls} w-full`} style={inputStyle} value={email} onChange={e => setEmail(e.target.value)} /></div>
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Marca (remetente)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={brand} onChange={e => setBrand(e.target.value)} /></div>
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa do grupo</label>
+              <select className={`${fieldCls} w-full`} style={inputStyle} value={companyId} onChange={e => setCompanyId(e.target.value)}>
+                <option value="">— nenhuma —</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Chamados recebidos nesta caixa nascem nesta empresa (ex.: caixa exclusiva da BIZIFY).</p>
+            </div>
           </div>
           <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text)' }}>
             <label className="flex items-center gap-1.5"><input type="radio" checked={enabled} onChange={() => setEnabled(true)} /> Habilitado</label>
