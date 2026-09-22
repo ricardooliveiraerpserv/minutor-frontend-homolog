@@ -63,9 +63,6 @@ const SCHEMA: Record<Kind, Tab[]> = {
       ] },
     ] },
     { id: 'policies', label: 'Políticas de acesso', sections: [
-      { title: 'Empresas', controls: [
-        { key: 'policies.companies', label: 'Empresas que atende', type: 'companies', hint: 'Define quais empresas do grupo o agente atende. Com 1 empresa vê só a fila dela; com 2+ vê tudo unificado (com selo por empresa) e pode ser atribuído como responsável em qualquer uma delas.' },
-      ] },
       { controls: [
         { key: 'policies.all_catalog', label: 'Acesso a todos os itens do catálogo de serviços', type: 'toggle' },
         { key: 'policies.can_be_assignee', label: 'Pode ser atribuído como responsável', type: 'toggle' },
@@ -149,22 +146,9 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) =
 export function AccessProfiles() {
   const [rows, setRows] = useState<AccessProfile[]>([])
   const [editing, setEditing] = useState<AccessProfile | 'new' | null>(null)
-  const [companies, setCompanies] = useState<{ id: number; name: string; color?: string | null }[]>([])
   const load = useCallback(() => { api.get<{ data: AccessProfile[] }>('/help-desk/access-profiles?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
-  useEffect(() => { api.get<{ data: { id: number; name: string; color?: string | null }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {}) }, [])
 
-  // Coluna "Empresas": empresas que o perfil ATENDE (policies.companies). 2+ = Ambos.
-  const renderCompanies = (p: AccessProfile) => {
-    const raw = p.permissions && (p.permissions as Record<string, unknown>)['policies.companies']
-    const ids = Array.isArray(raw) ? (raw as number[]) : []
-    if (!ids.length) return <span style={{ color: 'var(--text-light)' }}>—</span>
-    const chip = (label: string, color?: string | null) => (
-      <span key={label} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full mr-1 whitespace-nowrap" style={{ background: color ? color + '22' : 'var(--primary-soft)', color: color || 'var(--primary)', border: `1px solid ${color || 'var(--primary)'}` }}>{label}</span>
-    )
-    if (companies.length >= 2 && ids.length >= companies.length) return chip('Ambos')
-    return <>{ids.map(id => { const c = companies.find(x => x.id === id); return chip(c?.name ?? `#${id}`, c?.color) })}</>
-  }
   const del = async (p: AccessProfile) => { if (!confirm(`Excluir "${p.name}"?`)) return; try { await api.delete(`/help-desk/access-profiles/${p.id}`); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
   const dup = async (p: AccessProfile) => { try { await api.post(`/help-desk/access-profiles/${p.id}/duplicate`, {}); toast.success('Perfil duplicado'); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao duplicar') } }
 
@@ -179,16 +163,15 @@ export function AccessProfiles() {
       <div className="ds-card overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
-            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2">Empresas</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil.</td></tr>}
             {rows.map(p => (
               <tr key={p.id} className="border-t ds-row-hover" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-3 py-2"><button className="inline-flex items-center gap-1.5 text-left" style={{ color: 'var(--text)' }} onClick={() => setEditing(p)}><ShieldCheck size={14} style={{ color: 'var(--primary)' }} />{p.name}</button></td>
                 <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.kind === 'agent' ? 'Agente' : 'Cliente'}</td>
                 <td className="px-3 py-2"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: p.enabled ? 'var(--success-bg)' : 'var(--surface-sunken)', color: p.enabled ? 'var(--success-border)' : 'var(--text-muted)' }}>{p.enabled ? 'Sim' : 'Não'}</span></td>
-                <td className="px-3 py-2">{p.kind === 'agent' ? renderCompanies(p) : <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap"><button className="mr-2" title="Copiar (duplicar perfil)" onClick={() => dup(p)}><Copy size={14} style={{ color: 'var(--text-muted)' }} /></button><button className="mr-2" title="Editar" onClick={() => setEditing(p)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button><button title="Excluir" onClick={() => del(p)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button></td>
               </tr>
             ))}
@@ -207,9 +190,6 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
   const [perms, setPerms] = useState<Record<string, unknown>>(() => ({ ...defaultsFor(p?.kind ?? 'agent'), ...(p?.permissions ?? {}) }))
   const [tab, setTab] = useState(SCHEMA[p?.kind ?? 'agent'][0].id)
   const [saving, setSaving] = useState(false)
-  // Empresas do grupo — p/ o multi-select "Empresas que atende" (perfil de agente).
-  const [companies, setCompanies] = useState<{ id: number; name: string; color?: string | null }[]>([])
-  useEffect(() => { api.get<{ data: { id: number; name: string; color?: string | null }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {}) }, [])
 
   const switchKind = (k: Kind) => { setKind(k); setPerms({ ...defaultsFor(k), ...(p?.kind === k ? (p?.permissions ?? {}) : {}) }); setTab(SCHEMA[k][0].id) }
   const set = (key: string, v: unknown) => setPerms(s => ({ ...s, [key]: v }))
@@ -276,27 +256,6 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
                     <div className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>{c.label}</div>
                     <div className="grid grid-cols-2 gap-1 pl-1">
                       {c.items.map(i => <Toggle key={i.key} on={!!perms[i.key]} onChange={v => set(i.key, v)} label={i.label} />)}
-                    </div>
-                  </div>
-                )}
-                {c.type === 'companies' && (
-                  <div>
-                    <div className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>{c.label}</div>
-                    {c.hint && <div className="text-[11px] mb-1.5" style={{ color: 'var(--text-light)' }}>{c.hint}</div>}
-                    <div className="flex flex-wrap gap-1.5 pl-1">
-                      {companies.map(co => {
-                        const cur = Array.isArray(perms[c.key]) ? (perms[c.key] as number[]) : []
-                        const sel = cur.includes(co.id)
-                        return (
-                          <button key={co.id} type="button"
-                            onClick={() => set(c.key, sel ? cur.filter(x => x !== co.id) : [...cur, co.id])}
-                            className="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                            style={{ borderColor: sel ? (co.color || 'var(--primary)') : 'var(--border)', background: sel ? 'var(--primary-soft)' : 'var(--surface)', color: sel ? 'var(--primary)' : 'var(--text-muted)' }}>
-                            {sel ? '✓ ' : ''}{co.name}
-                          </button>
-                        )
-                      })}
-                      {companies.length === 0 && <span className="text-xs" style={{ color: 'var(--text-light)' }}>Carregando empresas…</span>}
                     </div>
                   </div>
                 )}
