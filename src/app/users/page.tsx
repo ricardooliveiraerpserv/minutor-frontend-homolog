@@ -492,7 +492,7 @@ export default function UsersPage() {
         {([['cadastro', 'Cadastro'], ['hd', 'Help Desk']] as const).map(([id, label]) => {
           const active = (id === 'hd') === hdMode
           return (
-            <button key={id} onClick={() => setHdMode(id === 'hd')}
+            <button key={id} onClick={() => { setHdMode(id === 'hd'); if (id !== 'hd') setFilterHdProfile('') }}
               className="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
               style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{label}</button>
           )
@@ -512,7 +512,7 @@ export default function UsersPage() {
           <option value="1">Ativos</option>
           <option value="0">Inativos</option>
         </select>
-        {hdProfiles.length > 0 && (
+        {hdMode && hdProfiles.length > 0 && (
           <select value={filterHdProfile} onChange={e => setFilterHdProfile(e.target.value)} title="Filtrar por perfil de Help Desk"
             className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2 max-w-[180px]">
             <option value="">Perfil HD (todos)</option>
@@ -613,8 +613,8 @@ export default function UsersPage() {
                 </button>
               </div>
 
-              {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) ── */}
-              {hdProfiles.length > 0 && (
+              {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) — só na aba HD ── */}
+              {hdMode && hdProfiles.length > 0 && (
                 <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
                   <span className="text-[11px] text-[var(--text-light)]">Perfil HD:</span>
                   <select
@@ -685,7 +685,7 @@ export default function UsersPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
-              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>}
@@ -753,6 +753,7 @@ export default function UsersPage() {
                     )}
                   </div>
                 </td>
+                {hdMode && (
                 <td className="px-3 py-2.5 hidden md:table-cell">
                   {(() => {
                     // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
@@ -777,6 +778,7 @@ export default function UsersPage() {
                     )
                   })()}
                 </td>
+                )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
                     {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]">—</span> : (
