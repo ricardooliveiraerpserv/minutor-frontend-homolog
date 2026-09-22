@@ -211,6 +211,15 @@ export default function UsersPage() {
       toast.error((e as { message?: string })?.message ?? 'Erro ao vincular equipe')
     }
   }
+  const setCanTimesheetSust = async (u: UserItem, value: boolean) => {
+    const prev = !!u.can_timesheet_sustentacao
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: value } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/can-timesheet-sustentacao`, { can_timesheet_sustentacao: value }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao alterar apontamento manual')
+    }
+  }
   const setUserCompanies = async (u: UserItem, ids: number[]) => {
     const prev = u.company_ids ?? []
     setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: ids } : x))
@@ -735,7 +744,7 @@ export default function UsersPage() {
 
       {/* Tabela */}
       <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
-        <table className={`w-full text-xs ${hdMode ? 'min-w-[1100px]' : ''}`}>
+        <table className={`w-full text-xs ${hdMode ? 'min-w-[1260px]' : ''}`}>
           <thead className="sticky top-0 z-10 bg-[var(--surface)]">
             <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               {canResetPwd && (
@@ -767,6 +776,7 @@ export default function UsersPage() {
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Departamento</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Equipe(s)</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium" title="Pode apontar manualmente em sustentação">Apontar manual</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
@@ -900,6 +910,23 @@ export default function UsersPage() {
                             placeholder="Selecionar equipe" />
                         </div>
                       )}
+                  </td>
+                )}
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Não se aplica a cliente">—</span>
+                      : (() => {
+                        const on = !!user.can_timesheet_sustentacao
+                        return (
+                          <button type="button" role="switch" aria-checked={on}
+                            onClick={() => setCanTimesheetSust(user, !on)}
+                            title={on ? 'Liberado — campo de horas OPCIONAL (não aparece obrigatório)' : 'Bloqueado — campo de horas OBRIGATÓRIO no chamado'}
+                            className="relative shrink-0 rounded-full transition-colors"
+                            style={{ width: 38, height: 20, background: on ? 'var(--primary)' : 'var(--border)' }}>
+                            <span className="absolute rounded-full transition-all" style={{ background: 'var(--surface)', width: 16, height: 16, top: 2, left: on ? 20 : 2 }} />
+                          </button>
+                        )
+                      })()}
                   </td>
                 )}
                 {!hdMode && (
