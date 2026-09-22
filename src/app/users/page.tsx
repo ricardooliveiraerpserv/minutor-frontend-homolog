@@ -224,6 +224,11 @@ export default function UsersPage() {
     setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: next } : x))
     try {
       await api.patch(`/help-desk/people/${u.id}/access-profile`, { access_profile_id: next })
+      // Sem perfil = não é agente → limpa empresas e equipes (campos ficam desabilitados).
+      if (next === null && u.type !== 'cliente') {
+        if ((u.company_ids ?? []).length) await setUserCompanies({ ...u, company_ids: u.company_ids }, [])
+        if ((u.helpdesk_team_ids ?? []).length) await setUserTeams({ ...u, helpdesk_team_ids: u.helpdesk_team_ids }, [])
+      }
     } catch (e) {
       setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: prev } : x))  // reverte
       toast.error((e as { message?: string })?.message ?? 'Erro ao definir o perfil de Help Desk')
@@ -843,7 +848,7 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    {user.type === 'cliente' || companies.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]" title={user.type === 'cliente' ? 'Cliente pertence a um cliente externo, não às empresas do grupo' : undefined}>—</span> : (() => {
+                    {user.type === 'cliente' || companies.length === 0 || !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title={user.type === 'cliente' ? 'Cliente pertence a um cliente externo, não às empresas do grupo' : !user.helpdesk_access_profile_id ? 'Defina o Perfil HD primeiro' : undefined}>—</span> : (() => {
                       const allIds = companies.map(c => c.id)
                       const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
                       const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
@@ -862,14 +867,15 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Cliente não entra em equipe de atendimento">—</span> : teams.length === 0
-                      ? <span className="text-[10px] text-[var(--text-muted)]">—</span>
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Cliente não entra em equipe de atendimento">—</span>
+                      : !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title="Defina o Perfil HD primeiro">—</span>
+                      : teams.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]">—</span>
                       : (
                         <div className="min-w-[150px] max-w-[200px]">
                           <MultiSelect value={(user.helpdesk_team_ids ?? []).map(String)}
                             onChange={ids => setUserTeams(user, ids.map(Number))}
                             options={teams.map(t => ({ id: t.id, name: t.name }))}
-                            placeholder="Sem equipe" />
+                            placeholder="Selecionar equipe" />
                         </div>
                       )}
                   </td>
