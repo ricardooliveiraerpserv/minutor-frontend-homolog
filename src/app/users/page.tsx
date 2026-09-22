@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Badge } from '@/components/ui/badge'
@@ -187,6 +187,10 @@ export default function UsersPage() {
   const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
   // Aba "Help Desk": empresas do grupo (ERPSERV/BIZIFY) para vincular por usuário.
   const [hdMode, setHdMode] = useState(false)
+  // Filtros da aba HD (client-side sobre a página carregada).
+  const [hdCompany, setHdCompany] = useState('')   // '' | id
+  const [hdTeam, setHdTeam] = useState('')          // '' | id | 'none' (sem equipe)
+  const [hdKind, setHdKind] = useState('')          // '' | 'agents' | 'clients'
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
@@ -496,6 +500,23 @@ export default function UsersPage() {
     setSelectedIds(prev => prev.size === users.length ? new Set() : new Set(users.map(u => u.id)))
   }
 
+  // Filtro da aba HD (empresa / equipe / tipo) — client-side sobre a página carregada.
+  const displayUsers = useMemo(() => {
+    if (!hdMode) return users
+    const isAgentUser = (u: UserItem) => {
+      const prof = hdProfiles.find(p => p.id === u.helpdesk_access_profile_id)
+      return prof?.kind === 'agent' || (u.helpdesk_team_ids ?? []).length > 0
+    }
+    return users.filter(u => {
+      if (hdCompany && !(u.company_ids ?? []).includes(Number(hdCompany))) return false
+      if (hdTeam === 'none' && (u.helpdesk_team_ids ?? []).length > 0) return false
+      if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
+      if (hdKind === 'clients' && u.type !== 'cliente') return false
+      if (hdKind === 'agents' && !isAgentUser(u)) return false
+      return true
+    })
+  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdProfiles])
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -511,6 +532,33 @@ export default function UsersPage() {
           )
         })}
       </div>
+      {/* Filtros específicos da aba Help Desk: empresa / equipe / tipo. */}
+      {hdMode && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <select value={hdCompany} onChange={e => setHdCompany(e.target.value)} title="Filtrar por empresa do grupo"
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            <option value="">Empresa (todas)</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={hdTeam} onChange={e => setHdTeam(e.target.value)} title="Filtrar por equipe"
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2 max-w-[180px]">
+            <option value="">Equipe (todas)</option>
+            <option value="none">— Sem equipe —</option>
+            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            <option value="">Todos</option>
+            <option value="agents">Só agentes</option>
+            <option value="clients">Só clientes</option>
+          </select>
+          {(hdCompany || hdTeam || hdKind) && (
+            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind('') }}
+              className="text-xs px-2.5 h-8 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Limpar filtros HD</button>
+          )}
+          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
+        </div>
+      )}
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -707,9 +755,9 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? <TableSkeleton /> : users.length === 0 ? (
+            {loading ? <TableSkeleton /> : displayUsers.length === 0 ? (
               <tr><td colSpan={(canResetPwd ? 9 : 8) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
-            ) : users.map(user => (
+            ) : displayUsers.map(user => (
               <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 {canResetPwd && (
                   <td className="px-3 py-2.5 w-8">
