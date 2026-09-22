@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +48,7 @@ interface UserItem {
   helpdesk_access_profile_id?: number | null
   helpdesk_department_id?: number | null
   company_ids?: number[]
+  helpdesk_team_ids?: number[]
   // Pré-cadastro cliente pendente de convite (sem senha, desabilitado) — fase 1a/1b
   is_pending_invite?: boolean
   // Folha de pagamento
@@ -186,12 +188,23 @@ export default function UsersPage() {
   // Aba "Help Desk": empresas do grupo (ERPSERV/BIZIFY) para vincular por usuário.
   const [hdMode, setHdMode] = useState(false)
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
+  const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
   useEffect(() => {
     api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
       .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
       .catch(() => {})
     api.get<{ data: { id: number; name: string }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1').then(r => setTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name })))).catch(() => {})
   }, [])
+  const setUserTeams = async (u: UserItem, ids: number[]) => {
+    const prev = u.helpdesk_team_ids ?? []
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: ids } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/teams`, { team_ids: ids }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular equipe')
+    }
+  }
   const setUserCompanies = async (u: UserItem, ids: number[]) => {
     const prev = u.company_ids ?? []
     setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: ids } : x))
@@ -687,6 +700,7 @@ export default function UsersPage() {
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Equipe(s)</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>}
               {!hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
@@ -796,6 +810,20 @@ export default function UsersPage() {
                         </select>
                       )
                     })()}
+                  </td>
+                )}
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Cliente não entra em equipe de atendimento">—</span> : teams.length === 0
+                      ? <span className="text-[10px] text-[var(--text-muted)]">—</span>
+                      : (
+                        <div className="min-w-[150px] max-w-[200px]">
+                          <MultiSelect value={(user.helpdesk_team_ids ?? []).map(String)}
+                            onChange={ids => setUserTeams(user, ids.map(Number))}
+                            options={teams.map(t => ({ id: t.id, name: t.name }))}
+                            placeholder="Sem equipe" />
+                        </div>
+                      )}
                   </td>
                 )}
                 {!hdMode && (
