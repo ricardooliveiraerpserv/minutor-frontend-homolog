@@ -834,20 +834,8 @@ function TicketDetailInner({ id }: { id: number }) {
     finally { setSavingIntegration(false) }
   }
 
-  // Agendamento: define data (obrigatória) + hora (opcional). Ao agendar, o SLA pausa.
-  const [schedDate, setSchedDate] = useState('')
-  const [schedTime, setSchedTime] = useState('')
+  // Agendamento (snooze + pausa SLA) descontinuado — fluxo tratado pelos STATUS. Mantém só o cancelar.
   const [savingSchedule, setSavingSchedule] = useState(false)
-  const scheduleTicket = async () => {
-    if (!schedDate) { toast.error('Informe a data.'); return }
-    setSavingSchedule(true)
-    try {
-      await api.post(`/help-desk/tickets/${id}/schedule`, { date: schedDate, time: schedTime || null })
-      toast.success('Chamado agendado — SLA pausado')
-      setSchedDate(''); setSchedTime(''); loadTicket()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao agendar') }
-    finally { setSavingSchedule(false) }
-  }
   const unscheduleTicket = async () => {
     setSavingSchedule(true)
     try {
@@ -1647,27 +1635,17 @@ function TicketDetailInner({ id }: { id: number }) {
               <Row label="Aberto em" value={fmtDate(t.created_at)} />
             </div>
 
-            {/* Agendamento — pausa o SLA até a data/hora definida (hora opcional) */}
-            <div className="ds-card p-4 space-y-2">
-              <div className="flex items-center gap-1.5"><Clock size={13} style={{ color: 'var(--text-light)' }} /><span className={lbl} style={{ color: 'var(--text-light)' }}>Agendamento</span></div>
-              {t.sla?.scheduled ? (
-                <>
-                  <div className="text-sm rounded-lg px-2.5 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
-                    ⏸️ SLA pausado — retoma em <strong>{t.sla.scheduled_all_day && t.sla.scheduled_until ? new Date(t.sla.scheduled_until).toLocaleDateString('pt-BR') : fmtDate(t.sla.scheduled_until ?? null)}</strong>
-                  </div>
-                  <button onClick={unscheduleTicket} disabled={savingSchedule} className="ds-btn-secondary text-xs px-3 py-1.5 rounded-lg">Cancelar agendamento (retomar SLA)</button>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Defina uma data (hora opcional) para revisar o chamado. Enquanto agendado, o SLA fica pausado.</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <input type="date" value={schedDate} min={new Date().toLocaleDateString('en-CA')} onChange={e => setSchedDate(e.target.value)} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
-                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} aria-label="Hora (opcional)" className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
-                    <button onClick={scheduleTicket} disabled={savingSchedule || !schedDate} className="ds-btn-primary text-xs px-3 py-1.5 rounded-lg">Agendar</button>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Agendamento (snooze + pausa SLA) foi descontinuado — o fluxo é tratado pelos STATUS.
+                Mantém APENAS o caminho de cancelar p/ chamados que já estavam agendados (não travar). */}
+            {t.sla?.scheduled && (
+              <div className="ds-card p-4 space-y-2">
+                <div className="flex items-center gap-1.5"><Clock size={13} style={{ color: 'var(--text-light)' }} /><span className={lbl} style={{ color: 'var(--text-light)' }}>Agendamento</span></div>
+                <div className="text-sm rounded-lg px-2.5 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
+                  ⏸️ SLA pausado — retoma em <strong>{t.sla.scheduled_all_day && t.sla.scheduled_until ? new Date(t.sla.scheduled_until).toLocaleDateString('pt-BR') : fmtDate(t.sla.scheduled_until ?? null)}</strong>
+                </div>
+                <button onClick={unscheduleTicket} disabled={savingSchedule} className="ds-btn-secondary text-xs px-3 py-1.5 rounded-lg">Cancelar agendamento (retomar SLA)</button>
+              </div>
+            )}
 
             {/* Chave de integração de horas do CONTRATO — só se o perfil permitir o resumo do contrato. */}
             {t.contract && t.can_view_contract_summary !== false && (
