@@ -571,7 +571,7 @@ export default function ContratosPage() {
 
       {/* ── Transferência de horas entre contratos (mesmo cliente) ── */}
       <TransferHoursModal
-        contract={transferContract}
+        project={transferContract ? { id: (transferContract as any).project_id, customer: transferContract.customer, code: (transferContract as any).project?.code } : null}
         onClose={() => setTransferContract(null)}
         onDone={() => { setTransferContract(null); loadContracts() }}
       />

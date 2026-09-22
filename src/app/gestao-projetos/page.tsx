@@ -11,8 +11,9 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink, Bell } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink, Bell, ArrowLeftRight } from 'lucide-react'
 import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
+import { TransferHoursModal } from '@/components/contracts/TransferHoursModal'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -411,7 +412,7 @@ interface ProjectRowProps {
   project: ProjectWithTeam
   expanded: boolean
   onToggle: () => void
-  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => void
+  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts' | 'transfer-hours', project: ProjectWithTeam) => void
   canEdit?: boolean
   canChangeStatus?: boolean
   canDetach?: boolean
@@ -559,6 +560,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   : <CalendarPlus size={12} />,
                 onClick: () => onMenuAction('open-period', project),
               },
+              ...(canDetach ? [{ label: 'Transferir horas', icon: <ArrowLeftRight size={12} />, onClick: () => onMenuAction('transfer-hours', project) }] : []),
               ...(canDetach && project.parent_project_id ? [{ label: 'Desvincular do pai', icon: <Layers size={12} />, onClick: () => onMenuAction('detach-parent', project) }] : []),
               ...(canDetach && !project.parent_project_id ? [{ label: 'Vincular como filho', icon: <Layers size={12} />, onClick: () => onMenuAction('attach-parent', project) }] : []),
               ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-[var(--danger)]" />, onClick: () => onDelete(project), danger: true }] : []),
@@ -2294,6 +2296,7 @@ function GestaoProjetosInner() {
   // Modal de edição de projeto
   const [editProjectId, setEditProjectId] = useState<number | null>(null)
   const [alertsProject, setAlertsProject] = useState<ProjectWithTeam | null>(null)
+  const [transferProject, setTransferProject] = useState<ProjectWithTeam | null>(null)
 
   // Abre modal de edição se URL contém ?edit=ID
   useEffect(() => {
@@ -2768,8 +2771,9 @@ function GestaoProjetosInner() {
     }
   }, [projects, messagesParam])
 
-  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => {
+  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts' | 'transfer-hours', project: ProjectWithTeam) => {
     if (action === 'hours-alerts') { setAlertsProject(project); return }
+    if (action === 'transfer-hours') { setTransferProject(project); return }
     if (action === 'attach-parent') {
       setAttachModal({ project, parentId: '', parents: [], loading: true })
       try {
@@ -4131,6 +4135,13 @@ function GestaoProjetosInner() {
         contractLabel={alertsProject ? `${alertsProject.customer?.name ?? ''}${alertsProject.code ? ' · ' + alertsProject.code : ''}` : undefined}
         isAdmin={isAdmin}
         onClose={() => setAlertsProject(null)}
+      />
+
+      {/* ── Transferência de horas entre projetos (mesmo cliente) ── */}
+      <TransferHoursModal
+        project={transferProject}
+        onClose={() => setTransferProject(null)}
+        onDone={() => { setTransferProject(null); setRefreshKey(k => k + 1) }}
       />
 
       {/* ── Modal de Exclusão de Projeto ── */}
