@@ -146,13 +146,17 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) =
 export function AccessProfiles() {
   const [rows, setRows] = useState<AccessProfile[]>([])
   const [editing, setEditing] = useState<AccessProfile | 'new' | null>(null)
+  const [tab, setTab] = useState<Kind>('agent') // aba ativa: perfis de Agente × de Cliente
   const load = useCallback(() => { api.get<{ data: AccessProfile[] }>('/help-desk/access-profiles?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
 
   const del = async (p: AccessProfile) => { if (!confirm(`Excluir "${p.name}"?`)) return; try { await api.delete(`/help-desk/access-profiles/${p.id}`); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
   const dup = async (p: AccessProfile) => { try { await api.post(`/help-desk/access-profiles/${p.id}/duplicate`, {}); toast.success('Perfil duplicado'); load() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao duplicar') } }
 
-  if (editing) return <AccessProfileForm profile={editing} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />
+  if (editing) return <AccessProfileForm profile={editing} initialKind={tab} onBack={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />
+
+  const visible = rows.filter(p => p.kind === tab)
+  const count = (k: Kind) => rows.filter(p => p.kind === k).length
 
   return (
     <div className="space-y-3">
@@ -160,17 +164,26 @@ export function AccessProfiles() {
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Perfis de acesso vinculados a Agente ou Cliente. Definem o que cada um pode ver/fazer no Help Desk.</p>
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing('new')}><Plus size={15} /> Novo perfil</button>
       </div>
+      {/* Abas: separa perfis de Agente e de Cliente */}
+      <div className="inline-flex rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+        {([['agent', 'Agentes'], ['cliente', 'Clientes']] as [Kind, string][]).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className="text-sm px-3 py-1 rounded-md font-medium transition-colors"
+            style={tab === k ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' } : { color: 'var(--text-muted)' }}>
+            {label} <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>({count(k)})</span>
+          </button>
+        ))}
+      </div>
       <div className="ds-card overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
-            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Habilitado</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil.</td></tr>}
-            {rows.map(p => (
+            {visible.length === 0 && <tr><td colSpan={3} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum perfil de {tab === 'agent' ? 'agente' : 'cliente'}.</td></tr>}
+            {visible.map(p => (
               <tr key={p.id} className="border-t ds-row-hover" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-3 py-2"><button className="inline-flex items-center gap-1.5 text-left" style={{ color: 'var(--text)' }} onClick={() => setEditing(p)}><ShieldCheck size={14} style={{ color: 'var(--primary)' }} />{p.name}</button></td>
-                <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{p.kind === 'agent' ? 'Agente' : 'Cliente'}</td>
                 <td className="px-3 py-2"><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: p.enabled ? 'var(--success-bg)' : 'var(--surface-sunken)', color: p.enabled ? 'var(--success-border)' : 'var(--text-muted)' }}>{p.enabled ? 'Sim' : 'Não'}</span></td>
                 <td className="px-3 py-2 text-right whitespace-nowrap"><button className="mr-2" title="Copiar (duplicar perfil)" onClick={() => dup(p)}><Copy size={14} style={{ color: 'var(--text-muted)' }} /></button><button className="mr-2" title="Editar" onClick={() => setEditing(p)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button><button title="Excluir" onClick={() => del(p)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button></td>
               </tr>
@@ -182,13 +195,14 @@ export function AccessProfiles() {
   )
 }
 
-function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfile | 'new'; onBack: () => void; onSaved: () => void }) {
+function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: { profile: AccessProfile | 'new'; initialKind?: Kind; onBack: () => void; onSaved: () => void }) {
   const p = profile === 'new' ? null : profile
+  const startKind: Kind = p?.kind ?? initialKind // perfil novo nasce no tipo da aba ativa
   const [name, setName] = useState(p?.name ?? '')
-  const [kind, setKind] = useState<Kind>(p?.kind ?? 'agent')
+  const [kind, setKind] = useState<Kind>(startKind)
   const [enabled, setEnabled] = useState(p?.enabled ?? true)
-  const [perms, setPerms] = useState<Record<string, unknown>>(() => ({ ...defaultsFor(p?.kind ?? 'agent'), ...(p?.permissions ?? {}) }))
-  const [tab, setTab] = useState(SCHEMA[p?.kind ?? 'agent'][0].id)
+  const [perms, setPerms] = useState<Record<string, unknown>>(() => ({ ...defaultsFor(startKind), ...(p?.permissions ?? {}) }))
+  const [tab, setTab] = useState(SCHEMA[startKind][0].id)
   const [saving, setSaving] = useState(false)
 
   const switchKind = (k: Kind) => { setKind(k); setPerms({ ...defaultsFor(k), ...(p?.kind === k ? (p?.permissions ?? {}) : {}) }); setTab(SCHEMA[k][0].id) }
