@@ -66,6 +66,7 @@ export function HelpFloatingTab() {
 
       {open && (isCliente ? (
         <AbrirChamadoModal
+          variant="drawer"
           companies={companies}
           onClose={() => setOpen(false)}
           onCreated={(id) => { setOpen(false); router.push(`/help-desk/portal?ticket=${id}`) }}

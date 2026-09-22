@@ -26,10 +26,11 @@ function htmlIsBlank(html: string): boolean {
 
 /** Modal de abertura de chamado do cliente — reusável (portal e faixa "Precisa de ajuda?").
  *  Descrição com editor rico: COLAR PRINT entra inline no texto; anexos vão pelo próprio editor. */
-export function AbrirChamadoModal({ onClose, onCreated, companyId, companies }: { onClose: () => void; onCreated: (id: number) => void; companyId?: number | null; companies?: { id: number; name: string }[] }) {
+export function AbrirChamadoModal({ onClose, onCreated, companyId, companies, variant = 'modal' }: { onClose: () => void; onCreated: (id: number) => void; companyId?: number | null; companies?: { id: number; name: string }[]; variant?: 'modal' | 'drawer' }) {
+  const drawer = variant === 'drawer' // painel lateral (igual à faixa "Preciso de ajuda?" dos internos)
   // Quando não vem uma empresa fixa (ex.: aba do portal) e o cliente pode abrir em >1 empresa,
   // deixa o usuário escolher a empresa do chamado aqui.
-  const [selCompany, setSelCompany] = useState<number | null>(companyId ?? (companies && companies.length ? companies[0].id : null))
+  const [selCompany, setSelCompany] = useState<number | null>(companyId ?? null) // sem default — cliente escolhe
   const effectiveCompany = companyId ?? selCompany
   const [subject, setSubject] = useState('')
   const [priority, setPriority] = useState('normal')
@@ -73,6 +74,7 @@ export function AbrirChamadoModal({ onClose, onCreated, companyId, companies }: 
   }, [subject, kbEnabled])
 
   const submit = async () => {
+    if (companyId == null && companies && companies.length > 1 && !selCompany) return toast.error('Escolha a empresa do chamado.')
     if (!subject.trim()) return toast.error('Informe o assunto.')
     const html = descRef.current?.getHtml() ?? ''
     const descFiles = descRef.current?.getFiles() ?? []
@@ -109,15 +111,28 @@ export function AbrirChamadoModal({ onClose, onCreated, companyId, companies }: 
   )
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-10 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div className="ds-card w-full max-w-4xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 z-[80] ${drawer ? 'pointer-events-none' : 'flex items-start justify-center pt-10 px-4'}`} style={{ background: drawer ? 'transparent' : 'rgba(0,0,0,0.4)' }} onClick={drawer ? undefined : onClose}>
+      <div className={`ds-card space-y-4 ${drawer ? 'pointer-events-auto fixed right-4 bottom-4 w-[min(94vw,560px)] max-h-[88vh] overflow-y-auto p-5 shadow-2xl animate-in fade-in slide-in-from-right-2 duration-200' : 'w-full max-w-4xl p-6'}`} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between"><h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Abrir chamado</h2><button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button></div>
-        {/* Empresa do chamado — só quando não veio fixa (aba) e o cliente pode abrir em mais de uma. */}
+        {/* Empresa do chamado — botões (sem pré-seleção; o cliente ESCOLHE obrigatoriamente). */}
         {companyId == null && companies && companies.length > 1 && (
-          <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa *</label>
-            <select className={`${fieldCls} w-full`} style={inputStyle} value={selCompany ?? ''} onChange={e => setSelCompany(e.target.value ? Number(e.target.value) : null)}>
-              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-light)' }}>Empresa do chamado *</label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {companies.map(c => {
+                const active = selCompany === c.id
+                return (
+                  <button key={c.id} type="button" onClick={() => setSelCompany(c.id)}
+                    className="text-sm font-semibold px-4 py-2 rounded-lg border transition"
+                    style={active
+                      ? { background: 'var(--primary-soft)', color: 'var(--primary)', borderColor: 'var(--primary)' }
+                      : { background: 'var(--surface)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                    {active ? '✓ ' : ''}{c.name}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Escolha em qual empresa o chamado será aberto.</p>
           </div>
         )}
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus /></div>
