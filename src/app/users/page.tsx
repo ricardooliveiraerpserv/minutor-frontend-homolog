@@ -921,9 +921,11 @@ export default function UsersPage() {
                           <button type="button" role="switch" aria-checked={on}
                             onClick={() => setCanTimesheetSust(user, !on)}
                             title={on ? 'Liberado — campo de horas OPCIONAL (não aparece obrigatório)' : 'Bloqueado — campo de horas OBRIGATÓRIO no chamado'}
-                            className="relative shrink-0 rounded-full transition-colors"
-                            style={{ width: 38, height: 20, background: on ? 'var(--primary)' : 'var(--border)' }}>
-                            <span className="absolute rounded-full transition-all" style={{ background: 'var(--surface)', width: 16, height: 16, top: 2, left: on ? 20 : 2 }} />
+                            className="inline-flex items-center gap-2 group">
+                            <span className="relative shrink-0 rounded-full transition-colors" style={{ width: 38, height: 20, background: on ? 'var(--primary)' : 'var(--surface-hover)', border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, boxSizing: 'border-box' }}>
+                              <span className="absolute rounded-full transition-all" style={{ background: on ? 'var(--primary-fg)' : 'var(--text-light)', width: 14, height: 14, top: 1.5, left: on ? 19 : 2, boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }} />
+                            </span>
+                            <span className="text-[10px] font-medium" style={{ color: on ? 'var(--primary)' : 'var(--text-muted)' }}>{on ? 'Sim' : 'Não'}</span>
                           </button>
                         )
                       })()}
