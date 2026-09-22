@@ -559,7 +559,7 @@ export default function UsersPage() {
   }, [deptsByCustomer, customers, filterRole, filterCustomer])
 
   // Sem cliente filtrado, o filtro de departamento fica escondido → zera para não filtrar oculto.
-  useEffect(() => { if (!(filterRole === 'cliente' && filterCustomer)) setHdDeptFilter('') }, [filterRole, filterCustomer])
+  useEffect(() => { if (filterRole !== 'cliente') setHdDeptFilter('') }, [filterRole])
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -576,38 +576,49 @@ export default function UsersPage() {
           )
         })}
       </div>
-      {/* Filtros específicos da aba Help Desk: empresa / equipe / tipo. */}
+      {/* Linha 1 (aba Help Desk): todos os dropdowns de filtro agrupados. */}
       {hdMode && (
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 mb-2.5 flex-wrap px-3 py-2 rounded-lg" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+          <span className="text-[11px] font-semibold uppercase tracking-wide mr-0.5" style={{ color: 'var(--text-light)' }}>Filtros</span>
           <SearchSelect subtle value={hdCompany} onChange={setHdCompany} placeholder="Empresa (todas)"
             options={companies.map(c => ({ id: c.id, name: c.name }))} />
           <SearchSelect subtle value={hdTeam} onChange={setHdTeam} placeholder="Equipe (todas)"
             options={[{ id: 'none', name: '— Sem equipe —' }, ...teams.map(t => ({ id: t.id, name: t.name }))]} />
+          {hdProfiles.length > 0 && (
+            <SearchSelect subtle value={filterHdProfile} onChange={setFilterHdProfile} placeholder="Perfil HD (todos)"
+              options={hdProfiles.map(p => ({ id: p.id, name: `${p.name} (${p.kind === 'cliente' ? 'cliente' : 'agente'})` }))} />
+          )}
+          {/* Departamento é por cliente → aparece quando a aba Cliente está ativa. */}
+          {filterRole === 'cliente' && (
+            <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} placeholder="Departamento (todos)"
+              options={deptFilterOptions} />
+          )}
           <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todos</option>
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
+            <option value="">Tipo (todos)</option>
             <option value="agents">Só agentes</option>
             <option value="clients">Só clientes</option>
           </select>
           <select value={hdManual} onChange={e => setHdManual(e.target.value)} title="Filtrar por 'Apontar manual' em sustentação"
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
             <option value="">Apontar manual (todos)</option>
             <option value="yes">Aponta manual: Sim</option>
             <option value="no">Aponta manual: Não</option>
           </select>
-          {/* Departamento é por cliente → só habilita quando um Cliente está filtrado. */}
-          {filterRole === 'cliente' && filterCustomer && (
-            <SearchSelect subtle value={hdDeptFilter} onChange={setHdDeptFilter} placeholder="Departamento (todos)"
-              options={deptFilterOptions} />
+          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }} title="Situação"
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
+            <option value="">Ativos e inativos</option>
+            <option value="1">Só ativos</option>
+            <option value="0">Só inativos</option>
+          </select>
+          {(hdCompany || hdTeam || filterHdProfile || hdKind || hdManual || hdDeptFilter || filterEnabled) && (
+            <button onClick={() => { setHdCompany(''); setHdTeam(''); setFilterHdProfile(''); setHdKind(''); setHdManual(''); setHdDeptFilter(''); setFilterEnabled('') }}
+              className="text-xs px-2.5 h-8 rounded-lg" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>Limpar</button>
           )}
-          {(hdCompany || hdTeam || hdKind || hdManual || hdDeptFilter) && (
-            <button onClick={() => { setHdCompany(''); setHdTeam(''); setHdKind(''); setHdManual(''); setHdDeptFilter('') }}
-              className="text-xs px-2.5 h-8 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Limpar filtros HD</button>
-          )}
-          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
+          <span className="ml-auto text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
         </div>
       )}
-      {/* Filtros */}
+      {/* Linha 2: busca + abas de perfil + Novo. */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
@@ -615,15 +626,13 @@ export default function UsersPage() {
             placeholder="Buscar por nome ou e-mail..."
             className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
-        <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
-          className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-          <option value="">Todos</option>
-          <option value="1">Ativos</option>
-          <option value="0">Inativos</option>
-        </select>
-        {hdMode && hdProfiles.length > 0 && (
-          <SearchSelect subtle value={filterHdProfile} onChange={setFilterHdProfile} placeholder="Perfil HD (todos)"
-            options={hdProfiles.map(p => ({ id: p.id, name: `${p.name} (${p.kind === 'cliente' ? 'cliente' : 'agente'})` }))} />
+        {!hdMode && (
+          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            <option value="">Todos</option>
+            <option value="1">Ativos</option>
+            <option value="0">Inativos</option>
+          </select>
         )}
         <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['comercial', 'Comercial'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
