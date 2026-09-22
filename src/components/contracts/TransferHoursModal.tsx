@@ -43,7 +43,7 @@ export function TransferHoursModal({ project, onClose, onDone }: {
   const rate = info?.source.rate ?? 0
   const hoursNum = useMemo(() => parseFloat((hours || '').replace(',', '.')), [hours])
   const overBalance = Number.isFinite(hoursNum) && hoursNum > available
-  const canApply = !!toId && Number.isFinite(hoursNum) && hoursNum > 0 && !overBalance && !saving
+  const canApply = !!toId && Number.isFinite(hoursNum) && hoursNum > 0 && !overBalance && !!desc.trim() && !saving
 
   const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -115,10 +115,11 @@ export function TransferHoursModal({ project, onClose, onDone }: {
             </div>
 
             <div>
-              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Motivo / observação (opcional)</label>
-              <input value={desc} onChange={e => setDesc(e.target.value)} maxLength={1000}
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Motivo <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <input value={desc} onChange={e => setDesc(e.target.value)} maxLength={1000} placeholder="Ex.: remanejamento de saldo entre projetos"
                 className="mt-1 w-full rounded-xl px-3 py-2 text-sm"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                style={{ background: 'var(--bg)', border: `1px solid ${!desc.trim() ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--text)' }} />
+              {!desc.trim() && <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Motivo é obrigatório.</p>}
             </div>
           </div>
         )}
