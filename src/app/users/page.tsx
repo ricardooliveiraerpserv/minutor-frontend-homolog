@@ -781,23 +781,22 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]">—</span> : (
-                      <div className="flex flex-wrap gap-1">
-                        {companies.map(c => {
-                          const on = (user.company_ids ?? []).includes(c.id)
-                          return (
-                            <button key={c.id} type="button"
-                              onClick={() => setUserCompanies(user, on ? (user.company_ids ?? []).filter(x => x !== c.id) : [...(user.company_ids ?? []), c.id])}
-                              className="text-[10px] font-semibold rounded-full px-2 py-0.5 border transition"
-                              style={on
-                                ? { background: 'var(--primary)', color: 'var(--primary-fg)', borderColor: 'var(--primary)' }
-                                : { background: 'transparent', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-                              {c.name}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {companies.length === 0 && <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                      {companies.map(c => {
+                        const on = (user.company_ids ?? []).includes(c.id)
+                        return (
+                          <button key={c.id} type="button" title={`${on ? 'Desvincular de' : 'Vincular a'} ${c.name}`}
+                            onClick={() => setUserCompanies(user, on ? (user.company_ids ?? []).filter(x => x !== c.id) : [...(user.company_ids ?? []), c.id])}
+                            className="text-[10px] font-semibold rounded-full px-2 py-0.5 border transition cursor-pointer"
+                            style={on
+                              ? { background: 'var(--primary)', color: 'var(--primary-fg)', borderColor: 'var(--primary)' }
+                              : { background: 'transparent', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                            {c.name}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </td>
                 )}
                 {!hdMode && (
