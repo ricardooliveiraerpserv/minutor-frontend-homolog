@@ -491,6 +491,7 @@ const NAV: NavEntry[] = [
       { label: 'Status', href: '/help-desk/configuracoes?tab=status', icon: ListTodo },
       { label: 'Equipes', href: '/help-desk/configuracoes?tab=filas', icon: Users },
       { label: 'Perfis de Acesso', href: '/help-desk/configuracoes?tab=perfis', icon: Layers },
+      { label: 'Departamentos', href: '/help-desk/configuracoes?tab=departamentos', icon: Building2 },
       { label: 'Pessoas', href: '/help-desk/configuracoes?tab=pessoas', icon: Contact },
       { label: 'Regras de Associação', href: '/help-desk/configuracoes?tab=associacoes', icon: Database },
       { label: 'Contas de E-mail', href: '/help-desk/configuracoes?tab=contas-email', icon: Mail },
