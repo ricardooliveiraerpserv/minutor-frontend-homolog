@@ -781,7 +781,7 @@ export default function UsersPage() {
                 )}
                 {hdMode && (
                   <td className="px-3 py-2.5">
-                    {companies.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]">—</span> : (() => {
+                    {user.type === 'cliente' || companies.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]" title={user.type === 'cliente' ? 'Cliente pertence a um cliente externo, não às empresas do grupo' : undefined}>—</span> : (() => {
                       const allIds = companies.map(c => c.id)
                       const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
                       const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
