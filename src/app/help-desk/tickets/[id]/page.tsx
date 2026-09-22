@@ -57,7 +57,7 @@ interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
   requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; can_see_collision?: boolean; can_view_contract_summary?: boolean; default_action?: 'public' | 'internal'; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
-  solicitante?: { name: string | null; email: string | null } | null
+  solicitante?: { name: string | null; email: string | null; department?: string | null; perfil?: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
   merged_into_id?: number | null
@@ -1621,6 +1621,7 @@ function TicketDetailInner({ id }: { id: number }) {
                 )
               })()}
               <RequesterField name={t.solicitante?.name ?? t.contact?.name ?? t.requester_name} email={t.solicitante?.email ?? t.requester_email ?? t.contact?.email}
+                department={t.solicitante?.department ?? null} perfil={t.solicitante?.perfil ?? null}
                 customerId={t.customer?.id ?? null}
                 onPick={h => updateField(h.kind === 'user'
                   ? { requester_user_id: h.id, customer_contact_id: null }
@@ -2016,9 +2017,9 @@ function CcField({ emails, onSave }: { emails: string[]; onSave: (list: string[]
   )
 }
 
-interface ContactHit { kind?: 'user' | 'contact'; id: number; name: string; email: string | null; customer_id?: number | null }
+interface ContactHit { kind?: 'user' | 'contact'; id: number; name: string; email: string | null; customer_id?: number | null; department?: string | null; perfil?: string | null }
 /** Solicitante EDITÁVEL — clica e busca SÓ solicitantes da empresa do chamado (usuários do portal + contatos). */
-function RequesterField({ name, email, customerId, onPick }: { name?: string | null; email?: string | null; customerId?: number | null; onPick: (hit: ContactHit) => void }) {
+function RequesterField({ name, email, department, perfil, customerId, onPick }: { name?: string | null; email?: string | null; department?: string | null; perfil?: string | null; customerId?: number | null; onPick: (hit: ContactHit) => void }) {
   const [editing, setEditing] = useState(false)
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<ContactHit[]>([])
@@ -2034,36 +2035,60 @@ function RequesterField({ name, email, customerId, onPick }: { name?: string | n
     return () => clearTimeout(h)
   }, [q, editing, customerId])
 
-  if (!editing) return (
-    <div className="flex items-start justify-between gap-2 text-sm">
-      <span style={{ color: 'var(--text-light)' }}>Solicitante</span>
-      <div className="text-right">
-        <button onClick={() => { setEditing(true); setQ('') }} className="inline-flex items-center gap-1 group" style={{ color: 'var(--text)' }}>
-          <span>{name ?? email ?? '—'}</span><Pencil size={12} style={{ color: 'var(--text-light)' }} />
-        </button>
-        {name && email && <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{email}</div>}
+  // Campos INFORMATIVOS (não editáveis) do solicitante selecionado: Departamento e Perfil.
+  const InfoRows = (
+    <>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span style={{ color: 'var(--text-light)' }}>Departamento</span>
+        <span className="text-right" style={{ color: department ? 'var(--text)' : 'var(--text-light)' }}>{department || '—'}</span>
       </div>
-    </div>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span style={{ color: 'var(--text-light)' }}>Perfil</span>
+        <span className="text-right" style={{ color: perfil ? 'var(--text)' : 'var(--text-light)' }}>{perfil || '—'}</span>
+      </div>
+    </>
   )
+
   return (
-    <div className="text-sm">
-      <div className="flex items-center justify-between mb-1">
-        <span style={{ color: 'var(--text-light)' }}>Solicitante</span>
-        <button onClick={() => setEditing(false)} className="text-[11px]" style={{ color: 'var(--text-muted)' }}>cancelar</button>
-      </div>
-      <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={inputStyle}>
-        <Search size={13} style={{ color: 'var(--text-light)' }} />
-        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome ou e-mail…" className="bg-transparent outline-none w-full text-sm" style={{ color: 'var(--text)' }} />
-      </div>
-      <div className="mt-1 max-h-52 overflow-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
-        {hits.map(c => (
-          <button key={`${c.kind ?? 'contact'}:${c.id}`} onClick={() => { onPick(c); setEditing(false) }} className="block w-full text-left px-2 py-1.5 ds-row-hover">
-            <div style={{ color: 'var(--text)' }}>{c.name}</div>
-            {c.email && <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{c.email}</div>}
-          </button>
-        ))}
-        {hits.length === 0 && <div className="px-2 py-2 text-[11px]" style={{ color: 'var(--text-light)' }}>{q ? 'Nenhum contato encontrado.' : 'Digite para buscar…'}</div>}
-      </div>
+    <div className="space-y-1.5">
+      {!editing ? (
+        <div className="flex items-start justify-between gap-2 text-sm">
+          <span style={{ color: 'var(--text-light)' }}>Solicitante</span>
+          <div className="text-right">
+            <button onClick={() => { setEditing(true); setQ('') }} className="inline-flex items-center gap-1 group" style={{ color: 'var(--text)' }}>
+              <span>{name ?? email ?? '—'}</span><Pencil size={12} style={{ color: 'var(--text-light)' }} />
+            </button>
+            {name && email && <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{email}</div>}
+          </div>
+        </div>
+      ) : (
+        <div className="text-sm">
+          <div className="flex items-center justify-between mb-1">
+            <span style={{ color: 'var(--text-light)' }}>Solicitante</span>
+            <button onClick={() => setEditing(false)} className="text-[11px]" style={{ color: 'var(--text-muted)' }}>cancelar</button>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={inputStyle}>
+            <Search size={13} style={{ color: 'var(--text-light)' }} />
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome ou e-mail…" className="bg-transparent outline-none w-full text-sm" style={{ color: 'var(--text)' }} />
+          </div>
+          <div className="mt-1 max-h-52 overflow-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
+            {hits.map(c => (
+              <button key={`${c.kind ?? 'contact'}:${c.id}`} onClick={() => { onPick(c); setEditing(false) }} className="block w-full text-left px-2 py-1.5 ds-row-hover">
+                <div className="flex items-center justify-between gap-2">
+                  <span style={{ color: 'var(--text)' }}>{c.name}</span>
+                  {c.perfil && <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{c.perfil}</span>}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {c.email && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{c.email}</span>}
+                  {c.department && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>🏷 {c.department}</span>}
+                </div>
+              </button>
+            ))}
+            {hits.length === 0 && <div className="px-2 py-2 text-[11px]" style={{ color: 'var(--text-light)' }}>{q ? 'Nenhum solicitante encontrado.' : 'Digite para buscar…'}</div>}
+          </div>
+        </div>
+      )}
+      {InfoRows}
     </div>
   )
 }

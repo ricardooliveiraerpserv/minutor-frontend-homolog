@@ -43,7 +43,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   const [serviceId, setServiceId] = useState('')
   const [customerId, setCustomerId] = useState('')
   const [contactId, setContactId] = useState('') // codificado "user:<id>" | "contact:<id>"
-  const [contacts, setContacts] = useState<{ kind: 'user' | 'contact'; id: number; name: string; email: string | null }[]>([])
+  const [contacts, setContacts] = useState<{ kind: 'user' | 'contact'; id: number; name: string; email: string | null; department?: string | null; perfil?: string | null }[]>([])
   const [files, setFiles] = useState<File[]>([])
   const [prioOpen, setPrioOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -67,7 +67,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
     setContacts([])
     if (!customerId || customerId === String(erpserv?.id ?? '')) return
     let alive = true
-    api.get<{ data: { kind: 'user' | 'contact'; id: number; name: string; email: string | null }[] }>(`/help-desk/requesters?customer_id=${customerId}`)
+    api.get<{ data: { kind: 'user' | 'contact'; id: number; name: string; email: string | null; department?: string | null; perfil?: string | null }[] }>(`/help-desk/requesters?customer_id=${customerId}`)
       .then(r => { if (alive) setContacts(r.data ?? []) })
       .catch(() => { if (alive) setContacts([]) })
     return () => { alive = false }
@@ -309,7 +309,7 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
             <SearchSelect fullWidth disabled={contacts.length === 0}
               placeholder={contacts.length === 0 ? 'Cliente sem solicitantes cadastrados' : 'Selecionar solicitante…'}
               value={contactId} onChange={setContactId}
-              options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: `${c.kind}:${c.id}`, name: c.email ? `${c.name} · ${c.email}` : c.name }))]} />
+              options={[{ id: '', name: 'Sem solicitante definido' }, ...contacts.map(c => ({ id: `${c.kind}:${c.id}`, name: [c.name, c.email, c.department].filter(Boolean).join(' · ') }))]} />
           </div>
         )}
         <div>
