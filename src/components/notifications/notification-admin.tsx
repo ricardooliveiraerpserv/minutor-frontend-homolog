@@ -113,7 +113,7 @@ interface Notif {
   send_email: boolean; visible: boolean; requires_ack: boolean; cta_label: string | null; cta_url: string | null
   version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
-  is_template?: boolean; template_name?: string | null; actions?: string[] | null
+  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean
   created_at?: string
 }
 // Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
@@ -463,6 +463,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const setActionLabel = (i: number, v: string) => setActions(a => a.map((x, idx) => idx === i ? v : x))
   const addAction = () => setActions(a => [...a, ''])
   const removeAction = (i: number) => setActions(a => a.filter((_, idx) => idx !== i))
+  // Confirmar presença: permite ao respondente informar acompanhantes/familiares.
+  const [allowGuests, setAllowGuests] = useState<boolean>((draft as { allow_guests?: boolean }).allow_guests ?? false)
 
   // enquete (type=poll)
   const [pollQuestion, setPollQuestion] = useState(draft.poll?.question ?? '')
@@ -561,6 +563,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       cta_label: type === 'action' ? (ctaLabel.trim() || null) : null,
       cta_url: type === 'action' ? (ctaUrl.trim() || null) : null,
       actions: type === 'poll' ? [] : actions.map(a => a.trim()).filter(Boolean),
+      // Acompanhantes: só faz sentido com botões de decisão (Confirmar presença).
+      allow_guests: type !== 'poll' && actions.map(a => a.trim()).filter(Boolean).length > 0 ? allowGuests : false,
       version: Number(version) || 1, expires_at: expiresAt,
       ...(poll ? { poll } : {}),
     }
@@ -650,6 +654,18 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
               <button type="button" onClick={() => removeAction(i)}><Trash2 size={14} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
           ))}
+          {/* Permitir acompanhantes/familiares: ao confirmar (1º botão), o usuário informa os dependentes. */}
+          {actions.length > 0 && (
+            <label className="flex items-start gap-2 text-[13px] cursor-pointer pt-2 mt-1" style={{ color: 'var(--text)', borderTop: '1px solid var(--border)' }}>
+              <input type="checkbox" checked={allowGuests} onChange={e => setAllowGuests(e.target.checked)} className="mt-0.5" />
+              <span>
+                Permitir acompanhantes/familiares
+                <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  Ao clicar no <b>1º botão</b> ({actions[0]?.trim() || 'confirmar'}), o convidado poderá informar familiares (nome + parentesco). Eles entram na lista vinculados a quem respondeu.
+                </span>
+              </span>
+            </label>
+          )}
           {/* Limite da decisão + recorrência p/ re-perguntar (o usuário pode "Decidir depois" até o limite) */}
           {actions.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -835,8 +851,9 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   )
 }
 
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null }
-interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number> } }
+interface Guest { nome: string; parentesco: string | null }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null; guests?: Guest[] }
+interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
 
 /** Log de uma comunicação (admin): quem visualizou (e quando) + resultado dos botões de decisão. */
 function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
@@ -859,9 +876,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
 
   // Exporta as linhas FILTRADAS em CSV (abre no Excel; BOM + ';' p/ pt-BR e acentos).
   const exportCsv = () => {
-    const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta']
+    const withGuests = !!data?.summary.allow_guests
+    const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta', ...(withGuests ? ['Familiares'] : [])]
     const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? ''])
+    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '',
+      ...(withGuests ? [(r.guests ?? []).map(g => g.parentesco ? `${g.nome} (${g.parentesco})` : g.nome).join(' | ')] : [])])
     const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -891,6 +910,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 {data.summary.actions.map(a => (
                   <span key={a} className="px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{a}: <b>{data.summary.by_action[a] ?? 0}</b></span>
                 ))}
+                {data.summary.allow_guests && <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>👥 <b>{data.summary.guests_total ?? 0}</b> acompanhante(s)</span>}
               </div>
 
               {/* Filtro por visualização + exportar */}
@@ -922,10 +942,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Destinatário</th>
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Visualizou</th>
                       {data.summary.actions.length > 0 && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Resposta</th>}
+                      {data.summary.allow_guests && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Familiares</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.length === 0 && <tr><td colSpan={3} className="px-3 py-3 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário.</td></tr>}
+                    {rows.length === 0 && <tr><td colSpan={4} className="px-3 py-3 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário.</td></tr>}
                     {rows.map(r => (
                       <tr key={r.user_id} style={{ borderTop: '1px solid var(--border)' }}>
                         <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{r.user_name}<div className="text-[10px]" style={{ color: 'var(--text-light)' }}>{r.user_email}</div></td>
@@ -934,6 +955,15 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                           <td className="px-3 py-2">
                             {r.response
                               ? <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
+                              : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                          </td>
+                        )}
+                        {data.summary.allow_guests && (
+                          <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
+                            {r.guests && r.guests.length > 0
+                              ? <div className="flex flex-col gap-0.5">{r.guests.map((g, gi) => (
+                                  <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}</span> : null}</span>
+                                ))}</div>
                               : <span style={{ color: 'var(--text-light)' }}>—</span>}
                           </td>
                         )}
