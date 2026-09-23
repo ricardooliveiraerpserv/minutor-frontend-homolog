@@ -179,7 +179,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
   // Ao clicar num botão de decisão: se permite familiares E é a 1ª ação (confirmar), abre o modal.
   const onDecision = (n: Notif, action: string) => {
     const isConfirm = !!n.allow_guests && Array.isArray(n.actions) && n.actions[0] === action
-    if (isConfirm) { setGuests([]); setGuestModal({ n, action }); return }
+    if (isConfirm) { setGuests([{ nome: '', parentesco: '' }]); setGuestModal({ n, action }); return }
     respond(n, action)
   }
 
@@ -293,7 +293,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
             <button onClick={() => { setGuestModal(null); setGuests([]) }} className="ml-auto" style={{ color: 'var(--text-muted)' }} aria-label="Fechar"><X size={16} /></button>
           </div>
           <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Se for levar acompanhantes, adicione o nome e o parentesco de cada um. Sem familiares? É só confirmar.</p>
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Preencha o <b>nome</b> e o <b>parentesco</b> de cada familiar. Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
             {guests.map((g, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input className="ds-input flex-1 text-sm" placeholder="Nome" value={g.nome} maxLength={120}
@@ -311,8 +311,9 @@ export function NotificationPopups({ userId }: { userId: number }) {
           <div className="px-5 py-3 flex items-center justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
             <button onClick={() => respond(guestModal.n, guestModal.action, [])} disabled={busy}
               className="ds-btn-secondary text-sm px-4 py-2 rounded-lg">Sem familiares</button>
-            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.some(g => !g.nome.trim())}
-              className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg disabled:opacity-40"><CheckCircle2 size={15} /> Confirmar presença</button>
+            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.length === 0 || guests.some(g => !g.nome.trim())}
+              title={guests.length === 0 || guests.some(g => !g.nome.trim()) ? 'Preencha o nome do familiar (ou use "Sem familiares")' : undefined}
+              className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Confirmar presença</button>
           </div>
         </div>
       </div>
