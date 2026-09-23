@@ -851,7 +851,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   )
 }
 
-interface Guest { nome: string; parentesco: string | null }
+interface Guest { nome: string; parentesco: string | null; idade?: number | null }
 interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null; guests?: Guest[] }
 interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
 
@@ -880,7 +880,10 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta', ...(withGuests ? ['Familiares'] : [])]
     const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '',
-      ...(withGuests ? [(r.guests ?? []).map(g => g.parentesco ? `${g.nome} (${g.parentesco})` : g.nome).join(' | ')] : [])])
+      ...(withGuests ? [(r.guests ?? []).map(g => {
+        const p = g.parentesco ? `${g.parentesco}${g.idade != null ? ` ${g.idade} anos` : ''}` : ''
+        return p ? `${g.nome} (${p})` : g.nome
+      }).join(' | ')] : [])])
     const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -962,7 +965,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                           <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
                             {r.guests && r.guests.length > 0
                               ? <div className="flex flex-col gap-0.5">{r.guests.map((g, gi) => (
-                                  <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}</span> : null}</span>
+                                  <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}{g.idade != null ? ` (${g.idade} anos)` : ''}</span> : null}</span>
                                 ))}</div>
                               : <span style={{ color: 'var(--text-light)' }}>—</span>}
                           </td>
