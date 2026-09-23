@@ -289,7 +289,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
     {/* Modal de acompanhantes/familiares — abre ao confirmar presença quando a notificação permite. */}
     {guestModal && (
       <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
-        <div className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: '1px solid var(--border)' }}>
             <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Vai levar familiar?</span>
             <button onClick={() => { setGuestModal(null); setGuests([]) }} className="ml-auto" style={{ color: 'var(--text-muted)' }} aria-label="Fechar"><X size={16} /></button>
@@ -298,7 +298,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
             <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Informe o <b>nome completo</b> e o <b>parentesco</b> de cada familiar (idade obrigatória p/ filho). <b>Todos os campos são obrigatórios.</b> Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
             {guests.map((g, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input className="ds-input flex-1 text-sm" placeholder="Nome completo *" value={g.nome} maxLength={120}
+                <input className="ds-input flex-1 min-w-0 text-sm" placeholder="Nome completo *" value={g.nome} maxLength={120}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, nome: e.target.value } : x))} />
                 <select className="ds-input w-32 text-sm" value={g.parentesco}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: e.target.value === 'Filho(a)' ? x.idade : '' } : x))}>
