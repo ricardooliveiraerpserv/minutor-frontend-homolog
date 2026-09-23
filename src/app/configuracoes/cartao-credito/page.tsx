@@ -25,7 +25,7 @@ export default function CartaoCreditoPage() {
     setLoading(true)
     Promise.all([
       api.get<{ data: CCUser[] }>('/expense-credit-card-users'),
-      api.get<any>('/users?minimal=true'),
+      api.get<any>('/users?minimal=true&pageSize=500'),
     ])
       .then(([cc, all]) => {
         setList(cc.data ?? [])
