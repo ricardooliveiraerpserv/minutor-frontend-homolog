@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { zipLooksLikeSource } from '@/lib/zip-inspect'
 import { useConfirm } from '@/components/ui/use-confirm'
-import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown, MessageSquare } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
 import { EmailFrame } from './email-frame'
 
@@ -287,7 +287,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
   const removeFile = (idx: number) => setFiles(f => f.filter((_, i) => i !== idx))
 
-  const send = async () => {
+  const send = async (sendAs?: 'customer' | 'internal') => {
+    const vis = sendAs ?? visibility
     if (statuses.length > 0 && !sendStatus) { toast.error('Escolha o status antes de enviar.'); return }
     // Trava de classificação (ver classBlock): campos obrigatórios conforme status + papel.
     if (classBlock) { toast.error(classBlock); return }
@@ -346,7 +347,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     }
     // Apontamento OBRIGATÓRIO (perfil sem "apontar manualmente em sustentação"): resposta ao cliente
     // precisa ter tempo informado (início→fim ou total).
-    if (timeMode === 'required' && visibility !== 'internal') {
+    if (timeMode === 'required' && vis !== 'internal') {
       const temTempo = !!(totalHours.trim() || (startTime && endTime))
       if (!temTempo) { toast.error('Informe o tempo trabalhado — o apontamento de horas é obrigatório.'); return }
     }
@@ -364,12 +365,12 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       }
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
-      fd.append('visibility', visibility)
+      fd.append('visibility', vis)
       fd.append('idempotency_key', idemRef.current)
       files.forEach(f => fd.append('files[]', f))
       // Tempo trabalhado. total_hours prevalece; senão o servidor deriva de início→fim.
       // Nota interna NÃO gera apontamento → não manda tempo. timeMode='hidden' → campo oculto, não envia.
-      if (visibility !== 'internal' && timeMode !== 'hidden') {
+      if (vis !== 'internal' && timeMode !== 'hidden') {
         if (workedDate) fd.append('worked_date', workedDate)
         if (startTime) fd.append('start_time', startTime)
         if (endTime) fd.append('end_time', endTime)
@@ -561,26 +562,26 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          {/* Toggle segmentado BEM EVIDENTE: o segmento ativo é preenchido e forte (verde =
-              resposta ao cliente, roxo = nota interna) com texto branco; o inativo é um botão
-              claramente clicável (borda + texto na cor). É a 1ª decisão do envio. */}
-          <span className="text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>Tipo:</span>
-          <div className="inline-flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
-            {(['customer', 'internal'] as const).map(v => {
-              const active = visibility === v
-              const accent = v === 'internal' ? '#7c3aed' : '#059669'
-              return (
-                <button key={v} onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } }}
-                  className="px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-bold transition-all"
-                  style={active
-                    ? { background: accent, color: '#ffffff', boxShadow: '0 2px 8px ' + (v === 'internal' ? 'rgba(124,58,237,.35)' : 'rgba(5,150,105,.35)'), transform: 'scale(1.03)' }
-                    : { background: 'var(--surface)', color: accent, border: `1.5px solid ${accent}` }}>
-                  {v === 'internal' ? <Lock size={15} /> : <MessageSquare size={15} />}
-                  {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
-                </button>
-              )
-            })}
-          </div>
+          {/* Botões de AÇÃO (enviam direto): verde = resposta ao cliente, roxo = nota interna.
+              O status (e a mudança de status ao enviar) vem do seletor de status ao lado. */}
+          {(['customer', 'internal'] as const).map(v => {
+            const accent = v === 'internal' ? '#7c3aed' : '#059669'
+            const disabledSend = sending || !sendStatus || !!classBlock || (empty && files.length === 0)
+            return (
+              <button key={v}
+                onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } ; send(v) }}
+                disabled={disabledSend}
+                title={!sendStatus ? 'Escolha o status antes de enviar' : (v === 'customer' ? 'Enviar resposta ao cliente' : 'Enviar nota interna (só a equipe vê)')}
+                className="px-4 py-2 rounded-lg inline-flex items-center gap-2 text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: accent, color: '#ffffff', boxShadow: '0 2px 8px ' + (v === 'internal' ? 'rgba(124,58,237,.35)' : 'rgba(5,150,105,.35)') }}>
+                {v === 'internal' ? <Lock size={15} /> : <Send size={15} />}
+                {sending ? 'Enviando…' : (v === 'customer' ? 'Resposta ao cliente' : 'Nota interna')}
+              </button>
+            )
+          })}
+          {sendStatus && sendStatus !== currentStatusId && (
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ao enviar → <strong>{statuses.find(s => s.id === sendStatus)?.label ?? ''}</strong></span>
+          )}
           <label className="inline-flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded-md" style={{ color: 'var(--text-muted)' }}>
             <Paperclip size={14} /> Anexar
             <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
@@ -613,9 +614,6 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           )}
           {files.length > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{files.length} anexo(s)</span>}
         </div>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || !sendStatus || !!classBlock || (empty && files.length === 0)}>
-          <Send size={14} /> {sending ? 'Enviando…' : (sendStatus && sendStatus !== currentStatusId ? `Enviar e mover para: ${statuses.find(s => s.id === sendStatus)?.label ?? ''}` : 'Enviar')}
-        </button>
       </div>
     </div>
     {confirmDialog}
