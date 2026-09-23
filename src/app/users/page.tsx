@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, Download
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -165,6 +165,23 @@ export default function UsersPage() {
   // — exatamente o que o middleware screen.action bloqueia na API. Sem hardcode de perfil.
   const has = (perm: string) => isAdmin || ep.includes(perm)
   const canCreate     = has('users.create')        && !isDenied('/users', 'create')
+  const canExport     = isAdmin || has('users.view_all') || has('users.update')
+  const [exporting, setExporting] = useState(false)
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    try {
+      const res = await fetch('/api/v1/users/export', { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Erro ao exportar usuários') }
+    finally { setExporting(false) }
+  }, [])
   const canEdit       = has('users.update')        && !isDenied('/users', 'edit')
   const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
@@ -530,6 +547,11 @@ export default function UsersPage() {
           <span className="text-xs px-2.5 h-8 inline-flex items-center rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
             {total} resultado{total === 1 ? '' : 's'}
           </span>
+        )}
+        {canExport && (
+        <Button onClick={handleExport} disabled={exporting} variant="outline" className="h-8 text-xs gap-1.5">
+          <Download size={13} /> {exporting ? 'Exportando…' : 'Exportar'}
+        </Button>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
