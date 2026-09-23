@@ -92,6 +92,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/settings?tab=perfis', label: 'Cadastro de Perfil', group: 'Sistema' },
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
   { key: '/configuracoes/empresas', label: 'Empresas do Grupo', group: 'Sistema' },
+  { key: '/configuracoes/cartao-credito', label: 'Cartão de Crédito (Despesas)', group: 'Sistema' },
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
   { key: '/auditoria-projetos', label: 'Auditoria de Projetos', group: 'Sistema' },
 

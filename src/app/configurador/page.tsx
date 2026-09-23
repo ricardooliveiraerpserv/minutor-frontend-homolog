@@ -127,6 +127,7 @@ function Inner() {
   const [locOpen, setLocOpen] = useState<string | null>(null)   // popover "onde mais essa tela aparece"
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [view, setView] = useState<'tree' | 'flat'>('tree')
+  const [menuQ, setMenuQ] = useState('') // busca por texto no Configurador
   const [scope, setScope] = useState<string>('admin') // aba: um perfil por vez
   const [addModOpen, setAddModOpen] = useState(false)  // modal "adicionar módulo ao perfil"
   const [newModName, setNewModName] = useState('')
@@ -511,7 +512,7 @@ function Inner() {
       const isLast = i === nodes.length - 1
       const isOver = overId === n.id
       const overIn = overGroup === n.id
-      const isCol = collapsed[n.id]
+      const isCol = menuQ.trim() ? false : collapsed[n.id] // busca ativa → tudo expandido
       const isGroup = !n.screen
       const hasKids = (n.children?.length ?? 0) > 0
       const dragProps = {
@@ -727,6 +728,19 @@ function Inner() {
     })
   }
 
+  // ── Busca por texto: casa pelo rótulo da pasta/tela; poda a árvore mantendo os pais ──
+  const mq = menuQ.trim().toLowerCase()
+  const nodeLabelText = (n: NavTreeNode): string =>
+    (n.label || (n.screen ? (CATALOG_LABEL[n.screen] || screens[n.screen]?.label || n.screen) : '')).toLowerCase()
+  const filterTree = (nodes: NavTreeNode[]): NavTreeNode[] =>
+    nodes.reduce<NavTreeNode[]>((acc, n) => {
+      const kids = n.children ? filterTree(n.children) : []
+      if (nodeLabelText(n).includes(mq) || kids.length) {
+        acc.push(n.children ? { ...n, children: kids } : n)
+      }
+      return acc
+    }, [])
+
   return (
     <div className="max-w-5xl space-y-5">
       <div className="flex items-start justify-between gap-3">
@@ -755,7 +769,14 @@ function Inner() {
           : <><b>{tab.label}</b>: módulos deste perfil. Adicione módulos e <b>inclua telas</b> (podem ser reusadas de outras abas). No selo <span style={{ color: 'var(--success-border)' }}>✓/✗</span> você libera/retira a tela para o perfil; ajustes por usuário no editor de acessos (ícone da tela).</>}
       </p>
 
-      <div className="flex items-center justify-end gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {/* busca por texto */}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
+          <input value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder="Buscar pasta ou tela…"
+            className="ds-input w-full" style={{ fontSize: 12, height: 32, paddingLeft: 28, paddingRight: menuQ ? 26 : 8 }} />
+          {menuQ && <button onClick={() => setMenuQ('')} title="Limpar" className="absolute" style={{ right: 6, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }}><X size={13} /></button>}
+        </div>
         {/* toggle árvore / lista */}
         <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button onClick={() => setView('tree')} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5" style={view === 'tree' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Network size={13} /> Árvore</button>
@@ -805,11 +826,14 @@ function Inner() {
       )}
 
       {view === 'flat'
-        ? <FlatView usage={scopedUsage} screens={screens} onPerm={setPermFor} onToggle={flatToggle} hiddenOf={flatOff} onLabel={(k, v) => patchScreen(k, { label: v })} />
+        ? <FlatView usage={scopedUsage} screens={screens} onPerm={setPermFor} onToggle={flatToggle} hiddenOf={flatOff} onLabel={(k, v) => patchScreen(k, { label: v })} query={mq} />
         : (
           <div className="space-y-3">
             {scopedMods.map((m, mi) => {
-              const mc = collapsed[`m${m.id}`]
+              const displayItems = mq ? filterTree(m.items) : m.items
+              // Busca ativa: esconde módulos sem correspondência (a menos que o nome do módulo case).
+              if (mq && displayItems.length === 0 && !m.label.toLowerCase().includes(mq)) return null
+              const mc = mq ? false : collapsed[`m${m.id}`]
               const overRoot = overGroup === `m${m.id}`
               return (
                 <div key={m.id} className="ds-card p-0 overflow-hidden" style={{ borderLeft: `3px solid ${m.active ? 'var(--primary)' : 'var(--border)'}` }}>
@@ -838,8 +862,8 @@ function Inner() {
                           <AddScreen usedKeys={usedKeys} onAdd={k => addScreen(m.id, null, k)} prominent />
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>na raiz de {m.label}</span>
                         </div>
-                        {m.items.length === 0 && <p className="text-[12px] text-center py-3" style={{ color: 'var(--text-light)' }}>Vazio. Crie uma pasta ou adicione uma tela.</p>}
-                        {renderNodes(m.items, m.id, [])}
+                        {displayItems.length === 0 && <p className="text-[12px] text-center py-3" style={{ color: 'var(--text-light)' }}>{mq ? 'Nenhum resultado nesta seção.' : 'Vazio. Crie uma pasta ou adicione uma tela.'}</p>}
+                        {renderNodes(displayItems, m.id, [])}
                       </div>
                     </div>
                   </div>
@@ -1049,8 +1073,11 @@ function MovePicker({ mods, excludeIds, title, onPick, onClose, currentProfile }
 }
 
 /** Visão LISTA (flat) — todas as telas referenciadas, sem hierarquia; foco em escanear permissões. */
-function FlatView({ usage, screens, onPerm, onToggle, onLabel, hiddenOf }: { usage: Record<string, string[]>; screens: Record<string, NavScreen>; onPerm: (k: string) => void; onToggle: (k: string) => void; onLabel: (k: string, v: string) => void; hiddenOf: (k: string) => boolean }) {
-  const keys = Object.keys(usage).sort((a, b) => screenLabel(screens[a], a).localeCompare(screenLabel(screens[b], b)))
+function FlatView({ usage, screens, onPerm, onToggle, onLabel, hiddenOf, query }: { usage: Record<string, string[]>; screens: Record<string, NavScreen>; onPerm: (k: string) => void; onToggle: (k: string) => void; onLabel: (k: string, v: string) => void; hiddenOf: (k: string) => boolean; query?: string }) {
+  const q = (query ?? '').trim().toLowerCase()
+  const keys = Object.keys(usage)
+    .filter(k => !q || screenLabel(screens[k], k).toLowerCase().includes(q) || k.toLowerCase().includes(q))
+    .sort((a, b) => screenLabel(screens[a], a).localeCompare(screenLabel(screens[b], b)))
   return (
     <div className="ds-card p-0 overflow-hidden">
       {keys.length === 0 && <p className="text-[12px] text-center py-6" style={{ color: 'var(--text-light)' }}>Nenhuma tela na estrutura.</p>}
