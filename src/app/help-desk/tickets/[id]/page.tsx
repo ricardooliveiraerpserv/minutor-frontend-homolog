@@ -575,7 +575,9 @@ function TicketDetailInner({ id }: { id: number }) {
           updateField({ contract_id: d.auto.contract_id, project_id: d.auto.project_id })
         }
       }).catch(() => setApontOptions([]))
-  }, [id, coreReady])
+    // Recarrega ao TROCAR o cliente do chamado: as opções de Contrato/Projeto são por cliente
+    // (auto-seleciona se houver só uma).
+  }, [id, coreReady, t?.customer?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // Ao escolher a empresa DESTINO da transferência, busca os agentes que a atendem (p/ direcionar).
   useEffect(() => {
     if (!transferTarget) { setTransferAgents([]); return }
@@ -1601,7 +1603,7 @@ function TicketDetailInner({ id }: { id: number }) {
                   <div className="w-[62%]">
                     <SearchSelect subtle fullWidth value={t.customer?.id ?? ''} placeholder={t.customer?.name ?? 'Selecionar empresa…'}
                       options={custList}
-                      onChange={v => { if (!v || Number(v) === (t.customer?.id ?? 0)) return; if (confirm('Alterar a empresa (cliente) deste chamado? Revise o Contrato/Projeto depois.')) updateField({ customer_id: Number(v) }) }} />
+                      onChange={v => { if (!v || Number(v) === (t.customer?.id ?? 0)) return; if (confirm('Alterar a empresa (cliente) deste chamado? O Contrato/Projeto será recarregado para o novo cliente.')) updateField({ customer_id: Number(v), contract_id: null, project_id: null }, { project: null }) }} />
                   </div>
                 </div>
               ) : (
