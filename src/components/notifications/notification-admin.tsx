@@ -944,8 +944,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                   const aff = data.summary.actions[0]
                   const confirmados = aff ? (data.summary.by_action[aff] ?? 0) : 0
                   const criancas = data.recipients.reduce((n, r) => n + (r.guests ?? []).filter(g => g.idade != null && g.idade <= 7).length, 0)
+                  const totalGeral = confirmados + (data.summary.guests_total ?? 0)
+                  const adultos = totalGeral - criancas
                   return <>
-                    <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {confirmados + (data.summary.guests_total ?? 0)} pessoa(s)</span>
+                    <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {totalGeral} pessoa(s)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧑 <b>{adultos}</b> adulto(s)</span>
                     <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧒 <b>{criancas}</b> criança(s) <span style={{ color: 'var(--text-light)' }}>(até 7 anos)</span></span>
                   </>
                 })()}
