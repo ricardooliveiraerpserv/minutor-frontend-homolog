@@ -903,7 +903,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       aoa.push([])
       aoa.push(['RESUMO'])
       aoa.push(['Titulares (confirmados)', totalTitulares])
-      aoa.push(['Familiares adultos', totalFamAdultos])
+      aoa.push(['Adultos (inclui titulares)', totalTitulares + totalFamAdultos])
       aoa.push(['Crianças (até 7 anos)', totalCriancas])
       aoa.push(['TOTAL GERAL', totalGeral])
       const ws = XLSX.utils.aoa_to_sheet(aoa)
@@ -948,7 +948,8 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                   const adultos = totalGeral - criancas
                   return <>
                     <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {totalGeral} pessoa(s)</span>
-                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧑 <b>{adultos}</b> adulto(s)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🎟️ <b>{confirmados}</b> titular(es)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧑 <b>{adultos}</b> adulto(s) <span style={{ color: 'var(--text-light)' }}>(inclui titulares)</span></span>
                     <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧒 <b>{criancas}</b> criança(s) <span style={{ color: 'var(--text-light)' }}>(até 7 anos)</span></span>
                   </>
                 })()}
