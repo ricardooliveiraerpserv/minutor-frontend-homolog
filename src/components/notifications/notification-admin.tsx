@@ -8,7 +8,7 @@ import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -887,20 +887,24 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       let totalTitulares = 0
       let totalFamAdultos = 0
       let totalCriancas = 0
+      const titularRows: number[] = []
+      const criancaRows: number[] = []
       rows.forEach(r => {
         const confirmou = !!aff && r.response === aff
         const nGuests = r.guests?.length ?? 0
         const totalInd = (confirmou ? 1 : 0) + nGuests
         if (confirmou) totalTitulares += 1
+        titularRows.push(aoa.length)
         aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
         ;(r.guests ?? []).forEach(g => {
           const crianca = g.idade != null && g.idade <= 7
-          if (crianca) totalCriancas += 1; else totalFamAdultos += 1
+          if (crianca) { totalCriancas += 1; criancaRows.push(aoa.length) } else totalFamAdultos += 1
           aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', ''])
         })
       })
       const totalGeral = totalTitulares + totalFamAdultos + totalCriancas
       aoa.push([])
+      const resumoIdx = aoa.length
       aoa.push(['RESUMO'])
       aoa.push(['Titulares (confirmados)', totalTitulares])
       aoa.push(['Adultos (inclui titulares)', totalTitulares + totalFamAdultos])
@@ -908,6 +912,22 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       aoa.push(['TOTAL GERAL', totalGeral])
       const ws = XLSX.utils.aoa_to_sheet(aoa)
       ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      // Cores: cabeçalho (teal), linhas de TITULAR (destaque verde-claro), crianças (amarelo-claro)
+      const NCOLS = 10
+      const styleRow = (rowIdx: number, style: Record<string, unknown>) => {
+        for (let c = 0; c < NCOLS; c++) {
+          const addr = XLSX.utils.encode_cell({ r: rowIdx, c })
+          if (!ws[addr]) ws[addr] = { t: 's', v: '' }
+          ;(ws[addr] as Record<string, unknown>).s = style
+        }
+      }
+      styleRow(0, { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '0E7C66' } } })
+      titularRows.forEach(ri => styleRow(ri, { font: { bold: true }, fill: { fgColor: { rgb: 'D6EDE6' } } }))
+      criancaRows.forEach(ri => styleRow(ri, { fill: { fgColor: { rgb: 'FFF3CD' } } }))
+      for (let i = resumoIdx; i < aoa.length; i++) {
+        const addr = XLSX.utils.encode_cell({ r: i, c: 0 })
+        if (ws[addr]) (ws[addr] as Record<string, unknown>).s = { font: { bold: true } }
+      }
       XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
     } else {
       const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
