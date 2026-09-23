@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { zipLooksLikeSource } from '@/lib/zip-inspect'
 import { useConfirm } from '@/components/ui/use-confirm'
-import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown, MessageSquare } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
 import { EmailFrame } from './email-frame'
 
@@ -564,6 +564,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           {/* Toggle segmentado BEM EVIDENTE: o segmento ativo é preenchido e forte (verde =
               resposta ao cliente, roxo = nota interna) com texto branco; o inativo é um botão
               claramente clicável (borda + texto na cor). É a 1ª decisão do envio. */}
+          <span className="text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>Tipo:</span>
           <div className="inline-flex items-center rounded-xl p-1 gap-1" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
             {(['customer', 'internal'] as const).map(v => {
               const active = visibility === v
@@ -574,7 +575,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                   style={active
                     ? { background: accent, color: '#ffffff', boxShadow: '0 2px 8px ' + (v === 'internal' ? 'rgba(124,58,237,.35)' : 'rgba(5,150,105,.35)'), transform: 'scale(1.03)' }
                     : { background: 'var(--surface)', color: accent, border: `1.5px solid ${accent}` }}>
-                  {v === 'internal' ? <Lock size={15} /> : <Send size={15} />}
+                  {v === 'internal' ? <Lock size={15} /> : <MessageSquare size={15} />}
                   {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
                 </button>
               )
