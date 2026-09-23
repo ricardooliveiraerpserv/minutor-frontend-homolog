@@ -763,14 +763,28 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           const h = Number(a.contributed_hours)
                           const r = Number(a.hourly_rate)
                           const total = h * r
-                          const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
+                          const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas', transferencia: 'Transferência' }
                           const isNovo = a.kanban_status === 'novo_contrato'
                           return (
                             <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
                               <td className="px-3 py-2" style={{ color: 'var(--text)' }}>
                                 {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
                               </td>
-                              <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
+                              <td className="px-3 py-2" style={{ color: 'var(--text)' }}>
+                                {motivoLabel[a.motivo] ?? a.motivo}
+                                {a.motivo === 'transferencia' && a.origin_project && (
+                                  <div style={{ fontSize: 10, color: 'var(--text-light)' }}
+                                    title={`Horas recebidas de: ${a.origin_project.code ?? ''}${a.origin_project.code && a.origin_project.name ? ' - ' : ''}${a.origin_project.name ?? ''}`}>
+                                    de {a.origin_project.code || a.origin_project.name || `#${a.origin_project.id}`}
+                                  </div>
+                                )}
+                                {a.motivo === 'transferencia' && a.destination_project && (
+                                  <div style={{ fontSize: 10, color: 'var(--text-light)' }}
+                                    title={`Horas transferidas para: ${a.destination_project.code ?? ''}${a.destination_project.code && a.destination_project.name ? ' - ' : ''}${a.destination_project.name ?? ''}`}>
+                                    para {a.destination_project.code || a.destination_project.name || `#${a.destination_project.id}`}
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{h.toFixed(1)}h</td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{r.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 })}</td>
                               <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: 'var(--success-border)' }}>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -1047,7 +1061,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
       )}
       {aporteModal && (() => {
         const a = aporteModal.a
-        const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
+        const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas', transferencia: 'Transferência' }
         const isNovo = a.kanban_status === 'novo_contrato'
         const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none'
         const inputSt = { background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }

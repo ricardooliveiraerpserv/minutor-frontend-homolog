@@ -43,6 +43,8 @@ interface SummaryData {
   month_maintenance_hours?: number
   month_projects_hours?: number
   amount_to_pay?: number | null
+  transfer_credit_hours?: number
+  transfer_credit_origins?: { project_id: number; code: string | null; name: string | null; hours: number }[]
   hourly_rate?: number | null
 }
 
@@ -482,13 +484,32 @@ export default function OnDemandPage() {
                     {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                   </div>
                 ) : summary ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${(summary.transfer_credit_hours ?? 0) > 0 ? 'lg:grid-cols-5' : 'sm:grid-cols-3'}`}>
                     <ConsumoMesCard
                       total={summary.month_consumed_hours}
                       sustentacao={summary.month_maintenance_hours ?? 0}
                       projeto={summary.month_projects_hours ?? 0}
                       hint={monthConsumptionHint}
                     />
+                    {(summary.transfer_credit_hours ?? 0) > 0 && (
+                      <KpiCard
+                        label="Saldo recebido (crédito)"
+                        value={`${fmtH(summary.transfer_credit_hours ?? 0)} h`}
+                        icon={DollarSign}
+                        accent="success"
+                        hint={(summary.transfer_credit_origins?.length ?? 0) > 0
+                          ? `de ${summary.transfer_credit_origins!.map(o => o.code || o.name || `#${o.project_id}`).join(', ')}`
+                          : undefined}
+                      />
+                    )}
+                    {(summary.transfer_credit_hours ?? 0) > 0 && (
+                      <KpiCard
+                        label="Horas a Pagar"
+                        value={`${fmtH((summary.hourly_rate ?? 0) > 0 ? (summary.amount_to_pay ?? 0) / (summary.hourly_rate ?? 1) : 0)} h`}
+                        icon={Clock}
+                        accent={(summary.amount_to_pay ?? 0) > 0 ? 'danger' : 'success'}
+                      />
+                    )}
                     <KpiCard
                       label="Valor Hora"
                       value={fmtBRL(summary.hourly_rate)}
