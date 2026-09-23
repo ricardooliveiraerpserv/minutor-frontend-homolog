@@ -295,19 +295,19 @@ export function NotificationPopups({ userId }: { userId: number }) {
             <button onClick={() => { setGuestModal(null); setGuests([]) }} className="ml-auto" style={{ color: 'var(--text-muted)' }} aria-label="Fechar"><X size={16} /></button>
           </div>
           <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Preencha o <b>nome</b> e o <b>parentesco</b> de cada familiar. Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Informe o <b>nome completo</b> e o <b>parentesco</b> de cada familiar (idade obrigatória p/ filho). <b>Todos os campos são obrigatórios.</b> Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
             {guests.map((g, i) => (
               <div key={i} className="flex items-center gap-2">
-                <input className="ds-input flex-1 text-sm" placeholder="Nome" value={g.nome} maxLength={120}
+                <input className="ds-input flex-1 text-sm" placeholder="Nome completo *" value={g.nome} maxLength={120}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, nome: e.target.value } : x))} />
                 <select className="ds-input w-32 text-sm" value={g.parentesco}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: e.target.value === 'Filho(a)' ? x.idade : '' } : x))}>
-                  <option value="">Parentesco…</option>
+                  <option value="">Parentesco *</option>
                   <option value="Cônjuge">Cônjuge</option>
                   <option value="Filho(a)">Filho(a)</option>
                 </select>
                 {g.parentesco === 'Filho(a)' && (
-                  <input className="ds-input w-20 text-sm" type="number" min={0} max={120} placeholder="Idade" value={g.idade}
+                  <input className="ds-input w-24 text-sm" type="number" min={0} max={120} placeholder="Idade *" value={g.idade}
                     onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, idade: e.target.value } : x))} />
                 )}
                 <button type="button" onClick={() => setGuests(gs => gs.filter((_, idx) => idx !== i))} aria-label="Remover"><X size={14} style={{ color: 'var(--text-muted)' }} /></button>
