@@ -8,6 +8,7 @@ import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
+import * as XLSX from 'xlsx'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -874,23 +875,40 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     return okView && okResp
   })
 
-  // Exporta as linhas FILTRADAS em CSV (abre no Excel; BOM + ';' p/ pt-BR e acentos).
-  const exportCsv = () => {
+  // Exporta as linhas FILTRADAS em Excel real (.xlsx). Quando há familiares: 1 linha por PESSOA
+  // (titular + cada familiar abaixo) com coluna "Convidado de" indicando de quem o familiar é.
+  const exportXlsx = () => {
     const withGuests = !!data?.summary.allow_guests
-    const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta', ...(withGuests ? ['Familiares'] : [])]
-    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '',
-      ...(withGuests ? [(r.guests ?? []).map(g => {
-        const p = g.parentesco ? `${g.parentesco}${g.idade != null ? ` ${g.idade} anos` : ''}` : ''
-        return p ? `${g.nome} (${p})` : g.nome
-      }).join(' | ')] : [])])
-    const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `log-${(notif.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.csv`
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    const fname = `log-${(notif.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.xlsx`
+    const wb = XLSX.utils.book_new()
+    if (withGuests) {
+      const aff = data?.summary.actions[0]
+      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
+      let totalGeral = 0
+      rows.forEach(r => {
+        const confirmou = !!aff && r.response === aff
+        const nGuests = r.guests?.length ?? 0
+        const totalInd = (confirmou ? 1 : 0) + nGuests
+        if (confirmou) totalGeral += 1
+        aoa.push([r.user_name, 'Titular', '', '', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
+        ;(r.guests ?? []).forEach(g => {
+          totalGeral += 1
+          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', r.user_name, '', '', '', ''])
+        })
+      })
+      aoa.push([])
+      aoa.push([`TOTAL GERAL: ${totalGeral} pessoa(s)`])
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
+    } else {
+      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
+      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '']))
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }]
+      XLSX.utils.book_append_sheet(wb, ws, 'Log')
+    }
+    XLSX.writeFile(wb, fname)
   }
 
   return (
@@ -914,6 +932,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                   <span key={a} className="px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{a}: <b>{data.summary.by_action[a] ?? 0}</b></span>
                 ))}
                 {data.summary.allow_guests && <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>👥 <b>{data.summary.guests_total ?? 0}</b> acompanhante(s)</span>}
+                {data.summary.allow_guests && (() => {
+                  const aff = data.summary.actions[0]
+                  const confirmados = aff ? (data.summary.by_action[aff] ?? 0) : 0
+                  return <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {confirmados + (data.summary.guests_total ?? 0)} pessoa(s)</span>
+                })()}
               </div>
 
               {/* Filtro por visualização + exportar */}
@@ -923,7 +946,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                     style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
                 ))}
                 <div className="flex-1" />
-                <button onClick={exportCsv} title="Exportar em Excel (CSV)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
+                <button onClick={exportXlsx} title="Exportar em Excel (.xlsx)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
               </div>
 
               {/* Filtro por RESPOSTA (só quando há botões de decisão) */}
@@ -963,11 +986,22 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                         )}
                         {data.summary.allow_guests && (
                           <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
-                            {r.guests && r.guests.length > 0
-                              ? <div className="flex flex-col gap-0.5">{r.guests.map((g, gi) => (
-                                  <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}{g.idade != null ? ` (${g.idade} anos)` : ''}</span> : null}</span>
-                                ))}</div>
-                              : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                            {(() => {
+                              const aff = data.summary.actions[0]
+                              const confirmou = !!aff && r.response === aff
+                              const nGuests = r.guests?.length ?? 0
+                              const totalInd = (confirmou ? 1 : 0) + nGuests
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  {confirmou && <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>Total: {totalInd} pessoa(s)</span>}
+                                  {nGuests > 0
+                                    ? r.guests!.map((g, gi) => (
+                                        <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}{g.idade != null ? ` (${g.idade} anos)` : ''}</span> : null}</span>
+                                      ))
+                                    : (!confirmou && <span style={{ color: 'var(--text-light)' }}>—</span>)}
+                                </div>
+                              )
+                            })()}
                           </td>
                         )}
                       </tr>
