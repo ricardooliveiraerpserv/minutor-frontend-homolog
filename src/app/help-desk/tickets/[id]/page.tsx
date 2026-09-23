@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
+import { SearchSelect } from '@/components/ui/search-select'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 import { api, ApiError } from '@/lib/api'
@@ -56,7 +57,7 @@ interface Sla {
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number; external_ticket_ref?: string | null
-  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; can_see_collision?: boolean; can_view_contract_summary?: boolean; default_action?: 'public' | 'internal'; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
+  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean; can_delete?: boolean; can_print?: boolean; can_view_sla?: boolean; can_clone?: boolean; can_reopen?: boolean; can_close?: boolean; can_send_email?: boolean; can_see_collision?: boolean; can_change_customer?: boolean; can_view_contract_summary?: boolean; default_action?: 'public' | 'internal'; reopen_scheduled_at?: string | null; reopen_scheduled_note?: string | null; is_requester?: boolean; apontamento_time_mode?: 'optional' | 'required' | 'hidden'
   solicitante?: { name: string | null; email: string | null; department?: string | null; perfil?: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
@@ -329,6 +330,13 @@ function TicketDetailInner({ id }: { id: number }) {
   // Triagem: Contrato/Projeto de apontamento (sustentação/cloud do cliente). 1 opção = trava; 2+ = obriga.
   type ApontOpt = { contract_id: number; project_id: number; label: string; project_name?: string }
   const [apontOptions, setApontOptions] = useState<ApontOpt[]>([])
+  // Alterar a empresa (cliente) do chamado — só quando o perfil permite (can_change_customer).
+  const [custList, setCustList] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => {
+    if (t?.can_change_customer && custList.length === 0) {
+      api.get<{ data?: { id: number; name: string }[] }>('/help-desk/integration-customers').then(r => setCustList(r?.data ?? [])).catch(() => {})
+    }
+  }, [t?.can_change_customer, custList.length])
   const [transferAgents, setTransferAgents] = useState<{ id: number; name: string }[]>([]) // agentes da empresa destino
   const [transferAssignee, setTransferAssignee] = useState<number | null>(null)        // responsável opcional
   const [comments, setComments] = useState<Comment[]>(c0?.comments ?? [])
@@ -1587,7 +1595,18 @@ function TicketDetailInner({ id }: { id: number }) {
             {/* Propriedades */}
             <div className="ds-card p-4 space-y-2">
               <div className={lbl} style={{ color: 'var(--text-light)' }}>Detalhes</div>
-              <Row label="Cliente" value={t.customer?.name ?? '— (interno)'} />
+              {t.can_change_customer ? (
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span style={{ color: 'var(--text-light)' }}>Cliente</span>
+                  <div className="w-[62%]">
+                    <SearchSelect subtle fullWidth value={t.customer?.id ?? ''} placeholder={t.customer?.name ?? 'Selecionar empresa…'}
+                      options={custList}
+                      onChange={v => { if (!v || Number(v) === (t.customer?.id ?? 0)) return; if (confirm('Alterar a empresa (cliente) deste chamado? Revise o Contrato/Projeto depois.')) updateField({ customer_id: Number(v) }) }} />
+                  </div>
+                </div>
+              ) : (
+                <Row label="Cliente" value={t.customer?.name ?? '— (interno)'} />
+              )}
               {/* Contrato/Projeto de apontamento — 1 opção trava (só leitura); 2+ obriga escolher. */}
               {apontOptions.length > 0 && (() => {
                 const optLabel = (o: ApontOpt) => apontOptions.filter(x => x.label === o.label).length > 1 && o.project_name ? `${o.label} · ${o.project_name}` : o.label

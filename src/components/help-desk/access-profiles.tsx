@@ -68,6 +68,7 @@ const SCHEMA: Record<Kind, Tab[]> = {
         { key: 'policies.can_be_assignee', label: 'Pode ser atribuído como responsável', type: 'toggle' },
         { key: 'policies.see_new_column', label: 'Exibir a coluna “Novo” na fila (tickets ainda não distribuídos)', type: 'toggle' },
         { key: 'policies.global_search', label: 'Busca global (lupa) — pesquisar e abrir qualquer chamado, mesmo fora da sua fila', type: 'toggle' },
+        { key: 'policies.change_customer', label: 'Pode alterar a empresa (cliente) do chamado', type: 'toggle' },
         { key: 'policies.view_tickets', label: 'Permitir visualizar tickets (defina se enxerga os não distribuídos a ele)', type: 'radio', options: VIEW_SCOPE },
         { key: 'policies.edit_tickets', label: 'Permitir editar tickets', type: 'radio', options: VIEW_SCOPE },
       ] },
