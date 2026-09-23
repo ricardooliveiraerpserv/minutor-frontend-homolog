@@ -75,7 +75,8 @@ export function NovoChamadoModal({ meta, customers, onClose, onCreated, variant 
   }, [customerId])
   // Multi-empresa: quem atende 2+ empresas escolhe a EMPRESA DO GRUPO onde o chamado é aberto.
   const { active } = useActiveCompany()
-  const companyOpts = meta?.companies_scope ?? []
+  // ERPSERV sempre primeiro nos botões de empresa do chamado.
+  const companyOpts = [...(meta?.companies_scope ?? [])].sort((a, b) => (/erpserv/i.test(b.name) ? 1 : 0) - (/erpserv/i.test(a.name) ? 1 : 0))
   const showCompanyPicker = !!meta?.is_multi_company && companyOpts.length > 1
   const [companyId, setCompanyId] = useState<string>('')
   // Default = empresa ativa (se estiver no escopo), senão a 1ª do escopo.
