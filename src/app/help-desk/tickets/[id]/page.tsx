@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
 import { SearchSelect } from '@/components/ui/search-select'
+import { useConfirm } from '@/components/ui/use-confirm'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 import { api, ApiError } from '@/lib/api'
@@ -331,7 +332,20 @@ function TicketDetailInner({ id }: { id: number }) {
   type ApontOpt = { contract_id: number; project_id: number; label: string; project_name?: string }
   const [apontOptions, setApontOptions] = useState<ApontOpt[]>([])
   // Alterar a empresa (cliente) do chamado — só quando o perfil permite (can_change_customer).
+  const { confirm: confirmDlg, confirmDialog } = useConfirm()
   const [custList, setCustList] = useState<{ id: number; name: string }[]>([])
+  const changeCustomer = async (v: string) => {
+    const newId = Number(v)
+    if (!v || newId === (t?.customer?.id ?? 0)) return
+    const novo = custList.find(c => c.id === newId)?.name ?? 'a empresa selecionada'
+    const ok = await confirmDlg({
+      title: 'Alterar a empresa do chamado',
+      message: <>Este chamado passará para <strong>{novo}</strong>.<br />O <strong>Contrato/Projeto</strong> será recarregado para o novo cliente (seleção automática se houver só um). Solicitante e departamento podem precisar de ajuste.</>,
+      confirmLabel: 'Alterar empresa',
+      cancelLabel: 'Cancelar',
+    })
+    if (ok) updateField({ customer_id: newId, contract_id: null, project_id: null }, { project: null })
+  }
   useEffect(() => {
     if (t?.can_change_customer && custList.length === 0) {
       api.get<{ data?: { id: number; name: string }[] }>('/help-desk/integration-customers').then(r => setCustList(r?.data ?? [])).catch(() => {})
@@ -1603,7 +1617,7 @@ function TicketDetailInner({ id }: { id: number }) {
                   <div className="w-[62%]">
                     <SearchSelect subtle fullWidth value={t.customer?.id ?? ''} placeholder={t.customer?.name ?? 'Selecionar empresa…'}
                       options={custList}
-                      onChange={v => { if (!v || Number(v) === (t.customer?.id ?? 0)) return; if (confirm('Alterar a empresa (cliente) deste chamado? O Contrato/Projeto será recarregado para o novo cliente.')) updateField({ customer_id: Number(v), contract_id: null, project_id: null }, { project: null }) }} />
+                      onChange={changeCustomer} />
                   </div>
                 </div>
               ) : (
@@ -1819,6 +1833,7 @@ function TicketDetailInner({ id }: { id: number }) {
           </div>
         </div>
       )}
+      {confirmDialog}
       {finalizing && t && (
         <FinalizarAtendimentoModal
           ticketId={id}
