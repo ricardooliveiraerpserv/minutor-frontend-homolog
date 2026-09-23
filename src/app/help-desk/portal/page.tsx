@@ -40,7 +40,7 @@ interface PortalTicket {
   agendamento?: string | null; agendamento_dia_inteiro?: boolean
   descricao?: string | null; comentarios?: PortalComment[]; anexos?: PortalAtt[]
   // Campos visíveis conforme o perfil de acesso do cliente (podem não vir)
-  cliente?: string | null; solicitante?: string | null; agente?: string | null; equipe?: string | null
+  cliente?: string | null; solicitante?: string | null; departamento?: string | null; agente?: string | null; equipe?: string | null
   categoria?: string | null; servico?: string | null; nivel?: string | null; reaberturas?: number; cc?: string[]
   responsavel?: string | null
   justificativa?: string | null; horas_apontadas?: number; tags?: string[]; sla_primeira_resposta?: string | null
@@ -628,6 +628,7 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
         {/* Metadados do chamado — todos no padrão do cabeçalho (rótulo em cima, valor embaixo). */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1.5 pt-1">
           {t.solicitante && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Solicitante</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.solicitante}</div></div>}
+          {t.departamento && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Departamento</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.departamento}</div></div>}
           <div><div className={rot} style={{ color: 'var(--text-light)' }}>Atendido por</div><div className="text-sm font-semibold truncate" style={{ color: atendente ? 'var(--text)' : 'var(--text-light)' }}>{atendente || 'Aguardando atribuição'}</div></div>
           {t.cliente && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Cliente</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.cliente}</div></div>}
           {t.categoria && <div><div className={rot} style={{ color: 'var(--text-light)' }}>Categoria</div><div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{t.categoria}</div></div>}
