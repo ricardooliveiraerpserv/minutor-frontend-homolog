@@ -883,23 +883,31 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     const wb = XLSX.utils.book_new()
     if (withGuests) {
       const aff = data?.summary.actions[0]
-      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
-      let totalGeral = 0
+      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
+      let totalTitulares = 0
+      let totalFamAdultos = 0
+      let totalCriancas = 0
       rows.forEach(r => {
         const confirmou = !!aff && r.response === aff
         const nGuests = r.guests?.length ?? 0
         const totalInd = (confirmou ? 1 : 0) + nGuests
-        if (confirmou) totalGeral += 1
-        aoa.push([r.user_name, 'Titular', '', '', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
+        if (confirmou) totalTitulares += 1
+        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
         ;(r.guests ?? []).forEach(g => {
-          totalGeral += 1
-          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', r.user_name, '', '', '', ''])
+          const crianca = g.idade != null && g.idade <= 7
+          if (crianca) totalCriancas += 1; else totalFamAdultos += 1
+          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', ''])
         })
       })
+      const totalGeral = totalTitulares + totalFamAdultos + totalCriancas
       aoa.push([])
-      aoa.push([`TOTAL GERAL: ${totalGeral} pessoa(s)`])
+      aoa.push(['RESUMO'])
+      aoa.push(['Titulares (confirmados)', totalTitulares])
+      aoa.push(['Familiares adultos', totalFamAdultos])
+      aoa.push(['Crianças (até 7 anos)', totalCriancas])
+      aoa.push(['TOTAL GERAL', totalGeral])
       const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
       XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
     } else {
       const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
@@ -935,7 +943,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 {data.summary.allow_guests && (() => {
                   const aff = data.summary.actions[0]
                   const confirmados = aff ? (data.summary.by_action[aff] ?? 0) : 0
-                  return <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {confirmados + (data.summary.guests_total ?? 0)} pessoa(s)</span>
+                  const criancas = data.recipients.reduce((n, r) => n + (r.guests ?? []).filter(g => g.idade != null && g.idade <= 7).length, 0)
+                  return <>
+                    <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {confirmados + (data.summary.guests_total ?? 0)} pessoa(s)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧒 <b>{criancas}</b> criança(s) <span style={{ color: 'var(--text-light)' }}>(até 7 anos)</span></span>
+                  </>
                 })()}
               </div>
 
