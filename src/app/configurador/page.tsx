@@ -825,6 +825,29 @@ function Inner() {
         </div>
       )}
 
+      {/* Busca: telas do CATÁLOGO ainda NÃO posicionadas neste menu — clique p/ escolher onde colocar. */}
+      {mq && (() => {
+        const catMatches = NAV_CATALOG.filter(c => !usedKeys.has(c.key) && (c.label.toLowerCase().includes(mq) || c.key.toLowerCase().includes(mq)))
+        if (catMatches.length === 0) return null
+        return (
+          <div className="flex flex-col gap-2 rounded-xl px-3 py-2.5 text-[13px]" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--primary)' }}>
+            <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+              <FolderInput size={15} /> <b>Telas do sistema</b> — ainda não estão no menu de {tab.label}. Clique para <b>colocar</b>:
+            </div>
+            <div className="flex flex-wrap gap-1.5 pl-6">
+              {catMatches.map(c => (
+                <button key={c.key} onClick={() => setPlaceOrphan({ key: c.key, label: c.label })}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold hover:bg-[var(--surface-hover)]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                  title={`Colocar "${c.label}" no menu`}>
+                  <Plus size={11} /> {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {view === 'flat'
         ? <FlatView usage={scopedUsage} screens={screens} onPerm={setPermFor} onToggle={flatToggle} hiddenOf={flatOff} onLabel={(k, v) => patchScreen(k, { label: v })} query={mq} />
         : (
