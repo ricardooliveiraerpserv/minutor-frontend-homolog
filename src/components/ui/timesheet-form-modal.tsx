@@ -205,9 +205,11 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     api.get<any>(customerEndpoint)
       .then(r => {
         const items = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        // eslint-disable-next-line no-console
+        console.warn('[APONT clientes] currentUser=', currentUser, 'isAdmin=', isAdmin, 'endpoint=', customerEndpoint, 'n=', items.length, 'raw=', r)
         setCustomers(items)
       })
-      .catch(() => {})
+      .catch(e => { /* eslint-disable-next-line no-console */ console.warn('[APONT clientes] ERRO', customerEndpoint, e) })
       .finally(() => setLoadingData(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, form.user_id])
