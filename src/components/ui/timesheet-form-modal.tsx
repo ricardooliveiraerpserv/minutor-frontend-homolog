@@ -333,8 +333,10 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.ticket || !form.ticket.trim()) { toast.error('Informe o número do ticket'); return }
       if (!/^\d+$/.test(form.ticket.trim()))    { toast.error('O ticket deve ser numérico'); return }
     }
-    // Descrição obrigatória em qualquer apontamento.
-    if (!form.observation || !form.observation.trim()) { toast.error('Descrição obrigatória'); return }
+    // Descrição obrigatória (mín. 20 caracteres) em qualquer apontamento.
+    if (!form.observation || form.observation.trim().length < 20) {
+      toast.error('Descrição obrigatória com no mínimo 20 caracteres'); return
+    }
     setSaving(true)
     try {
       const body: Record<string, any> = {
@@ -580,9 +582,14 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Observação */}
             <div>
-              <Label className="text-xs text-[var(--text-muted)]">Observação *</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-[var(--text-muted)]">Observação *</Label>
+                <span className={`text-[10px] ${(form.observation?.trim().length ?? 0) < 20 ? 'text-[var(--text-light)]' : 'text-[var(--success)]'}`}>
+                  {form.observation?.trim().length ?? 0}/20 mín.
+                </span>
+              </div>
               <textarea value={form.observation} rows={3}
-                placeholder="Descreva as atividades realizadas..."
+                placeholder="Descreva as atividades realizadas (mínimo 20 caracteres)..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
