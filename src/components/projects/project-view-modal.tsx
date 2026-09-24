@@ -95,6 +95,8 @@ interface ProjectEditForm {
   allow_manual_timesheets: boolean; allow_negative_balance: boolean
   client_follows_timesheets: boolean
   movidesk_integration_enabled: boolean
+  helpdesk_integration_enabled?: boolean
+  helpdesk_contract_id?: number | null
   coordinator_ids: number[]; consultant_ids: number[]; consultant_group_ids: number[]
 }
 
@@ -1010,6 +1012,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
     allow_negative_balance:          d.allow_negative_balance ?? false,
     client_follows_timesheets:       (d as any).client_follows_timesheets ?? true,
     movidesk_integration_enabled:    (d as any).movidesk_integration_enabled ?? false,
+    helpdesk_integration_enabled:    (d as any).helpdesk_integration_enabled ?? false,
     coordinator_ids:                 (d.coordinators ?? d.approvers ?? []).map((c: any) => c.id),
     consultant_ids:                  (d.consultants ?? []).map((c: any) => c.id),
     consultant_group_ids:            (d.consultant_groups ?? []).map((g: any) => g.id),
@@ -1362,6 +1365,32 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 onChange={v => setForm(p => ({ ...p, movidesk_integration_enabled: v }))}
                 label="Receber integração Movidesk (apontamentos importados deste cliente caem neste projeto)"
               />
+
+              {/* Help Desk: permite vincular CHAMADOS a este projeto (não-sustentação). Quando ligado,
+                  as interações com tempo dos chamados viram apontamento neste projeto. Sustentação já
+                  nasce ligada (não mostra aqui). */}
+              {(() => {
+                const stName = (optServiceTypes.find(s => s.id === Number(form.service_type_id))?.name ?? '').toLowerCase()
+                const isSust = stName.includes('sustenta')
+                const hdContractId = (d as any).helpdesk_contract_id
+                if (isSust || !hdContractId) return null
+                return (
+                  <Toggle2
+                    checked={!!form.helpdesk_integration_enabled}
+                    onChange={async v => {
+                      setForm(p => ({ ...p, helpdesk_integration_enabled: v }))
+                      try {
+                        await api.patch(`/contracts/${hdContractId}/helpdesk-integration`, { enabled: v })
+                        toast.success(v ? 'Chamados podem ser vinculados a este projeto' : 'Vínculo de chamados desligado')
+                      } catch (e) {
+                        toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar')
+                        setForm(p => ({ ...p, helpdesk_integration_enabled: !v }))
+                      }
+                    }}
+                    label="Vincular chamados do Help Desk (as interações com tempo viram apontamento neste projeto)"
+                  />
+                )
+              })()}
 
               {/* Override de Coordenador (sustentação) — só admin */}
               {(() => {
