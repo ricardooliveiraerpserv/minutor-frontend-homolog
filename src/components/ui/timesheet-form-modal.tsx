@@ -327,6 +327,15 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
+    // Não permite números quebrados: horários e total precisam ser múltiplos de 5 minutos.
+    if (!useTotal) {
+      const sm = parseHHMM(form.start_time), em = parseHHMM(form.end_time)
+      if ((sm != null && sm % 5 !== 0) || (em != null && em % 5 !== 0)) {
+        toast.error('Use horários em múltiplos de 5 minutos'); return
+      }
+    }
+    const tm = parseHHMM(form.total_hours)
+    if (tm != null && tm % 5 !== 0) { toast.error('O total deve ser múltiplo de 5 minutos'); return }
     // Sustentação: o ticket (chamado) é obrigatório e só aceita número.
     const isSustProj = selProj?.service_type_code === 'sustentacao'
     if (isSustProj) {
@@ -532,13 +541,13 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Início *</Label>
-                  <input type="time" value={form.start_time}
+                  <input type="time" step={300} value={form.start_time}
                     onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Fim {timeDriver === 'end' ? '*' : ''}</Label>
-                  <input type="time" value={form.end_time}
+                  <input type="time" step={300} value={form.end_time}
                     onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
