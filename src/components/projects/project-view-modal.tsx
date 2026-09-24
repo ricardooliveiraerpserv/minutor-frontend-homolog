@@ -96,7 +96,6 @@ interface ProjectEditForm {
   client_follows_timesheets: boolean
   movidesk_integration_enabled: boolean
   helpdesk_integration_enabled?: boolean
-  helpdesk_contract_id?: number | null
   coordinator_ids: number[]; consultant_ids: number[]; consultant_group_ids: number[]
 }
 
@@ -1102,6 +1101,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         allow_negative_balance: form.allow_negative_balance,
         client_follows_timesheets: form.client_follows_timesheets,
         movidesk_integration_enabled: form.movidesk_integration_enabled,
+        helpdesk_integration_enabled: form.helpdesk_integration_enabled,
         cobra_despesa_cliente: form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
         condicao_pagamento: form.condicao_pagamento || null,
@@ -1372,21 +1372,11 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
               {(() => {
                 const stName = (optServiceTypes.find(s => s.id === Number(form.service_type_id))?.name ?? '').toLowerCase()
                 const isSust = stName.includes('sustenta')
-                const hdContractId = (d as any).helpdesk_contract_id
-                if (isSust || !hdContractId) return null
+                if (isSust) return null   // sustentação já vem ligada via contrato
                 return (
                   <Toggle2
                     checked={!!form.helpdesk_integration_enabled}
-                    onChange={async v => {
-                      setForm(p => ({ ...p, helpdesk_integration_enabled: v }))
-                      try {
-                        await api.patch(`/contracts/${hdContractId}/helpdesk-integration`, { enabled: v })
-                        toast.success(v ? 'Chamados podem ser vinculados a este projeto' : 'Vínculo de chamados desligado')
-                      } catch (e) {
-                        toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar')
-                        setForm(p => ({ ...p, helpdesk_integration_enabled: !v }))
-                      }
-                    }}
+                    onChange={v => setForm(p => ({ ...p, helpdesk_integration_enabled: v }))}
                     label="Vincular chamados do Help Desk (as interações com tempo viram apontamento neste projeto)"
                   />
                 )
