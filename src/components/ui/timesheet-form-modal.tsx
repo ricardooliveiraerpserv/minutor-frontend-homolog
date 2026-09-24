@@ -327,6 +327,14 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
+    // Sustentação: o ticket (chamado) é obrigatório e só aceita número.
+    const isSustProj = selProj?.service_type_code === 'sustentacao'
+    if (isSustProj) {
+      if (!form.ticket || !form.ticket.trim()) { toast.error('Informe o número do ticket'); return }
+      if (!/^\d+$/.test(form.ticket.trim()))    { toast.error('O ticket deve ser numérico'); return }
+    }
+    // Descrição obrigatória em qualquer apontamento.
+    if (!form.observation || !form.observation.trim()) { toast.error('Descrição obrigatória'); return }
     setSaving(true)
     try {
       const body: Record<string, any> = {
@@ -562,8 +570,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             {/* Ticket — apenas para projetos de sustentação */}
             {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
               <div>
-                <Label className="text-xs text-[var(--text-muted)]">Ticket</Label>
-                <input type="number" value={form.ticket} placeholder="Ex: 12345"
+                <Label className="text-xs text-[var(--text-muted)]">Ticket *</Label>
+                <input type="number" inputMode="numeric" value={form.ticket} placeholder="Ex: 12345"
                   onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                   className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -572,7 +580,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Observação */}
             <div>
-              <Label className="text-xs text-[var(--text-muted)]">Observação</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Observação *</Label>
               <textarea value={form.observation} rows={3}
                 placeholder="Descreva as atividades realizadas..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
