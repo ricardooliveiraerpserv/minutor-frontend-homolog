@@ -5,6 +5,7 @@ import { X, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
+import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 
 interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null; is_rateio?: boolean }
 
@@ -541,15 +542,17 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Início *</Label>
-                  <input type="time" step={300} value={form.start_time}
-                    onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <div className="mt-1">
+                    <TimeSelect5 value={form.start_time} ariaLabel="Início" maxBefore={form.end_time}
+                      onChange={v => setForm(f => ({ ...f, start_time: v }))} />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Fim {timeDriver === 'end' ? '*' : ''}</Label>
-                  <input type="time" step={300} value={form.end_time}
-                    onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <div className="mt-1">
+                    <TimeSelect5 value={form.end_time} ariaLabel="Fim" minAfter={form.start_time}
+                      onChange={v => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: v })) }} />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Total {timeDriver === 'total' ? '*' : ''}</Label>
