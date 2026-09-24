@@ -358,7 +358,7 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
           {/* Filtro dos vinculados: por cliente e por usuário. */}
           {linked.length > 1 && (
             <div className="flex items-center gap-2 flex-wrap mt-1">
-              {p.kind === 'cliente' && linkedCustOptions.length > 1 && (
+              {p.kind === 'cliente' && linkedCustOptions.length >= 1 && (
                 <div className="min-w-[180px]">
                   <SearchSelect subtle fullWidth value={linkedCustFilter} onChange={setLinkedCustFilter} placeholder="Filtrar por cliente"
                     options={linkedCustOptions.map(c => ({ id: c, name: c }))} />
