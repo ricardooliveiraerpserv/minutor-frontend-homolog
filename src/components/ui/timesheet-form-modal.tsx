@@ -5,6 +5,7 @@ import { X, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
+import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 
 interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null; is_rateio?: boolean }
 
@@ -327,6 +328,25 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
+    // Sustentação: o ticket (chamado) é obrigatório e só aceita número.
+    const isSustProj = selProj?.service_type_code === 'sustentacao'
+    if (isSustProj) {
+      if (!form.ticket || !form.ticket.trim()) { toast.error('Informe o número do ticket'); return }
+      if (!/^\d+$/.test(form.ticket.trim()))    { toast.error('O ticket deve ser numérico'); return }
+    }
+    // Descrição obrigatória (mín. 20 caracteres) em qualquer apontamento.
+    if (!form.observation || form.observation.trim().length < 20) {
+      toast.error('Descrição obrigatória com no mínimo 20 caracteres'); return
+    }
+    // Não permite números quebrados: horários e total precisam ser múltiplos de 5 minutos.
+    if (!useTotal) {
+      const sm = parseHHMM(form.start_time), em = parseHHMM(form.end_time)
+      if ((sm != null && sm % 5 !== 0) || (em != null && em % 5 !== 0)) {
+        toast.error('Use horários em múltiplos de 5 minutos'); return
+      }
+    }
+    const tm = parseHHMM(form.total_hours)
+    if (tm != null && tm % 5 !== 0) { toast.error('O total deve ser múltiplo de 5 minutos'); return }
     setSaving(true)
     try {
       const body: Record<string, any> = {
@@ -519,15 +539,17 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Início *</Label>
-                  <input type="time" value={form.start_time}
-                    onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <div className="mt-1">
+                    <TimeSelect5 value={form.start_time} ariaLabel="Início" maxBefore={form.end_time}
+                      onChange={v => setForm(f => ({ ...f, start_time: v }))} />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Fim {timeDriver === 'end' ? '*' : ''}</Label>
-                  <input type="time" value={form.end_time}
-                    onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
+                  <div className="mt-1">
+                    <TimeSelect5 value={form.end_time} ariaLabel="Fim" minAfter={form.start_time}
+                      onChange={v => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: v })) }} />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Total {timeDriver === 'total' ? '*' : ''}</Label>
@@ -559,8 +581,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             {/* Ticket — apenas para projetos de sustentação */}
             {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
               <div>
-                <Label className="text-xs text-[var(--text-muted)]">Ticket</Label>
-                <input type="number" value={form.ticket} placeholder="Ex: 12345"
+                <Label className="text-xs text-[var(--text-muted)]">Ticket *</Label>
+                <input type="number" inputMode="numeric" value={form.ticket} placeholder="Ex: 12345"
                   onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                   className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -569,9 +591,14 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Observação */}
             <div>
-              <Label className="text-xs text-[var(--text-muted)]">Observação</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-[var(--text-muted)]">Observação *</Label>
+                <span className={`text-[10px] ${(form.observation?.trim().length ?? 0) < 20 ? 'text-[var(--text-light)]' : 'text-[var(--success)]'}`}>
+                  {form.observation?.trim().length ?? 0}/20 mín.
+                </span>
+              </div>
               <textarea value={form.observation} rows={3}
-                placeholder="Descreva as atividades realizadas..."
+                placeholder="Descreva as atividades realizadas (mínimo 20 caracteres)..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
