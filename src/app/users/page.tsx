@@ -520,16 +520,15 @@ export default function UsersPage() {
   // Filtro da aba HD (empresa / equipe / tipo) — client-side sobre a página carregada.
   const displayUsers = useMemo(() => {
     if (!hdMode) return users
-    const isAgentUser = (u: UserItem) => {
-      const prof = hdProfiles.find(p => p.id === u.helpdesk_access_profile_id)
-      return prof?.kind === 'agent' || (u.helpdesk_team_ids ?? []).length > 0
-    }
+    // "Agente" = usuário com PERFIL HD de agente (independe do tipo de usuário). Sem perfil ≠ agente.
+    const hdProfileKind = (u: UserItem) => hdProfiles.find(p => p.id === u.helpdesk_access_profile_id)?.kind
     return users.filter(u => {
       if (hdCompany && !(u.company_ids ?? []).includes(Number(hdCompany))) return false
       if (hdTeam === 'none' && (u.helpdesk_team_ids ?? []).length > 0) return false
       if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
       if (hdKind === 'clients' && u.type !== 'cliente') return false
-      if (hdKind === 'agents' && !isAgentUser(u)) return false
+      if (hdKind === 'agents' && hdProfileKind(u) !== 'agent') return false // só quem tem perfil de agente
+      if (hdKind === 'no_profile' && u.helpdesk_access_profile_id) return false // só quem está SEM perfil HD
       if (hdManual === 'yes' && !(u.type !== 'cliente' && u.can_timesheet_sustentacao)) return false
       if (hdManual === 'no' && !(u.type !== 'cliente' && !u.can_timesheet_sustentacao)) return false
       if (hdDeptFilter === 'none' && u.helpdesk_department_id) return false
@@ -592,6 +591,7 @@ export default function UsersPage() {
             <option value="">Tipo (todos)</option>
             <option value="agents">Só agentes</option>
             <option value="clients">Só clientes</option>
+            <option value="no_profile">Sem perfil HD</option>
           </select>
           <select value={hdManual} onChange={e => setHdManual(e.target.value)} title="Filtrar por 'Apontar manual' em sustentação"
             className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
