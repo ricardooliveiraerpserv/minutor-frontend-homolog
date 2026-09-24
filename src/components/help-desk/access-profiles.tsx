@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, ShieldCheck, Search, Copy } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, ShieldCheck, Search, Copy, X } from 'lucide-react'
+import { SearchSelect } from '@/components/ui/search-select'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -212,7 +213,6 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
   // Vínculo direto usuário↔perfil (reflete no cadastro de usuários via helpdesk_access_profile_id).
   type Person = { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; customer_name?: string | null }
   const [people, setPeople] = useState<Person[]>([])
-  const [pplSearch, setPplSearch] = useState('')
   const [pplCustomer, setPplCustomer] = useState('')
   const [pplLoading, setPplLoading] = useState(false)
   useEffect(() => {
@@ -237,9 +237,10 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
     }
   }
   const pplCustomers = Array.from(new Set(people.map(x => x.customer_name).filter(Boolean))) as string[]
-  const filteredPeople = people.filter(x =>
-    (!pplSearch || x.name.toLowerCase().includes(pplSearch.toLowerCase()) || (x.customer_name ?? '').toLowerCase().includes(pplSearch.toLowerCase())) &&
-    (!pplCustomer || x.customer_name === pplCustomer))
+  const linkedPeople = p ? people.filter(x => x.helpdesk_access_profile_id === p.id) : []
+  const addOptions = p ? people
+    .filter(x => x.helpdesk_access_profile_id !== p.id && (!pplCustomer || x.customer_name === pplCustomer))
+    .map(x => ({ id: x.id, name: p.kind === 'cliente' && x.customer_name ? `${x.name} · ${x.customer_name}` : x.name })) : []
 
   const save = async () => {
     if (!name.trim()) return toast.error('Informe o nome.')
@@ -321,30 +322,30 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
             </div>
             <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{people.filter(x => x.helpdesk_access_profile_id === p.id).length} vinculado(s)</span>
           </div>
-          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Marque para vincular {p.kind === 'cliente' ? 'o cliente/usuário' : 'o usuário'} a este perfil. O vínculo reflete no cadastro de usuários.</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Selecione {p.kind === 'cliente' ? 'o cliente/usuário' : 'o usuário'} para vincular a este perfil. O vínculo reflete no cadastro de usuários.</p>
           <div className="flex items-center gap-2 flex-wrap">
-            <input value={pplSearch} onChange={e => setPplSearch(e.target.value)} placeholder={p.kind === 'cliente' ? 'Buscar por nome ou cliente…' : 'Buscar por nome…'} className={fieldCls} style={{ ...inputStyle, height: 32, minWidth: 220 }} />
             {p.kind === 'cliente' && pplCustomers.length > 0 && (
-              <select value={pplCustomer} onChange={e => setPplCustomer(e.target.value)} className="text-sm rounded-lg px-2 h-8 outline-none" style={inputStyle}>
-                <option value="">Todos os clientes</option>
-                {pplCustomers.sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <div className="min-w-[200px]">
+                <SearchSelect subtle fullWidth value={pplCustomer} onChange={setPplCustomer} placeholder="Todos os clientes"
+                  options={pplCustomers.slice().sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => ({ id: c, name: c }))} />
+              </div>
             )}
+            <div className="min-w-[260px] flex-1">
+              <SearchSelect subtle fullWidth value="" placeholder={pplLoading ? 'Carregando…' : (p.kind === 'cliente' ? '+ Adicionar cliente/usuário…' : '+ Adicionar usuário…')}
+                options={addOptions}
+                onChange={v => { const person = people.find(x => x.id === Number(v)); if (person) togglePerson(person) }} />
+            </div>
           </div>
-          <div className="rounded-lg overflow-y-auto max-h-64" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            {pplLoading ? <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Carregando…</p>
-              : filteredPeople.length === 0 ? <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum {p.kind === 'cliente' ? 'cliente' : 'usuário'} encontrado.</p>
-              : filteredPeople.map(person => {
-                const here = person.helpdesk_access_profile_id === p.id
-                const other = !!person.helpdesk_access_profile_id && !here
-                return (
-                  <label key={person.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer ds-row-hover" style={{ color: 'var(--text)' }}>
-                    <input type="checkbox" checked={here} onChange={() => togglePerson(person)} />
-                    <span className="flex-1 truncate">{person.name}{p.kind === 'cliente' && person.customer_name ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}> · {person.customer_name}</span> : ''}</span>
-                    {other && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>outro perfil</span>}
-                  </label>
-                )
-              })}
+          {/* Selecionados: chips com X para remover. */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {linkedPeople.length === 0
+              ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum vinculado ainda.</span>
+              : linkedPeople.map(person => (
+                <span key={person.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                  {person.name}{p.kind === 'cliente' && person.customer_name ? ` · ${person.customer_name}` : ''}
+                  <button type="button" onClick={() => togglePerson(person)} title="Remover vínculo" className="hover:opacity-70"><X size={12} /></button>
+                </span>
+              ))}
           </div>
         </div>
       )}
