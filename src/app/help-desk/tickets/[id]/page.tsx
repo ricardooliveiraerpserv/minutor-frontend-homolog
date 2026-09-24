@@ -1675,51 +1675,6 @@ function TicketDetailInner({ id }: { id: number }) {
             {/* A chave de "Integração de horas" foi removida do chamado — agora é definida no
                 cadastro do contrato. Sustentação/Cloud já nasce com ela ligada. */}
 
-            {/* Horas do chamado — SOMA por interação (effort_minutes) + total por consultor.
-                Independe da integração de horas do contrato (sempre reflete o que foi apontado nas interações). */}
-            {(() => {
-              const comTempo = comments.filter(c => (c.effort_minutes || 0) > 0)
-              const totalMin = comTempo.reduce((s, c) => s + (c.effort_minutes || 0), 0)
-              const porConsultor = Object.entries(
-                comTempo.reduce((acc, c) => { const k = c.author?.name ?? '—'; acc[k] = (acc[k] || 0) + (c.effort_minutes || 0); return acc }, {} as Record<string, number>)
-              ).sort((a, b) => b[1] - a[1])
-              return (
-                <div id="hd-apontamentos" className="ds-card p-4 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className={lbl} style={{ color: 'var(--text-light)' }}><Clock size={12} className="inline -mt-0.5 mr-1" />Horas apontadas</div>
-                    <div className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{minutesToHHMM(totalMin) || '0:00'}</div>
-                  </div>
-                  {comTempo.length === 0 ? (
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhuma hora apontada nas interações.</p>
-                  ) : (
-                    <>
-                      <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{comTempo.length} interação{comTempo.length === 1 ? '' : 'ões'} com tempo</div>
-                      <div className="pt-1.5 border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
-                        <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Por consultor</div>
-                        {porConsultor.map(([nome, min]) => (
-                          <div key={nome} className="flex items-center justify-between gap-2 text-xs">
-                            <span className="truncate" style={{ color: 'var(--text)' }}>{nome}</span>
-                            <span className="font-semibold shrink-0" style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{minutesToHHMM(min)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {/* Situação dos apontamentos gerados (quando a integração de horas está ligada) */}
-                  {apontamentos.length > 0 && (
-                    <div className="pt-1.5 border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
-                      <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Apontamentos gerados ({apontamentos.length})</div>
-                      {apontamentos.map(a => (
-                        <div key={a.id} className="flex items-center justify-between gap-2 text-xs">
-                          <span style={{ color: 'var(--text)' }}>{a.horas}h · {a.consultor ?? '—'}</span>
-                          <span style={{ color: a.status === 'approved' ? 'var(--success-border)' : 'var(--text-light)' }}>{a.status === 'approved' ? 'aprovado' : 'pendente'}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
           </div>
         </div>
       </div>
