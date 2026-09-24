@@ -618,6 +618,8 @@ export default function UsersPage() {
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
           <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por nome ou e-mail..."
+            autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+            name="hd-user-search" data-1p-ignore data-lpignore="true" data-form-type="other"
             className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
         {!hdMode && (
