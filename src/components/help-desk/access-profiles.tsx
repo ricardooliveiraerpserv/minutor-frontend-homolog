@@ -354,7 +354,7 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
             </div>
           </div>
           {/* Busca dentro dos vinculados (aparece quando há alguns). */}
-          {linked.length > 4 && (
+          {linked.length > 1 && (
             <div className="relative mt-1">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
               <input value={linkedFilter} onChange={e => setLinkedFilter(e.target.value)} placeholder="Filtrar vinculados…" className={`${fieldCls} w-full pl-7`} style={{ ...inputStyle, height: 30 }} />
