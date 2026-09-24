@@ -873,7 +873,8 @@ function TicketDetailInner({ id }: { id: number }) {
   // Atribui o agente e, se ele veio de uma equipe, leva o chamado AUTOMATICAMENTE para a fila dessa equipe.
   const assign = async (assigneeId: number | null, teamId?: number) => {
     const body: Record<string, unknown> = { assignee_id: assigneeId }
-    if (teamId != null) body.team_id = teamId
+    // teamId 0 = grupo sintético "Agentes" (escopo por empresa), NÃO é uma equipe real → não enviar.
+    if (teamId != null && teamId !== 0) body.team_id = teamId
     try { await api.patch(`/help-desk/tickets/${id}/assign`, body); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atribuir') }
   }
