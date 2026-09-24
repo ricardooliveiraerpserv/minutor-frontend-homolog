@@ -17,6 +17,9 @@ export interface SignatureData {
   alt_email?: string     // e-mail secundário — usado na assinatura da OUTRA empresa (não a base)
   alt_role?: string      // cargo secundário — usado na assinatura da OUTRA empresa (cargo por empresa)
   bizify_email?: string  // legado (compat) — lido como alt_email
+  // CONECTA (tenant): todos os campos configuráveis pelo usuário.
+  phone_fixo?: string; sig_email?: string; city?: string; website?: string
+  linkedin?: string; instagram?: string; youtube?: string
 }
 
 // Máscara de celular: (00)00000.0000
@@ -36,6 +39,9 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
 }) {
   const [variants, setVariants] = useState<{ system: string; email: string }>({ system: '', email: '' })
   const [view, setView] = useState<'system' | 'email'>('system')
+  // Tenant CONECTA (via data-tenant no <html>): todos os campos configuráveis; sem ERPSERV/Bizify.
+  const [isConecta, setIsConecta] = useState(false)
+  useEffect(() => { setIsConecta(document.documentElement.getAttribute('data-tenant') === 'conecta') }, [])
   // Marca do preview. Admin precisa validar as DUAS (ERPSERV × Bizify) → toggle no cadastro.
   const brandProvided = typeof isBizify === 'boolean'
   const [brand, setBrand] = useState<'erpserv' | 'bizify'>(isBizify ? 'bizify' : 'erpserv')
@@ -66,8 +72,9 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
   return (
     <div className="space-y-3">
       <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-        Layout fixo da marca ERPSERV. <b>Nome e e-mail</b> vêm do cadastro; <b>telefone fixo, site e cidade</b> são padrão da empresa.
-        {lockRole ? <> O <b>cargo</b> é definido pelo seu perfil{hidePhoto ? <> e a <b>foto</b> é a foto de perfil do sistema</> : null}. Você edita só o celular.</> : <> Você edita só o cargo e o celular.</>}
+        {isConecta
+          ? <>Assinatura <b>Conecta ERP</b>. <b>Todos os campos</b> são configuráveis — cargo, telefones, e-mail, cidade, site e as redes sociais.</>
+          : <>Layout fixo da marca ERPSERV. <b>Nome e e-mail</b> vêm do cadastro; <b>telefone fixo, site e cidade</b> são padrão da empresa.{lockRole ? <> O <b>cargo</b> é definido pelo seu perfil{hidePhoto ? <> e a <b>foto</b> é a foto de perfil do sistema</> : null}. Você edita só o celular.</> : <> Você edita só o cargo e o celular.</>}</>}
       </p>
 
       <div className="grid grid-cols-2 gap-2">
@@ -91,9 +98,8 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
         </label>
       )}
 
-      {/* Cargo + E-mail da OUTRA empresa — exclusivos por empresa. Base ERPSERV → campos Bizify;
-          base Bizify → campos ERPSERV. Só no cadastro. */}
-      {brandProvided && (
+      {/* Cargo + E-mail da OUTRA empresa — exclusivos por empresa (ERPSERV↔Bizify). Não no CONECTA. */}
+      {brandProvided && !isConecta && (
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>Cargo {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
@@ -102,6 +108,46 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
           <div>
             <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail {isBizify ? 'ERPSERV' : 'Bizify'} <span style={{ color: 'var(--text-light)' }}>(assinatura {isBizify ? 'ERPSERV' : 'Bizify'})</span></label>
             <input className={fieldCls} style={inputStyle} value={value.alt_email ?? value.bizify_email ?? ''} onChange={e => set('alt_email', e.target.value)} inputMode="email" placeholder={isBizify ? 'nome@erpserv.com.br' : 'nome@bizify.com.br'} />
+          </div>
+        </div>
+      )}
+
+      {/* CONECTA: todos os campos configuráveis (telefone fixo, e-mail, cidade, site, redes). */}
+      {isConecta && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Telefone fixo</label>
+              <input className={fieldCls} style={inputStyle} value={value.phone_fixo ?? ''} onChange={e => set('phone_fixo', e.target.value)} placeholder="(11) 3230-9647" />
+            </div>
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>E-mail da assinatura</label>
+              <input className={fieldCls} style={inputStyle} value={value.sig_email ?? ''} onChange={e => set('sig_email', e.target.value)} inputMode="email" placeholder="nome@conectaerp.com.br" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Cidade</label>
+              <input className={fieldCls} style={inputStyle} value={value.city ?? ''} onChange={e => set('city', e.target.value)} placeholder="São Paulo/SP" />
+            </div>
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Site</label>
+              <input className={fieldCls} style={inputStyle} value={value.website ?? ''} onChange={e => set('website', e.target.value)} placeholder="conectaerp.com.br" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>LinkedIn</label>
+              <input className={fieldCls} style={inputStyle} value={value.linkedin ?? ''} onChange={e => set('linkedin', e.target.value)} placeholder="linkedin.com/…" />
+            </div>
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Instagram</label>
+              <input className={fieldCls} style={inputStyle} value={value.instagram ?? ''} onChange={e => set('instagram', e.target.value)} placeholder="instagram.com/…" />
+            </div>
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>YouTube</label>
+              <input className={fieldCls} style={inputStyle} value={value.youtube ?? ''} onChange={e => set('youtube', e.target.value)} placeholder="youtube.com/…" />
+            </div>
           </div>
         </div>
       )}
@@ -126,8 +172,8 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
         <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
           <span className={lbl} style={{ color: 'var(--text-light)' }}>Pré-visualização</span>
           <div className="flex items-center gap-2">
-            {/* Marca — admin valida as DUAS assinaturas (ERPSERV × Bizify) alternando aqui. */}
-            {brandProvided && (
+            {/* Marca — admin valida as DUAS assinaturas (ERPSERV × Bizify) alternando aqui. CONECTA não tem. */}
+            {brandProvided && !isConecta && (
               <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--surface-sunken)' }}>
                 {([['erpserv', 'ERPSERV'], ['bizify', 'Bizify']] as const).map(([b, t]) => (
                   <button key={b} type="button" onClick={() => setBrand(b)} className="text-xs px-2.5 py-1 rounded-md"
@@ -148,9 +194,9 @@ export function SignatureEditor({ value, onChange, name = '', email = '', lockRo
           </div>
         </div>
         {view === 'email'
-          ? <EmailFrame key={html.length} html={html} />
-          : <div className="rounded-lg p-4 overflow-auto" style={{ background: '#ffffff', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: html }} />}
-        {!(value.role ?? '').trim() && !(value.mobile ?? '').trim() && <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Sem cargo/celular, mostramos a assinatura institucional da empresa (fallback).</p>}
+          ? <EmailFrame key={html.length} html={html} flush={isConecta} />
+          : <div className={isConecta ? 'overflow-auto' : 'rounded-lg p-4 overflow-auto'} style={{ background: '#ffffff', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: html }} />}
+        {!isConecta && !(value.role ?? '').trim() && !(value.mobile ?? '').trim() && <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Sem cargo/celular, mostramos a assinatura institucional da empresa (fallback).</p>}
       </div>
     </div>
   )

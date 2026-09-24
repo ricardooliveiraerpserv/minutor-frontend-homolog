@@ -8,6 +8,7 @@ import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
+import * as XLSX from 'xlsx-js-style'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -113,7 +114,7 @@ interface Notif {
   send_email: boolean; visible: boolean; requires_ack: boolean; cta_label: string | null; cta_url: string | null
   version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
-  is_template?: boolean; template_name?: string | null; actions?: string[] | null
+  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean
   created_at?: string
 }
 // Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
@@ -463,6 +464,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const setActionLabel = (i: number, v: string) => setActions(a => a.map((x, idx) => idx === i ? v : x))
   const addAction = () => setActions(a => [...a, ''])
   const removeAction = (i: number) => setActions(a => a.filter((_, idx) => idx !== i))
+  // Confirmar presença: permite ao respondente informar acompanhantes/familiares.
+  const [allowGuests, setAllowGuests] = useState<boolean>((draft as { allow_guests?: boolean }).allow_guests ?? false)
 
   // enquete (type=poll)
   const [pollQuestion, setPollQuestion] = useState(draft.poll?.question ?? '')
@@ -561,6 +564,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       cta_label: type === 'action' ? (ctaLabel.trim() || null) : null,
       cta_url: type === 'action' ? (ctaUrl.trim() || null) : null,
       actions: type === 'poll' ? [] : actions.map(a => a.trim()).filter(Boolean),
+      // Acompanhantes: só faz sentido com botões de decisão (Confirmar presença).
+      allow_guests: type !== 'poll' && actions.map(a => a.trim()).filter(Boolean).length > 0 ? allowGuests : false,
       version: Number(version) || 1, expires_at: expiresAt,
       ...(poll ? { poll } : {}),
     }
@@ -650,6 +655,18 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
               <button type="button" onClick={() => removeAction(i)}><Trash2 size={14} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
           ))}
+          {/* Permitir acompanhantes/familiares: ao confirmar (1º botão), o usuário informa os dependentes. */}
+          {actions.length > 0 && (
+            <label className="flex items-start gap-2 text-[13px] cursor-pointer pt-2 mt-1" style={{ color: 'var(--text)', borderTop: '1px solid var(--border)' }}>
+              <input type="checkbox" checked={allowGuests} onChange={e => setAllowGuests(e.target.checked)} className="mt-0.5" />
+              <span>
+                Permitir acompanhantes/familiares
+                <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  Ao clicar no <b>1º botão</b> ({actions[0]?.trim() || 'confirmar'}), o convidado poderá informar familiares (nome + parentesco). Eles entram na lista vinculados a quem respondeu.
+                </span>
+              </span>
+            </label>
+          )}
           {/* Limite da decisão + recorrência p/ re-perguntar (o usuário pode "Decidir depois" até o limite) */}
           {actions.length > 0 && (
             <div className="grid grid-cols-2 gap-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -835,8 +852,9 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   )
 }
 
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null }
-interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number> } }
+interface Guest { nome: string; parentesco: string | null; idade?: number | null }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null; guests?: Guest[] }
+interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
 
 /** Log de uma comunicação (admin): quem visualizou (e quando) + resultado dos botões de decisão. */
 function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
@@ -857,18 +875,68 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     return okView && okResp
   })
 
-  // Exporta as linhas FILTRADAS em CSV (abre no Excel; BOM + ';' p/ pt-BR e acentos).
-  const exportCsv = () => {
-    const header = ['Destinatário', 'E-mail', 'Visualizou', 'Resposta']
-    const esc = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const lines = rows.map(r => [r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? ''])
-    const csv = '﻿' + [header, ...lines].map(l => l.map(esc).join(';')).join('\r\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `log-${(notif.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.csv`
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+  // Exporta as linhas FILTRADAS em Excel real (.xlsx). Quando há familiares: 1 linha por PESSOA
+  // (titular + cada familiar abaixo) com coluna "Convidado de" indicando de quem o familiar é.
+  const exportXlsx = () => {
+    const withGuests = !!data?.summary.allow_guests
+    const fname = `log-${(notif.title || 'comunicado').replace(/[^\w]+/g, '_').slice(0, 40)}.xlsx`
+    const wb = XLSX.utils.book_new()
+    if (withGuests) {
+      const aff = data?.summary.actions[0]
+      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
+      let totalTitulares = 0
+      let totalFamAdultos = 0
+      let totalCriancas = 0
+      const titularRows: number[] = []
+      const criancaRows: number[] = []
+      rows.forEach(r => {
+        const confirmou = !!aff && r.response === aff
+        const nGuests = r.guests?.length ?? 0
+        const totalInd = (confirmou ? 1 : 0) + nGuests
+        if (confirmou) totalTitulares += 1
+        titularRows.push(aoa.length)
+        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
+        ;(r.guests ?? []).forEach(g => {
+          const crianca = g.idade != null && g.idade <= 7
+          if (crianca) { totalCriancas += 1; criancaRows.push(aoa.length) } else totalFamAdultos += 1
+          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', ''])
+        })
+      })
+      const totalGeral = totalTitulares + totalFamAdultos + totalCriancas
+      aoa.push([])
+      const resumoIdx = aoa.length
+      aoa.push(['RESUMO'])
+      aoa.push(['Titulares (confirmados)', totalTitulares])
+      aoa.push(['Adultos (inclui titulares)', totalTitulares + totalFamAdultos])
+      aoa.push(['Crianças (até 7 anos)', totalCriancas])
+      aoa.push(['TOTAL GERAL', totalGeral])
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      // Cores: cabeçalho (teal), linhas de TITULAR (destaque verde-claro), crianças (amarelo-claro)
+      const NCOLS = 10
+      const styleRow = (rowIdx: number, style: Record<string, unknown>) => {
+        for (let c = 0; c < NCOLS; c++) {
+          const addr = XLSX.utils.encode_cell({ r: rowIdx, c })
+          if (!ws[addr]) ws[addr] = { t: 's', v: '' }
+          ;(ws[addr] as Record<string, unknown>).s = style
+        }
+      }
+      styleRow(0, { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '0E7C66' } } })
+      titularRows.forEach(ri => styleRow(ri, { font: { bold: true }, fill: { fgColor: { rgb: 'D6EDE6' } } }))
+      criancaRows.forEach(ri => styleRow(ri, { fill: { fgColor: { rgb: 'FFF3CD' } } }))
+      for (let i = resumoIdx; i < aoa.length; i++) {
+        const addr = XLSX.utils.encode_cell({ r: i, c: 0 })
+        if (ws[addr]) (ws[addr] as Record<string, unknown>).s = { font: { bold: true } }
+      }
+      XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
+    } else {
+      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
+      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '']))
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }]
+      XLSX.utils.book_append_sheet(wb, ws, 'Log')
+    }
+    XLSX.writeFile(wb, fname)
   }
 
   return (
@@ -891,6 +959,20 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 {data.summary.actions.map(a => (
                   <span key={a} className="px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{a}: <b>{data.summary.by_action[a] ?? 0}</b></span>
                 ))}
+                {data.summary.allow_guests && <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>👥 <b>{data.summary.guests_total ?? 0}</b> acompanhante(s)</span>}
+                {data.summary.allow_guests && (() => {
+                  const aff = data.summary.actions[0]
+                  const confirmados = aff ? (data.summary.by_action[aff] ?? 0) : 0
+                  const criancas = data.recipients.reduce((n, r) => n + (r.guests ?? []).filter(g => g.idade != null && g.idade <= 7).length, 0)
+                  const totalGeral = confirmados + (data.summary.guests_total ?? 0)
+                  const adultos = totalGeral - criancas
+                  return <>
+                    <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>🧑‍🤝‍🧑 Total geral: {totalGeral} pessoa(s)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🎟️ <b>{confirmados}</b> titular(es)</span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧑 <b>{adultos}</b> adulto(s) <span style={{ color: 'var(--text-light)' }}>(inclui titulares)</span></span>
+                    <span className="px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>🧒 <b>{criancas}</b> criança(s) <span style={{ color: 'var(--text-light)' }}>(até 7 anos)</span></span>
+                  </>
+                })()}
               </div>
 
               {/* Filtro por visualização + exportar */}
@@ -900,7 +982,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                     style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
                 ))}
                 <div className="flex-1" />
-                <button onClick={exportCsv} title="Exportar em Excel (CSV)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
+                <button onClick={exportXlsx} title="Exportar em Excel (.xlsx)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
               </div>
 
               {/* Filtro por RESPOSTA (só quando há botões de decisão) */}
@@ -922,10 +1004,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Destinatário</th>
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Visualizou</th>
                       {data.summary.actions.length > 0 && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Resposta</th>}
+                      {data.summary.allow_guests && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Familiares</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.length === 0 && <tr><td colSpan={3} className="px-3 py-3 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário.</td></tr>}
+                    {rows.length === 0 && <tr><td colSpan={4} className="px-3 py-3 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum destinatário.</td></tr>}
                     {rows.map(r => (
                       <tr key={r.user_id} style={{ borderTop: '1px solid var(--border)' }}>
                         <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{r.user_name}<div className="text-[10px]" style={{ color: 'var(--text-light)' }}>{r.user_email}</div></td>
@@ -935,6 +1018,26 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                             {r.response
                               ? <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
                               : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                          </td>
+                        )}
+                        {data.summary.allow_guests && (
+                          <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
+                            {(() => {
+                              const aff = data.summary.actions[0]
+                              const confirmou = !!aff && r.response === aff
+                              const nGuests = r.guests?.length ?? 0
+                              const totalInd = (confirmou ? 1 : 0) + nGuests
+                              return (
+                                <div className="flex flex-col gap-0.5">
+                                  {confirmou && <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>Total: {totalInd} pessoa(s)</span>}
+                                  {nGuests > 0
+                                    ? r.guests!.map((g, gi) => (
+                                        <span key={gi} className="text-[11px]" style={{ color: 'var(--text)' }}>👤 {g.nome}{g.parentesco ? <span style={{ color: 'var(--text-light)' }}> · {g.parentesco}{g.idade != null ? ` (${g.idade} anos)` : ''}</span> : null}</span>
+                                      ))
+                                    : (!confirmou && <span style={{ color: 'var(--text-light)' }}>—</span>)}
+                                </div>
+                              )
+                            })()}
                           </td>
                         )}
                       </tr>

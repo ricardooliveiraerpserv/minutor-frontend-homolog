@@ -6,11 +6,12 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2, Bell } from 'lucide-react'
+import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2, Bell, ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
+import { TransferHoursModal } from '@/components/contracts/TransferHoursModal'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -186,6 +187,7 @@ export default function ContratosPage() {
   const [sustMoving, setSustMoving] = useState(false)
   const [editContract, setEditContract] = useState<Contract | null>(null)
   const [alertsContract, setAlertsContract] = useState<Contract | null>(null)
+  const [transferContract, setTransferContract] = useState<Contract | null>(null)
 
   // Generate project modal
   const [genModal, setGenModal] = useState<{ contract: Contract } | null>(null)
@@ -482,6 +484,12 @@ export default function ContratosPage() {
                               <Bell size={14} className="text-[var(--text-muted)]" /> Alertas de consumo
                             </button>
                           )}
+                          {c.project_id && user?.type === 'admin' && (
+                            <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setTransferContract(c) }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                              <ArrowLeftRight size={14} className="text-[var(--text-muted)]" /> Transferir horas
+                            </button>
+                          )}
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setDeleteTarget({ id: c.id, name: c.customer?.name ?? `Contrato #${c.id}`, type: 'contract' }) }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}>
                             <Trash2 size={14} style={{ color: 'var(--danger)' }} /> Excluir
@@ -559,6 +567,13 @@ export default function ContratosPage() {
         contractLabel={alertsContract ? `${alertsContract.customer?.name ?? ''}${alertsContract.project?.code ? ' · ' + alertsContract.project.code : ''}` : undefined}
         isAdmin={user?.type === 'admin'}
         onClose={() => setAlertsContract(null)}
+      />
+
+      {/* ── Transferência de horas entre contratos (mesmo cliente) ── */}
+      <TransferHoursModal
+        project={transferContract ? { id: (transferContract as any).project_id, customer: transferContract.customer, code: (transferContract as any).project?.code } : null}
+        onClose={() => setTransferContract(null)}
+        onDone={() => { setTransferContract(null); loadContracts() }}
       />
 
       {/* ── View Modal ── */}

@@ -473,8 +473,7 @@ export function ContractCreateModal({
         if (!form.expectativa_inicio)                                        { toast.error('Informe a Expectativa de Início'); return false }
         if (isMensalidade && !form.valor_projeto)                            { toast.error('Informe o Valor do Contrato (mensalidade)'); return false }
         if (isMensalidade) { const itErr = validateContractItems(items); if (itErr) { toast.error(itErr); return false } }
-        if (isOnDemand && !isMensalidade && !form.valor_projeto)             { toast.error('Informe o Valor do Projeto'); return false }
-        if (!isMensalidade && !isOnDemand && !form.valor_hora)               { toast.error('Informe o Valor da Hora'); return false }
+        if (!isMensalidade && !form.valor_hora)                              { toast.error('Informe o Valor da Hora'); return false }
         // On Demand consome do pai por apontamento (horas_contratadas=0, cobrado por hora
         // apontada) — não reserva bloco de horas, então não valida o saldo do pai.
         if (form.parent_project_id && parentBalance && !parentBalance.allow_negative && !isOnDemand) {
@@ -657,7 +656,7 @@ export function ContractCreateModal({
       [2, () => !!form.contract_type_id],
       [4, () => {
         if (isMensalidade) return !!form.expectativa_inicio && !!form.valor_projeto
-        if (isOnDemand)    return !!form.expectativa_inicio && !!form.valor_projeto
+        if (isOnDemand)    return !!form.expectativa_inicio && !!form.valor_hora
         return !!form.horas_contratadas && !!form.expectativa_inicio && !!form.valor_hora
       }],
       [6, () => form.is_subproject || !!form.condicao_pagamento.trim()],
@@ -1547,10 +1546,11 @@ export function ContractCreateModal({
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Valores</p>
                 <div className="grid grid-cols-3 gap-3">
+                  {!isOnDemand && (
                   <div>
                     <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
                       {isMensalidade ? 'Valor do Contrato (R$) — mensalidade' : 'Valor do Projeto (R$)'}
-                      {(isMensalidade || isOnDemand) && <span style={{ color: 'var(--danger)' }}> *</span>}
+                      {isMensalidade && <span style={{ color: 'var(--danger)' }}> *</span>}
                     </label>
                     <input {...numInput('valor_projeto', vp =>
                       setForm(f => {
@@ -1560,10 +1560,11 @@ export function ContractCreateModal({
                       })
                     )} placeholder="0,00" />
                   </div>
+                  )}
                   {!isMensalidade && (
                     <div>
                       <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
-                        Valor da Hora (R$){!isOnDemand && <span style={{ color: 'var(--danger)' }}> *</span>}
+                        Valor da Hora (R$)<span style={{ color: 'var(--danger)' }}> *</span>
                       </label>
                       <input {...numInput('valor_hora', vh =>
                         setForm(f => {

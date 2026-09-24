@@ -11,6 +11,8 @@ export interface CatalogItem {
 export const NAV_CATALOG: CatalogItem[] = [
   // Home / Configurador
   { key: '/meu-painel',          label: 'Meu Painel',                 group: 'Home' },
+  // Kanban pessoal — governável no Configurador; por padrão visível a todos os perfis.
+  { key: '/portal-cliente/kanban', label: 'Meus Processos',           group: 'Home' },
   { key: '/configurador',        label: 'Configurador de Menus',      group: 'Configurador' },
 
   // Serviços — Projetos / Sustentação / Operação
@@ -90,6 +92,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/settings?tab=perfis', label: 'Cadastro de Perfil', group: 'Sistema' },
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
   { key: '/configuracoes/empresas', label: 'Empresas do Grupo', group: 'Sistema' },
+  { key: '/configuracoes/cartao-credito', label: 'Cartão de Crédito (Despesas)', group: 'Sistema' },
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
   { key: '/auditoria-projetos', label: 'Auditoria de Projetos', group: 'Sistema' },
 

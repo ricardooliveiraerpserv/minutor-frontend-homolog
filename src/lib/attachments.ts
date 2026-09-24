@@ -22,6 +22,7 @@ export type AttachmentEntityType =
   | 'CONTRACT_MESSAGE'
   | 'REQUEST_MESSAGE'
   | 'FECHAMENTO_NOTA'
+  | 'KANBAN_CARD'
 
 export type AttachmentVisibility = 'internal' | 'customer' | 'restricted'
 

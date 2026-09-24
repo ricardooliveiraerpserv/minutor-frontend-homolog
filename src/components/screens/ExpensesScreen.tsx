@@ -503,9 +503,11 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
   const [form, setForm] = useState({
     customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
-    payment_method: 'pix', charge_client: false, user_id: '',
+    payment_method: 'pix', charge_client: false, user_id: '', is_credit_card: false,
   })
   const [modalUsers, setModalUsers] = useState<SelectOption[]>([])
+  // Usuários autorizados a lançar despesa via cartão de crédito (whitelist).
+  const [ccUserIds, setCcUserIds] = useState<Set<number>>(new Set())
   const [expenseItems, setExpenseItems] = useState<ExpenseItemDraft[]>([emptyExpenseItem()])
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
@@ -606,12 +608,15 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
 
   const loadOptions = useCallback(async () => {
     try {
-      const [c, u] = await Promise.all([
+      const [c, u, cc] = await Promise.all([
         api.get<{ items?: Category[]; data?: Category[] }>('/expense-categories?pageSize=100'),
         canActAsUser ? api.get<any>('/users?pageSize=200&exclude_type=cliente') : Promise.resolve(null),
+        api.get<any>('/expense-credit-card-users').catch(() => null),
       ])
       setCategories(Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : [])
       if (u) setModalUsers(Array.isArray(u?.items) ? u.items : [])
+      const ccList = Array.isArray(cc?.data) ? cc.data : Array.isArray(cc?.items) ? cc.items : []
+      setCcUserIds(new Set(ccList.map((x: any) => Number(x.id))))
     } catch { /* silencioso */ }
   }, [canActAsUser])
 
@@ -629,7 +634,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
   }, [modal.open, form.customer_id])
 
   const openCreate = () => {
-    setForm({ customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false, user_id: '' })
+    setForm({ customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false, user_id: '', is_credit_card: false })
     setExpenseItems([emptyExpenseItem()])
     loadOptions()
     setModal({ open: true })
@@ -649,6 +654,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
       payment_method: item.payment_method,
       charge_client: item.charge_client,
       user_id: String(item.user_id ?? ''),
+      is_credit_card: !!(item as any).is_credit_card,
     })
     setExpenseItems(expenseToItemDrafts(item))
     loadOptions()
@@ -689,7 +695,8 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
       if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
       fd.append('expense_date', form.expense_date)
       fd.append('expense_type', form.expense_type)
-      fd.append('payment_method', form.payment_method)
+      fd.append('payment_method', form.is_credit_card ? 'credit_card' : form.payment_method)
+      if (form.is_credit_card) fd.append('is_credit_card', '1')
       appendExpenseItems(fd, expenseItems)
       if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
       if (modal.item) fd.append('_method', 'PUT')
@@ -1292,6 +1299,24 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
                   categories={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
                 />
               </div>
+              {(() => {
+                const ccTargetId = form.user_id ? Number(form.user_id) : Number(user?.id ?? 0)
+                if (!ccUserIds.has(ccTargetId)) return null
+                return (
+                  <div className="rounded-lg p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="checkbox" className="mt-0.5" checked={form.is_credit_card}
+                        onChange={e => setForm(f => ({ ...f, is_credit_card: e.target.checked }))} />
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>
+                        <b>Cartão de crédito (empresa)</b>
+                        <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          Pago no cartão da empresa: a despesa é aprovada automaticamente e não entra na fila de pagamento.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                )
+              })()}
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</UIButton>

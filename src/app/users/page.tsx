@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, Download
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -165,6 +165,7 @@ export default function UsersPage() {
   // — exatamente o que o middleware screen.action bloqueia na API. Sem hardcode de perfil.
   const has = (perm: string) => isAdmin || ep.includes(perm)
   const canCreate     = has('users.create')        && !isDenied('/users', 'create')
+  const canExport     = isAdmin || has('users.view_all') || has('users.update')
   const canEdit       = has('users.update')        && !isDenied('/users', 'edit')
   const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
@@ -201,6 +202,45 @@ export default function UsersPage() {
   const setFilterContract      = (v: string) => setFilter({ filterContract: v, page: 1 } as any)
   const setFilterConsultantType= (v: string) => setFilter({ filterConsultantType: v, page: 1 } as any)
   const setFilterSust          = (v: string) => setFilter({ filterSust: v, page: 1 } as any)
+
+  // ── Export de usuários (tela de perguntas: quais abas + aplicar filtro da tela) ──
+  const EXPORT_SHEETS = ['Todos', 'Interno', 'Freelance', 'Parceiro', 'Cliente']
+  const [exporting, setExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportSheets, setExportSheets] = useState<string[]>(EXPORT_SHEETS)
+  const [exportApplyFilter, setExportApplyFilter] = useState(false)
+  const toggleExportSheet = (s: string) =>
+    setExportSheets(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  const doExport = useCallback(async () => {
+    setExporting(true)
+    try {
+      const p = new URLSearchParams()
+      if (exportSheets.length) p.set('sheets', exportSheets.join(','))
+      if (exportApplyFilter) {
+        p.set('apply_filters', '1')
+        if (search) p.set('search', search)
+        if (filterEnabled) p.set('enabled', filterEnabled)
+        if (filterRole) p.set('type', filterRole)
+        if (filterPartner) p.set('partner_id', filterPartner)
+        if (filterCustomer) p.set('customer_id', filterCustomer)
+        if (filterBond) p.set('work_bond', filterBond)
+        if (filterContract) p.set('contract_type', filterContract)
+        if (filterConsultantType) p.set('consultant_type', filterConsultantType)
+        if (filterSust) p.set('sustentacao', filterSust)
+      }
+      const res = await fetch(`/api/v1/users/export?${p.toString()}`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `usuarios_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      setExportOpen(false)
+    } catch { toast.error('Erro ao exportar usuários') }
+    finally { setExporting(false) }
+  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust])
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -530,6 +570,11 @@ export default function UsersPage() {
           <span className="text-xs px-2.5 h-8 inline-flex items-center rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
             {total} resultado{total === 1 ? '' : 's'}
           </span>
+        )}
+        {canExport && (
+        <Button onClick={() => setExportOpen(true)} variant="outline" className="h-8 text-xs gap-1.5">
+          <Download size={13} /> Exportar
+        </Button>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
@@ -988,6 +1033,56 @@ export default function UsersPage() {
         onClose={() => setBulkDeleteConfirm(false)}
         onConfirm={bulkDelete}
       />
+    {exportOpen && (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/60" onClick={() => setExportOpen(false)} />
+        <div className="relative rounded-2xl p-6 w-full max-w-md mx-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+              <Download size={16} style={{ color: 'var(--primary)' }} /> Exportar usuários
+            </h3>
+            <button onClick={() => setExportOpen(false)} className="p-1 rounded-lg hover:opacity-70" style={{ color: 'var(--text-muted)' }}><X size={14} /></button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Abas a exportar</label>
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                {EXPORT_SHEETS.map(s => (
+                  <button key={s} type="button" onClick={() => toggleExportSheet(s)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors"
+                    style={{ background: exportSheets.includes(s) ? 'var(--primary-soft)' : 'var(--surface-hover)', color: exportSheets.includes(s) ? 'var(--primary)' : 'var(--text)' }}>
+                    {exportSheets.includes(s) ? <CheckSquare2 size={14} /> : <Square size={14} />} {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Filtro</label>
+              <div className="mt-2 space-y-1.5">
+                <button type="button" onClick={() => setExportApplyFilter(false)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors"
+                  style={{ background: !exportApplyFilter ? 'var(--primary-soft)' : 'var(--surface-hover)', color: !exportApplyFilter ? 'var(--primary)' : 'var(--text)' }}>
+                  {!exportApplyFilter ? <CheckSquare2 size={14} /> : <Square size={14} />} Todos os usuários
+                </button>
+                <button type="button" onClick={() => setExportApplyFilter(true)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-left transition-colors"
+                  style={{ background: exportApplyFilter ? 'var(--primary-soft)' : 'var(--surface-hover)', color: exportApplyFilter ? 'var(--primary)' : 'var(--text)' }}>
+                  {exportApplyFilter ? <CheckSquare2 size={14} /> : <Square size={14} />} Aplicar o filtro da tela {hasActiveFilters ? '(filtros ativos)' : '(nenhum filtro ativo)'}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-5 justify-end">
+            <button onClick={() => setExportOpen(false)} className="px-3 py-2 rounded-xl text-xs" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+            <button onClick={doExport} disabled={exporting || exportSheets.length === 0}
+              className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40"
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+              {exporting ? 'Exportando…' : 'Exportar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </AppLayout>
   )
 }

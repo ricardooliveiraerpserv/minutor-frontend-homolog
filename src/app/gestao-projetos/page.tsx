@@ -11,8 +11,9 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink, Bell } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink, Bell, ArrowLeftRight } from 'lucide-react'
 import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
+import { TransferHoursModal } from '@/components/contracts/TransferHoursModal'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -35,6 +36,7 @@ interface ProjectWithTeam extends Project {
   contract_type_display?: string
   parent_project?: { id: number; name: string; code: string } | null
   consumo_mensal?: number | null
+  transfer_credit_origins?: { project_id: number; code: string | null; name: string | null; hours: number }[]
 }
 
 interface ProjectFull extends ProjectWithTeam {
@@ -51,6 +53,7 @@ interface ProjectFull extends ProjectWithTeam {
   coordinator_hours?: number | null
   save_erpserv?: number | null
   total_available_hours?: number | null
+  transfer_credit_origins?: { project_id: number; code: string | null; name: string | null; hours: number }[]
   total_project_value?: number | null
   weighted_hourly_rate?: number | null
   full_contributions_hours?: number | null
@@ -157,8 +160,9 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
+  const odCredit = isOnDemand ? Number((p as any).total_available_hours ?? 0) : 0
   const contributions = ((p as any).total_available_hours ?? p.sold_hours ?? 0) - (p.sold_hours ?? 0)
-  const displaySold = isOnDemand
+  const displaySold = (isOnDemand && odCredit <= 0)
     ? (p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
     : isBhMensal
       ? ((p as any).accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
@@ -179,7 +183,11 @@ function visibleSaldoOf(p: ProjectWithTeam): number {
   const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
   // Cloud/SaaS (mensalidade) não têm saldo — não entram no somatório de horas negativas.
   const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
-  return (isOnDemand || isCloudSaas) ? 0 : Number(p.general_hours_balance ?? 0)
+  const odCredit = isOnDemand ? Number((p as any).total_available_hours ?? 0) : 0
+  // On Demand: só tem saldo quando há crédito de transferência (aporte). Nesse caso
+  // saldo = crédito − consumo, e NUNCA fica negativo (esgotou o crédito → 0). Sem crédito → 0.
+  if (isOnDemand) return odCredit > 0 ? Math.max(0, odCredit - calcProjHours(p).consumedHours) : 0
+  return isCloudSaas ? 0 : Number(p.general_hours_balance ?? 0)
 }
 
 // Saúde + % de uso. O % e a cor batem com o SALDO exibido (consumido vs.
@@ -188,6 +196,12 @@ function visibleSaldoOf(p: ProjectWithTeam): number {
 function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number, considerUnbilled = false): { pct: number; color: 'green' | 'yellow' | 'red' } {
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') {
+    const odCredit = Number((p as any).total_available_hours ?? 0)
+    if (odCredit > 0) {
+      // On Demand COM crédito de transferência: % = consumo / crédito (como projeto normal).
+      const pctC = (consumed / odCredit) * 100
+      return { pct: pctC, color: (odCredit - consumed) < 0 ? 'red' : healthColor(pctC) }
+    }
     // On Demand pai com horas de meses encerrados NÃO faturadas → Crítico (só admin).
     if (considerUnbilled && Number((p as any).unbilled_hours ?? 0) > 0) return { pct: 100, color: 'red' }
     return { pct: 100, color: 'green' }
@@ -411,7 +425,7 @@ interface ProjectRowProps {
   project: ProjectWithTeam
   expanded: boolean
   onToggle: () => void
-  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => void
+  onMenuAction: (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts' | 'transfer-hours', project: ProjectWithTeam) => void
   canEdit?: boolean
   canChangeStatus?: boolean
   canDetach?: boolean
@@ -440,10 +454,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   // Cloud/SaaS = mensalidade: sem horas vendidas/saldo, só se acompanha o CONSUMO
   // (igual On Demand). Nessas colunas mostra "= consumo"/"—" em vez de vendidas/saldo.
   const isCloudSaas = ctName === 'cloud' || ctName === 'saas'
-  const isConsumoOnly = isOnDemand || isCloudSaas
+  const odCredit = isOnDemand ? Number((project as any).total_available_hours ?? 0) : 0
+  const hasOdCredit = odCredit > 0
+  const isConsumoOnly = (isOnDemand && !hasOdCredit) || isCloudSaas
   const isBhMensal = ctName.includes('mensal')
   const contributions = ((project as any).total_available_hours ?? project.sold_hours ?? 0) - (project.sold_hours ?? 0)
-  const displaySold = isOnDemand
+  const displaySold = (isOnDemand && !hasOdCredit)
     ? (project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0))
     : isBhMensal
       ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
@@ -456,7 +472,13 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   const consumedHours = project.consumed_hours != null
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
-  const displaySaldo = isConsumoOnly ? 0 : (project.general_hours_balance ?? null)
+  // On Demand COM crédito de transferência: saldo = crédito − consumo, clampado em 0
+  // (esgotou o crédito → 0, nunca negativo). Sem crédito → 0 (isConsumoOnly). Demais → BE.
+  const displaySaldo = isConsumoOnly
+    ? 0
+    : (isOnDemand && hasOdCredit)
+      ? Math.max(0, odCredit - consumedHours)
+      : (project.general_hours_balance ?? null)
   // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
   const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
   const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
@@ -559,6 +581,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   : <CalendarPlus size={12} />,
                 onClick: () => onMenuAction('open-period', project),
               },
+              ...(canDetach ? [{ label: 'Transferir horas', icon: <ArrowLeftRight size={12} />, onClick: () => onMenuAction('transfer-hours', project) }] : []),
               ...(canDetach && project.parent_project_id ? [{ label: 'Desvincular do pai', icon: <Layers size={12} />, onClick: () => onMenuAction('detach-parent', project) }] : []),
               ...(canDetach && !project.parent_project_id ? [{ label: 'Vincular como filho', icon: <Layers size={12} />, onClick: () => onMenuAction('attach-parent', project) }] : []),
               ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-[var(--danger)]" />, onClick: () => onDelete(project), danger: true }] : []),
@@ -660,6 +683,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                 <>
                   <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Projeto {fmt(project.vendidas_projeto_hours ?? 0, 1)}</span>
                   <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Aporte {fmt(project.vendidas_aporte_hours ?? 0, 1)}</span>
+                  {(project.transfer_credit_origins?.length ?? 0) > 0 && (
+                    <span style={{ fontSize: 9, color: 'var(--text-light)' }}
+                      title={`Horas transferidas de: ${project.transfer_credit_origins!.map(o => `${o.code ?? ''}${o.code && o.name ? ' - ' : ''}${o.name ?? ''} (${fmt(o.hours, 1)}h)`).join(', ')}`}>
+                      de {project.transfer_credit_origins!.map(o => o.code || o.name || `#${o.project_id}`).join(', ')}
+                    </span>
+                  )}
                 </>
               )}
             </div>
@@ -697,9 +726,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         <td className="py-3 px-4 text-[13px] text-right tabular-nums font-semibold"
           style={{ color: (saldoNeg || hasUnbilled) ? 'var(--danger-border)' : 'var(--text)' }}>
           {isOnDemand
-            ? (hasUnbilled
-                ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
-                : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
+            ? (hasOdCredit
+                // On Demand COM crédito de transferência: saldo = crédito − consumo (nunca negativo).
+                ? <span style={{ color: 'var(--text)' }}>{fmt(saldo ?? 0, 1)}</span>
+                : hasUnbilled
+                  ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
+                  : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
             : isCloudSaas
               ? <span style={{ color: 'var(--text-light)' }}>—</span>
               : (saldo != null ? fmt(saldo, 1) : '—')}
@@ -2294,6 +2326,7 @@ function GestaoProjetosInner() {
   // Modal de edição de projeto
   const [editProjectId, setEditProjectId] = useState<number | null>(null)
   const [alertsProject, setAlertsProject] = useState<ProjectWithTeam | null>(null)
+  const [transferProject, setTransferProject] = useState<ProjectWithTeam | null>(null)
 
   // Abre modal de edição se URL contém ?edit=ID
   useEffect(() => {
@@ -2768,8 +2801,9 @@ function GestaoProjetosInner() {
     }
   }, [projects, messagesParam])
 
-  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts', project: ProjectWithTeam) => {
+  const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent' | 'hours-alerts' | 'transfer-hours', project: ProjectWithTeam) => {
     if (action === 'hours-alerts') { setAlertsProject(project); return }
+    if (action === 'transfer-hours') { setTransferProject(project); return }
     if (action === 'attach-parent') {
       setAttachModal({ project, parentId: '', parents: [], loading: true })
       try {
@@ -3785,7 +3819,7 @@ function GestaoProjetosInner() {
                               <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{c.contributed_hours.toFixed(1)}h</td>
                               <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-muted)' }}>{c.hourly_rate.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                               <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--text)' }}>{(c.contributed_hours * c.hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                              <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--text-muted)' }}>{c.description ?? '—'}</td>
+                              <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--text-muted)' }} title={c.description ?? ''}>{c.description ?? '—'}</td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-1">
                                   {logs.length > 0 && (
@@ -4131,6 +4165,13 @@ function GestaoProjetosInner() {
         contractLabel={alertsProject ? `${alertsProject.customer?.name ?? ''}${alertsProject.code ? ' · ' + alertsProject.code : ''}` : undefined}
         isAdmin={isAdmin}
         onClose={() => setAlertsProject(null)}
+      />
+
+      {/* ── Transferência de horas entre projetos (mesmo cliente) ── */}
+      <TransferHoursModal
+        project={transferProject}
+        onClose={() => setTransferProject(null)}
+        onDone={() => { setTransferProject(null); setRefreshKey(k => k + 1) }}
       />
 
       {/* ── Modal de Exclusão de Projeto ── */}

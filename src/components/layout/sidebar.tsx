@@ -243,6 +243,7 @@ const NAV: NavEntry[] = [
   // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
   { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
   { type: 'item', label: 'Empresas do Grupo', href: '/configuracoes/empresas', icon: Building2, catalogKey: 'configuracoes_empresas' },
+  { type: 'item', label: 'Cartão de Crédito (Despesas)', href: '/configuracoes/cartao-credito', icon: CreditCard, catalogKey: 'configuracoes_empresas' },
 
   // ── 🤖 BOT MINUTOR — telas configuráveis pelo Configurador (acesso por perfil/usuário) ──
   { type: 'item', label: 'Feed Operacional', href: '/feed-operacional',          icon: Activity,       catalogKey: 'bot_minutor' },
@@ -484,6 +485,9 @@ const putIcon = (href: string, icon: LucideIcon) => {
     }
   }
 })(NAV)
+// Telas que não vivem no NAV estático (nascem em ramos por perfil) mas podem ser
+// referenciadas na árvore do Configurador — registra o ícone p/ não cair no FileText.
+putIcon('/portal-cliente/kanban', LayoutGrid)   // Meus Processos (Kanban pessoal)
 
 type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
 
@@ -690,6 +694,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2, exactMatch: true },
+        { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
         { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid, matchPaths: ['/portal-cliente/projetos', '/projetos'] },
         { type: 'item', label: 'Centros de Custo',    href: '/portal-cliente/centros-custo', icon: Landmark },
       ]
@@ -730,13 +735,35 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // ou cliente, mantém o NAV hardcoded (fallback seguro). Itens "home" (Meu Dia/Meu Painel) são
   // prefixados, sem duplicar telas que já estão na árvore.
   const moduleNav = useMemo(() => {
+    // "Meus Processos" (Kanban pessoal) vale p/ TODOS os perfis. GOVERNÁVEL no Configurador
+    // (catálogo NAV_CATALOG): sem config → visível a todos (default); com config → respeita
+    // ativo/perfis/módulos. Injetado aqui (idempotente) pois a árvore pode não trazer a rota.
+    const KANBAN_HREF = '/portal-cliente/kanban'
+    const MEUS_PROCESSOS: NavEntry = { type: 'item', label: itemConfig[KANBAN_HREF]?.label || 'Meus Processos', href: KANBAN_HREF, icon: LayoutGrid }
+    const kanbanAllowed = (): boolean => {
+      const c = itemConfig[KANBAN_HREF]
+      if (!c) return true                 // sem config → default: todos
+      if (!c.active) return false         // desativado no Configurador
+      if (isCliente || !selectedModule) return true
+      const effK = effectiveProfiles(user)
+      return (effK.some(p => c.profiles.includes(p)) || c.users.includes(user?.id ?? 0)) && c.modules.includes(selectedModule)
+    }
+    const withProcessos = (nav: NavEntry[]): NavEntry[] => {
+      if (nav.some(e => e.type === 'item' && e.href.split('?')[0] === KANBAN_HREF)) return nav
+      if (!kanbanAllowed()) return nav
+      // Logo após os itens "home" do topo (Meu Dia/Meu Painel/Home), senão no topo.
+      let i = 0
+      while (i < nav.length && nav[i].type === 'item') i++
+      const cut = Math.min(Math.max(i, 1), nav.length)
+      return [...nav.slice(0, cut), MEUS_PROCESSOS, ...nav.slice(cut)]
+    }
     // Perfis de módulo único (consultor/parceiro/coordenador/administrativo) DEVEM montar do
     // config (Configurador), não do visibleNav hardcoded — escapam do fallback de módulo único.
     const configDrivenSingle = isConsultor || isParceiroAdmin || isCoordenador || isAdministrativo
-    if (isCliente || !selectedModule || (allowedModules.length <= 1 && !configDrivenSingle)) return visibleNav
+    if (isCliente || !selectedModule || (allowedModules.length <= 1 && !configDrivenSingle)) return withProcessos(visibleNav)
     const eff = effectiveProfiles(user)
     const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
-    if (built.length === 0) return visibleNav
+    if (built.length === 0) return withProcessos(visibleNav)
     const builtHrefs = new Set<string>()
     built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })
     // home (Meu Dia/Meu Painel…): itens do topo do NAV, sem duplicar a árvore e respeitando o módulo
@@ -749,7 +776,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    return [...home, ...built]
+    return withProcessos([...home, ...built])
   }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
@@ -1141,12 +1168,23 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           {isBizify ? (
             <>
               {/* claro: roxo · escuro: roxo→branco (troca por CSS via html.dark) */}
-              <Image src="/logo-bizify.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-light" />
-              <Image src="/logo-bizify-dark.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-dark" />
+              <Image src="/logo-bizify.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-light" data-brand-mark="minutor" />
+              <Image src="/logo-bizify-dark.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-dark" data-brand-mark="minutor" />
             </>
           ) : (
-            <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" />
+            <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" data-brand-mark="minutor" />
           )}
+          {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
+          <div className="conecta-footer-logo items-center gap-2">
+            <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={32} height={32} className="object-contain rounded-md shrink-0" />
+            <div className="flex flex-col leading-tight w-fit">
+              {/* "conecta" espalhado p/ ocupar a MESMA largura do slogan */}
+              <span className="font-bold text-[16px] flex justify-between" style={{ color: 'var(--text)' }} aria-label="conecta">
+                {'conecta'.split('').map((ch, i) => <span key={i}>{ch}</span>)}
+              </span>
+              <span className="text-[9px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
+            </div>
+          </div>
         </div>
       )}
 
