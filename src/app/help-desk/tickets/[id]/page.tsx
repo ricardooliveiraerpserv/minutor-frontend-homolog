@@ -1574,9 +1574,6 @@ function TicketDetailInner({ id }: { id: number }) {
                 <span style={{ color: 'var(--text-light)' }}>Agente</span>
                 <div className="w-[60%]">
                   <AgentSelect teams={companyTeams ?? teams} value={t.assignee?.id ?? null} fallbackName={t.assignee?.name} onChange={(aid, teamId) => assign(aid, teamId)} />
-                  {user && t.assignee?.id !== user.id && (
-                    <button onClick={() => assign(user.id)} className="text-[11px] mt-1 inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><UserCheck size={11} /> Eu mesmo</button>
-                  )}
                 </div>
               </div>
               <Row label="Equipe" value={t.team?.name ?? '—'} />
