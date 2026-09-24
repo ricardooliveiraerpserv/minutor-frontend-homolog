@@ -1115,6 +1115,7 @@ function TicketDetailInner({ id }: { id: number }) {
             Horas apontadas = SOMA das horas por interação (effort_minutes) — independe da integração de horas. */}
         <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla}
           assigneeName={t.assignee?.name} requesterName={t.solicitante?.name ?? t.requester_name ?? t.contact?.name}
+          priority={t.priority}
           apontadoHoras={comments.reduce((s, c) => s + (c.effort_minutes || 0), 0) / 60}
           onRunPlaybook={runPlaybook} />
 

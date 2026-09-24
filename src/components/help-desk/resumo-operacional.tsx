@@ -31,6 +31,8 @@ const SEV: Record<string, { dot: string; color: string }> = {
   danger: { dot: '🔴', color: 'var(--danger-border)' }, warning: { dot: '🟡', color: 'var(--warning-border)' },
   info: { dot: '🔵', color: 'var(--info-border)' }, ok: { dot: '🟢', color: 'var(--success-border)' },
 }
+const PRIO_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Média', alta: 'Alta', urgente: 'Urgente' }
+const PRIO_COLOR: Record<string, string> = { baixa: '#16a34a', normal: '#ca8a04', alta: '#ea580c', urgente: '#dc2626' }
 const fmtH = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} h`
 const fmtDateTime = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 const fmtDateOnly = (s: string) => new Date(s).toLocaleDateString('pt-BR')
@@ -43,7 +45,7 @@ function slaResumo(sla?: Sla | null): { txt: string; color: string } {
   return { txt: 'Dentro do prazo', color: 'var(--success-border)' }
 }
 
-export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, apontadoHoras, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; apontadoHoras?: number; onRunPlaybook?: (playbookId: number) => void }) {
+export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, priority, apontadoHoras, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; priority?: string | null; apontadoHoras?: number; onRunPlaybook?: (playbookId: number) => void }) {
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const load = useCallback(() => {
     api.get<{ data: Ctx | null }>(`/help-desk/tickets/${ticketId}/context`)
@@ -87,6 +89,12 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
           <div className={`min-w-[140px] ${cell}`} style={border}>
             <div className={lbl} style={{ color: 'var(--text-light)' }}>Solicitante</div>
             <div className={`${val} truncate max-w-[170px]`} style={{ color: 'var(--text)' }}>{requesterName || '—'}</div>
+          </div>
+
+          {/* Urgência (prioridade) */}
+          <div className={`min-w-[100px] ${cell}`} style={border}>
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>Urgência</div>
+            <div className={val} style={{ color: priority ? (PRIO_COLOR[priority] ?? 'var(--text)') : 'var(--text-light)' }}>{priority ? (PRIO_LABEL[priority] ?? priority) : '—'}</div>
           </div>
 
           {/* SLA — status + limite ou retomada */}
