@@ -216,6 +216,7 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
   const [linked, setLinked] = useState<Person[]>([])          // vinculados a ESTE perfil (chips)
   const [custAll, setCustAll] = useState<{ id: number; name: string }[]>([]) // lista COMPLETA de clientes (filtro)
   const [pplCustomer, setPplCustomer] = useState('')          // customer_id ('' = todos)
+  const [linkedFilter, setLinkedFilter] = useState('')        // busca dentro dos VINCULADOS
   const [pplLoading, setPplLoading] = useState(false)
   // Carga inicial: pool (opções) + vinculados (por access_profile_id, sem corte de 500) +
   // (cliente) lista completa de clientes p/ o filtro.
@@ -250,7 +251,10 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
     }
   }
   const linkedIds = new Set(linked.map(x => x.id))
-  const linkedPeople = [...linked].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  const linkedSorted = [...linked].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  const linkedPeople = linkedFilter
+    ? linkedSorted.filter(x => x.name.toLowerCase().includes(linkedFilter.toLowerCase()) || (x.customer_name ?? '').toLowerCase().includes(linkedFilter.toLowerCase()))
+    : linkedSorted
   const addOptions = p ? people
     .filter(x => !linkedIds.has(x.id))
     .map(x => ({ id: x.id, name: p.kind === 'cliente' && x.customer_name ? `${x.name} · ${x.customer_name}` : x.name })) : []
@@ -349,9 +353,18 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
                 onChange={v => { const person = people.find(x => x.id === Number(v)); if (person) togglePerson(person) }} />
             </div>
           </div>
+          {/* Busca dentro dos vinculados (aparece quando há alguns). */}
+          {linked.length > 4 && (
+            <div className="relative mt-1">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+              <input value={linkedFilter} onChange={e => setLinkedFilter(e.target.value)} placeholder="Filtrar vinculados…" className={`${fieldCls} w-full pl-7`} style={{ ...inputStyle, height: 30 }} />
+            </div>
+          )}
           {/* Selecionados: LISTA vertical (ordem alfabética) com X para remover. */}
-          {linkedPeople.length === 0
+          {linked.length === 0
             ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum vinculado ainda.</span>
+            : linkedPeople.length === 0
+            ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum vinculado corresponde à busca.</span>
             : (
               <div className="rounded-lg overflow-hidden max-h-72 overflow-y-auto" style={{ border: '1px solid var(--border)' }}>
                 {linkedPeople.map((person, i) => (
