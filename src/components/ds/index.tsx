@@ -590,3 +590,6 @@ export function Modal({
     </div>
   )
 }
+
+export { Tree } from './tree'
+export type { TreeNode } from './tree'
