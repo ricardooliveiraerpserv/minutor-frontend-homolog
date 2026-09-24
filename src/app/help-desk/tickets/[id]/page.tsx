@@ -1617,9 +1617,18 @@ function TicketDetailInner({ id }: { id: number }) {
               {apontOptions.length > 0 && (() => {
                 const optLabel = (o: ApontOpt) => apontOptions.filter(x => x.label === o.label).length > 1 && o.project_name ? `${o.label} · ${o.project_name}` : o.label
                 const selected = apontOptions.find(x => String(x.project_id) === String(t.project?.id ?? ''))
-                const TipoLine = () => selected?.type ? (
-                  <div className="text-[11px] mt-0.5 text-right" style={{ color: 'var(--text-light)' }}>Tipo: <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{selected.type}</span></div>
-                ) : null
+                const TipoLine = () => {
+                  if (!selected) return null
+                  const nome = selected.project_name && selected.project_name !== selected.type ? selected.project_name : null
+                  if (!selected.type && !nome) return null
+                  return (
+                    <div className="text-[11px] mt-0.5 text-right" style={{ color: 'var(--text-light)' }}>
+                      {selected.type && <>Tipo: <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{selected.type}</span></>}
+                      {selected.type && nome && ' · '}
+                      {nome && <>Contrato: <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{nome}</span></>}
+                    </div>
+                  )
+                }
                 if (apontOptions.length === 1) return (
                   <div><Row label="Contrato/Projeto" value={optLabel(apontOptions[0])} /><TipoLine /></div>
                 )
