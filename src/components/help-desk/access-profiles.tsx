@@ -212,34 +212,46 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
 
   // Vínculo direto usuário↔perfil (reflete no cadastro de usuários via helpdesk_access_profile_id).
   type Person = { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; customer_name?: string | null }
-  const [people, setPeople] = useState<Person[]>([])
-  const [pplCustomer, setPplCustomer] = useState('')
+  const [people, setPeople] = useState<Person[]>([])          // pool de candidatos (opções do dropdown)
+  const [linked, setLinked] = useState<Person[]>([])          // vinculados a ESTE perfil (chips)
+  const [custAll, setCustAll] = useState<{ id: number; name: string }[]>([]) // lista COMPLETA de clientes (filtro)
+  const [pplCustomer, setPplCustomer] = useState('')          // customer_id ('' = todos)
   const [pplLoading, setPplLoading] = useState(false)
+  // Carga inicial: pool + vinculados + (cliente) lista completa de clientes p/ o filtro.
   useEffect(() => {
     if (!p) return
     setPplLoading(true)
     api.get<{ data: Person[] }>(`/help-desk/people?kind=${p.kind}`)
-      .then(r => setPeople(r?.data ?? []))
-      .catch(() => setPeople([]))
+      .then(r => { const all = r?.data ?? []; setPeople(all); setLinked(all.filter(x => x.helpdesk_access_profile_id === p.id)) })
+      .catch(() => { setPeople([]); setLinked([]) })
       .finally(() => setPplLoading(false))
+    if (p.kind === 'cliente') api.get<{ data?: { id: number; name: string }[] }>('/help-desk/integration-customers').then(r => setCustAll(r?.data ?? [])).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p?.id])
+  // Filtro por cliente: busca os usuários DAQUELE cliente no servidor (sem o corte de 500).
+  useEffect(() => {
+    if (!p || p.kind !== 'cliente') return
+    setPplLoading(true)
+    api.get<{ data: Person[] }>(`/help-desk/people?kind=cliente${pplCustomer ? `&customer_id=${pplCustomer}` : ''}`)
+      .then(r => setPeople(r?.data ?? [])).catch(() => setPeople([])).finally(() => setPplLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pplCustomer])
   const togglePerson = async (person: Person) => {
     if (!p) return
-    const here = person.helpdesk_access_profile_id === p.id
-    const next = here ? null : p.id
-    const prev = person.helpdesk_access_profile_id
+    const isLinked = linked.some(x => x.id === person.id)
+    const next = isLinked ? null : p.id
     setPeople(list => list.map(x => x.id === person.id ? { ...x, helpdesk_access_profile_id: next } : x))
+    setLinked(list => isLinked ? list.filter(x => x.id !== person.id) : [...list, { ...person, helpdesk_access_profile_id: p.id }])
     try { await api.patch(`/help-desk/people/${person.id}/access-profile`, { access_profile_id: next }) }
     catch (e) {
-      setPeople(list => list.map(x => x.id === person.id ? { ...x, helpdesk_access_profile_id: prev } : x))
+      setLinked(list => isLinked ? [...list, person] : list.filter(x => x.id !== person.id)) // reverte
       toast.error((e as { message?: string })?.message ?? 'Erro ao vincular usuário')
     }
   }
-  const pplCustomers = Array.from(new Set(people.map(x => x.customer_name).filter(Boolean))) as string[]
-  const linkedPeople = p ? people.filter(x => x.helpdesk_access_profile_id === p.id) : []
+  const linkedIds = new Set(linked.map(x => x.id))
+  const linkedPeople = [...linked].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
   const addOptions = p ? people
-    .filter(x => x.helpdesk_access_profile_id !== p.id && (!pplCustomer || x.customer_name === pplCustomer))
+    .filter(x => !linkedIds.has(x.id))
     .map(x => ({ id: x.id, name: p.kind === 'cliente' && x.customer_name ? `${x.name} · ${x.customer_name}` : x.name })) : []
 
   const save = async () => {
@@ -320,14 +332,14 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
             <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>
               {p.kind === 'cliente' ? 'Clientes com este perfil' : 'Agentes/usuários com este perfil'}
             </div>
-            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{people.filter(x => x.helpdesk_access_profile_id === p.id).length} vinculado(s)</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{linked.length} vinculado(s)</span>
           </div>
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Selecione {p.kind === 'cliente' ? 'o cliente/usuário' : 'o usuário'} para vincular a este perfil. O vínculo reflete no cadastro de usuários.</p>
           <div className="flex items-center gap-2 flex-wrap">
-            {p.kind === 'cliente' && pplCustomers.length > 0 && (
+            {p.kind === 'cliente' && custAll.length > 0 && (
               <div className="min-w-[200px]">
                 <SearchSelect subtle fullWidth value={pplCustomer} onChange={setPplCustomer} placeholder="Todos os clientes"
-                  options={pplCustomers.slice().sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => ({ id: c, name: c }))} />
+                  options={custAll.slice().sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(c => ({ id: c.id, name: c.name }))} />
               </div>
             )}
             <div className="min-w-[260px] flex-1">
@@ -336,17 +348,19 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
                 onChange={v => { const person = people.find(x => x.id === Number(v)); if (person) togglePerson(person) }} />
             </div>
           </div>
-          {/* Selecionados: chips com X para remover. */}
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {linkedPeople.length === 0
-              ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum vinculado ainda.</span>
-              : linkedPeople.map(person => (
-                <span key={person.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                  {person.name}{p.kind === 'cliente' && person.customer_name ? ` · ${person.customer_name}` : ''}
-                  <button type="button" onClick={() => togglePerson(person)} title="Remover vínculo" className="hover:opacity-70"><X size={12} /></button>
-                </span>
-              ))}
-          </div>
+          {/* Selecionados: LISTA vertical (ordem alfabética) com X para remover. */}
+          {linkedPeople.length === 0
+            ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum vinculado ainda.</span>
+            : (
+              <div className="rounded-lg overflow-hidden max-h-72 overflow-y-auto" style={{ border: '1px solid var(--border)' }}>
+                {linkedPeople.map((person, i) => (
+                  <div key={person.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm" style={{ color: 'var(--text)', borderTop: i ? '1px solid var(--border)' : undefined }}>
+                    <span className="truncate">{person.name}{p.kind === 'cliente' && person.customer_name ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}> · {person.customer_name}</span> : ''}</span>
+                    <button type="button" onClick={() => togglePerson(person)} title="Remover vínculo" className="shrink-0 hover:opacity-70" style={{ color: 'var(--danger-border)' }}><X size={13} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
       )}
 
