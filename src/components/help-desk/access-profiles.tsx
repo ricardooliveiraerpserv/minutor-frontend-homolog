@@ -217,14 +217,15 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
   const [custAll, setCustAll] = useState<{ id: number; name: string }[]>([]) // lista COMPLETA de clientes (filtro)
   const [pplCustomer, setPplCustomer] = useState('')          // customer_id ('' = todos)
   const [pplLoading, setPplLoading] = useState(false)
-  // Carga inicial: pool + vinculados + (cliente) lista completa de clientes p/ o filtro.
+  // Carga inicial: pool (opções) + vinculados (por access_profile_id, sem corte de 500) +
+  // (cliente) lista completa de clientes p/ o filtro.
   useEffect(() => {
     if (!p) return
     setPplLoading(true)
     api.get<{ data: Person[] }>(`/help-desk/people?kind=${p.kind}`)
-      .then(r => { const all = r?.data ?? []; setPeople(all); setLinked(all.filter(x => x.helpdesk_access_profile_id === p.id)) })
-      .catch(() => { setPeople([]); setLinked([]) })
-      .finally(() => setPplLoading(false))
+      .then(r => setPeople(r?.data ?? [])).catch(() => setPeople([])).finally(() => setPplLoading(false))
+    api.get<{ data: Person[] }>(`/help-desk/people?kind=${p.kind}&access_profile_id=${p.id}`)
+      .then(r => setLinked(r?.data ?? [])).catch(() => setLinked([]))
     if (p.kind === 'cliente') api.get<{ data?: { id: number; name: string }[] }>('/help-desk/integration-customers').then(r => setCustAll(r?.data ?? [])).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p?.id])
