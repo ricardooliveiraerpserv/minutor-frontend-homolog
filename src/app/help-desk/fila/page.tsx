@@ -564,7 +564,7 @@ export default function HelpDeskFilaPage() {
           {/* Filtros FIXOS (sempre visíveis): Consultor + Cliente + Equipe + Solicitante + Prioridade. */}
           {(
             <div className="flex items-center gap-2 flex-wrap p-2 rounded-lg" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...opts.consultores.map(n => ({ id: n, name: n }))]} />
+              <MultiSelect placeholder="Consultor" value={mf.consultor} onChange={v => setMulti('consultor', v)} options={[{ id: '__none__', name: '— Não atribuído —' }, ...Array.from(new Set([...agents.map(a => a.name), ...opts.consultores])).sort((a, b) => a.localeCompare(b, 'pt-BR')).map(n => ({ id: n, name: n }))]} />
               <MultiSelect placeholder="Cliente" value={mf.cliente} onChange={v => setMulti('cliente', v)} options={opts.clientes.map(n => ({ id: n, name: n }))} />
               <MultiSelect placeholder="Equipe" value={mf.team} onChange={v => setMulti('team', v)} options={teams.map(t => ({ id: t.id, name: t.name }))} />
               <MultiSelect placeholder="Solicitante" value={mf.solicitante} onChange={v => setMulti('solicitante', v)} options={opts.solicitantes.map(n => ({ id: n, name: n }))} />
