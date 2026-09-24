@@ -1913,7 +1913,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
                   <Td muted className="hidden lg:table-cell font-mono">
                     {ts.ticket
                       ? <a
-                          href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                          href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}

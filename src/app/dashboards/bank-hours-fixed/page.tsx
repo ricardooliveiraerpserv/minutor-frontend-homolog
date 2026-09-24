@@ -1216,7 +1216,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
             <DetailRow icon={<Paperclip size={14} />} label="Anexo" value={ts.attachment_path ? <a href={ts.attachment_path} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Ver anexo</a> : 'Sem anexo'} />
             {ts.ticket && (
               <DetailRow icon={<FileText size={14} />} label="Ticket" value={
-                <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs" style={{ color: 'var(--primary)' }}>#{ts.ticket}{ts.ticket_subject ? ` · ${ts.ticket_subject}` : ''}</a>
+                <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs" style={{ color: 'var(--primary)' }}>#{ts.ticket}{ts.ticket_subject ? ` · ${ts.ticket_subject}` : ''}</a>
               } />
             )}
           </div>
@@ -1479,7 +1479,7 @@ function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', onRowCl
                     <td className="px-3 py-2">{r.user?.name ?? '—'}</td>
                     <td className="px-3 py-2">
                       {r.ticket
-                        ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={e => e.stopPropagation()}>#{r.ticket}</a>
+                        ? <a href={`/help-desk/tickets/${(r as any).helpdesk_ticket_id ?? r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={e => e.stopPropagation()}>#{r.ticket}</a>
                         : <span style={{ color: 'var(--text-light)' }}>—</span>}
                     </td>
                     <td className="px-3 py-2 max-w-xs truncate" style={{ color: 'var(--text-muted)' }} title={r.ticket_subject ?? '—'}>{r.ticket_subject ?? '—'}</td>
@@ -1531,7 +1531,7 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
               {rows.map(tk => (
                 <tr key={tk.ticket} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className="px-4 py-2">
-                    <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
+                    <a href={`/help-desk/tickets/${(tk as any).helpdesk_ticket_id ?? tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
                   </td>
                   <td className="px-4 py-2" style={{ color: 'var(--text)' }}>{tk.title ?? '—'}</td>
                   <td className="px-4 py-2" style={{ color: 'var(--text-muted)' }}>{tk.requester ?? '—'}</td>

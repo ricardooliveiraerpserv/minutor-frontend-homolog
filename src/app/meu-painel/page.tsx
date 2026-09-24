@@ -3000,7 +3000,7 @@ export default function MeuPainelPage() {
                       </td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] font-mono hidden lg:table-cell">
                         {ts.ticket
-                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{ts.ticket}</a>
+                          ? <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{ts.ticket}</a>
                           : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
@@ -4549,7 +4549,7 @@ export default function MeuPainelPage() {
                   <InfoRowModal icon={FolderOpen} label="Projeto" value={tsViewItem.project?.name} />
                   {tsViewItem.ticket && (
                     <InfoRowModal icon={Tag} label="Ticket">
-                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]">#{tsViewItem.ticket}</a>
+                      <a href={`/help-desk/tickets/${(tsViewItem as any).helpdesk_ticket_id ?? tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]">#{tsViewItem.ticket}</a>
                     </InfoRowModal>
                   )}
                   <InfoRowModal icon={Paperclip} label="Anexo" last>
