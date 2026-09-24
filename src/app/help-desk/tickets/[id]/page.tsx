@@ -501,7 +501,7 @@ function TicketDetailInner({ id }: { id: number }) {
   // Card de reunião entra ~500ms depois → sua chamada /meetings não compete com ticket+comments na abertura.
   useEffect(() => { if (!coreReady) return; const t = setTimeout(() => setSecondaryReady(true), 300); return () => clearTimeout(t) }, [coreReady])
   // Registra este chamado como ABA aberta (barra estilo Movidesk).
-  useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }) }, [t?.id, t?.ticket_number, t?.subject])
+  useEffect(() => { if (t?.id) addTicketTab({ id: t.id, number: t.ticket_number ?? null, subject: t.subject ?? '' }, user?.id ?? null) }, [t?.id, t?.ticket_number, t?.subject, user?.id])
 
   const unmerge = async (sourceId: number, num: string | null) => {
     if (!confirm(`Desfazer a mescla do chamado ${num ?? sourceId}? As interações originais dele voltam pra ele e ele volta a ficar ativo.`)) return
