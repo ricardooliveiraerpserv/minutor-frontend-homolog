@@ -209,6 +209,38 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
   const switchKind = (k: Kind) => { setKind(k); setPerms({ ...defaultsFor(k), ...(p?.kind === k ? (p?.permissions ?? {}) : {}) }); setTab(SCHEMA[k][0].id) }
   const set = (key: string, v: unknown) => setPerms(s => ({ ...s, [key]: v }))
 
+  // Vínculo direto usuário↔perfil (reflete no cadastro de usuários via helpdesk_access_profile_id).
+  type Person = { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; customer_name?: string | null }
+  const [people, setPeople] = useState<Person[]>([])
+  const [pplSearch, setPplSearch] = useState('')
+  const [pplCustomer, setPplCustomer] = useState('')
+  const [pplLoading, setPplLoading] = useState(false)
+  useEffect(() => {
+    if (!p) return
+    setPplLoading(true)
+    api.get<{ data: Person[] }>(`/help-desk/people?kind=${p.kind}`)
+      .then(r => setPeople(r?.data ?? []))
+      .catch(() => setPeople([]))
+      .finally(() => setPplLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p?.id])
+  const togglePerson = async (person: Person) => {
+    if (!p) return
+    const here = person.helpdesk_access_profile_id === p.id
+    const next = here ? null : p.id
+    const prev = person.helpdesk_access_profile_id
+    setPeople(list => list.map(x => x.id === person.id ? { ...x, helpdesk_access_profile_id: next } : x))
+    try { await api.patch(`/help-desk/people/${person.id}/access-profile`, { access_profile_id: next }) }
+    catch (e) {
+      setPeople(list => list.map(x => x.id === person.id ? { ...x, helpdesk_access_profile_id: prev } : x))
+      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular usuário')
+    }
+  }
+  const pplCustomers = Array.from(new Set(people.map(x => x.customer_name).filter(Boolean))) as string[]
+  const filteredPeople = people.filter(x =>
+    (!pplSearch || x.name.toLowerCase().includes(pplSearch.toLowerCase()) || (x.customer_name ?? '').toLowerCase().includes(pplSearch.toLowerCase())) &&
+    (!pplCustomer || x.customer_name === pplCustomer))
+
   const save = async () => {
     if (!name.trim()) return toast.error('Informe o nome.')
     setSaving(true)
@@ -279,6 +311,43 @@ function AccessProfileForm({ profile, initialKind = 'agent', onBack, onSaved }: 
           </div>
         ))}
       </div>
+
+      {/* Usuários vinculados a ESTE perfil — marcar reflete no cadastro de usuários (helpdesk_access_profile_id). */}
+      {p && (
+        <div className="ds-card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>
+              {p.kind === 'cliente' ? 'Clientes com este perfil' : 'Agentes/usuários com este perfil'}
+            </div>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{people.filter(x => x.helpdesk_access_profile_id === p.id).length} vinculado(s)</span>
+          </div>
+          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Marque para vincular {p.kind === 'cliente' ? 'o cliente/usuário' : 'o usuário'} a este perfil. O vínculo reflete no cadastro de usuários.</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input value={pplSearch} onChange={e => setPplSearch(e.target.value)} placeholder={p.kind === 'cliente' ? 'Buscar por nome ou cliente…' : 'Buscar por nome…'} className={fieldCls} style={{ ...inputStyle, height: 32, minWidth: 220 }} />
+            {p.kind === 'cliente' && pplCustomers.length > 0 && (
+              <select value={pplCustomer} onChange={e => setPplCustomer(e.target.value)} className="text-sm rounded-lg px-2 h-8 outline-none" style={inputStyle}>
+                <option value="">Todos os clientes</option>
+                {pplCustomers.sort((a, b) => a.localeCompare(b, 'pt-BR')).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          </div>
+          <div className="rounded-lg overflow-y-auto max-h-64" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+            {pplLoading ? <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Carregando…</p>
+              : filteredPeople.length === 0 ? <p className="px-3 py-3 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum {p.kind === 'cliente' ? 'cliente' : 'usuário'} encontrado.</p>
+              : filteredPeople.map(person => {
+                const here = person.helpdesk_access_profile_id === p.id
+                const other = !!person.helpdesk_access_profile_id && !here
+                return (
+                  <label key={person.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer ds-row-hover" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={here} onChange={() => togglePerson(person)} />
+                    <span className="flex-1 truncate">{person.name}{p.kind === 'cliente' && person.customer_name ? <span className="text-[11px]" style={{ color: 'var(--text-light)' }}> · {person.customer_name}</span> : ''}</span>
+                    {other && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>outro perfil</span>}
+                  </label>
+                )
+              })}
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end"><button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar perfil</button></div>
     </div>
