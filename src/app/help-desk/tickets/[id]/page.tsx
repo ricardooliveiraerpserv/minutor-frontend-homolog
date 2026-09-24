@@ -846,17 +846,8 @@ function TicketDetailInner({ id }: { id: number }) {
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar'); loadTicket() }
   }
 
-  // Liga/desliga a chave de integração de horas do CONTRATO do chamado (substitui o Movidesk).
-  const [savingIntegration, setSavingIntegration] = useState(false)
-  const toggleIntegration = async (contractId: number, enabled: boolean) => {
-    setSavingIntegration(true)
-    try {
-      await api.patch(`/contracts/${contractId}/helpdesk-integration`, { enabled })
-      toast.success(enabled ? 'Integração de horas ligada' : 'Integração de horas desligada')
-      loadTicket()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar integração') }
-    finally { setSavingIntegration(false) }
-  }
+  // A chave de "Integração de horas" saiu do chamado e vive no cadastro do contrato.
+  // Sustentação/Cloud já nasce com ela ligada (default no backend).
 
   // Agendamento (snooze + pausa SLA) descontinuado — fluxo tratado pelos STATUS. Mantém só o cancelar.
   const [savingSchedule, setSavingSchedule] = useState(false)
@@ -1681,28 +1672,8 @@ function TicketDetailInner({ id }: { id: number }) {
               </div>
             )}
 
-            {/* Chave de integração de horas do CONTRATO — só se o perfil permitir o resumo do contrato. */}
-            {t.contract && t.can_view_contract_summary !== false && (
-              <div className="ds-card p-4 space-y-2">
-                <div className={lbl} style={{ color: 'var(--text-light)' }}>Integração de horas</div>
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Com a chave ligada, as interações com tempo viram apontamento no contrato
-                    {t.contract.categoria === 'sustentacao' ? ' de sustentação' : ''} — movimenta horas como o Movidesk.
-                  </p>
-                  <button type="button" role="switch" aria-checked={!!t.contract.helpdesk_integration_enabled}
-                    disabled={savingIntegration}
-                    onClick={() => toggleIntegration(t.contract!.id, !t.contract!.helpdesk_integration_enabled)}
-                    className="relative shrink-0 rounded-full transition-colors"
-                    style={{ width: 40, height: 22, background: t.contract.helpdesk_integration_enabled ? 'var(--primary)' : 'var(--border)', opacity: savingIntegration ? 0.6 : 1, cursor: savingIntegration ? 'default' : 'pointer' }}>
-                    <span className="absolute rounded-full transition-all" style={{ background: 'var(--surface)', width: 18, height: 18, top: 2, left: t.contract.helpdesk_integration_enabled ? 20 : 2 }} />
-                  </button>
-                </div>
-                <div className="text-[11px]" style={{ color: t.contract.helpdesk_integration_enabled ? 'var(--success)' : 'var(--text-light)' }}>
-                  {t.contract.helpdesk_integration_enabled ? 'Ligada — movimentando horas' : 'Desligada — sem movimentação'}
-                </div>
-              </div>
-            )}
+            {/* A chave de "Integração de horas" foi removida do chamado — agora é definida no
+                cadastro do contrato. Sustentação/Cloud já nasce com ela ligada. */}
 
             {/* Horas do chamado — SOMA por interação (effort_minutes) + total por consultor.
                 Independe da integração de horas do contrato (sempre reflete o que foi apontado nas interações). */}
