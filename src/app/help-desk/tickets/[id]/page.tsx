@@ -329,7 +329,7 @@ function TicketDetailInner({ id }: { id: number }) {
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferTarget, setTransferTarget] = useState<number | null>(null)          // empresa destino escolhida
   // Triagem: Contrato/Projeto de apontamento (sustentação/cloud do cliente). 1 opção = trava; 2+ = obriga.
-  type ApontOpt = { contract_id: number | null; project_id: number; label: string; project_name?: string }
+  type ApontOpt = { contract_id: number | null; project_id: number; label: string; project_name?: string; type?: string }
   const [apontOptions, setApontOptions] = useState<ApontOpt[]>([])
   // Alterar a empresa (cliente) do chamado — só quando o perfil permite (can_change_customer).
   const { confirm: confirmDlg, confirmDialog } = useConfirm()
@@ -1616,20 +1616,29 @@ function TicketDetailInner({ id }: { id: number }) {
               {/* Contrato/Projeto de apontamento — 1 opção trava (só leitura); 2+ obriga escolher. */}
               {apontOptions.length > 0 && (() => {
                 const optLabel = (o: ApontOpt) => apontOptions.filter(x => x.label === o.label).length > 1 && o.project_name ? `${o.label} · ${o.project_name}` : o.label
-                if (apontOptions.length === 1) return <Row label="Contrato/Projeto" value={optLabel(apontOptions[0])} />
+                const selected = apontOptions.find(x => String(x.project_id) === String(t.project?.id ?? ''))
+                const TipoLine = () => selected?.type ? (
+                  <div className="text-[11px] mt-0.5 text-right" style={{ color: 'var(--text-light)' }}>Tipo: <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{selected.type}</span></div>
+                ) : null
+                if (apontOptions.length === 1) return (
+                  <div><Row label="Contrato/Projeto" value={optLabel(apontOptions[0])} /><TipoLine /></div>
+                )
                 const needs = !t.project?.id
                 return (
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span style={{ color: needs ? 'var(--danger-border)' : 'var(--text-light)' }}>Contrato/Projeto{needs ? ' *' : ''}</span>
-                    <div className="w-[62%]">
-                      <select value={t.project?.id ? String(t.project.id) : ''}
-                        onChange={e => { const o = apontOptions.find(x => String(x.project_id) === e.target.value); if (o) updateField({ contract_id: o.contract_id, project_id: o.project_id }, { project: { id: o.project_id, name: o.project_name ?? '' } }) }}
-                        className="text-sm rounded-lg px-2.5 py-1.5 w-full outline-none"
-                        style={{ background: 'var(--surface)', border: `1px solid ${needs ? 'var(--danger-border)' : 'var(--border)'}`, color: 'var(--text)' }}>
-                        <option value="">— selecione —</option>
-                        {apontOptions.map(o => <option key={o.project_id} value={o.project_id}>{optLabel(o)}</option>)}
-                      </select>
+                  <div>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span style={{ color: needs ? 'var(--danger-border)' : 'var(--text-light)' }}>Contrato/Projeto{needs ? ' *' : ''}</span>
+                      <div className="w-[62%]">
+                        <select value={t.project?.id ? String(t.project.id) : ''}
+                          onChange={e => { const o = apontOptions.find(x => String(x.project_id) === e.target.value); if (o) updateField({ contract_id: o.contract_id, project_id: o.project_id }, { project: { id: o.project_id, name: o.project_name ?? '' } }).then(() => setRefreshKey(k => k + 1)) }}
+                          className="text-sm rounded-lg px-2.5 py-1.5 w-full outline-none"
+                          style={{ background: 'var(--surface)', border: `1px solid ${needs ? 'var(--danger-border)' : 'var(--border)'}`, color: 'var(--text)' }}>
+                          <option value="">— selecione —</option>
+                          {apontOptions.map(o => <option key={o.project_id} value={o.project_id}>{optLabel(o)}</option>)}
+                        </select>
+                      </div>
                     </div>
+                    <TipoLine />
                   </div>
                 )
               })()}
