@@ -45,7 +45,7 @@ function slaResumo(sla?: Sla | null): { txt: string; color: string } {
   return { txt: 'Dentro do prazo', color: 'var(--success-border)' }
 }
 
-export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, priority, apontadoHoras, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; priority?: string | null; apontadoHoras?: number; onRunPlaybook?: (playbookId: number) => void }) {
+export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, priority, apontadoHoras, openedAt, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; priority?: string | null; apontadoHoras?: number; openedAt?: string | null; onRunPlaybook?: (playbookId: number) => void }) {
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const load = useCallback(() => {
     api.get<{ data: Ctx | null }>(`/help-desk/tickets/${ticketId}/context`)
@@ -113,6 +113,14 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
             <div className={lbl} style={{ color: 'var(--text-light)' }}>Horas apontadas</div>
             <div className={val} style={{ color: 'var(--text)' }}>{(apontadoHoras ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h</div>
           </div>
+
+          {/* Aberto em */}
+          {openedAt && (
+            <div className={`min-w-[130px] ${cell}`} style={border}>
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Aberto em</div>
+              <div className={val} style={{ color: 'var(--text)' }}>{fmtDateTime(openedAt)}</div>
+            </div>
+          )}
 
           {/* Contrato — tipo (On Demand / Mensal / Banco de horas fixo…) + saldo + barra de horas */}
           {ctx?.blocos.contrato.tipo && (

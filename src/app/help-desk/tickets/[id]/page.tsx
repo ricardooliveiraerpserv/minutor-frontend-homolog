@@ -1107,6 +1107,7 @@ function TicketDetailInner({ id }: { id: number }) {
         <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla}
           assigneeName={t.assignee?.name} requesterName={t.solicitante?.name ?? t.requester_name ?? t.contact?.name}
           priority={t.priority}
+          openedAt={t.created_at}
           apontadoHoras={comments.reduce((s, c) => s + (c.effort_minutes || 0), 0) / 60}
           onRunPlaybook={runPlaybook} />
 
@@ -1675,7 +1676,6 @@ function TicketDetailInner({ id }: { id: number }) {
                 options={['N1', 'N2', 'N3'].map(n => ({ value: n, label: n }))}
                 onChange={v => updateField({ level: v || null }, { level: v || null })} />
               <Row label="Reaberturas" value={String(t.reopen_count)} />
-              <Row label="Aberto em" value={fmtDate(t.created_at)} />
             </div>
 
             {/* Agendamento (snooze + pausa SLA) foi descontinuado — o fluxo é tratado pelos STATUS.
