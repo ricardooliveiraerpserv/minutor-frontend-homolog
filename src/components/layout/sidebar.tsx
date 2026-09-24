@@ -938,7 +938,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
       ]
       if (canModule('help_desk')) {
-        nav.push({ type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones })
+        nav.push({ type: 'item', label: 'Help Desk', href: '/help-desk/portal', icon: Headphones })
       }
       // "Contratos e Projetos": Demandas e Projetos + dashboards de contrato (módulo Projetos).
       if (canModule('projetos')) {
