@@ -329,7 +329,7 @@ function TicketDetailInner({ id }: { id: number }) {
   const [transferOpen, setTransferOpen] = useState(false)
   const [transferTarget, setTransferTarget] = useState<number | null>(null)          // empresa destino escolhida
   // Triagem: Contrato/Projeto de apontamento (sustentação/cloud do cliente). 1 opção = trava; 2+ = obriga.
-  type ApontOpt = { contract_id: number; project_id: number; label: string; project_name?: string }
+  type ApontOpt = { contract_id: number | null; project_id: number; label: string; project_name?: string }
   const [apontOptions, setApontOptions] = useState<ApontOpt[]>([])
   // Alterar a empresa (cliente) do chamado — só quando o perfil permite (can_change_customer).
   const { confirm: confirmDlg, confirmDialog } = useConfirm()
