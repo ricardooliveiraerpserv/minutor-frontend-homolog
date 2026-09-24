@@ -61,6 +61,7 @@ import {
   SlidersHorizontal,
   Eye,
   History,
+  AlertTriangle, FileCode,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
@@ -442,6 +443,40 @@ const NAV: NavEntry[] = [
     { type: 'item' as const, label: 'Busca Avançada',         href: '/busca',                     icon: Search },
     { type: 'item' as const, label: 'Novo Candidato',         href: '/candidato/cadastro',        icon: UserPlus },
   ] : []),
+
+
+  // ── 🎫 Help Desk (Fase 1; cresce a cada sub-fase) ──
+  {
+    type: 'group', module: 'help_desk', label: 'Help Desk', icon: Headphones,
+    items: [
+      { label: 'Central de Operações', href: '/help-desk/operacoes', icon: Radar },
+      { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
+      { label: 'Entregas vencidas', href: '/help-desk/entregas-vencidas', icon: AlertTriangle },
+      { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
+      { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
+    ],
+  },
+  {
+    type: 'group', module: 'help_desk', label: 'Configurações Help Desk', icon: Settings,
+    items: [
+      { label: 'Categorias', href: '/help-desk/configuracoes?tab=categorias', icon: Tag },
+      { label: 'Serviços', href: '/help-desk/configuracoes?tab=servicos', icon: LayoutGrid },
+      { label: 'Justificativas', href: '/help-desk/configuracoes?tab=justificativas', icon: FileText },
+      { label: 'Status', href: '/help-desk/configuracoes?tab=status', icon: ListTodo },
+      { label: 'Equipes', href: '/help-desk/configuracoes?tab=filas', icon: Users },
+      { label: 'Perfis de Acesso', href: '/help-desk/configuracoes?tab=perfis', icon: Layers },
+      { label: 'Departamentos', href: '/help-desk/configuracoes?tab=departamentos', icon: Building2 },
+      { label: 'Regras de Associação', href: '/help-desk/configuracoes?tab=associacoes', icon: Database },
+      { label: 'Contas de E-mail', href: '/help-desk/configuracoes?tab=contas-email', icon: Mail },
+      { label: 'Gatilhos (automação)', href: '/help-desk/configuracoes?tab=gatilhos', icon: Zap },
+      { label: 'Comunicação', href: '/help-desk/configuracoes?tab=comunicacao', icon: Mail },
+      { label: 'SLA', href: '/help-desk/configuracoes?tab=sla', icon: Clock },
+      { label: 'Formulários', href: '/help-desk/configuracoes?tab=formularios', icon: FileText },
+      { label: 'Tags', href: '/help-desk/configuracoes?tab=tags', icon: Tag },
+      { label: 'Playbooks', href: '/help-desk/configuracoes?tab=playbooks', icon: Star },
+      { label: 'Código-Fonte', href: '/help-desk/configuracoes?tab=codigo-fonte', icon: FileCode },
+    ],
+  },
 ]
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

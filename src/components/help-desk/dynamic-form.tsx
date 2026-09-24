@@ -1,0 +1,570 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { Clock, Paperclip, FileText, X } from 'lucide-react'
+import { api } from '@/lib/api'
+import { sanitizeRich } from '@/lib/sanitize-html'
+import { SearchSelect } from '@/components/ui/search-select'
+import { RichEditor, type RichEditorHandle } from './rich-editor'
+import { TimeSelect5 } from './time-select-5'
+
+// Tempo trabalhado da interação do formulário (vira apontamento quando o contrato tem integração).
+export interface FormTime { worked_date: string; start_time: string; end_time: string; total_hours: string; no_charge: boolean }
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function deriveTotal(start: string, end: string): string {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (!Number.isFinite(mins) || mins <= 0) return ''
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
+}
+
+// Tags de preenchimento automático: substitui {chave} pelo valor do mapa (nome, cliente, etc.).
+// Tag desconhecida fica como está (não some) — assim o autor percebe erro de digitação.
+export function applyTokens(text: string | null | undefined, tokens: Record<string, string>): string {
+  if (!text) return text ?? ''
+  return text.replace(/\{([a-z0-9_.]+)\}/gi, (m, key) => (key in tokens && tokens[key] !== '') ? tokens[key] : m)
+}
+// Catálogo de tags disponíveis (rótulo p/ o construtor). Os valores vêm do ticket em runtime.
+export const FORM_TAGS: { tag: string; label: string }[] = [
+  { tag: '{ticket.creator.name}', label: 'Nome de quem abriu o chamado' },
+  { tag: '{ticket.creator.email}', label: 'E-mail de quem abriu' },
+  { tag: '{ticket.number}', label: 'Número do chamado' },
+  { tag: '{ticket.subject}', label: 'Assunto do chamado' },
+  { tag: '{cliente}', label: 'Nome do cliente (empresa)' },
+  { tag: '{consultor}', label: 'Consultor responsável (atribuído)' },
+  { tag: '{contato}', label: 'Contato do cliente' },
+  { tag: '{usuario}', label: 'Seu nome (quem está preenchendo)' },
+  { tag: '{data}', label: 'Data de hoje' },
+]
+
+// 'title' = bloco de cabeçalho (texto grande centralizado); 'section' = divisor de bloco.
+// Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
+// Nenhum dos dois gera input no preenchimento.
+export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
+// rule = automação condicional: quando o checkbox `when` está marcado, o campo recebe `value` e trava.
+// require_attachment: checkbox que, ao ser marcado, EXIGE anexar arquivo comprimido antes de salvar.
+// counts_for_section: campo (ex.: "Outros") que, se PREENCHIDO, satisfaz o mínimo da seção como um checkbox.
+export interface FieldRule { when?: string | null; value?: string | null; require_attachment?: boolean; counts_for_section?: boolean }
+// Extensões de arquivo comprimido aceitas quando o anexo é obrigatório (Código Fonte etc.).
+const COMPRESSED_RE = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|z)$/i
+// Limite de anexo por arquivo — mesma fonte p/ a guarda de tamanho E o texto exibido (nunca divergem).
+// Bate com o backend (validação 50MB + nginx/PHP). Acima disso: usar link (OneDrive/SharePoint).
+const MAX_ATTACH_MB = 50
+// Rótulo sem o emoji/pontuação inicial — p/ mensagens de validação mais limpas.
+const cleanLabel = (s: string) => s.replace(/^[^\p{L}\p{N}]+/u, '').trim()
+export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
+export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
+export interface FormValueField { key: string; label: string; hint?: string | null; ftype: FieldType; value: string | boolean }
+export interface FormInstance { form_id: number; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; fields: FormValueField[] }
+
+const nonSpaceLen = (html: string) => { const el = document.createElement('div'); el.innerHTML = html; return (el.textContent || '').replace(/\s+/g, '').length }
+const isBlank = (v: string | boolean | null | undefined) => v == null ? true : (typeof v === 'boolean' ? !v : nonSpaceLen(String(v)) === 0)
+// Campo "com conteúdo" p/ o render final: checkbox marcado, ou texto/rich/data/hora não-vazio.
+const fieldHasContent = (f: FormValueField) => f.ftype !== 'title' && f.ftype !== 'section' && (f.ftype === 'checkbox' ? !!f.value : !isBlank(f.value))
+// Uma seção só é trazida se houver algum campo com conteúdo até a próxima seção/título.
+const sectionHasContent = (fields: FormValueField[], from: number) => {
+  for (let j = from + 1; j < fields.length; j++) {
+    if (fields[j].ftype === 'section' || fields[j].ftype === 'title') break
+    if (fieldHasContent(fields[j])) return true
+  }
+  return false
+}
+
+/** Monta o HTML (body/e-mail) a partir da instância preenchida. */
+export function composeFormBody(inst: FormInstance): string {
+  let html = ''
+  if (inst.show_logo) html += '<div style="text-align:center;margin:0 0 10px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
+  if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 4px 0;">${inst.title}</div>`
+  if (inst.subtitle) html += `<div style="text-align:center;font-size:14px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.subtitle}</div>`
+  if (inst.intro) html += `<p style="text-align:left;color:#374151;margin:0 0 14px 0;">${inst.intro.replace(/\n/g, '<br>')}</p>`
+  inst.fields.forEach((f, i) => {
+    if (f.ftype === 'title') {
+      // `value` (boolean) = flag "carregar logo" do bloco de título.
+      if (f.value) html += '<div style="text-align:center;margin:10px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
+      html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 12px 0;">${f.label}</div>`
+    }
+    else if (f.ftype === 'section') {
+      // Só traz a seção se houver algum campo preenchido até a próxima seção/título.
+      if (!sectionHasContent(inst.fields, i)) return
+      if (f.value) html += '<div style="text-align:center;margin:14px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
+      html += `<p style="font-weight:bold;font-size:15px;margin:16px 0 6px 0;border-top:1px solid #e5e7eb;padding-top:10px;">${f.label}</p>`
+    }
+    // Campos vazios (e checkbox desmarcado) não são trazidos.
+    else if (f.ftype === 'richtext') { if (!isBlank(f.value)) html += `<div style="margin:0 0 12px 0;"><p style="font-weight:bold;margin:0 0 3px 0;">${f.label}</p><div style="padding-left:6px;">${f.value as string}</div></div>` }
+    else if (f.ftype === 'checkbox') { if (f.value) html += `<div style="margin:0 0 4px 0;">☑ ${f.label}</div>` }
+    else { if (!isBlank(f.value)) html += `<div style="margin:0 0 6px 0;"><strong>${f.label}:</strong> ${f.value as string}</div>` }
+  })
+  return html
+}
+
+const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
+const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
+
+/** Saudação pelo horário local do consultor (manhã/tarde/noite). */
+const timeGreeting = (): string => {
+  const h = new Date().getHours()
+  return h < 12 ? 'Bom dia!' : h < 18 ? 'Boa tarde!' : 'Boa noite!'
+}
+/** Mensagem padrão que abre a solução enviada ao cliente. Editável no formulário. */
+const defaultGreetingMessage = (): string =>
+  `${timeGreeting()}\n\nSegue abaixo a solução para o seu chamado. Ficamos à disposição para qualquer dúvida.`
+
+export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, timeMode = 'optional', submitLabel = 'Salvar e aplicar', ticketId, onClose, onSubmit }: {
+  form: HdForm
+  initial?: FormInstance | null
+  initialTime?: FormTime | null
+  tokens?: Record<string, string>   // preenchimento automático: {ticket.creator.name} etc.
+  currentUserName?: string          // atalho "eu" nos campos de usuário
+  // Horas da interação: 'optional' (pode marcar "Sem apontamento"), 'required' (obrigatório informar,
+  // sem escape) ou 'hidden' (não aponta por aqui). Espelha o modo do compositor (sustentação).
+  timeMode?: 'optional' | 'required' | 'hidden'
+  submitLabel?: string
+  ticketId?: number | string | null
+  onClose: () => void
+  onSubmit: (inst: FormInstance, body: string, time: FormTime, files: File[]) => Promise<void> | void
+}) {
+  // ── Rascunho local (por chamado + formulário): se fechar/atualizar sem enviar, recupera o digitado.
+  type Draft = { vals?: Record<string, string | boolean>; greeting?: string; time?: { workedDate?: string; startTime?: string; endTime?: string; totalHours?: string; noCharge?: boolean } }
+  const draftKey = ticketId != null ? `hd:dynform-draft:${ticketId}:${form.id}` : null
+  const [draft, setDraft] = useState<Draft | null>(() => {
+    if (!draftKey || typeof window === 'undefined') return null
+    try { const r = window.localStorage.getItem(draftKey); return r ? (JSON.parse(r) as Draft) : null } catch { return null }
+  })
+  // Mensagem de saudação (Bom dia/Boa tarde/Boa noite + intro) — pré-preenchida e editável;
+  // É a INTRODUÇÃO completa da solução enviada ao cliente. Na criação, começa com a saudação
+  // por horário + o intro configurado do formulário; na edição, recupera o intro já salvo
+  // (sem re-saudar) para não perder nem duplicar texto no round-trip.
+  const defaultGreetingRef = useRef<string>(
+    initial
+      ? (initial.intro ?? '')
+      : [defaultGreetingMessage(), applyTokens(form.intro, tokens)].filter(Boolean).join('\n\n')
+  )
+  const [greeting, setGreeting] = useState<string>(() => draft?.greeting ?? defaultGreetingRef.current)
+  const [restored, setRestored] = useState<boolean>(!!draft)
+  const [editorKey, setEditorKey] = useState(0) // muda p/ remontar os RichEditor ao descartar
+  const clearDraft = () => { if (draftKey && typeof window !== 'undefined') { try { window.localStorage.removeItem(draftKey) } catch { /* ignore */ } } }
+  // Tempo trabalhado da interação (obrigatório informar — é uma interação). Edição pré-preenche.
+  const [workedDate, setWorkedDate] = useState(draft?.time?.workedDate || initialTime?.worked_date || localToday())
+  const [startTime, setStartTime] = useState(draft?.time?.startTime ?? initialTime?.start_time ?? '')
+  const [endTime, setEndTime] = useState(draft?.time?.endTime ?? initialTime?.end_time ?? '')
+  const [totalHours, setTotalHours] = useState(draft?.time?.totalHours ?? initialTime?.total_hours ?? '')
+  // 'required' não permite "Sem apontamento"; 'hidden' não aponta (no_charge).
+  const [noCharge, setNoCharge] = useState(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : (draft?.time?.noCharge ?? !!initialTime?.no_charge)))
+  const derivedTotal = deriveTotal(startTime, endTime)
+  const totalDisplay = totalHours || derivedTotal
+  // Campos do tipo "user" buscam do cadastro de usuários (internos).
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => {
+    if (form.fields.some(f => f.ftype === 'user')) {
+      api.get<{ data: { id: number; name: string }[] }>('/help-desk/agents?candidates=1').then(r => setUsers(r?.data ?? [])).catch(() => {})
+    }
+  }, [form])
+  // Valor inicial por chave (edição usa a instância salva).
+  const initMap: Record<string, string | boolean> = {}
+  for (const f of form.fields) {
+    const saved = initial?.fields.find(x => x.key === f.key)
+    initMap[f.key] = saved ? saved.value : (f.ftype === 'checkbox' ? false : '')
+  }
+  // Rascunho recuperado sobrepõe o valor inicial (inclui o HTML dos richtext, que semeiam via initMap).
+  if (draft?.vals) for (const f of form.fields) if (Object.prototype.hasOwnProperty.call(draft.vals, f.key)) initMap[f.key] = draft.vals[f.key]!
+  const [vals, setVals] = useState<Record<string, string | boolean>>(initMap)
+  const [saving, setSaving] = useState(false)
+  // Anexo ÚNICO do formulário inteiro (antes cada campo richtext tinha seu próprio "Anexar").
+  const [formFiles, setFormFiles] = useState<File[]>([])
+  // GMUD: modal que aparece NA FRENTE do formulário perguntando do código-fonte. Só p/ o form de
+  // GMUD (status solucao_gmud) e quando é NOVO (edição pula). Se "Sim", o zip é obrigatório e entra
+  // nos anexos → o submit envia pro pacote (extração + CodeAnalysis → nota interna por arquivo).
+  const isGmudForm = form.status?.key === 'solucao_gmud'
+  const [srcAsked, setSrcAsked] = useState<boolean>(!isGmudForm || !!initial)
+  const [hasFonte, setHasFonte] = useState<boolean | null>(null)
+  const [srcZip, setSrcZip] = useState<File | null>(null)
+  const [confirmChoice, setConfirmChoice] = useState<boolean | null>(null) // 2ª confirmação (modal estilizado)
+  // Input criado IMPERATIVAMENTE fora da árvore React: o auth-context chama loadUser() no visibilitychange
+  // (dispara quando o diálogo de arquivo abre) → remonta um <input> do JSX e a 1ª seleção se perde. Imune.
+  const openFilePicker = () => {
+    const input = document.createElement('input')
+    input.type = 'file'; input.multiple = true; input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const picked = input.files ? Array.from(input.files) : []
+      // Guarda de tamanho NA HORA: arquivo > 50MB é rejeitado com mensagem clara (mostra o tamanho e
+      // sugere link), em vez de falhar em rede depois de ~30s no upload. Bate com o limite do backend.
+      const MAX = MAX_ATTACH_MB * 1024 * 1024
+      const big = picked.filter(f => f.size > MAX)
+      const ok = picked.filter(f => f.size <= MAX)
+      if (big.length) toast.error(
+        `Arquivo muito grande: ${big.map(f => `${f.name} (${(f.size / 1048576).toFixed(0)}MB)`).join(', ')}. Máximo ${MAX_ATTACH_MB}MB por arquivo — para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.`,
+        { duration: 8000 },
+      )
+      if (ok.length) setFormFiles(f => [...f, ...ok])
+      input.remove()
+    })
+    document.body.appendChild(input); input.click()
+  }
+  const richRefs = useRef<Record<string, RichEditorHandle | null>>({})
+  const [lens, setLens] = useState<Record<string, number>>(() => {
+    const o: Record<string, number> = {}
+    for (const f of form.fields) if (f.ftype === 'richtext') o[f.key] = nonSpaceLen(String(initMap[f.key] || ''))
+    return o
+  })
+  const recount = (key: string) => setLens(l => ({ ...l, [key]: nonSpaceLen(richRefs.current[key]?.getHtml() ?? '') }))
+  const setV = (key: string, v: string | boolean) => setVals(s => ({ ...s, [key]: v }))
+
+  // Grava o rascunho a cada mudança (escalares/tempo + richtext via lens, que muda a cada input).
+  useEffect(() => {
+    if (!draftKey || typeof window === 'undefined') return
+    const snapVals: Record<string, string | boolean> = { ...vals }
+    for (const f of form.fields) if (f.ftype === 'richtext') snapVals[f.key] = richRefs.current[f.key]?.getHtml() ?? ''
+    const fieldsContent = form.fields.some(f => {
+      if (f.ftype === 'title' || f.ftype === 'section') return false
+      const v = snapVals[f.key]
+      return typeof v === 'boolean' ? v : nonSpaceLen(String(v || '')) > 0
+    })
+    // Saudação editada (diferente do padrão) também conta como rascunho a preservar.
+    const greetingCustomized = greeting !== defaultGreetingRef.current
+    const hasContent = fieldsContent || greetingCustomized
+    try {
+      if (hasContent) window.localStorage.setItem(draftKey, JSON.stringify({ vals: snapVals, greeting, time: { workedDate, startTime, endTime, totalHours, noCharge } }))
+      else window.localStorage.removeItem(draftKey)
+    } catch { /* quota/priv */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vals, greeting, workedDate, startTime, endTime, totalHours, noCharge, lens, editorKey])
+
+  // Descartar rascunho: volta os campos ao valor original (sem rascunho) e remonta os editores.
+  const discardDraft = () => {
+    clearDraft(); setDraft(null); setRestored(false)
+    const orig: Record<string, string | boolean> = {}
+    for (const f of form.fields) { const saved = initial?.fields.find(x => x.key === f.key); orig[f.key] = saved ? saved.value : (f.ftype === 'checkbox' ? false : '') }
+    setVals(orig)
+    setGreeting(defaultGreetingRef.current)
+    setWorkedDate(initialTime?.worked_date || localToday())
+    setStartTime(initialTime?.start_time || ''); setEndTime(initialTime?.end_time || ''); setTotalHours(initialTime?.total_hours || '')
+    setNoCharge(timeMode === 'hidden' ? true : (timeMode === 'required' ? false : !!initialTime?.no_charge))
+    setEditorKey(k => k + 1)
+  }
+  // Automação: campo travado quando o checkbox `rule.when` está marcado → recebe `rule.value`.
+  const ruleValue = (f: FormField) => f.rule?.value || 'não se aplica'
+  const ruleLocked = (f: FormField) => !!(f.rule?.when && vals[f.rule.when])
+  const fieldLabel = (key?: string | null) => form.fields.find(x => x.key === key)?.label ?? ''
+
+  const submit = async () => {
+    // Lê os rich do ref.
+    const values: Record<string, string | boolean> = { ...vals }
+    for (const f of form.fields) if (f.ftype === 'richtext') values[f.key] = richRefs.current[f.key]?.getHtml() ?? ''
+    // Campos travados por automação recebem o valor da regra (sobrepõe leitura acima).
+    for (const f of form.fields) if (ruleLocked(f)) values[f.key] = ruleValue(f)
+
+    const errors: string[] = []
+    for (const f of form.fields) {
+      if (f.ftype === 'section' || f.ftype === 'title' || ruleLocked(f)) continue
+      const v = values[f.key]
+      if (f.required && isBlank(v)) errors.push(`Preencha “${cleanLabel(f.label)}”`)
+      else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`“${cleanLabel(f.label)}” precisa de ao menos ${f.min_chars} caracteres`)
+    }
+    // Seção com `min_chars` = exige ao menos N CHECKBOXES marcados entre ela e a próxima
+    // seção/título ("selecione pelo menos N"). Conta SÓ checkbox — campos de texto/richtext da
+    // seção não satisfazem (senão um campo obrigatório seguinte já "cumpriria" o mínimo).
+    for (let i = 0; i < form.fields.length; i++) {
+      const sec = form.fields[i]
+      if (sec.ftype !== 'section' || !sec.min_chars || sec.min_chars < 1) continue
+      let count = 0
+      for (let j = i + 1; j < form.fields.length; j++) {
+        const fj = form.fields[j]
+        if (fj.ftype === 'section' || fj.ftype === 'title') break
+        // Conta: checkbox marcado; ou campo marcado `counts_for_section` (ex.: "Outros") preenchido.
+        if (fj.ftype === 'checkbox' ? !!values[fj.key] : (fj.rule?.counts_for_section && !isBlank(values[fj.key]))) count++
+      }
+      if (count < sec.min_chars) errors.push(`Selecione ao menos ${sec.min_chars} ${sec.min_chars > 1 ? 'itens' : 'item'} em “${cleanLabel(sec.label)}”`)
+    }
+    // Anexo único do formulário (um só "Anexar" no rodapé, não mais por campo).
+    const files = formFiles
+    // Checkbox com rule.require_attachment marcado → exige anexar arquivo COMPRIMIDO (ex.: Código Fonte).
+    for (const f of form.fields) {
+      if (f.ftype !== 'checkbox' || !f.rule?.require_attachment || !values[f.key]) continue
+      if (files.length === 0) errors.push(`${f.label}: anexe o arquivo (comprimido: .zip, .rar, .7z…) pelo botão “Anexar”`)
+      // Basta EXISTIR um anexo comprimido (some), não que todos sejam — o usuário pode anexar tb um PDF de doc.
+      else if (!files.some(x => COMPRESSED_RE.test(x.name))) errors.push(`${f.label}: anexe ao menos um arquivo comprimido (.zip, .rar, .7z, .tar, .gz)`)
+    }
+    if (errors.length) {
+      toast.error(
+        errors.length === 1 ? errors[0] : `Faltam ${errors.length} campos obrigatórios`,
+        { description: errors.length > 1 ? errors.map(e => `• ${e}`).join('\n') : undefined, duration: 6000 },
+      )
+      return
+    }
+
+    // Tempo da interação: 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta.
+    if (timeMode !== 'hidden') {
+      if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
+      // Só OBRIGATÓRIO ('required') força informar horas. Em 'optional', salvar em branco é permitido
+      // (sem apontamento implícito) — não força marcar "Sem apontamento".
+      if (timeMode === 'required' && !noCharge && !totalDisplay) { toast.error('Informe as horas da interação (início→fim ou total).'); return }
+    }
+
+    // Tags resolvidas AGORA (grava o valor real na instância — o timeline/e-mail já saem prontos).
+    const tk = (s: string | null | undefined) => applyTokens(s, tokens)
+    // Introdução da solução = mensagem de saudação editável (já inclui o intro do formulário).
+    const introText = greeting.trim() || null
+    const inst: FormInstance = {
+      form_id: form.id, title: tk(form.title), subtitle: tk(form.subtitle), intro: introText, show_logo: form.show_logo,
+      // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
+      // Campos escalares nunca gravam null (senão renderiza "null" no resultado). Tags resolvidas no texto.
+      fields: form.fields.map(f => ({ key: f.key, label: tk(f.label), hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : tk(String(values[f.key] ?? ''))) })),
+    }
+    const time: FormTime = { worked_date: workedDate, start_time: noCharge ? '' : startTime, end_time: noCharge ? '' : endTime, total_hours: noCharge ? '' : totalDisplay, no_charge: noCharge }
+    setSaving(true)
+    try { await onSubmit(inst, composeFormBody(inst), time, files); clearDraft() } finally { setSaving(false) }
+  }
+
+  const lbl = 'text-[15px] font-bold'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      {/* GMUD: pergunta do código-fonte NA FRENTE do formulário (antes de preencher a GMUD). */}
+      {!srcAsked && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="ds-card p-5 w-full max-w-md space-y-3" style={{ background: 'var(--surface)' }}>
+            <div className="text-base font-bold" style={{ color: 'var(--text)' }}>📦 Código-fonte da GMUD</div>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Haverá código-fonte a anexar nesta GMUD?</p>
+            <div className="flex gap-2">
+              {([['Sim', true], ['Não', false]] as [string, boolean][]).map(([lab, val]) => {
+                const sel = hasFonte === val
+                return (
+                  <button key={lab} type="button" onClick={() => setConfirmChoice(val)}
+                    className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border"
+                    style={{ background: sel ? 'var(--primary)' : 'var(--surface)', color: sel ? 'var(--primary-fg)' : 'var(--text-muted)', borderColor: sel ? 'var(--primary)' : 'var(--border)' }}>
+                    {lab}
+                  </button>
+                )
+              })}
+            </div>
+            {hasFonte === true && (
+              <div>
+                <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer rounded-lg px-3 py-2 w-full" style={{ border: '1px dashed var(--primary)', color: 'var(--primary)', background: 'var(--surface)' }}>
+                  <Paperclip size={14} /> {srcZip ? 'Trocar arquivo' : 'Anexar código-fonte (.zip) *'}
+                  <input type="file" accept=".zip,.rar,.7z,.tar,.gz" className="hidden" onChange={e => setSrcZip(e.target.files?.[0] ?? null)} />
+                </label>
+                {srcZip && <div className="text-xs mt-1" style={{ color: 'var(--text)' }}>{srcZip.name} · {(srcZip.size / 1024).toFixed(0)} KB</div>}
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-light)' }}>O fonte será analisado (CodeAnalysis) e a nota (A-F + possíveis correções) sairá em <b>interação interna por arquivo</b>. Legenda: A/B verde · C amarelo · demais vermelho.</p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
+              <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg disabled:opacity-50" disabled={hasFonte === null || (hasFonte === true && !srcZip)}
+                onClick={() => { if (hasFonte === true && srcZip) setFormFiles(f => [...f, srcZip]); setSrcAsked(true) }}>Continuar</button>
+            </div>
+
+            {/* 2ª confirmação — modal estilizado (substitui o window.confirm nativo). */}
+            {confirmChoice !== null && (
+              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                <div className="ds-card p-5 w-full max-w-sm space-y-3" style={{ background: 'var(--surface)' }}>
+                  {confirmChoice ? (
+                    <>
+                      <div className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--warning-border)' }}>⚠️ Atenção</div>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>Ao marcar <b>Sim</b>, <b>não será possível finalizar a GMUD sem enviar o código-fonte zipado (.zip)</b>. O fonte será analisado e a pontuação (A-F) sairá em nota interna. Deseja continuar?</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 text-base font-bold" style={{ color: 'var(--text)' }}>Confirmar</div>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>Tem <b>certeza</b> de que <b>NÃO há código-fonte</b> a anexar nesta GMUD? Sem o fonte, o chamado não terá análise de código.</p>
+                    </>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setConfirmChoice(null)}>Voltar</button>
+                    <button className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg"
+                      style={confirmChoice ? undefined : { background: 'var(--warning-border)', color: '#fff' }}
+                      onClick={() => { if (confirmChoice) setHasFonte(true); else { setHasFonte(false); setSrcZip(null) } setConfirmChoice(null) }}>
+                      {confirmChoice ? 'Sim, vou anexar' : 'Confirmar (sem fonte)'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
+          <button type="button" aria-label="Fechar" className="ds-btn-secondary text-sm px-2 py-1 rounded-lg shrink-0" onClick={onClose}>✕</button>
+        </div>
+        {restored && (
+          <div className="flex items-center justify-between gap-2 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+            <span>📝 Rascunho recuperado (não enviado da última vez).</span>
+            <button type="button" className="font-semibold underline shrink-0" onClick={discardDraft}>Descartar rascunho</button>
+          </div>
+        )}
+        {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{applyTokens(form.subtitle, tokens)}</div>}
+        {/* Mensagem de saudação editável — vira a introdução da solução enviada ao cliente. */}
+        <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <label className={lbl} style={{ color: 'var(--text)' }}>Mensagem de saudação</label>
+            <button type="button" className="text-[11px] font-semibold underline shrink-0" style={{ color: 'var(--text-light)' }}
+              onClick={() => setGreeting([defaultGreetingMessage(), applyTokens(form.intro, tokens)].filter(Boolean).join('\n\n'))}>Restaurar padrão</button>
+          </div>
+          <textarea rows={3} value={greeting} onChange={e => setGreeting(e.target.value)} className={`${fieldCls} w-full`} style={{ ...inputStyle, resize: 'vertical' }}
+            placeholder="Ex.: Bom dia! Segue abaixo a solução do seu chamado." />
+          <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Aparece no topo da solução enviada ao cliente. Edite à vontade ou deixe em branco para omitir.</p>
+        </div>
+        {form.fields.map(f => {
+          if (f.ftype === 'title') return (
+            <div key={f.key} className="text-center py-1">
+              {f.required && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src="/logo.png" alt="ERPSERV" style={{ height: 40, display: 'inline-block', marginBottom: 6 }} />
+              )}
+              <div className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{f.label}</div>
+            </div>
+          )
+          if (f.ftype === 'section') return (
+            <div key={f.key} className="pt-2 mt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+              {f.required && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <div className="text-center mb-1.5"><img src="/logo.png" alt="ERPSERV" style={{ height: 40, display: 'inline-block' }} /></div>
+              )}
+              <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{f.label}{f.min_chars ? <span style={{ color: 'var(--danger)' }}> *</span> : null}</div>
+              {f.min_chars ? <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Selecione ao menos {f.min_chars}.</div> : null}
+            </div>
+          )
+          const ok = !f.min_chars || (lens[f.key] ?? 0) >= f.min_chars
+          const locked = ruleLocked(f)
+          return (
+            <div key={f.key}>
+              {f.ftype !== 'checkbox' && (
+                <div className="flex items-center justify-between">
+                  <label className={lbl} style={{ color: 'var(--text)' }}>{f.label}{f.required ? ' *' : ''}</label>
+                  {!locked && f.ftype === 'richtext' && f.min_chars ? <span className="text-[11px] font-semibold" style={{ color: ok ? 'var(--success)' : 'var(--danger)' }}>{lens[f.key] ?? 0}/{f.min_chars}</span> : null}
+                </div>
+              )}
+              {f.hint && f.ftype !== 'checkbox' && !locked && <p className="text-[11px] mb-1 leading-snug" style={{ color: 'var(--text-light)' }}>{f.hint}</p>}
+              {locked && f.ftype !== 'checkbox' ? (
+                <div className="text-sm rounded-lg px-2.5 py-1.5 flex items-center gap-2" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+                  <span className="italic">{ruleValue(f)}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>travado por “{fieldLabel(f.rule?.when)}”</span>
+                </div>
+              ) : (<>
+              {f.ftype === 'richtext' && <RichEditor key={`rich-${f.key}-${editorKey}`} ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} showAttach={false} onChange={() => recount(f.key)} />}
+              {f.ftype === 'text' && <input className={`${fieldCls} w-full`} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
+              {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
+              {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
+              {f.ftype === 'user' && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1"><SearchSelect value={String(vals[f.key] || '')} onChange={v => setV(f.key, v)}
+                    options={users.map(u => ({ id: u.name, name: u.name }))} placeholder="Buscar usuário…" fullWidth /></div>
+                  {currentUserName && (
+                    <button type="button" onClick={() => setV(f.key, currentUserName)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap"
+                      style={{ background: vals[f.key] === currentUserName ? 'var(--primary)' : 'var(--primary-soft)', color: vals[f.key] === currentUserName ? 'var(--primary-fg)' : 'var(--primary)' }}
+                      title={`Sou eu (${currentUserName})`}>Sou eu</button>
+                  )}
+                </div>
+              )}
+              </>)}
+              {f.ftype === 'checkbox' && (
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+                  <input type="checkbox" checked={!!vals[f.key]} onChange={e => setV(f.key, e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> {f.label}{f.required ? ' *' : ''}
+                </label>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Anexo ÚNICO do formulário — vale para todos os campos; vai junto do comentário → aparece no e-mail. */}
+        <div className="rounded-lg px-2.5 py-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={openFilePicker} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
+              <Paperclip size={13} /> Anexar
+            </button>
+            {formFiles.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Anexe arquivos ao chamado (opcional)</span>}
+            {formFiles.map((f, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+                <FileText size={12} /> <span className="max-w-[160px] truncate">{f.name}</span>
+                <button type="button" onClick={() => setFormFiles(fs => fs.filter((_, j) => j !== i))}><X size={11} /></button>
+              </span>
+            ))}
+          </div>
+          {/* Limite SEMPRE visível: o usuário sabe o teto antes de anexar (evita falha de upload sem motivo claro). */}
+          <div className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+            Máx. {MAX_ATTACH_MB}MB por arquivo. Para arquivos maiores, compartilhe por link (OneDrive/SharePoint) no texto.
+          </div>
+        </div>
+
+        {/* Tempo da interação — o formulário É uma interação; movimenta horas quando o contrato tem a
+            integração ligada. 'required' obriga informar (sem "Sem apontamento"); 'hidden' não aponta aqui. */}
+        {timeMode !== 'hidden' && (
+        <div className="rounded-lg px-2.5 py-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo{timeMode === 'required' ? ' *' : ''}</span>
+            <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
+              disabled={noCharge} aria-label="Data da interação"
+              className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: noCharge ? 0.5 : 1 }} />
+            <span style={{ color: 'var(--text-light)' }}>·</span>
+            <TimeSelect5 value={startTime} onChange={v => { setStartTime(v); setNoCharge(false) }} ariaLabel="Hora início" maxBefore={endTime}
+              topOption={timeMode === 'required' ? undefined : { label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
+            <span style={{ color: 'var(--text-light)' }}>→</span>
+            <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" minAfter={startTime} />
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
+            <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
+              placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
+              className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
+          </div>
+        </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
+          <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Render de uma instância preenchida no timeline (fundo papel). */
+export function DynamicFormView({ instance }: { instance: FormInstance }) {
+  return (
+    <div className="rounded-lg p-4 text-sm" style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb' }}>
+      {instance.show_logo && (
+        <div style={{ textAlign: 'center', marginBottom: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} />
+        </div>
+      )}
+      {instance.title && <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>{instance.title}</div>}
+      {instance.subtitle && <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#5b21b6', marginBottom: 8 }}>{instance.subtitle}</div>}
+      {instance.intro && <p style={{ textAlign: 'left', color: '#374151', marginBottom: 14, whiteSpace: 'pre-line' }}>{instance.intro}</p>}
+      {instance.fields.map((f, i) => {
+        if (f.ftype === 'title') return (
+          <div key={i} style={{ textAlign: 'center', marginBottom: 12 }}>
+            {f.value && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block', marginBottom: 6 }} />
+            )}
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#5b21b6' }}>{f.label}</div>
+          </div>
+        )
+        if (f.ftype === 'section') {
+          // Seção sem nenhum campo preenchido até a próxima seção/título não é trazida.
+          if (!sectionHasContent(instance.fields, i)) return null
+          return (
+            <div key={i} style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, margin: '16px 0 6px' }}>
+              {f.value && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <div style={{ textAlign: 'center', marginBottom: 6 }}><img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} /></div>
+              )}
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{f.label}</div>
+            </div>
+          )
+        }
+        // Campos vazios (e checkbox desmarcado) não são trazidos.
+        if (f.ftype === 'richtext') return isBlank(f.value) ? null : <div key={i} style={{ marginBottom: 12 }}><div style={{ fontWeight: 700, marginBottom: 3 }}>{f.label}</div><div className="hd-rich" style={{ paddingLeft: 6 }} dangerouslySetInnerHTML={{ __html: sanitizeRich(String(f.value || '')) }} /></div>
+        if (f.ftype === 'checkbox') return f.value ? <div key={i} style={{ marginBottom: 4 }}>☑ {f.label}</div> : null
+        return isBlank(f.value) ? null : <div key={i} style={{ marginBottom: 6 }}><strong>{f.label}:</strong> {String(f.value)}</div>
+      })}
+    </div>
+  )
+}

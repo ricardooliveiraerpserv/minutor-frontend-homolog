@@ -2,7 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Paperclip, X, FileText, Smile, Bold, Italic, Underline, Link2, Palette, RemoveFormatting, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
+import { Paperclip, X, FileText, Smile, Bold, Italic, Underline, Link2, Palette, RemoveFormatting } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 
 const EMOJIS = ['😀', '😅', '👍', '🙏', '🎉', '✅', '❗', '⚠️', '📌', '🔔', '📢', '💰', '📄', '🗓️', '🚀', '💡', '🔥', '⭐', '✔️', '❌', '➡️', '🕐', '👥', '🛠️', '📝', '📊', '💬', '🎯']
@@ -23,8 +23,8 @@ export interface RichEditorHandle { getHtml: () => string; getFiles: () => File[
  * digitar). Cola PRINT inline (downscale → data:URI), igual ao compositor. Fundo "papel"
  * branco fixo p/ legibilidade do conteúdo de e-mail em qualquer tema. Lê o HTML via ref.getHtml().
  */
-export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; minHeight?: number; showAttach?: boolean; colors?: string[]; allowCustomColor?: boolean }>(
-  function RichEditor({ initialHtml, minHeight = 100, showAttach = true, colors, allowCustomColor = true }, ref) {
+export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; minHeight?: number; showAttach?: boolean; colors?: string[]; allowCustomColor?: boolean; onChange?: () => void }>(
+  function RichEditor({ initialHtml, minHeight = 100, showAttach = true, colors, allowCustomColor = true, onChange }, ref) {
     const palette = colors ?? COLORS
     const edRef = useRef<HTMLDivElement>(null)
     const fileRef = useRef<HTMLInputElement>(null)
@@ -64,18 +64,20 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
       if (url && /^https?:\/\/\S+/i.test(url)) exec('createLink', url)
       else if (url) toast.error('URL inválida (use http:// ou https://).')
     }
-    useEffect(() => {
-      if (!edRef.current) return
-      edRef.current.innerHTML = sanitizeRich(initialHtml)
-      // O sanitizer remove contenteditable; re-marca as imagens como NÃO-editáveis p/ o
-      // navegador não clonar o estilo da "caixa" da imagem ao digitar/dar espaço ao lado dela.
-      edRef.current.querySelectorAll('img').forEach(img => {
-        const sp = img.parentElement
-        if (sp && sp.tagName === 'SPAN') sp.setAttribute('contenteditable', 'false')
+    // Remove "molduras" de imagem que ficaram VAZIAS (o navegador divide o span
+    // com resize/borda azul ao mover/arrastar a imagem, deixando um campo azul vazio).
+    const cleanEmptyImages = () => {
+      const ed = edRef.current; if (!ed) return
+      let removed = false
+      ed.querySelectorAll('span.hd-img, span[style*="resize"]').forEach(sp => {
+        if (!sp.querySelector('img')) { sp.remove(); removed = true }
       })
-    }, [initialHtml])
+      return removed
+    }
+
+    useEffect(() => { if (edRef.current) edRef.current.innerHTML = sanitizeRich(initialHtml) }, [initialHtml])
     useImperativeHandle(ref, () => ({
-      getHtml: () => (edRef.current ? sanitizeRich(edRef.current.innerHTML) : ''),
+      getHtml: () => { cleanEmptyImages(); return edRef.current ? sanitizeRich(edRef.current.innerHTML) : '' },
       getFiles: () => files,
     }), [files])
 
@@ -97,57 +99,13 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
       img.src = url
     })
 
-    // 🚑 À prova de falhas contra o "bug dos campos vazios": o navegador CLONA a caixa da
-    // imagem (span com border+resize) ao digitar/dar espaço ao lado, gerando caixas vazias;
-    // e o execCommand descarta o contenteditable que colocamos no HTML. A cada input:
-    //  • span-caixa COM <img> → marca contenteditable=false via DOM (atômico, não some);
-    //  • span-caixa SEM <img> (o clone espúrio) → tira o estilo de caixa (vira texto normal,
-    //    invisível) SEM remover o nó → não desloca o cursor.
-    const cleanBoxes = () => {
-      const ed = edRef.current; if (!ed) return
-      ed.querySelectorAll('span[style*="resize"]').forEach(sp => {
-        if (sp.querySelector('img')) {
-          if (sp.getAttribute('contenteditable') !== 'false') sp.setAttribute('contenteditable', 'false')
-        } else {
-          sp.removeAttribute('style'); sp.removeAttribute('contenteditable')
-        }
-      })
-    }
-
     const insertImage = (dataUrl: string) => {
       const ed = edRef.current; if (!ed) return
       ed.focus()
-      // Imagem num bloco de alinhamento (text-align controla esquerda/centro/direita).
-      // A linha <p><br></p> abaixo fica editável. cleanBoxes() reforça o contenteditable=false.
+      // Borda AZUL evidente + alça de redimensionar (arrastar o canto inferior-direito).
       document.execCommand('insertHTML', false,
-        `<div style="text-align:center;margin:6px 0;">` +
-        `<span contenteditable="false" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:80px;width:340px;border:1px solid rgba(125,125,125,.35);border-radius:8px;vertical-align:top;">` +
-        `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span></div><p><br/></p>`)
-      cleanBoxes()
-    }
-
-    // Alinha a imagem (a do cursor, ou a última) à esquerda/centro/direita via text-align do bloco.
-    const alignImage = (dir: 'left' | 'center' | 'right') => {
-      const ed = edRef.current; if (!ed) return
-      const sel = window.getSelection()
-      const anchor = savedRange.current?.startContainer || sel?.anchorNode || null
-      let img: HTMLImageElement | null = null
-      if (anchor) {
-        let el: HTMLElement | null = anchor.nodeType === 1 ? anchor as HTMLElement : anchor.parentElement
-        while (el && el !== ed) { const q = el.querySelector?.('img') as HTMLImageElement | null; if (q) { img = q; break } el = el.parentElement }
-      }
-      if (!img) { const imgs = ed.querySelectorAll('img'); img = imgs.length ? imgs[imgs.length - 1] as HTMLImageElement : null }
-      if (!img) { toast.error('Insira ou selecione uma imagem primeiro.'); return }
-      const span = img.parentElement; if (!span) return
-      let block = span.parentElement
-      // Reaproveita o div de alinhamento existente; se a imagem não estiver num div (conteúdo
-      // antigo), envolve o span num div novo.
-      if (!block || block === ed || block.tagName !== 'DIV') {
-        const div = document.createElement('div'); div.style.margin = '6px 0'
-        span.parentElement?.insertBefore(div, span); div.appendChild(span); block = div
-      }
-      block.style.textAlign = dir
-      saveSel()
+        `<span class="hd-img" title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
+        `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
     }
 
     const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -202,15 +160,6 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
 
           <span className="w-px h-5 mx-0.5" style={{ background: 'var(--border)' }} />
 
-          {/* Alinhamento da imagem (print): esquerda / centro / direita */}
-          {([['left', AlignLeft, 'Imagem à esquerda'], ['center', AlignCenter, 'Imagem centralizada'], ['right', AlignRight, 'Imagem à direita']] as const).map(([d, Icon, t]) => (
-            <button key={d} type="button" title={t} onMouseDown={ev => ev.preventDefault()} onClick={() => alignImage(d)} className={tbBtn} style={tbStyle}>
-              <Icon size={14} />
-            </button>
-          ))}
-
-          <span className="w-px h-5 mx-0.5" style={{ background: 'var(--border)' }} />
-
           <button type="button" title="Emoji" onClick={() => setShowEmoji(s => !s)} className={tbBtn} style={tbStyle}>
             <Smile size={14} />
           </button>
@@ -222,10 +171,12 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
             </div>
           )}
         </div>
-        <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste} onInput={cleanBoxes}
-          onKeyUp={saveSel} onMouseUp={saveSel} onBlur={saveSel}
+        <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste}
+          onInput={() => { cleanEmptyImages(); onChange?.() }}
+          onKeyUp={() => { saveSel(); cleanEmptyImages() }} onMouseUp={() => { saveSel(); cleanEmptyImages() }}
+          onDrop={() => setTimeout(cleanEmptyImages, 0)} onBlur={() => { saveSel(); cleanEmptyImages() }}
           className="text-sm hd-rich rounded-lg p-3 outline-none overflow-auto"
-          style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480 }} />
+          style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480, overscrollBehavior: 'contain' }} />
         {showAttach ? (
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
