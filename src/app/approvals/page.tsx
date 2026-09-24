@@ -1277,7 +1277,7 @@ export default function ApprovalsPage() {
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden lg:table-cell">
                   {ts.ticket
-                    ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
+                    ? <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`} target="_blank" rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()} className="hover:underline" style={{ color: '#22d3ee' }}>
                         #{ts.ticket}
                       </a>

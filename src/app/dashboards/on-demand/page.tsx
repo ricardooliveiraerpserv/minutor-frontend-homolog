@@ -691,7 +691,7 @@ function InlineTimesheetsTable({ rows, loading, onReverseApproved, onReverseSucc
                 </DataTableCell>
                 <DataTableCell>
                   {r.ticket
-                    ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={(e) => e.stopPropagation()}>#{r.ticket}</a>
+                    ? <a href={`/help-desk/tickets/${(r as any).helpdesk_ticket_id ?? r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={(e) => e.stopPropagation()}>#{r.ticket}</a>
                     : <span style={{ color: 'var(--text-light)' }}>—</span>}
                 </DataTableCell>
                 <DataTableCell wrap>{previewText(r.description) || '—'}</DataTableCell>
@@ -754,7 +754,7 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
               {rows.map(tk => (
                 <tr key={tk.ticket} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className="px-4 py-2">
-                    <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
+                    <a href={`/help-desk/tickets/${(tk as any).helpdesk_ticket_id ?? tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
                   </td>
                   <td className="px-4 py-2" style={{ color: 'var(--text)' }}>{tk.title ?? '—'}</td>
                   <td className="px-4 py-2" style={{ color: 'var(--text-muted)' }}>{tk.requester ?? '—'}</td>

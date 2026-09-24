@@ -16,6 +16,9 @@ export interface User {
   guaranteed_hours?: number | null
   chat_sound?: string | null          // toque global de notificação de chat
   chat_sound_volume?: number | null   // volume global (0–100)
+  // Agente do Help Desk = vinculado a alguma equipe (helpdesk_team_user). Vem do /user.
+  is_helpdesk_agent?: boolean | null
+  helpdesk_default_screen?: 'principal' | 'tickets' | null
 }
 
 export interface AuthResponse {

@@ -524,6 +524,7 @@ const putIcon = (href: string, icon: LucideIcon) => {
 // Telas que não vivem no NAV estático (nascem em ramos por perfil) mas podem ser
 // referenciadas na árvore do Configurador — registra o ícone p/ não cair no FileText.
 putIcon('/portal-cliente/kanban', LayoutGrid)   // Meus Processos (Kanban pessoal)
+putIcon('/help-desk/portal', Headphones)        // Help Desk (via CLIENTE/interno não-agente) — Configurador
 
 type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
 

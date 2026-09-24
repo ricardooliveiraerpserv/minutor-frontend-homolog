@@ -1546,7 +1546,7 @@ export default function FechamentoClientePage() {
                         <Td muted className="text-xs">{a.projeto_codigo}</Td>
                         <Td className="text-xs">{a.colaborador}</Td>
                         <Td muted className="text-xs">{a.solicitante ?? '—'}</Td>
-                        <Td muted className="text-xs">{a.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${a.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{a.ticket}</a> : '—'}</Td>
+                        <Td muted className="text-xs">{a.ticket ? <a href={`/help-desk/tickets/${(a as any).helpdesk_ticket_id ?? a.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{a.ticket}</a> : '—'}</Td>
                         <Td muted className="text-xs">{a.titulo ?? '—'}</Td>
                         <Td right className="tabular-nums text-xs font-medium">{a.horas.toFixed(2)}h</Td>
                       </Tr>

@@ -98,6 +98,7 @@ interface ProjectEditForm {
   allow_manual_timesheets: boolean; allow_negative_balance: boolean
   client_follows_timesheets: boolean
   movidesk_integration_enabled: boolean
+  helpdesk_integration_enabled?: boolean
   coordinator_ids: number[]; consultant_ids: number[]; consultant_group_ids: number[]
 }
 
@@ -1198,6 +1199,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
     allow_negative_balance:          d.allow_negative_balance ?? false,
     client_follows_timesheets:       (d as any).client_follows_timesheets ?? true,
     movidesk_integration_enabled:    (d as any).movidesk_integration_enabled ?? false,
+    helpdesk_integration_enabled:    (d as any).helpdesk_integration_enabled ?? false,
     coordinator_ids:                 (d.coordinators ?? d.approvers ?? []).map((c: any) => c.id),
     consultant_ids:                  (d.consultants ?? []).map((c: any) => c.id),
     consultant_group_ids:            (d.consultant_groups ?? []).map((g: any) => g.id),
@@ -1287,6 +1289,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         allow_negative_balance: form.allow_negative_balance,
         client_follows_timesheets: form.client_follows_timesheets,
         movidesk_integration_enabled: form.movidesk_integration_enabled,
+        helpdesk_integration_enabled: form.helpdesk_integration_enabled,
         cobra_despesa_cliente: form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
         observacoes_coordenador: form.observacoes_coordenador || null,
@@ -1559,6 +1562,21 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 onChange={v => setForm(p => ({ ...p, movidesk_integration_enabled: v }))}
                 label="Receber integração Movidesk (apontamentos importados deste cliente caem neste projeto)"
               />
+
+              {/* Help Desk: permite vincular CHAMADOS a este projeto (não-sustentação). Quando ligado,
+                  as interações com tempo dos chamados viram apontamento neste projeto. Sustentação já
+                  nasce ligada (não mostra aqui). */}
+              {(() => {
+                const stName = (optServiceTypes.find(s => s.id === Number(form.service_type_id))?.name ?? '').toLowerCase()
+                if (stName.includes('sustenta')) return null   // sustentação já vem ligada via contrato
+                return (
+                  <Toggle2
+                    checked={!!form.helpdesk_integration_enabled}
+                    onChange={v => setForm(p => ({ ...p, helpdesk_integration_enabled: v }))}
+                    label="Vincular chamados do Help Desk (as interações com tempo viram apontamento neste projeto)"
+                  />
+                )
+              })()}
 
               {/* Override de Coordenador (sustentação) — só admin */}
               {(() => {

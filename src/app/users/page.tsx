@@ -1,8 +1,9 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
+import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { useRouter } from 'next/navigation'
@@ -45,6 +47,10 @@ interface UserItem {
   type?: string | null
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
+  helpdesk_access_profile_id?: number | null
+  helpdesk_department_id?: number | null
+  company_ids?: number[]
+  helpdesk_team_ids?: number[]
   // Folha de pagamento
   full_name?: string | null
   cpf?: string | null
@@ -177,6 +183,91 @@ export default function UsersPage() {
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
+  // Perfis de acesso do Help Desk (por kind) — atribuição inline na linha do usuário.
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
+  // Aba "Help Desk": empresas do grupo (ERPSERV/BIZIFY) para vincular por usuário.
+  const [hdMode, setHdMode] = useState(false)
+  // Filtros da aba HD (client-side sobre a página carregada).
+  const [hdCompany, setHdCompany] = useState('')   // '' | id
+  const [hdTeam, setHdTeam] = useState('')          // '' | id | 'none' (sem equipe)
+  const [hdKind, setHdKind] = useState('')          // '' | 'agents' | 'clients'
+  const [hdManual, setHdManual] = useState('')      // '' | 'yes' | 'no' (aponta manual em sustentação)
+  const [hdDeptFilter, setHdDeptFilter] = useState('')  // '' | id | 'none' (sem departamento)
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
+  const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => {
+    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
+      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
+      .catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1').then(r => setTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name })))).catch(() => {})
+  }, [])
+  const setUserTeams = async (u: UserItem, ids: number[]) => {
+    const prev = u.helpdesk_team_ids ?? []
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: ids } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/teams`, { team_ids: ids }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular equipe')
+    }
+  }
+  const setCanTimesheetSust = async (u: UserItem, value: boolean) => {
+    const prev = !!u.can_timesheet_sustentacao
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: value } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/can-timesheet-sustentacao`, { can_timesheet_sustentacao: value }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao alterar apontamento manual')
+    }
+  }
+  const setUserCompanies = async (u: UserItem, ids: number[]) => {
+    const prev = u.company_ids ?? []
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: ids } : x))
+    try { await api.patch(`/help-desk/people/${u.id}/companies`, { company_ids: ids }) }
+    catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: prev } : x)) // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular empresa')
+    }
+  }
+  const setHdProfile = async (u: UserItem, profileId: string) => {
+    const prev = u.helpdesk_access_profile_id ?? null
+    const next = profileId ? Number(profileId) : null
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: next } : x))
+    try {
+      await api.patch(`/help-desk/people/${u.id}/access-profile`, { access_profile_id: next })
+      // Sem perfil = não é agente → limpa empresas e equipes (campos ficam desabilitados).
+      if (next === null && u.type !== 'cliente') {
+        if ((u.company_ids ?? []).length) await setUserCompanies({ ...u, company_ids: u.company_ids }, [])
+        if ((u.helpdesk_team_ids ?? []).length) await setUserTeams({ ...u, helpdesk_team_ids: u.helpdesk_team_ids }, [])
+      }
+    } catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: prev } : x))  // reverte
+      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o perfil de Help Desk')
+    }
+  }
+  // Departamentos do Help Desk por cliente (só p/ usuários cliente) — atribuição inline.
+  const [deptsByCustomer, setDeptsByCustomer] = useState<Record<number, { id: number; name: string }[]>>({})
+  useEffect(() => {
+    const cids = Array.from(new Set(users.filter(u => u.type === 'cliente' && u.customer_id).map(u => u.customer_id as number)))
+      .filter(cid => !(cid in deptsByCustomer))
+    if (cids.length === 0) return
+    Promise.all(cids.map(cid =>
+      api.get<{ data: { id: number; name: string; active: boolean }[] }>(`/help-desk/departments?customer_id=${cid}`)
+        .then(r => [cid, (r?.data ?? []).filter(d => d.active).map(d => ({ id: d.id, name: d.name }))] as const)
+        .catch(() => [cid, [] as { id: number; name: string }[]] as const)
+    )).then(pairs => setDeptsByCustomer(prev => ({ ...prev, ...Object.fromEntries(pairs) })))
+  }, [users])  // eslint-disable-line react-hooks/exhaustive-deps
+  const setHdDept = async (u: UserItem, deptId: string) => {
+    const prev = u.helpdesk_department_id ?? null
+    const next = deptId ? Number(deptId) : null
+    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: next } : x))
+    try {
+      await api.patch(`/help-desk/people/${u.id}/department`, { helpdesk_department_id: next })
+    } catch (e) {
+      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: prev } : x))
+      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o departamento')
+    }
+  }
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -187,10 +278,11 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterHdProfile: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
+  const setFilterHdProfile = (v: string) => setFilter({ filterHdProfile: v, page: 1 } as any)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
   const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
   // Limpa TODOS os filtros (busca, aba, ativos, e os filtros específicos).
@@ -274,6 +366,8 @@ export default function UsersPage() {
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
+  const [bulkHdLoading, setBulkHdLoading] = useState(false)
+  const [bulkHdProfile, setBulkHdProfile] = useState('')
   const [bulkBondLoading, setBulkBondLoading] = useState(false)
   const [bulkBond, setBulkBond] = useState<'' | 'fixo' | 'freelance'>('')
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
@@ -296,6 +390,7 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
+      if (filterHdProfile) p.set('helpdesk_access_profile_id', filterHdProfile)
       if (filterBond)          p.set('work_bond', filterBond)
       if (filterContract)      p.set('contract_type', filterContract)
       if (filterConsultantType) p.set('consultant_type', filterConsultantType)
@@ -309,7 +404,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
 
   // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
   const loadCounts = useCallback(() => {
@@ -453,6 +548,21 @@ export default function UsersPage() {
     finally { setBulkContractLoading(false) }
   }
 
+  // Aplica o Perfil HD aos selecionados. O BE pula os incompatíveis (agente×cliente).
+  const applyBulkHdProfile = async () => {
+    if (selectedIds.size === 0) return
+    setBulkHdLoading(true)
+    try {
+      const r = await api.patch<{ data: { applied: number; skipped: number } }>('/help-desk/people/access-profile/bulk', {
+        user_ids: [...selectedIds], access_profile_id: bulkHdProfile ? Number(bulkHdProfile) : null,
+      })
+      const applied = r?.data?.applied ?? 0, skipped = r?.data?.skipped ?? 0
+      toast.success(`Perfil HD aplicado a ${applied} usuário(s)${skipped ? ` — ${skipped} ignorado(s) por incompatibilidade de tipo` : ''}`)
+      setSelectedIds(new Set()); setBulkHdProfile(''); load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aplicar o perfil de Help Desk') }
+    finally { setBulkHdLoading(false) }
+  }
+
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -465,10 +575,101 @@ export default function UsersPage() {
     setSelectedIds(prev => prev.size === users.length ? new Set() : new Set(users.map(u => u.id)))
   }
 
+  // Filtro da aba HD (empresa / equipe / tipo) — client-side sobre a página carregada.
+  const displayUsers = useMemo(() => {
+    if (!hdMode) return users
+    // "Agente" = usuário com PERFIL HD de agente (independe do tipo de usuário). Sem perfil ≠ agente.
+    const hdProfileKind = (u: UserItem) => hdProfiles.find(p => p.id === u.helpdesk_access_profile_id)?.kind
+    return users.filter(u => {
+      if (hdCompany && !(u.company_ids ?? []).includes(Number(hdCompany))) return false
+      if (hdTeam === 'none' && (u.helpdesk_team_ids ?? []).length > 0) return false
+      if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
+      if (hdKind === 'clients' && u.type !== 'cliente') return false
+      if (hdKind === 'agents' && hdProfileKind(u) !== 'agent') return false // só quem tem perfil de agente
+      if (hdKind === 'no_profile' && u.helpdesk_access_profile_id) return false // só quem está SEM perfil HD
+      if (hdManual === 'yes' && !(u.type !== 'cliente' && u.can_timesheet_sustentacao)) return false
+      if (hdManual === 'no' && !(u.type !== 'cliente' && !u.can_timesheet_sustentacao)) return false
+      if (hdDeptFilter === 'none' && u.helpdesk_department_id) return false
+      if (hdDeptFilter && hdDeptFilter !== 'none' && Number(u.helpdesk_department_id) !== Number(hdDeptFilter)) return false
+      return true
+    })
+  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdManual, hdDeptFilter, hdProfiles])
+
+  // Opções do filtro de departamento: agrega os departamentos de todos os clientes carregados
+  // (id é único por depto). Se um Cliente estiver selecionado, restringe a ele (sem sufixo).
+  const deptFilterOptions = useMemo(() => {
+    // Só lista departamentos quando um CLIENTE específico está selecionado (departamento é por cliente).
+    const selCust = filterRole === 'cliente' && filterCustomer ? Number(filterCustomer) : null
+    if (!selCust) return []
+    const out: { id: number | string; name: string }[] = []
+    ;(deptsByCustomer[selCust] ?? []).forEach(d => out.push({ id: d.id, name: d.name }))
+    out.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    return [{ id: 'none', name: '— Sem departamento —' }, ...out]
+  }, [deptsByCustomer, filterRole, filterCustomer])
+  const deptFilterEnabled = filterRole === 'cliente' && !!filterCustomer
+
+  // Sem CLIENTE específico selecionado o departamento não se aplica → zera para não filtrar oculto.
+  useEffect(() => { if (!(filterRole === 'cliente' && filterCustomer)) setHdDeptFilter('') }, [filterRole, filterCustomer])
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <AppLayout title="Usuários">
+      {/* Abas: Cadastro geral × Help Desk (perfil HD + empresas vinculadas por linha). */}
+      <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit mb-4" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+        {([['cadastro', 'Cadastro'], ['hd', 'Help Desk']] as const).map(([id, label]) => {
+          const active = (id === 'hd') === hdMode
+          return (
+            <button key={id} onClick={() => { setHdMode(id === 'hd'); if (id !== 'hd') setFilterHdProfile('') }}
+              className="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
+              style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{label}</button>
+          )
+        })}
+      </div>
+      {/* Linha 1 (aba Help Desk): todos os dropdowns de filtro agrupados. */}
+      {hdMode && (
+        <div className="flex items-center gap-2 mb-2.5 flex-wrap px-3 py-2 rounded-lg" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+          <span className="text-[11px] font-semibold uppercase tracking-wide mr-0.5" style={{ color: 'var(--text-light)' }}>Filtros</span>
+          <SearchSelect value={hdCompany} onChange={setHdCompany} placeholder="Empresa (todas)"
+            options={companies.map(c => ({ id: c.id, name: c.name }))} />
+          <SearchSelect value={hdTeam} onChange={setHdTeam} placeholder="Equipe (todas)"
+            options={[{ id: 'none', name: '— Sem equipe —' }, ...teams.map(t => ({ id: t.id, name: t.name }))]} />
+          {hdProfiles.length > 0 && (
+            <SearchSelect value={filterHdProfile} onChange={setFilterHdProfile} placeholder="Perfil HD (todos)"
+              options={hdProfiles.map(p => ({ id: p.id, name: `${p.name} (${p.kind === 'cliente' ? 'cliente' : 'agente'})` }))} />
+          )}
+          {/* Departamento é por cliente → aparece quando a aba Cliente está ativa. */}
+          {filterRole === 'cliente' && (
+            <SearchSelect value={hdDeptFilter} onChange={setHdDeptFilter} disabled={!deptFilterEnabled}
+              placeholder={deptFilterEnabled ? 'Departamento (todos)' : 'Departamento (selecione o cliente)'}
+              options={deptFilterOptions} />
+          )}
+          <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
+            <option value="">Tipo (todos)</option>
+            <option value="agents">Só agentes</option>
+            <option value="clients">Só clientes</option>
+            <option value="no_profile">Sem perfil HD</option>
+          </select>
+          <select value={hdManual} onChange={e => setHdManual(e.target.value)} title="Filtrar por 'Apontar manual' em sustentação"
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
+            <option value="">Apontar manual (todos)</option>
+            <option value="yes">Aponta manual: Sim</option>
+            <option value="no">Aponta manual: Não</option>
+          </select>
+          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }} title="Situação"
+            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
+            <option value="">Ativos e inativos</option>
+            <option value="1">Só ativos</option>
+            <option value="0">Só inativos</option>
+          </select>
+          {(hdCompany || hdTeam || filterHdProfile || hdKind || hdManual || hdDeptFilter || filterEnabled) && (
+            <button onClick={() => { setHdCompany(''); setHdTeam(''); setFilterHdProfile(''); setHdKind(''); setHdManual(''); setHdDeptFilter(''); setFilterEnabled('') }}
+              className="text-xs px-2.5 h-8 rounded-lg" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>Limpar</button>
+          )}
+          <span className="ml-auto text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
+        </div>
+      )}
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -477,12 +678,14 @@ export default function UsersPage() {
             placeholder="Buscar por nome ou e-mail..."
             className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
-        <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
-          className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-          <option value="">Todos</option>
-          <option value="1">Ativos</option>
-          <option value="0">Inativos</option>
-        </select>
+        {!hdMode && (
+          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+            <option value="">Todos</option>
+            <option value="1">Ativos</option>
+            <option value="0">Inativos</option>
+          </select>
+        )}
         <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
@@ -661,6 +864,30 @@ export default function UsersPage() {
                   {bulkBondLoading ? 'Aplicando...' : 'Categorizar'}
                 </button>
               </div>
+
+              {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) — só na aba HD ── */}
+              {hdMode && hdProfiles.length > 0 && (
+                <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                  <span className="text-[11px] text-[var(--text-light)]">Perfil HD:</span>
+                  <select
+                    value={bulkHdProfile}
+                    onChange={e => setBulkHdProfile(e.target.value)}
+                    className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-7 px-2 max-w-[170px]"
+                  >
+                    <option value="">Sem perfil</option>
+                    {hdProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.kind === 'cliente' ? 'cliente' : 'agente'})</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={applyBulkHdProfile}
+                    disabled={bulkHdLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Check size={12} />
+                    {bulkHdLoading ? 'Aplicando...' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
             </>
           )}
           {canDelete && (
@@ -681,8 +908,8 @@ export default function UsersPage() {
       )}
 
       {/* Tabela */}
-      <div className="rounded-lg border border-[var(--border)] overflow-clip">
-        <table className="w-full text-xs">
+      <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
+        <table className={`w-full text-xs ${hdMode ? 'min-w-[1260px]' : ''}`}>
           <thead className="sticky top-0 z-10 bg-[var(--surface)]">
             <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               {canResetPwd && (
@@ -710,15 +937,20 @@ export default function UsersPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
               <th onClick={() => { setSort('type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Perfil<SortIcon active={sort === 'type'} dir={sortDir as 'asc' | 'desc'} /></th>
-              <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>
-              <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Departamento</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Equipe(s)</th>}
+              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium" title="Pode apontar manualmente em sustentação">Apontar manual</th>}
+              {!hdMode && <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>}
+              {!hdMode && <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>}
               <th onClick={() => { setSort('enabled'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium cursor-pointer hover:text-[var(--text)] select-none">Status<SortIcon active={sort === 'enabled'} dir={sortDir as 'asc' | 'desc'} /></th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 8 : 7) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
-            ) : users.map(user => (
+            {loading ? <TableSkeleton /> : displayUsers.length === 0 ? (
+              <tr><td colSpan={(canResetPwd ? 8 : 7) + (hdMode ? 3 : 0) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
+            ) : displayUsers.map(user => (
               <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 {canResetPwd && (
                   <td className="px-3 py-2.5 w-8">
@@ -782,18 +1014,110 @@ export default function UsersPage() {
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 hidden lg:table-cell">
-                  {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
-                    ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
-                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                {hdMode && (
+                <td className="px-3 py-2.5 hidden md:table-cell">
+                  {(() => {
+                    // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
+                    const kind = user.type === 'cliente' ? 'cliente' : 'agent'
+                    const opts = hdProfiles.filter(p => p.kind === kind)
+                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]'
+                    return (
+                      <select value={user.helpdesk_access_profile_id ?? ''} onChange={e => setHdProfile(user, e.target.value)} className={selCls}
+                        title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}>
+                        <option value="">Sem perfil</option>
+                        {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    )
+                  })()}
                 </td>
-                <td className="px-3 py-2.5 hidden lg:table-cell">
-                  {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
-                    user.can_timesheet_sustentacao
-                      ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
-                      : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
-                  ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                )}
+                {hdMode && (
+                <td className="px-3 py-2.5">
+                  {(() => {
+                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] min-w-[220px]'
+                    // Departamento só para CLIENTE vinculado a uma empresa (customer) — usa os departamentos daquele cliente.
+                    if (user.type !== 'cliente') return <span className="text-[10px] text-[var(--text-muted)]" title="Departamento é só para usuário cliente">—</span>
+                    if (!user.customer_id) return <span className="text-[10px] text-[var(--text-muted)]" title="Vincule o cliente a uma empresa primeiro">—</span>
+                    const depts = deptsByCustomer[user.customer_id] ?? []
+                    if (depts.length === 0) return <span className="text-[10px] text-[var(--text-light)]">Empresa sem departamentos</span>
+                    return (
+                      <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title={depts.find(d => d.id === user.helpdesk_department_id)?.name || 'Departamento do Help Desk'}>
+                        <option value="">Sem departamento</option>
+                        {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    )
+                  })()}
                 </td>
+                )}
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {companies.length === 0 || !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title={!user.helpdesk_access_profile_id ? 'Defina o Perfil HD primeiro' : undefined}>—</span> : (() => {
+                      const allIds = companies.map(c => c.id)
+                      const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
+                      const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
+                      return (
+                        <select value={val}
+                          onChange={e => { const v = e.target.value; setUserCompanies(user, v === 'ambos' ? allIds : (v ? [Number(v)] : [])) }}
+                          className="text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[150px]"
+                          title="Empresa(s) do grupo vinculada(s)">
+                          <option value="">— nenhuma —</option>
+                          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {companies.length >= 2 && <option value="ambos">Ambos</option>}
+                        </select>
+                      )
+                    })()}
+                  </td>
+                )}
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Cliente não entra em equipe de atendimento">—</span>
+                      : !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title="Defina o Perfil HD primeiro">—</span>
+                      : teams.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]">—</span>
+                      : (
+                        <div className="min-w-[150px] max-w-[200px]">
+                          <MultiSelect value={(user.helpdesk_team_ids ?? []).map(String)}
+                            onChange={ids => setUserTeams(user, ids.map(Number))}
+                            options={teams.map(t => ({ id: t.id, name: t.name }))}
+                            placeholder="Selecionar equipe" />
+                        </div>
+                      )}
+                  </td>
+                )}
+                {hdMode && (
+                  <td className="px-3 py-2.5">
+                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Não se aplica a cliente">—</span>
+                      : (() => {
+                        const on = !!user.can_timesheet_sustentacao
+                        return (
+                          <button type="button" role="switch" aria-checked={on}
+                            onClick={() => setCanTimesheetSust(user, !on)}
+                            title={on ? 'Liberado — campo de horas OPCIONAL (não aparece obrigatório)' : 'Bloqueado — campo de horas OBRIGATÓRIO no chamado'}
+                            className="inline-flex items-center gap-2 group">
+                            <span className="relative shrink-0 rounded-full transition-colors" style={{ width: 38, height: 20, background: on ? 'var(--primary)' : 'var(--surface-hover)', border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, boxSizing: 'border-box' }}>
+                              <span className="absolute rounded-full transition-all" style={{ background: on ? 'var(--primary-fg)' : 'var(--text-light)', width: 14, height: 14, top: 1.5, left: on ? 19 : 2, boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }} />
+                            </span>
+                            <span className="text-[10px] font-medium" style={{ color: on ? 'var(--primary)' : 'var(--text-muted)' }}>{on ? 'Sim' : 'Não'}</span>
+                          </button>
+                        )
+                      })()}
+                  </td>
+                )}
+                {!hdMode && (
+                  <td className="px-3 py-2.5 hidden lg:table-cell">
+                    {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
+                      ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
+                      : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
+                {!hdMode && (
+                  <td className="px-3 py-2.5 hidden lg:table-cell">
+                    {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
+                      user.can_timesheet_sustentacao
+                        ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
+                        : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
+                    ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
                     ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'

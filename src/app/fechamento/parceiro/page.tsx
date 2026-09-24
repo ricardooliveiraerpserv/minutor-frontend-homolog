@@ -1484,7 +1484,7 @@ export default function FechamentoParceiroPage() {
                                 {STATUS_LABELS[row.status] ?? row.status}
                               </Badge>
                             </Td>
-                            <Td className="text-xs">{row.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${row.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{row.ticket}</a> : '—'}</Td>
+                            <Td className="text-xs">{row.ticket ? <a href={`/help-desk/tickets/${(row as any).helpdesk_ticket_id ?? row.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{row.ticket}</a> : '—'}</Td>
                             <Td className="text-xs max-w-xs truncate">
                               <span title={previewText(row.observacao)}>{row.observacao ? previewText(row.observacao) : '—'}</span>
                             </Td>

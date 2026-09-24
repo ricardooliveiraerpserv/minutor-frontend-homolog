@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
 import { ClientKanbanInvitePopup } from '@/components/notifications/client-kanban-invite-popup'
+import { HelpFloatingTab } from '@/components/help-desk/help-floating-tab'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { Building2, User, Lock } from 'lucide-react'
@@ -85,6 +86,9 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
       {user.type === 'cliente' && <ClientCommunicationPopup />}
       {/* Convite p/ quadro de Meus Processos — vale p/ TODOS os perfis (cliente e equipe ERPSERV). */}
       <ClientKanbanInvitePopup />
+
+      {/* Aba flutuante GLOBAL "Preciso de ajuda?" — abre a abertura de chamado num painel lateral. */}
+      <HelpFloatingTab />
 
       <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">

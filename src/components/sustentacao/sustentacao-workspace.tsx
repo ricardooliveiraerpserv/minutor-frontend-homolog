@@ -769,11 +769,11 @@ function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
           <tr key={t.id} className="border-b hover:bg-[var(--surface-hover)] transition-colors"
             style={{ borderColor: 'var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
             <td className="px-4 py-2 font-mono">
-              <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+              <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                 className="text-[var(--primary)] hover:text-[var(--primary)] hover:underline">{t.ticket_id}</a>
             </td>
             <td className="px-4 py-2 text-[var(--text)] max-w-[240px] truncate">
-              <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+              <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                 className="hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
             </td>
             <td className="px-4 py-2">
@@ -1886,11 +1886,11 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                   <tr key={t.id} className="border-b hover:bg-[var(--surface-hover)] transition-colors"
                     style={{ borderColor: 'var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                     <td className="px-3 py-2 font-mono">
-                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                      <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="text-[var(--primary)] hover:text-[var(--primary)] hover:underline">{t.ticket_id}</a>
                     </td>
                     <td className="px-3 py-2 text-[var(--text)] max-w-[200px] truncate">
-                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                      <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
                     </td>
                     <td className="px-3 py-2">
@@ -1938,9 +1938,9 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
                   {slaData.breaching_now.slice(0, 10).map(t => (
                     <div key={t.id} className="flex items-center justify-between text-xs py-1.5 border-b border-red-500/10">
                       <div className="flex gap-3">
-                        <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                           className="font-mono text-[var(--primary)] hover:text-[var(--primary)] hover:underline">#{t.ticket_id}</a>
-                        <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`/help-desk/tickets/${(t as any).helpdesk_ticket_id ?? t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                           className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
                         <span className="text-[var(--text-muted)]">{clienteMovidesk(t)}</span>
                       </div>
@@ -2660,7 +2660,7 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
                   <td className="px-3 py-2">{r.requester ?? '—'}</td>
                   <td className="px-3 py-2">{r.user?.name ?? '—'}</td>
                   <td className="px-3 py-2">
-                    {r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-[var(--text-light)]">—</span>}
+                    {r.ticket ? <a href={`/help-desk/tickets/${(r as any).helpdesk_ticket_id ?? r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-[var(--text-light)]">—</span>}
                   </td>
                   <td className="px-3 py-2 max-w-xs truncate text-[var(--text)]" title={r.ticket_subject ?? ''}>{r.ticket_subject ?? '—'}</td>
                   <td className="px-3 py-2 max-w-sm truncate text-[var(--text)]" title={previewText(r.description)}>{previewText(r.description) || '—'}</td>
@@ -2719,7 +2719,7 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
               </>
             )}
             {!isExp && item.ticket && (
-              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Ticket</div><div className="text-sm font-medium"><a href={`https://erpserv.movidesk.com/Ticket/Edit/${item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
+              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Ticket</div><div className="text-sm font-medium"><a href={`/help-desk/tickets/${(item as any).helpdesk_ticket_id ?? item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
             )}
           </div>
           {item.description && (

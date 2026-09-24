@@ -171,7 +171,7 @@ function TimesheetsModal({
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {ts.ticket && ts.ticket.length >= 5 ? (
-                        <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                        <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`}
                           target="_blank" rel="noopener noreferrer"
                           className="hover:underline" style={{ color: 'var(--primary)' }}
                           onClick={e => e.stopPropagation()}>
@@ -366,7 +366,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
               </DetailInfoRow>
               {ts.ticket && (
                 <DetailInfoRow icon={Ticket} label="Ticket">
-                  <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                  <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{ color: 'var(--primary)' }} className="hover:underline">
                     #{ts.ticket}

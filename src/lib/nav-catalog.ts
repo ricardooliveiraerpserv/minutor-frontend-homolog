@@ -96,6 +96,15 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
   { key: '/auditoria-projetos', label: 'Auditoria de Projetos', group: 'Sistema' },
 
+  // Help Desk — labels canônicos (espelham o NAV). Sem estas entradas o Configurador
+  // não oferecia nenhuma tela de Help Desk e o menu mostrava o href cru.
+  { key: '/help-desk/operacoes', label: 'Central de Operações',   group: 'Help Desk' },
+  { key: '/help-desk/tickets',   label: 'Chamados',               group: 'Help Desk' },
+  { key: '/help-desk/fila',      label: 'Fila (Kanban)',          group: 'Help Desk' },
+  { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
+  { key: '/help-desk/portal',    label: 'Help Desk', group: 'Help Desk' },
+  { key: '/help-desk/codigo-fonte', label: 'Solicitar Código-Fonte', group: 'Help Desk' },
+
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
   { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },

@@ -162,7 +162,7 @@ export function TimesheetViewModal({
               <InfoRow icon={Ticket} label="Ticket">
                 <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {ts.ticket.length >= 5
-                    ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
+                    ? <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`} target="_blank" rel="noopener noreferrer"
                         className="hover:underline" style={{ color: 'var(--primary)' }}>#{ts.ticket}</a>
                     : <span style={{ color: 'var(--primary)' }}>#{ts.ticket}</span>
                   }

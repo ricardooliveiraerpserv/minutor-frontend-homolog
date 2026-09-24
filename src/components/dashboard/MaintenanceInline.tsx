@@ -323,7 +323,7 @@ export function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', 
                 <DataTableCell muted={false}>{r.user?.name ?? '—'}</DataTableCell>
                 <DataTableCell>
                   {r.ticket
-                    ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={e => e.stopPropagation()}>#{r.ticket}</a>
+                    ? <a href={`/help-desk/tickets/${(r as any).helpdesk_ticket_id ?? r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} onClick={e => e.stopPropagation()}>#{r.ticket}</a>
                     : <span style={{ color: 'var(--text-light)' }}>—</span>}
                 </DataTableCell>
                 <DataTableCell className="max-w-xs truncate" title={r.ticket_subject ?? '—'}>{r.ticket_subject ?? '—'}</DataTableCell>
@@ -401,7 +401,7 @@ export function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loadi
           ) : rows.map(tk => (
             <DataTableRow key={tk.ticket}>
               <DataTableCell>
-                <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
+                <a href={`/help-desk/tickets/${(tk as any).helpdesk_ticket_id ?? tk.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>#{tk.ticket}</a>
               </DataTableCell>
               <DataTableCell muted={false}>{tk.title ?? '—'}</DataTableCell>
               <DataTableCell>{tk.requester ?? '—'}</DataTableCell>
@@ -572,7 +572,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
             <DetailRow icon={<Paperclip size={14} />} label="Anexo" value={ts.attachment_path ? <a href={ts.attachment_path} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>Ver anexo</a> : 'Sem anexo'} />
             {ts.ticket && (
               <DetailRow icon={<FileText size={14} />} label="Ticket" value={
-                <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs" style={{ color: 'var(--primary)' }}>#{ts.ticket}{ts.ticket_subject ? ` · ${ts.ticket_subject}` : ''}</a>
+                <a href={`/help-desk/tickets/${(ts as any).helpdesk_ticket_id ?? ts.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs" style={{ color: 'var(--primary)' }}>#{ts.ticket}{ts.ticket_subject ? ` · ${ts.ticket_subject}` : ''}</a>
               } />
             )}
           </div>
