@@ -69,6 +69,7 @@ export default function SolicitacoesFontePage() {
   const [rows, setRows] = useState<Req[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sQ, setSQ] = useState('')
+  const [sClient, setSClient] = useState('')   // filtro por cliente (customer_id) na aba Solicitações
   const [dateMode, setDateMode] = useState<'month' | 'period'>('month')
   const [refMonth, setRefMonth] = useState<number | null>(null)
   const [refYear, setRefYear] = useState<number | null>(null)
@@ -122,8 +123,10 @@ export default function SolicitacoesFontePage() {
     if (dateTo && t > new Date(`${dateTo}T23:59:59`).getTime()) return false
     return true
   }
+  const reqClients = Array.from(new Map((rows ?? []).filter((r) => r.customer_id != null).map((r) => [String(r.customer_id), r.customer_name ?? `#${r.customer_id}`])).entries())
   const filtered = (rows ?? []).filter((r) => {
     if (!inDate(r.created_at)) return false
+    if (sClient && String(r.customer_id) !== sClient) return false
     const q = sQ.trim().toLowerCase()
     if (!q) return true
     return [r.customer_name, r.ticket, r.hd_subject, r.requester_name, r.repository].some((x) => (x ?? '').toString().toLowerCase().includes(q))
@@ -247,8 +250,13 @@ export default function SolicitacoesFontePage() {
         <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2 flex-wrap">
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Solicitações</div>
           <div className="flex items-center gap-2 flex-wrap">
-            <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (empresa, chamado, assunto, solicitante)…"
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (fonte, chamado, assunto, solicitante)…"
               className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
+            <select value={sClient} onChange={(e) => setSClient(e.target.value)} title="Filtrar por cliente"
+              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none max-w-[200px]">
+              <option value="">Todos os clientes</option>
+              {reqClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
             <div className="inline-flex items-center gap-1.5">
               <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
                 {(['month', 'period'] as const).map((mode) => (
@@ -267,7 +275,7 @@ export default function SolicitacoesFontePage() {
 
         {error ? <EmptyState icon={FilePlus2} title="Erro" description={error} />
           : rows === null ? <SkeletonTable rows={6} cols={8} />
-            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={sQ ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
+            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={(sQ || sClient) ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
               : (
                 <div className="overflow-x-auto">
                   <Table>
