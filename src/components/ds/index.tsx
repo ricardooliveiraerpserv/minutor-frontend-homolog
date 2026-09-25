@@ -593,3 +593,7 @@ export function Modal({
 
 export { Tree } from './tree'
 export type { TreeNode } from './tree'
+export { Breadcrumb } from './breadcrumb'
+export type { Crumb } from './breadcrumb'
+export { Accordion, AccordionItem } from './accordion'
+export { SplitPanel } from './split-panel'
