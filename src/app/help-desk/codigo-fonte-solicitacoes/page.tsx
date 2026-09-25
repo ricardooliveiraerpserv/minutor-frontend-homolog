@@ -16,6 +16,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { toast } from 'sonner'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface Source {
   filename: string
@@ -252,11 +253,8 @@ export default function SolicitacoesFontePage() {
           <div className="flex items-center gap-2 flex-wrap">
             <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (fonte, chamado, assunto, solicitante)…"
               className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
-            <select value={sClient} onChange={(e) => setSClient(e.target.value)} title="Filtrar por cliente"
-              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none max-w-[200px]">
-              <option value="">Todos os clientes</option>
-              {reqClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
+            <SearchSelect value={sClient} onChange={setSClient} placeholder="Filtrar por cliente…"
+              options={[{ id: '', name: 'Todos os clientes' }, ...reqClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
             <div className="inline-flex items-center gap-1.5">
               <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
                 {(['month', 'period'] as const).map((mode) => (
@@ -324,12 +322,12 @@ export default function SolicitacoesFontePage() {
           <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
             <input value={gText} onChange={(e) => setGText(e.target.value)} placeholder="fonte, nº do chamado, responsável, resumo…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
           </label>
-          <label className="flex min-w-[180px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
-            <select value={gClient} onChange={(e) => setGClient(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none">
-              <option value="">Todos os clientes</option>
-              {gmudClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          </label>
+          <div className="flex min-w-[200px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <div className="mt-1 normal-case">
+              <SearchSelect value={gClient} onChange={setGClient} placeholder="Filtrar por cliente…"
+                options={[{ id: '', name: 'Todos os clientes' }, ...gmudClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
+            </div>
+          </div>
           <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">De
             <input type="date" value={gFrom} onChange={(e) => setGFrom(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
           </label>
