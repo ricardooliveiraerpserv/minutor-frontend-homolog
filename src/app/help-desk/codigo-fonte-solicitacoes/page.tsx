@@ -4,16 +4,25 @@
 // fonte feitas + commits de GMUD (consulta e rastreabilidade). Adaptada do Central de
 // Fontes do homolog: no dev2 NÃO há o contexto de empresa do Prosight, então a tela
 // carrega todas as empresas (admin) e as ações (atender/rejeitar/reabrir) ficam sempre
-// liberadas. Iniciar uma publicação continua originado no chamado do Help Desk.
+// liberadas. Extras: baixar o FONTE ANEXO (.zip do commit) e ABRIR O CHAMADO num
+// painel lateral (drawer), sem sair da tela — nas duas abas.
 
 import { useCallback, useEffect, useState } from 'react'
-import { ExternalLink, FilePlus2, GitCommitHorizontal, Info, Ticket } from 'lucide-react'
+import { Download, ExternalLink, FilePlus2, GitCommitHorizontal, Info, Paperclip, Ticket, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+
+interface Source {
+  filename: string
+  path: string | null
+  repository: string | null
+  status: string
+  attachment_id: number | null
+}
 
 interface Req {
   id: number
@@ -32,6 +41,7 @@ interface Req {
   created_at: string | null
   kind?: 'provisioning' | 'ticket'
   raw_status?: string
+  sources?: Source[]
 }
 
 interface Gmud {
@@ -59,11 +69,17 @@ export default function SolicitacoesFontePage() {
   const [dateTo, setDateTo] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [dlBusy, setDlBusy] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
   const [gmudErr, setGmudErr] = useState<string | null>(null)
   const [gQ, setGQ] = useState('')
   const [gFrom, setGFrom] = useState('')
   const [gTo, setGTo] = useState('')
+
+  // Drawer do chamado (abrir sem sair da tela)
+  const [drawerTicket, setDrawerTicket] = useState<number | null>(null)
+  const [tk, setTk] = useState<Record<string, any> | null>(null)
+  const [tkLoading, setTkLoading] = useState(false)
 
   const load = useCallback(() => {
     setRows(null); setError(null)
@@ -117,6 +133,37 @@ export default function SolicitacoesFontePage() {
     finally { setBusy(null) }
   }
 
+  // Fonte anexo: pega a URL assinada e abre p/ download.
+  const downloadSource = async (attId: number | null) => {
+    if (!attId) return
+    setDlBusy(attId)
+    try {
+      const r = await api.get<{ url: string }>(`/attachments/${attId}/url`)
+      if (r?.url) window.open(r.url, '_blank', 'noopener')
+      else toast.error('Fonte indisponível para download.')
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao obter o fonte.') }
+    finally { setDlBusy(null) }
+  }
+
+  // Abrir chamado no drawer (sem sair da tela).
+  const openTicket = useCallback((id: number | null) => {
+    if (!id) return
+    setDrawerTicket(id); setTk(null); setTkLoading(true)
+    api.get<{ data: Record<string, any> }>(`/help-desk/tickets/${id}`)
+      .then((r) => setTk(r.data))
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Falha ao carregar o chamado.'))
+      .finally(() => setTkLoading(false))
+  }, [])
+
+  const attachedCount = (r: Req) => (r.sources ?? []).filter((s) => s.attachment_id).length
+
+  const Field = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</span>
+      <span className="text-sm" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
+    </div>
+  )
+
   return (
     <AppLayout title="Solicitações de Código-Fonte">
       <PageHeader icon={FilePlus2} title="Solicitações de Código-Fonte" subtitle="Consulta e rastreabilidade — todas as solicitações de fonte e commits de GMUD." />
@@ -124,8 +171,7 @@ export default function SolicitacoesFontePage() {
       <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info)' }}>
         <Info size={14} className="mt-px shrink-0" />
         <span>
-          Visão de <b>consulta e rastreabilidade</b> das solicitações (solicitações · commits GMUD · status).
-          Para <b>iniciar</b> uma solicitação, use <b>“Solicitar Código-Fonte”</b> ou a solução <b>“GMUD em Produção”</b> no chamado do Help Desk.
+          Visão de <b>consulta e rastreabilidade</b> das solicitações. Baixe o <b>fonte anexo</b> (.zip do commit) e abra o <b>chamado</b> no painel lateral, sem sair da tela.
         </span>
       </div>
 
@@ -158,23 +204,47 @@ export default function SolicitacoesFontePage() {
         </div>
 
         {error ? <EmptyState icon={FilePlus2} title="Erro" description={error} />
-          : rows === null ? <SkeletonTable rows={6} cols={7} />
+          : rows === null ? <SkeletonTable rows={6} cols={8} />
             : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={sQ ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Empresa</Th><Th>Escopo</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
+                    <Thead><Tr><Th>Empresa</Th><Th>Escopo</Th><Th>Fonte</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
                     <Tbody>
                       {filtered.map((r) => (
                         <Tr key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="cursor-pointer">
                           <Td><div className="font-medium">{r.customer_name ?? (r.customer_id ? `#${r.customer_id}` : '—')}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{r.repository ?? '—'}</div></Td>
-                          <Td><div className="text-sm">{scopeLabel(r)}</div>{expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}{expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}</Td>
-                          <Td>{r.ticket ? (r.hd_ticket_id ? <a href={`/help-desk/tickets/${r.hd_ticket_id}`} onClick={(e) => e.stopPropagation()} title={r.hd_subject ? `Abrir chamado: ${r.hd_subject}` : 'Abrir chamado'} className="group inline-flex items-center gap-1"><Badge variant="success">#{r.ticket}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></a> : <Badge variant="default">#{r.ticket}</Badge>) : '—'}</Td>
+                          <Td>
+                            <div className="text-sm">{scopeLabel(r)}</div>
+                            {expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}
+                            {expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}
+                            {expanded === r.id && r.sources && r.sources.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                {r.sources.map((s, i) => (
+                                  <button key={i} disabled={!s.attachment_id || dlBusy === s.attachment_id} onClick={() => downloadSource(s.attachment_id)}
+                                    title={s.attachment_id ? 'Baixar o fonte (.zip do commit)' : (s.status === 'failed' ? 'Falha ao obter o fonte' : 'Fonte ainda não anexado')}
+                                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs disabled:opacity-50"
+                                    style={{ borderColor: 'var(--border)', color: s.attachment_id ? 'var(--primary)' : 'var(--text-light)', background: 'var(--surface-hover)' }}>
+                                    <Download size={11} /> {s.filename}{s.attachment_id ? '' : ` (${s.status})`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </Td>
+                          <Td>
+                            {attachedCount(r) > 0
+                              ? <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }} title="Fontes anexados — expanda a linha para baixar"><Paperclip size={12} /> {attachedCount(r)}</span>
+                              : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>}
+                          </Td>
+                          <Td>{r.ticket ? <Badge variant={r.hd_ticket_id ? 'success' : 'default'}>#{r.ticket}</Badge> : '—'}</Td>
                           <Td>{prioBadge(r.priority)}</Td>
                           <Td className="text-sm">{r.requester_name ?? '—'}</Td>
                           <Td className="text-xs">{dt(r.created_at)}</Td>
                           <Td>
                             <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1">
+                              {r.hd_ticket_id && (
+                                <Button size="sm" variant="secondary" onClick={() => openTicket(r.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button>
+                              )}
                               {r.kind === 'ticket' ? (
                                 <span className="text-xs" style={{ color: 'var(--text-light)' }} title="Pedido aberto pelo chamado — atendido no próprio chamado">via chamado</span>
                               ) : (
@@ -212,17 +282,18 @@ export default function SolicitacoesFontePage() {
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th></Tr></Thead>
+                    <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th><Th></Th></Tr></Thead>
                     <Tbody>
                       {gmud.map((g) => (
                         <Tr key={g.id}>
                           <Td><div className="font-medium">{g.filename}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
-                          <Td>{g.hd_ticket_id ? <a href={`/help-desk/tickets/${g.hd_ticket_id}`} title={g.hd_subject ? `Abrir chamado: ${g.hd_subject}` : 'Abrir chamado'} className="group inline-flex flex-col gap-0.5"><span className="inline-flex items-center gap-1"><Badge variant="success">#{g.ticket_number}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></span>{g.hd_subject && <span className="max-w-[180px] truncate text-xs group-hover:underline" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</span>}</a> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
-                          <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }}>{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
+                          <Td>{g.hd_ticket_id ? <button onClick={() => openTicket(g.hd_ticket_id)} title={g.hd_subject ? `Abrir chamado: ${g.hd_subject}` : 'Abrir chamado'} className="group inline-flex flex-col gap-0.5 text-left"><span className="inline-flex items-center gap-1"><Badge variant="success">#{g.ticket_number}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></span>{g.hd_subject && <span className="max-w-[180px] truncate text-xs group-hover:underline" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</span>}</button> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
+                          <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} title="Ver o fonte no commit (GitHub)">{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
                           <Td className="text-xs">{dt(g.created_at)}</Td>
+                          <Td>{g.hd_ticket_id && <Button size="sm" variant="secondary" onClick={() => openTicket(g.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button>}</Td>
                         </Tr>
                       ))}
                     </Tbody>
@@ -230,6 +301,56 @@ export default function SolicitacoesFontePage() {
                 </div>
               )}
       </Card>
+      )}
+
+      {/* Drawer do chamado — abre sem sair da tela */}
+      {drawerTicket != null && (
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setDrawerTicket(null)}>
+          <div className="h-full w-full max-w-xl overflow-y-auto shadow-2xl" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Ticket size={16} style={{ color: 'var(--primary)' }} />
+                <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  {tk ? `#${tk.ticket_number ?? tk.id} · ${tk.subject ?? ''}` : 'Chamado'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <a href={`/help-desk/tickets/${drawerTicket}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--primary)' }} title="Abrir o chamado completo em nova aba">Completo <ExternalLink size={11} /></a>
+                <button onClick={() => setDrawerTicket(null)} className="rounded-md p-1.5 hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {tkLoading ? <SkeletonTable rows={6} cols={2} />
+                : !tk ? <EmptyState icon={Ticket} title="Chamado" description="Não foi possível carregar o chamado." />
+                  : (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {tk.status && <Badge variant="default">{typeof tk.status === 'object' ? (tk.status.label ?? tk.status.name) : tk.status}</Badge>}
+                        {tk.priority && prioBadge(String(tk.priority))}
+                        {tk.reopen_count ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>Reaberturas: {tk.reopen_count}</span> : null}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Empresa" value={tk.customer?.name ?? '—'} />
+                        <Field label="Solicitante" value={tk.requester?.name ?? tk.solicitante_nome ?? tk.requester_name ?? '—'} />
+                        <Field label="Categoria" value={tk.category?.name ?? '—'} />
+                        <Field label="Serviço" value={tk.service?.name ?? '—'} />
+                        <Field label="Equipe" value={tk.team?.name ?? '—'} />
+                        <Field label="Responsável" value={tk.assignee?.name ?? 'Não atribuído'} />
+                        <Field label="Aberto em" value={dt(tk.created_at ?? null)} />
+                        <Field label="Nível" value={tk.level ?? '—'} />
+                      </div>
+                      {tk.description && (
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</span>
+                          <div className="mt-1 whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface-hover)' }}>{tk.description}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
