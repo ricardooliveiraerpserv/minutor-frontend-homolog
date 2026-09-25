@@ -8,7 +8,7 @@
 // painel lateral (drawer), sem sair da tela — nas duas abas.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Download, ExternalLink, FilePlus2, GitCommitHorizontal, Info, Paperclip, Ticket, X } from 'lucide-react'
+import { AlertTriangle, BookOpen, Download, ExternalLink, FileCode2, FilePlus2, GitCommitHorizontal, Info, Paperclip, ShieldCheck, Ticket, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
@@ -52,6 +52,12 @@ interface Gmud {
   hd_ticket_id: number | null; hd_subject: string | null
 }
 
+interface Finding {
+  id?: number; severity?: string; category?: string; rule?: string
+  title?: string; description?: string; recommendation?: string
+  file?: string | null; line?: number | null
+}
+
 const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—')
 const shortSha = (s: string | null) => (s ? s.slice(0, 8) : '—')
 const prioBadge = (p: string) => p === 'alta' ? <Badge variant="danger">Alta</Badge> : p === 'baixa' ? <Badge variant="default">Baixa</Badge> : <Badge variant="warning">Média</Badge>
@@ -80,6 +86,16 @@ export default function SolicitacoesFontePage() {
   const [drawerTicket, setDrawerTicket] = useState<number | null>(null)
   const [tk, setTk] = useState<Record<string, any> | null>(null)
   const [tkLoading, setTkLoading] = useState(false)
+
+  // Drawer do FONTE: publicação + críticas do CodeAnalysis
+  const [sourceDrawer, setSourceDrawer] = useState<number | null>(null)
+  const [srcMeta, setSrcMeta] = useState<{ filename?: string; owner?: string; repository?: string; sha?: string | null } | null>(null)
+  const [srcTab, setSrcTab] = useState<'publicacao' | 'criticas'>('publicacao')
+  const [pub, setPub] = useState<Record<string, any> | null>(null)
+  const [pubLoading, setPubLoading] = useState(false)
+  const [qa, setQa] = useState<{ state?: string; analysis?: Record<string, any> | null } | null>(null)
+  const [findings, setFindings] = useState<Finding[] | null>(null)
+  const [qaLoading, setQaLoading] = useState(false)
 
   const load = useCallback(() => {
     setRows(null); setError(null)
@@ -154,6 +170,33 @@ export default function SolicitacoesFontePage() {
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Falha ao carregar o chamado.'))
       .finally(() => setTkLoading(false))
   }, [])
+
+  // Abrir o FONTE (publicação + críticas do CodeAnalysis) no drawer, sem sair da tela.
+  const openSource = useCallback((g: Gmud) => {
+    const id = g.source_doc_id
+    if (!id) { toast.error('Fonte sem publicação vinculada.'); return }
+    setSourceDrawer(id)
+    setSrcMeta({ filename: g.filename, owner: g.owner, repository: g.repository, sha: g.source_commit_sha })
+    setSrcTab('publicacao')
+    setPub(null); setPubLoading(true); setQa(null); setFindings(null); setQaLoading(true)
+    api.get<{ data: Record<string, any> }>(`/source-docs/${id}`).then((r) => setPub(r.data)).catch(() => setPub(null)).finally(() => setPubLoading(false))
+    api.get<{ data: any }>(`/source-docs/${id}/quality`).then(async (r) => {
+      const a = r?.data?.analysis ?? null
+      setQa({ state: r?.data?.state, analysis: a })
+      const aid = a?.id
+      if (aid && ((a?.n_findings ?? 0) > 0 || a?.status === 'completed')) {
+        try { const fr = await api.get<{ data: any }>(`/source-docs/${id}/quality/${aid}/findings`); setFindings(fr?.data?.findings ?? []) }
+        catch { setFindings([]) }
+      } else { setFindings([]) }
+    }).catch(() => { setQa(null); setFindings([]) }).finally(() => setQaLoading(false))
+  }, [])
+
+  const sevBadge = (s?: string) => {
+    const k = (s ?? '').toLowerCase()
+    if (k.includes('crit') || k === 'high' || k === 'alta' || k === 'error') return <Badge variant="danger">{s}</Badge>
+    if (k.includes('warn') || k === 'media' || k === 'medium' || k === 'média') return <Badge variant="warning">{s}</Badge>
+    return <Badge variant="default">{s ?? '—'}</Badge>
+  }
 
   const attachedCount = (r: Req) => (r.sources ?? []).filter((s) => s.attachment_id).length
 
@@ -293,7 +336,12 @@ export default function SolicitacoesFontePage() {
                           <Td className="text-sm">{g.responsavel ?? '—'}</Td>
                           <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
                           <Td className="text-xs">{dt(g.created_at)}</Td>
-                          <Td>{g.hd_ticket_id && <Button size="sm" variant="secondary" onClick={() => openTicket(g.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button>}</Td>
+                          <Td>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button size="sm" variant="secondary" onClick={() => openSource(g)} title="Ver publicação do fonte e as críticas do CodeAnalysis"><FileCode2 size={13} /> Fonte</Button>
+                              {g.hd_ticket_id ? <Button size="sm" variant="secondary" onClick={() => openTicket(g.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button> : null}
+                            </div>
+                          </Td>
                         </Tr>
                       ))}
                     </Tbody>
@@ -348,6 +396,86 @@ export default function SolicitacoesFontePage() {
                       )}
                     </div>
                   )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Drawer do FONTE — publicação + críticas do CodeAnalysis, sem sair da tela */}
+      {sourceDrawer != null && (
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setSourceDrawer(null)}>
+          <div className="h-full w-full max-w-2xl overflow-y-auto shadow-2xl" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <FileCode2 size={16} style={{ color: 'var(--primary)' }} />
+                <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>{srcMeta?.filename ?? 'Fonte'}</span>
+                {srcMeta?.owner && srcMeta?.repository && <span className="truncate text-xs" style={{ color: 'var(--text-light)' }}>{srcMeta.owner}/{srcMeta.repository}</span>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {srcMeta?.sha && srcMeta?.owner && srcMeta?.repository && (
+                  <a href={`https://github.com/${srcMeta.owner}/${srcMeta.repository}/commit/${srcMeta.sha}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--primary)' }} title="Ver o fonte no commit (GitHub)">Fonte no GitHub <ExternalLink size={11} /></a>
+                )}
+                <button onClick={() => setSourceDrawer(null)} className="rounded-md p-1.5 hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 border-b px-4 pt-3" style={{ borderColor: 'var(--border)' }}>
+              <button onClick={() => setSrcTab('publicacao')} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${srcTab === 'publicacao' ? 'border-b-2' : ''}`} style={{ color: srcTab === 'publicacao' ? 'var(--primary)' : 'var(--text-muted)', borderColor: srcTab === 'publicacao' ? 'var(--primary)' : 'transparent' }}><BookOpen size={14} /> Publicação</button>
+              <button onClick={() => setSrcTab('criticas')} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${srcTab === 'criticas' ? 'border-b-2' : ''}`} style={{ color: srcTab === 'criticas' ? 'var(--primary)' : 'var(--text-muted)', borderColor: srcTab === 'criticas' ? 'var(--primary)' : 'transparent' }}><ShieldCheck size={14} /> Críticas (CodeAnalysis){findings && findings.length > 0 ? ` · ${findings.length}` : ''}</button>
+            </div>
+
+            <div className="p-4">
+              {srcTab === 'publicacao' ? (
+                pubLoading ? <SkeletonTable rows={5} cols={2} />
+                  : !pub ? <EmptyState icon={BookOpen} title="Publicação" description="Não foi possível carregar a publicação do fonte." />
+                    : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Arquivo" value={pub.filename} />
+                        <Field label="Tipo/Linguagem" value={[pub.tipo, pub.lang].filter(Boolean).join(' · ') || '—'} />
+                        <Field label="Repositório" value={pub.repository ? `${pub.owner ?? ''}/${pub.repository}` : '—'} />
+                        <Field label="Branch" value={pub.branch ?? '—'} />
+                        <Field label="Caminho" value={pub.path ?? '—'} />
+                        <Field label="Tamanho" value={pub.size_bytes != null ? `${pub.size_bytes} bytes` : '—'} />
+                        <Field label="Empresa" value={pub.customer?.name ?? '—'} />
+                        <Field label="Status análise" value={pub.analysis_status ?? '—'} />
+                      </div>
+                    )
+              ) : (
+                qaLoading ? <SkeletonTable rows={5} cols={2} />
+                  : !qa || qa.state === 'never_analyzed' || !qa.analysis ? (
+                    <EmptyState icon={ShieldCheck} title="Sem análise de qualidade" description="Este fonte ainda não passou pelo CodeAnalysis. A análise é disparada sob demanda na Central de Fontes." />
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
+                        {qa.analysis.grade != null && <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>{qa.analysis.grade}</div>}
+                        {qa.analysis.score != null && <Field label="Score" value={String(qa.analysis.score)} />}
+                        {qa.analysis.risk != null && <Field label="Risco" value={String(qa.analysis.risk)} />}
+                        {qa.analysis.n_critical != null && <Field label="Críticos" value={<span style={{ color: 'var(--danger)' }}>{qa.analysis.n_critical}</span>} />}
+                        {qa.analysis.n_warnings != null && <Field label="Alertas" value={<span style={{ color: 'var(--warning)' }}>{qa.analysis.n_warnings}</span>} />}
+                        {qa.analysis.n_recommendations != null && <Field label="Recomendações" value={String(qa.analysis.n_recommendations)} />}
+                      </div>
+                      {!findings || findings.length === 0 ? (
+                        <EmptyState icon={ShieldCheck} title="Sem apontamentos" description="A análise não retornou críticas para este fonte." />
+                      ) : (
+                        <div className="space-y-2">
+                          {findings.map((f, i) => (
+                            <div key={f.id ?? i} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {sevBadge(f.severity)}
+                                  <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{f.title ?? f.rule ?? 'Apontamento'}</span>
+                                </div>
+                                {(f.file || f.line != null) && <span className="shrink-0 font-mono text-xs" style={{ color: 'var(--text-light)' }}>{f.file ?? ''}{f.line != null ? `:${f.line}` : ''}</span>}
+                              </div>
+                              {f.category && <div className="mt-0.5 text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{f.category}</div>}
+                              {f.description && <div className="mt-1 whitespace-pre-wrap text-xs" style={{ color: 'var(--text-muted)' }}>{f.description}</div>}
+                              {f.recommendation && <div className="mt-1 flex items-start gap-1.5 text-xs" style={{ color: 'var(--text)' }}><AlertTriangle size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} /><span>{f.recommendation}</span></div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+              )}
             </div>
           </div>
         </div>
