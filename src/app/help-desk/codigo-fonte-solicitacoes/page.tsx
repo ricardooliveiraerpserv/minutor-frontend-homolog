@@ -12,6 +12,7 @@ import { AlertTriangle, BookOpen, Download, ExternalLink, FileCode2, FilePlus2, 
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
+import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { toast } from 'sonner'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -85,6 +86,7 @@ export default function SolicitacoesFontePage() {
   // Drawer do chamado (abrir sem sair da tela)
   const [drawerTicket, setDrawerTicket] = useState<number | null>(null)
   const [tk, setTk] = useState<Record<string, any> | null>(null)
+  const [tkComments, setTkComments] = useState<Record<string, any>[]>([])
   const [tkLoading, setTkLoading] = useState(false)
 
   // Drawer do FONTE: publicação + críticas do CodeAnalysis
@@ -164,9 +166,18 @@ export default function SolicitacoesFontePage() {
   // Abrir chamado no drawer (sem sair da tela).
   const openTicket = useCallback((id: number | null) => {
     if (!id) return
-    setDrawerTicket(id); setTk(null); setTkLoading(true)
-    api.get<{ data: Record<string, any> }>(`/help-desk/tickets/${id}`)
-      .then((r) => setTk(r.data))
+    setDrawerTicket(id); setTk(null); setTkComments([]); setTkLoading(true)
+    // Chamado completo = dados + TODAS as interações (limit=0).
+    Promise.all([
+      api.get<{ data: Record<string, any> }>(`/help-desk/tickets/${id}`),
+      api.get<{ data: Record<string, any>[] }>(`/help-desk/tickets/${id}/comments?limit=0`),
+    ])
+      .then(([t, c]) => {
+        setTk(t.data)
+        const list = Array.isArray(c?.data) ? [...c.data] : []
+        list.sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+        setTkComments(list)
+      })
       .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Falha ao carregar o chamado.'))
       .finally(() => setTkLoading(false))
   }, [])
@@ -407,6 +418,46 @@ export default function SolicitacoesFontePage() {
                           <div className="mt-1 whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface-hover)' }}>{tk.description}</div>
                         </div>
                       )}
+
+                      {/* Interações (todas) — chamado completo */}
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Interações ({tkComments.length})</span>
+                        {tkComments.length === 0 ? (
+                          <p className="mt-1 text-sm" style={{ color: 'var(--text-light)' }}>Sem interações.</p>
+                        ) : (
+                          <div className="mt-2 space-y-3">
+                            {tkComments.map((c) => {
+                              const who = c.author?.name ?? c.contact?.name ?? (c.is_system ? 'Sistema' : '—')
+                              const vis = c.visibility === 'internal'
+                                ? <Badge variant="warning">Interna</Badge>
+                                : c.visibility === 'customer'
+                                  ? <Badge variant="success">Cliente</Badge>
+                                  : c.is_system ? <Badge variant="default">Sistema</Badge> : null
+                              const body = String(c.body ?? '')
+                              return (
+                                <div key={c.id} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: c.is_system ? 'var(--surface-sunken)' : 'var(--surface)' }}>
+                                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-light)' }}>
+                                    <span className="font-semibold" style={{ color: 'var(--text)' }}>{who}</span>
+                                    {vis}
+                                    {c.channel && <span>· {c.channel}</span>}
+                                    <span>· {dt(c.created_at ?? null)}</span>
+                                  </div>
+                                  {isHtmlBody(body)
+                                    ? <div className="text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(body) }} />
+                                    : <div className="whitespace-pre-wrap text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>{body}</div>}
+                                  {Array.isArray(c.attachments) && c.attachments.length > 0 && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      {c.attachments.map((a: Record<string, any>) => (
+                                        <span key={a.id} className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-light)' }}><Paperclip size={11} /> {a.original_name ?? a.file_name ?? 'anexo'}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
             </div>
