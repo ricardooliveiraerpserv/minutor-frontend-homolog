@@ -11,6 +11,7 @@ import { Ticket, Plus, Search, Inbox, GitMerge } from 'lucide-react'
 import { MesclarModal } from '@/components/help-desk/mesclar-modal'
 import { NovoChamadoModal } from '@/components/help-desk/novo-chamado-modal'
 import { TicketBulkBar } from '@/components/help-desk/ticket-bulk-bar'
+import { HelpDeskGlobalSearch } from '@/components/help-desk/global-search'
 
 interface Ref { id: number; name: string }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
@@ -188,6 +189,8 @@ export default function HelpDeskTicketsPage() {
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({counters.total})</span>
           </div>
           <div className="flex items-center gap-2">
+            {/* Busca global: pesquisa QUALQUER chamado da base (mesmo fora da fila do agente) e abre. */}
+            <HelpDeskGlobalSearch onOpen={openTicket} />
             {sel.size >= 1 && (
               <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setMergeOpen(true)}>
                 <GitMerge size={15} /> Mesclar selecionados ({sel.size})
