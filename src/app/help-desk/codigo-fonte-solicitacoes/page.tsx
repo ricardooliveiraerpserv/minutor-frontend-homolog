@@ -54,6 +54,27 @@ interface Gmud {
   hd_ticket_id: number | null; hd_subject: string | null
 }
 
+interface Pkg {
+  id: number
+  hd_ticket_id: number | null
+  ticket_number: string | null
+  hd_subject: string | null
+  customer_id: number | null
+  customer_name: string | null
+  classification: string | null
+  status: string | null
+  project_name: string | null
+  project_folder: string | null
+  size_bytes: number | null
+  received_at: string | null
+  created_at: string | null
+  files_count: number
+  source_files_count: number
+  matched_count: number
+  published_count: number
+  has_source: boolean
+}
+
 interface Finding {
   id?: number; severity?: string; category?: string; rule?: string
   title?: string; description?: string; recommendation?: string
@@ -66,7 +87,7 @@ const prioBadge = (p: string) => p === 'alta' ? <Badge variant="danger">Alta</Ba
 const scopeLabel = (r: Req) => r.scope_type === 'folder' ? `Pasta${r.paths?.[0] ? ` · ${r.paths[0]}` : ''}` : r.scope_type === 'source' ? `${r.paths?.length ?? 0} fonte${(r.paths?.length ?? 0) === 1 ? '' : 's'}` : 'Repositório'
 
 export default function SolicitacoesFontePage() {
-  const [view, setView] = useState<'solicitacoes' | 'gmud'>('solicitacoes')
+  const [view, setView] = useState<'solicitacoes' | 'gmud' | 'pkgsemfonte'>('solicitacoes')
   const [rows, setRows] = useState<Req[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sQ, setSQ] = useState('')
@@ -87,6 +108,8 @@ export default function SolicitacoesFontePage() {
   const [gRefYear, setGRefYear] = useState<number | null>(null)
   const [gFrom, setGFrom] = useState('')
   const [gTo, setGTo] = useState('')
+  const [pkg, setPkg] = useState<Pkg[] | null>(null)   // aba "GMUD sem fonte"
+  const [pkgErr, setPkgErr] = useState<string | null>(null)
 
   // Drawer do chamado (abrir sem sair da tela)
   const [drawerTicket, setDrawerTicket] = useState<number | null>(null)
@@ -167,6 +190,24 @@ export default function SolicitacoesFontePage() {
     const q = gText.trim().toLowerCase()
     if (!q) return true
     return [g.filename, g.repository, g.owner, g.ticket_number, g.responsavel, g.diff_summary, g.customer_name, g.gmud_id].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
+
+  // Aba "GMUD sem fonte" — pacotes GMUD que ainda não publicaram fonte no catálogo (has_source=false).
+  const loadPkg = useCallback(() => {
+    setPkg(null); setPkgErr(null)
+    api.get<{ data: Pkg[] }>(`/source-docs/gmud-packages`)
+      .then((r) => setPkg(r.data))
+      .catch((e) => setPkgErr(e instanceof ApiError ? e.message : 'Falha ao carregar os pacotes de GMUD.'))
+  }, [])
+  useEffect(() => { if (view !== 'pkgsemfonte') return; const t = setTimeout(loadPkg, 200); return () => clearTimeout(t) }, [view, loadPkg])
+  const pkgClients = Array.from(new Map((pkg ?? []).filter((p) => p.customer_id != null).map((p) => [String(p.customer_id), p.customer_name ?? `#${p.customer_id}`])).entries())
+  const pkgFiltered = (pkg ?? []).filter((p) => {
+    if (p.has_source) return false   // só "sem fonte"
+    if (!gInDate(p.received_at ?? p.created_at)) return false
+    if (gClient && String(p.customer_id) !== gClient) return false
+    const q = gText.trim().toLowerCase()
+    if (!q) return true
+    return [p.ticket_number, p.customer_name, p.project_name, p.project_folder, p.classification, p.status].some((x) => (x ?? '').toString().toLowerCase().includes(q))
   })
 
   const on = 'bg-[var(--primary,#157582)] text-white'
@@ -260,6 +301,7 @@ export default function SolicitacoesFontePage() {
       <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
         <button onClick={() => setView('solicitacoes')} className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'solicitacoes' ? on : off}`}><FilePlus2 size={14} /> Solicitações</button>
         <button onClick={() => setView('gmud')} className={`flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium ${view === 'gmud' ? on : off}`}><GitCommitHorizontal size={14} /> Commits GMUD</button>
+        <button onClick={() => setView('pkgsemfonte')} className={`flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium ${view === 'pkgsemfonte' ? on : off}`}><FileCode2 size={14} /> GMUD sem fonte</button>
       </div>
 
       {view === 'solicitacoes' ? (
@@ -332,7 +374,7 @@ export default function SolicitacoesFontePage() {
                 </div>
               )}
       </Card>
-      ) : (
+      ) : view === 'gmud' ? (
       <Card padding="none">
         <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
           <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
@@ -383,6 +425,62 @@ export default function SolicitacoesFontePage() {
                               {g.hd_ticket_id ? <Button size="sm" variant="secondary" onClick={() => openTicket(g.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button> : null}
                             </div>
                           </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </div>
+              )}
+      </Card>
+      ) : (
+      <Card padding="none">
+        <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
+          <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
+            <input value={gText} onChange={(e) => setGText(e.target.value)} placeholder="chamado, cliente, projeto, classificação…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          </label>
+          <div className="flex min-w-[200px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <div className="mt-1 normal-case">
+              <SearchSelect value={gClient} onChange={setGClient} placeholder="Filtrar por cliente…"
+                options={[{ id: '', name: 'Todos os clientes' }, ...pkgClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
+            </div>
+          </div>
+          <div className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Data
+            <div className="mt-1 inline-flex items-center gap-1.5 normal-case">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setGDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: gDateMode === mode ? 'var(--primary)' : 'transparent', color: gDateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {gDateMode === 'month'
+                ? <MonthYearPicker month={gRefMonth} year={gRefYear} onChange={(m, y) => { if (!m) { setGRefMonth(null); setGRefYear(null) } else { setGRefMonth(m); setGRefYear(y) } }} />
+                : <DateRangePicker from={gFrom} to={gTo} onChange={(fr, to) => { setGFrom(fr); setGTo(to) }} />}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-start gap-2 px-5 pt-3 text-xs" style={{ color: 'var(--text-light)' }}>
+          <Info size={13} className="mt-px shrink-0" /> Pacotes de GMUD (ZIP recebido no chamado) que ainda <b className="mx-1" style={{ color: 'var(--text-muted)' }}>não publicaram fonte</b> no catálogo.
+        </div>
+        {pkgErr ? <EmptyState icon={FileCode2} title="Erro" description={pkgErr} />
+          : pkg === null ? <SkeletonTable rows={6} cols={8} />
+            : pkgFiltered.length === 0 ? <EmptyState icon={FileCode2} title="Nenhum pacote sem fonte" description={(pkg?.length ?? 0) === 0 ? 'Não há pacotes de GMUD.' : 'Nenhum pacote sem fonte com esses filtros.'} />
+              : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <Thead><Tr><Th>Chamado</Th><Th>Cliente</Th><Th>Classificação</Th><Th>Status</Th><Th>Projeto / Pasta</Th><Th>Arquivos</Th><Th>Recebido em</Th><Th></Th></Tr></Thead>
+                    <Tbody>
+                      {pkgFiltered.map((p) => (
+                        <Tr key={p.id}>
+                          <Td>{p.hd_ticket_id ? <button onClick={() => openTicket(p.hd_ticket_id)} title="Abrir chamado" className="inline-flex items-center gap-1"><Badge variant="success">#{p.ticket_number ?? p.hd_ticket_id}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60" /></button> : p.ticket_number ? <Badge variant="default">#{p.ticket_number}</Badge> : '—'}</Td>
+                          <Td className="text-sm">{p.customer_name ?? (p.customer_id ? `#${p.customer_id}` : '—')}</Td>
+                          <Td className="text-sm">{p.classification || '—'}</Td>
+                          <Td><Badge variant="warning">{p.status ?? '—'}</Badge></Td>
+                          <Td className="text-sm">{[p.project_name, p.project_folder].filter(Boolean).join(' / ') || '—'}</Td>
+                          <Td className="text-xs">{p.files_count} arq.{p.source_files_count ? ` · ${p.source_files_count} fonte` : ''}</Td>
+                          <Td className="text-xs">{dt(p.received_at ?? p.created_at)}</Td>
+                          <Td>{p.hd_ticket_id ? <Button size="sm" variant="secondary" onClick={() => openTicket(p.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button> : null}</Td>
                         </Tr>
                       ))}
                     </Tbody>
