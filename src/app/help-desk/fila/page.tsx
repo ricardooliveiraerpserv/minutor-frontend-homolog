@@ -16,6 +16,7 @@ import { useColumnOrder } from '@/lib/kanban-column-order'
 import { NovoChamadoModal, type NovoChamadoMeta } from '@/components/help-desk/novo-chamado-modal'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { TicketBulkBar } from '@/components/help-desk/ticket-bulk-bar'
+import { HelpDeskGlobalSearch } from '@/components/help-desk/global-search'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -542,6 +543,8 @@ export default function HelpDeskFilaPage() {
             <div className="hidden lg:block flex-1" />
             {/* Ações à direita — visão (Kanban/Lista) + Novo chamado (extremo direito, destaque). */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Busca global: acha QUALQUER chamado da base, fora da fila, e abre. */}
+              <HelpDeskGlobalSearch onOpen={openTicket} />
               <button onClick={refresh} disabled={refreshing} title="Atualizar — buscar chamados novos ou atualizados"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 transition hover:opacity-90 disabled:opacity-60"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
