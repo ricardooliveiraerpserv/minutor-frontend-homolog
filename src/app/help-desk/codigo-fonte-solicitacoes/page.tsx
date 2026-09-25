@@ -366,8 +366,8 @@ export default function SolicitacoesFontePage() {
 
       {/* Drawer do chamado — abre sem sair da tela */}
       {drawerTicket != null && (
-        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setDrawerTicket(null)}>
-          <div className="h-full w-full max-w-xl overflow-y-auto shadow-2xl" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setDrawerTicket(null)}>
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2 min-w-0">
                 <Ticket size={16} style={{ color: 'var(--primary)' }} />
