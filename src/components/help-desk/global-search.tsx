@@ -68,12 +68,12 @@ export function HelpDeskGlobalSearch({ onOpen }: { onOpen: (id: number) => void 
 
   return (
     <>
-      <button onClick={() => setOpen(true)} title="Busca global — pesquisa em TODOS os chamados, mesmo fora da sua fila"
-        className="inline-flex items-center gap-2 text-sm px-3.5 py-2 rounded-lg w-full"
-        style={{ border: '1px dashed var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
-        <Search size={16} />
-        <span className="font-semibold">Busca global</span>
-        <span className="truncate" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— por nº, cliente, pessoa ou conteúdo da conversa (todos os chamados)</span>
+      {/* Gatilho compacto: só a lupa. Clique → expande o modal de busca global. */}
+      <button onClick={() => setOpen(true)} aria-label="Busca global"
+        title="Busca global — pesquisa em TODOS os chamados (nº, cliente, pessoa ou conteúdo da conversa), mesmo fora da sua fila"
+        className="inline-flex items-center justify-center rounded-lg shrink-0 transition hover:opacity-90"
+        style={{ width: 36, height: 36, border: '1px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+        <Search size={17} />
       </button>
 
       {open && (

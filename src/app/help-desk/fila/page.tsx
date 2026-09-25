@@ -467,7 +467,9 @@ export default function HelpDeskFilaPage() {
     <AppLayout title="Fila (Kanban)">
       <div className="space-y-2">
         <TicketTabs />
-        {/* Abas (segmented, evidente): Fila do agente × Chamados que EU abri (não sou responsável). */}
+        {/* Abas (segmented, evidente): Fila do agente × Chamados que EU abri (não sou responsável).
+            À direita: lupa da BUSCA GLOBAL (acha qualquer chamado da base, fora da fila, e abre). */}
+        <div className="flex items-center justify-between gap-2">
         <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
           {([['fila', 'Fila do agente', null], ['abri', 'Abri (não sou resp.)', abriNaoResp]] as const).map(([id, label, count]) => {
             const active = queueTab === id
@@ -483,6 +485,8 @@ export default function HelpDeskFilaPage() {
               </button>
             )
           })}
+        </div>
+          <HelpDeskGlobalSearch onOpen={openTicket} />
         </div>
         {/* Barra de filtros rápidos + ações — rola junto com o conteúdo (não fixa). */}
         <div className="space-y-2 pb-2" style={{ background: 'var(--bg)' }}>
@@ -543,8 +547,6 @@ export default function HelpDeskFilaPage() {
             <div className="hidden lg:block flex-1" />
             {/* Ações à direita — visão (Kanban/Lista) + Novo chamado (extremo direito, destaque). */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Busca global: acha QUALQUER chamado da base, fora da fila, e abre. */}
-              <HelpDeskGlobalSearch onOpen={openTicket} />
               <button onClick={refresh} disabled={refreshing} title="Atualizar — buscar chamados novos ou atualizados"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 transition hover:opacity-90 disabled:opacity-60"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
