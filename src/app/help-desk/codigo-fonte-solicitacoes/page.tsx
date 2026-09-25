@@ -82,6 +82,9 @@ export default function SolicitacoesFontePage() {
   const [gmudErr, setGmudErr] = useState<string | null>(null)
   const [gText, setGText] = useState('')   // busca por texto (fonte, chamado, responsável…)
   const [gClient, setGClient] = useState<string>('')   // filtro por cliente (customer_id)
+  const [gDateMode, setGDateMode] = useState<'month' | 'period'>('month')
+  const [gRefMonth, setGRefMonth] = useState<number | null>(null)
+  const [gRefYear, setGRefYear] = useState<number | null>(null)
   const [gFrom, setGFrom] = useState('')
   const [gTo, setGTo] = useState('')
 
@@ -135,18 +138,31 @@ export default function SolicitacoesFontePage() {
 
   const loadGmud = useCallback(() => {
     setGmud(null); setGmudErr(null)
-    const p = new URLSearchParams()
-    if (gFrom) p.set('from', gFrom)
-    if (gTo) p.set('to', gTo)
-    api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits?${p.toString()}`)
+    api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits`)
       .then((r) => setGmud(r.data))
       .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
-  }, [gFrom, gTo])
+  }, [])
   useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
 
-  // Filtro client-side dos commits: por CLIENTE e por TEXTO (fonte, chamado, responsável, resumo, empresa).
+  // Data (client-side, mesmo padrão das Solicitações): Mês/Ano ou Período.
+  const gInDate = (iso: string | null) => {
+    if (gDateMode === 'month') {
+      if (gRefMonth == null || gRefYear == null) return true
+      if (!iso) return false
+      const d = new Date(iso)
+      return d.getMonth() + 1 === gRefMonth && d.getFullYear() === gRefYear
+    }
+    if (!gFrom && !gTo) return true
+    if (!iso) return false
+    const t = new Date(iso).getTime()
+    if (gFrom && t < new Date(`${gFrom}T00:00:00`).getTime()) return false
+    if (gTo && t > new Date(`${gTo}T23:59:59`).getTime()) return false
+    return true
+  }
+  // Filtro client-side dos commits: por CLIENTE, por TEXTO (fonte, chamado, responsável, resumo, empresa) e por DATA.
   const gmudClients = Array.from(new Map((gmud ?? []).filter((g) => g.customer_id != null).map((g) => [String(g.customer_id), g.customer_name ?? `#${g.customer_id}`])).entries())
   const gmudFiltered = (gmud ?? []).filter((g) => {
+    if (!gInDate(g.created_at)) return false
     if (gClient && String(g.customer_id) !== gClient) return false
     const q = gText.trim().toLowerCase()
     if (!q) return true
@@ -328,12 +344,21 @@ export default function SolicitacoesFontePage() {
                 options={[{ id: '', name: 'Todos os clientes' }, ...gmudClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
             </div>
           </div>
-          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">De
-            <input type="date" value={gFrom} onChange={(e) => setGFrom(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
-          </label>
-          <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Até
-            <input type="date" value={gTo} onChange={(e) => setGTo(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
-          </label>
+          <div className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Data
+            <div className="mt-1 inline-flex items-center gap-1.5 normal-case">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setGDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: gDateMode === mode ? 'var(--primary)' : 'transparent', color: gDateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {gDateMode === 'month'
+                ? <MonthYearPicker month={gRefMonth} year={gRefYear} onChange={(m, y) => { if (!m) { setGRefMonth(null); setGRefYear(null) } else { setGRefMonth(m); setGRefYear(y) } }} />
+                : <DateRangePicker from={gFrom} to={gTo} onChange={(fr, to) => { setGFrom(fr); setGTo(to) }} />}
+            </div>
+          </div>
         </div>
         {gmudErr ? <EmptyState icon={GitCommitHorizontal} title="Erro" description={gmudErr} />
           : gmud === null ? <SkeletonTable rows={6} cols={7} />
