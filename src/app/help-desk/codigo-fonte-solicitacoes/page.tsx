@@ -8,7 +8,7 @@
 // painel lateral (drawer), sem sair da tela — nas duas abas.
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, BookOpen, Download, ExternalLink, FileCode2, FilePlus2, GitCommitHorizontal, Info, Paperclip, ShieldCheck, Ticket, X } from 'lucide-react'
+import { AlertTriangle, BookOpen, ExternalLink, FileCode2, FilePlus2, GitCommitHorizontal, Info, Paperclip, ShieldCheck, Ticket, X } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
@@ -76,10 +76,10 @@ export default function SolicitacoesFontePage() {
   const [dateTo, setDateTo] = useState('')
   const [busy, setBusy] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
-  const [dlBusy, setDlBusy] = useState<number | null>(null)
   const [gmud, setGmud] = useState<Gmud[] | null>(null)
   const [gmudErr, setGmudErr] = useState<string | null>(null)
-  const [gQ, setGQ] = useState('')
+  const [gText, setGText] = useState('')   // busca por texto (fonte, chamado, responsável…)
+  const [gClient, setGClient] = useState<string>('')   // filtro por cliente (customer_id)
   const [gFrom, setGFrom] = useState('')
   const [gTo, setGTo] = useState('')
 
@@ -132,14 +132,22 @@ export default function SolicitacoesFontePage() {
   const loadGmud = useCallback(() => {
     setGmud(null); setGmudErr(null)
     const p = new URLSearchParams()
-    if (gQ.trim()) p.set('q', gQ.trim())
     if (gFrom) p.set('from', gFrom)
     if (gTo) p.set('to', gTo)
     api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits?${p.toString()}`)
       .then((r) => setGmud(r.data))
       .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
-  }, [gQ, gFrom, gTo])
+  }, [gFrom, gTo])
   useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
+
+  // Filtro client-side dos commits: por CLIENTE e por TEXTO (fonte, chamado, responsável, resumo, empresa).
+  const gmudClients = Array.from(new Map((gmud ?? []).filter((g) => g.customer_id != null).map((g) => [String(g.customer_id), g.customer_name ?? `#${g.customer_id}`])).entries())
+  const gmudFiltered = (gmud ?? []).filter((g) => {
+    if (gClient && String(g.customer_id) !== gClient) return false
+    const q = gText.trim().toLowerCase()
+    if (!q) return true
+    return [g.filename, g.repository, g.owner, g.ticket_number, g.responsavel, g.diff_summary, g.customer_name, g.gmud_id].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
 
   const on = 'bg-[var(--primary,#157582)] text-white'
   const off = 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
@@ -149,18 +157,6 @@ export default function SolicitacoesFontePage() {
     try { await api.patch(`/source-docs/source-requests/${id}`, { status: s }); toast.success('Solicitação atualizada.'); load() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao atualizar.') }
     finally { setBusy(null) }
-  }
-
-  // Fonte anexo: pega a URL assinada e abre p/ download.
-  const downloadSource = async (attId: number | null) => {
-    if (!attId) return
-    setDlBusy(attId)
-    try {
-      const r = await api.get<{ url: string }>(`/attachments/${attId}/url`)
-      if (r?.url) window.open(r.url, '_blank', 'noopener')
-      else toast.error('Fonte indisponível para download.')
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao obter o fonte.') }
-    finally { setDlBusy(null) }
   }
 
   // Abrir chamado no drawer (sem sair da tela).
@@ -222,7 +218,6 @@ export default function SolicitacoesFontePage() {
     return <Badge variant="default">{s ?? '—'}</Badge>
   }
 
-  const attachedCount = (r: Req) => (r.sources ?? []).filter((s) => s.attachment_id).length
 
   const Field = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex flex-col gap-0.5">
@@ -276,32 +271,17 @@ export default function SolicitacoesFontePage() {
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Empresa</Th><Th>Escopo</Th><Th>Fonte</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
+                    <Thead><Tr><Th>Cliente</Th><Th>Fonte</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
                     <Tbody>
                       {filtered.map((r) => (
                         <Tr key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="cursor-pointer">
                           <Td><div className="font-medium">{r.customer_name ?? (r.customer_id ? `#${r.customer_id}` : '—')}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{r.repository ?? '—'}</div></Td>
                           <Td>
-                            <div className="text-sm">{scopeLabel(r)}</div>
+                            {r.sources && r.sources.length > 0
+                              ? <div className="text-sm">{r.sources.slice(0, 3).map((s) => s.filename).join(', ')}{r.sources.length > 3 ? ` +${r.sources.length - 3}` : ''}</div>
+                              : <span className="text-sm" style={{ color: 'var(--text-light)' }}>{scopeLabel(r)}</span>}
                             {expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}
                             {expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}
-                            {expanded === r.id && r.sources && r.sources.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                {r.sources.map((s, i) => (
-                                  <button key={i} disabled={!s.attachment_id || dlBusy === s.attachment_id} onClick={() => downloadSource(s.attachment_id)}
-                                    title={s.attachment_id ? 'Baixar o fonte (.zip do commit)' : (s.status === 'failed' ? 'Falha ao obter o fonte' : 'Fonte ainda não anexado')}
-                                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs disabled:opacity-50"
-                                    style={{ borderColor: 'var(--border)', color: s.attachment_id ? 'var(--primary)' : 'var(--text-light)', background: 'var(--surface-hover)' }}>
-                                    <Download size={11} /> {s.filename}{s.attachment_id ? '' : ` (${s.status})`}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </Td>
-                          <Td>
-                            {attachedCount(r) > 0
-                              ? <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }} title="Fontes anexados — expanda a linha para baixar"><Paperclip size={12} /> {attachedCount(r)}</span>
-                              : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>}
                           </Td>
                           <Td>{r.ticket ? <Badge variant={r.hd_ticket_id ? 'success' : 'default'}>#{r.ticket}</Badge> : '—'}</Td>
                           <Td>{prioBadge(r.priority)}</Td>
@@ -333,8 +313,14 @@ export default function SolicitacoesFontePage() {
       ) : (
       <Card padding="none">
         <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
-          <label className="flex min-w-[180px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar fonte
-            <input value={gQ} onChange={(e) => setGQ(e.target.value)} placeholder="nome do fonte…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
+            <input value={gText} onChange={(e) => setGText(e.target.value)} placeholder="fonte, nº do chamado, responsável, resumo…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          </label>
+          <label className="flex min-w-[180px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <select value={gClient} onChange={(e) => setGClient(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none">
+              <option value="">Todos os clientes</option>
+              {gmudClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
           </label>
           <label className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">De
             <input type="date" value={gFrom} onChange={(e) => setGFrom(e.target.value)} className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[color:var(--text)] outline-none" />
@@ -345,13 +331,13 @@ export default function SolicitacoesFontePage() {
         </div>
         {gmudErr ? <EmptyState icon={GitCommitHorizontal} title="Erro" description={gmudErr} />
           : gmud === null ? <SkeletonTable rows={6} cols={7} />
-            : gmud.length === 0 ? <EmptyState icon={GitCommitHorizontal} title="Sem commits de GMUD" description="Nenhuma versão de fonte criada via GMUD." />
+            : gmudFiltered.length === 0 ? <EmptyState icon={GitCommitHorizontal} title="Nenhum commit" description={(gmud?.length ?? 0) === 0 ? 'Nenhuma versão de fonte criada via GMUD.' : 'Nada encontrado com esses filtros.'} />
               : (
                 <div className="overflow-x-auto">
                   <Table>
-                    <Thead><Tr><Th>Fonte</Th><Th>Empresa</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th><Th></Th></Tr></Thead>
+                    <Thead><Tr><Th>Fonte</Th><Th>Cliente</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th><Th></Th></Tr></Thead>
                     <Tbody>
-                      {gmud.map((g) => (
+                      {gmudFiltered.map((g) => (
                         <Tr key={g.id}>
                           <Td><div className="font-medium">{g.filename}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
                           <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
