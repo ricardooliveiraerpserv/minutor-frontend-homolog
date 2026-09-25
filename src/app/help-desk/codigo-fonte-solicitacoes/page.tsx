@@ -180,15 +180,28 @@ export default function SolicitacoesFontePage() {
     setSrcTab('publicacao')
     setPub(null); setPubLoading(true); setQa(null); setFindings(null); setQaLoading(true)
     api.get<{ data: Record<string, any> }>(`/source-docs/${id}`).then((r) => setPub(r.data)).catch(() => setPub(null)).finally(() => setPubLoading(false))
-    api.get<{ data: any }>(`/source-docs/${id}/quality`).then(async (r) => {
-      const a = r?.data?.analysis ?? null
-      setQa({ state: r?.data?.state, analysis: a })
-      const aid = a?.id
-      if (aid && ((a?.n_findings ?? 0) > 0 || a?.status === 'completed')) {
-        try { const fr = await api.get<{ data: any }>(`/source-docs/${id}/quality/${aid}/findings`); setFindings(fr?.data?.findings ?? []) }
-        catch { setFindings([]) }
-      } else { setFindings([]) }
-    }).catch(() => { setQa(null); setFindings([]) }).finally(() => setQaLoading(false))
+    ;(async () => {
+      try {
+        const q = await api.get<{ data: any }>(`/source-docs/${id}/quality`)
+        const state = q?.data?.state
+        let a = q?.data?.analysis ?? null
+        // Se a análise mais recente não está concluída (ex.: nova enfileirada), busca a última COMPLETA no histórico.
+        if (!a || a.status !== 'completed') {
+          try {
+            const h = await api.get<{ data: any }>(`/source-docs/${id}/quality/history`)
+            const items = Array.isArray(h?.data) ? h.data : (h?.data?.items ?? [])
+            const done = items.find((x: any) => x?.status === 'completed')
+            if (done) a = done
+          } catch { /* history opcional */ }
+        }
+        setQa({ state, analysis: a })
+        if (a?.id && a.status === 'completed') {
+          const fr = await api.get<{ data: any }>(`/source-docs/${id}/quality/${a.id}/findings`)
+          setFindings(fr?.data?.findings ?? [])
+        } else { setFindings([]) }
+      } catch { setQa(null); setFindings([]) }
+      finally { setQaLoading(false) }
+    })()
   }, [])
 
   const sevBadge = (s?: string) => {
@@ -445,14 +458,25 @@ export default function SolicitacoesFontePage() {
                     <EmptyState icon={ShieldCheck} title="Sem análise de qualidade" description="Este fonte ainda não passou pelo CodeAnalysis. A análise é disparada sob demanda na Central de Fontes." />
                   ) : (
                     <div className="space-y-4">
-                      <div className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
-                        {qa.analysis.grade != null && <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>{qa.analysis.grade}</div>}
-                        {qa.analysis.score != null && <Field label="Score" value={String(qa.analysis.score)} />}
-                        {qa.analysis.risk != null && <Field label="Risco" value={String(qa.analysis.risk)} />}
-                        {qa.analysis.n_critical != null && <Field label="Críticos" value={<span style={{ color: 'var(--danger)' }}>{qa.analysis.n_critical}</span>} />}
-                        {qa.analysis.n_warnings != null && <Field label="Alertas" value={<span style={{ color: 'var(--warning)' }}>{qa.analysis.n_warnings}</span>} />}
-                        {qa.analysis.n_recommendations != null && <Field label="Recomendações" value={String(qa.analysis.n_recommendations)} />}
-                      </div>
+                      {(() => {
+                        const cc = { crit: 0, warn: 0, rec: 0 }
+                        for (const f of (findings ?? [])) {
+                          const k = (f.severity ?? '').toLowerCase()
+                          if (k.includes('crit') || k === 'high' || k === 'alta' || k === 'error') cc.crit++
+                          else if (k.includes('warn') || k === 'medium' || k === 'media' || k === 'média') cc.warn++
+                          else cc.rec++
+                        }
+                        return (
+                          <div className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
+                            {qa.analysis?.grade != null && <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>{qa.analysis.grade}</div>}
+                            {qa.analysis?.score != null && <Field label="Score" value={String(qa.analysis.score)} />}
+                            {qa.analysis?.risk != null && <Field label="Risco" value={String(qa.analysis.risk)} />}
+                            <Field label="Críticos" value={<span style={{ color: 'var(--danger)' }}>{cc.crit}</span>} />
+                            <Field label="Alertas" value={<span style={{ color: 'var(--warning)' }}>{cc.warn}</span>} />
+                            <Field label="Recomendações" value={String(cc.rec)} />
+                          </div>
+                        )
+                      })()}
                       {!findings || findings.length === 0 ? (
                         <EmptyState icon={ShieldCheck} title="Sem apontamentos" description="A análise não retornou críticas para este fonte." />
                       ) : (
