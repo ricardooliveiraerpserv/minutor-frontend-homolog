@@ -477,6 +477,7 @@ const NAV: NavEntry[] = [
       { label: 'Playbooks', href: '/help-desk/configuracoes?tab=playbooks', icon: Star },
       { label: 'Código-Fonte', href: '/help-desk/configuracoes?tab=codigo-fonte', icon: FileCode },
       { label: 'Movidesk (status)', href: '/help-desk/configuracoes?tab=movidesk', icon: Database },
+      { label: 'Movidesk (cliente)', href: '/help-desk/configuracoes?tab=movidesk-cliente', icon: Database },
     ],
   },
 ]

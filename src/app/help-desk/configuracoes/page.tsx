@@ -51,6 +51,7 @@ const TABS = [
   { id: 'playbooks', label: 'Macros' },
   { id: 'codigo-fonte', label: 'Código-Fonte' },
   { id: 'movidesk', label: 'Movidesk (status)' },
+  { id: 'movidesk-cliente', label: 'Movidesk (cliente)' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -95,6 +96,7 @@ function ConfigContent() {
         {tab === 'playbooks' && <Playbooks />}
         {tab === 'codigo-fonte' && <SourceCodeConfig />}
         {tab === 'movidesk' && <MovideskStatusMap />}
+        {tab === 'movidesk-cliente' && <MovideskCustomerLink />}
       </div>
     </AppLayout>
   )
@@ -1350,6 +1352,111 @@ function MovideskStatusMap() {
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}>
           <Save size={14} /> {saving ? 'Salvando…' : 'Salvar vínculos'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Movidesk — VÍNCULO de CLIENTE (organização Movidesk → cliente Minutor).
+// Resolve o "cliente" dos chamados importados: cada org do Movidesk aponta para um cliente.
+// ─────────────────────────────────────────────────────────────────────────────
+interface MdOrg { id: number; movidesk_id: string; name: string; cnpj: string | null; customer_id: number | null; customer_name: string | null }
+interface MdCust { id: number; name: string }
+
+function MovideskCustomerLink() {
+  const [orgs, setOrgs] = useState<MdOrg[]>([])
+  const [customers, setCustomers] = useState<MdCust[]>([])
+  const [edited, setEdited] = useState<Record<number, number | null>>({})
+  const [q, setQ] = useState('')
+  const [onlyUnlinked, setOnlyUnlinked] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get<{ data: { organizations: MdOrg[]; customers: MdCust[] } }>('/help-desk/movidesk-customers')
+      .then(r => { setOrgs(r?.data?.organizations ?? []); setCustomers(r?.data?.customers ?? []); setEdited({}) })
+      .catch(() => toast.error('Falha ao carregar as organizações'))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const currentOf = (o: MdOrg): number | null => (o.id in edited ? edited[o.id] : o.customer_id)
+  const isDirty = (o: MdOrg) => (o.id in edited) && edited[o.id] !== o.customer_id
+  const dirty = orgs.filter(isDirty)
+
+  const setLink = (o: MdOrg, cid: number | null) => setEdited(e => ({ ...e, [o.id]: cid }))
+
+  const save = async () => {
+    if (dirty.length === 0) return
+    setSaving(true)
+    try {
+      await api.put('/help-desk/movidesk-customers', { links: dirty.map(o => ({ id: o.id, customer_id: currentOf(o) })) })
+      toast.success(`${dirty.length} vínculo(s) salvo(s)`) 
+      load()
+    } catch { toast.error('Falha ao salvar os vínculos') } finally { setSaving(false) }
+  }
+
+  const term = q.trim().toLowerCase()
+  const shown = orgs.filter(o => {
+    if (onlyUnlinked && currentOf(o) !== null) return false
+    if (!term) return true
+    return o.name.toLowerCase().includes(term) || (o.cnpj ?? '').toLowerCase().includes(term)
+  })
+
+  if (loading) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+
+  const custOptions = [{ id: '', name: '— sem cliente —' }, ...customers.map(c => ({ id: c.id, name: c.name }))]
+
+  return (
+    <div className="space-y-4">
+      <div className="ds-card p-4" style={{ borderLeft: '3px solid var(--primary)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Vínculo entre a <b>organização do Movidesk</b> e o <b>cliente do Minutor</b>. Ao importar um chamado,
+          o cliente é definido pela organização vinculada aqui. Organizações sem vínculo entram sem cliente.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <input className={`${fieldCls} w-64`} style={inputStyle} placeholder="Buscar organização ou CNPJ…" value={q} onChange={e => setQ(e.target.value)} />
+        <button onClick={() => setOnlyUnlinked(v => !v)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+          style={onlyUnlinked ? { border: '1px solid var(--primary)', background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+          Só sem cliente
+        </button>
+        <span className="text-xs" style={{ color: 'var(--text-light)' }}>{shown.length} de {orgs.length} · {orgs.filter(o => currentOf(o) !== null).length} vinculadas</span>
+        <div className="flex-1" />
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving || dirty.length === 0}>
+          <Save size={14} /> {saving ? 'Salvando…' : `Salvar${dirty.length ? ` (${dirty.length})` : ''}`}
+        </button>
+      </div>
+
+      <div className="ds-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+              <th className="text-left font-semibold px-3 py-2">Organização (Movidesk)</th>
+              <th className="text-left font-semibold px-3 py-2 w-40">CNPJ</th>
+              <th className="text-left font-semibold px-3 py-2 w-8"></th>
+              <th className="text-left font-semibold px-3 py-2 w-72">Cliente (Minutor)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma organização.</td></tr>}
+            {shown.map(o => (
+              <tr key={o.id} className="border-t" style={{ borderColor: 'var(--border)', background: isDirty(o) ? 'var(--primary-soft)' : undefined }}>
+                <td className="px-3 py-1.5 font-medium" style={{ color: 'var(--text)' }}>{o.name}</td>
+                <td className="px-3 py-1.5" style={{ color: 'var(--text-muted)' }}>{o.cnpj || '—'}</td>
+                <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
+                <td className="px-3 py-1.5">
+                  <SearchSelect value={currentOf(o) === null ? '' : String(currentOf(o))}
+                    onChange={v => setLink(o, v ? Number(v) : null)}
+                    options={custOptions} placeholder="Buscar cliente…" fullWidth />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
