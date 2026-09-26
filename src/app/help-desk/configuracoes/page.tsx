@@ -50,6 +50,7 @@ const TABS = [
   { id: 'tags', label: 'Tags' },
   { id: 'playbooks', label: 'Macros' },
   { id: 'codigo-fonte', label: 'Código-Fonte' },
+  { id: 'movidesk', label: 'Movidesk (status)' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -93,6 +94,7 @@ function ConfigContent() {
         {tab === 'tags' && <Tags />}
         {tab === 'playbooks' && <Playbooks />}
         {tab === 'codigo-fonte' && <SourceCodeConfig />}
+        {tab === 'movidesk' && <MovideskStatusMap />}
       </div>
     </AppLayout>
   )
@@ -1187,6 +1189,168 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Movidesk — VÍNCULO de status (de-para HD ↔ Movidesk), por empresa.
+//  Entrada (Movidesk → HD): cada status do Movidesk aponta para um status do HD.
+//  Saída   (HD → Movidesk): cada status do HD aponta para um status do Movidesk (usado na Fase 2).
+// ─────────────────────────────────────────────────────────────────────────────
+interface MdMapStatus { id: number; key: string; label: string; color: string | null }
+interface MdText { base: string; text: string }
+interface MdInRow { movidesk_base_status: string; movidesk_status_text: string | null; helpdesk_status_id: number }
+interface MdOutRow { helpdesk_status_id: number; movidesk_base_status: string; movidesk_status_text: string | null }
+interface MdMapData { company_id: number | null; statuses: MdMapStatus[]; base_statuses: string[]; movidesk_texts: MdText[]; inbound: MdInRow[]; outbound: MdOutRow[] }
+
+function MovideskStatusMap() {
+  const [data, setData] = useState<MdMapData | null>(null)
+  const [inbound, setInbound] = useState<MdInRow[]>([])
+  const [outbound, setOutbound] = useState<MdOutRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const hydrate = useCallback((d: MdMapData | null) => {
+    setData(d ?? null)
+    setInbound((d?.inbound ?? []).map(x => ({ ...x })))
+    const outByStatus = new Map<number, MdOutRow>()
+    ;(d?.outbound ?? []).forEach(o => outByStatus.set(o.helpdesk_status_id, o))
+    setOutbound((d?.statuses ?? []).map(s => outByStatus.get(s.id) ?? { helpdesk_status_id: s.id, movidesk_base_status: '', movidesk_status_text: '' }))
+  }, [])
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get<{ data: MdMapData }>('/help-desk/movidesk-status-map')
+      .then(r => hydrate(r?.data ?? null))
+      .catch(() => toast.error('Falha ao carregar o de-para de status'))
+      .finally(() => setLoading(false))
+  }, [hydrate])
+  useEffect(() => { load() }, [load])
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const inb = inbound.filter(r => r.movidesk_base_status && r.helpdesk_status_id)
+        .map(r => ({ ...r, movidesk_status_text: (r.movidesk_status_text || '').trim() || null }))
+      const outb = outbound.filter(r => r.movidesk_base_status)
+        .map(r => ({ ...r, movidesk_status_text: (r.movidesk_status_text || '').trim() || null }))
+      const r = await api.put<{ data: MdMapData }>('/help-desk/movidesk-status-map', { inbound: inb, outbound: outb })
+      hydrate(r?.data ?? null)
+      toast.success('Vínculos de status salvos')
+    } catch { toast.error('Falha ao salvar os vínculos') } finally { setSaving(false) }
+  }
+
+  if (loading) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+  if (!data) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum dado.</p>
+
+  const allTexts = Array.from(new Set(data.movidesk_texts.map(t => t.text)))
+
+  const setIn = (i: number, patch: Partial<MdInRow>) => setInbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+  const setOut = (i: number, patch: Partial<MdOutRow>) => setOutbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
+
+  const statusSelect = (value: number | '', onChange: (v: number) => void) => (
+    <select className={`${fieldCls} w-full`} style={inputStyle} value={value} onChange={e => onChange(Number(e.target.value))}>
+      <option value="">— selecione —</option>
+      {data.statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+    </select>
+  )
+  const baseSelect = (value: string, onChange: (v: string) => void) => (
+    <select className={`${fieldCls} w-full`} style={inputStyle} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">— base —</option>
+      {data.base_statuses.map(b => <option key={b} value={b}>{b}</option>)}
+    </select>
+  )
+
+  return (
+    <div className="space-y-6">
+      <datalist id="md-all-texts">{allTexts.map(t => <option key={t} value={t} />)}</datalist>
+
+      <div className="ds-card p-4" style={{ borderLeft: '3px solid var(--primary)' }}>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Vínculo de status entre o <b>Movidesk</b> (Promax) e o <b>Help Desk</b> do Minutor.
+          A <b>Entrada</b> define, ao importar um chamado, qual status do HD corresponde a cada status do Movidesk.
+          A <b>Saída</b> define para qual status do Movidesk cada status do HD seria enviado — usada quando ligarmos a sincronização de volta.
+        </p>
+      </div>
+
+      {/* ENTRADA */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Entrada — Movidesk → Help Desk</h3>
+          <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg"
+            onClick={() => setInbound(rows => [...rows, { movidesk_base_status: '', movidesk_status_text: '', helpdesk_status_id: 0 }])}>
+            <Plus size={13} /> Adicionar
+          </button>
+        </div>
+        <div className="ds-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                <th className="text-left font-semibold px-3 py-2 w-40">Movidesk (base)</th>
+                <th className="text-left font-semibold px-3 py-2">Movidesk (sub-status)</th>
+                <th className="text-left font-semibold px-3 py-2 w-8"></th>
+                <th className="text-left font-semibold px-3 py-2 w-56">Status no Help Desk</th>
+                <th className="px-3 py-2 w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {inbound.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum vínculo. Clique em “Adicionar”.</td></tr>}
+              {inbound.map((r, i) => (
+                <tr key={i} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                  <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setIn(i, { movidesk_base_status: v }))}</td>
+                  <td className="px-3 py-1.5">
+                    <input className={`${fieldCls} w-full`} style={inputStyle} list="md-all-texts" placeholder="(qualquer sub-status desta base)"
+                      value={r.movidesk_status_text ?? ''} onChange={e => setIn(i, { movidesk_status_text: e.target.value })} />
+                  </td>
+                  <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
+                  <td className="px-3 py-1.5">{statusSelect(r.helpdesk_status_id || '', v => setIn(i, { helpdesk_status_id: v }))}</td>
+                  <td className="px-3 py-1.5 text-center">
+                    <button title="Remover" onClick={() => setInbound(rows => rows.filter((_, idx) => idx !== i))} style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>Deixe o sub-status em branco para casar qualquer sub-status daquela base (rede de segurança).</p>
+      </div>
+
+      {/* SAÍDA */}
+      <div>
+        <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text)' }}>Saída — Help Desk → Movidesk <span className="font-normal" style={{ color: 'var(--text-light)' }}>(usada quando ligarmos a sincronização de volta)</span></h3>
+        <div className="ds-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                <th className="text-left font-semibold px-3 py-2 w-56">Status no Help Desk</th>
+                <th className="text-left font-semibold px-3 py-2 w-8"></th>
+                <th className="text-left font-semibold px-3 py-2 w-40">Movidesk (base)</th>
+                <th className="text-left font-semibold px-3 py-2">Movidesk (sub-status)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {outbound.map((r, i) => (
+                <tr key={r.helpdesk_status_id} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                  <td className="px-3 py-1.5 font-medium" style={{ color: 'var(--text)' }}>{data.statuses.find(s => s.id === r.helpdesk_status_id)?.label ?? r.helpdesk_status_id}</td>
+                  <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
+                  <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setOut(i, { movidesk_base_status: v }))}</td>
+                  <td className="px-3 py-1.5">
+                    <input className={`${fieldCls} w-full`} style={inputStyle} list="md-all-texts" placeholder="(sub-status no Movidesk)"
+                      value={r.movidesk_status_text ?? ''} onChange={e => setOut(i, { movidesk_status_text: e.target.value })} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}>
+          <Save size={14} /> {saving ? 'Salvando…' : 'Salvar vínculos'}
+        </button>
+      </div>
     </div>
   )
 }
