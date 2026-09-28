@@ -1262,10 +1262,12 @@ function MovideskStatusMap() {
   if (loading) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
   if (!data) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum dado.</p>
 
-  // TODOS os sub-status EXATOS do catálogo do Movidesk (não filtra por base — a base de vários
-  // é desconhecida no cache, então filtrar esconderia opções configuradas).
-  const allSubStatuses = Array.from(new Set(data.movidesk_texts.map(t => t.text).filter(Boolean)))
-  // Base conhecida para um sub-status (quando o Movidesk já trouxe em algum ticket) → auto-preenche.
+  // Sub-status do catálogo do Movidesk, FILTRADOS pela base selecionada (só os vinculados àquela base).
+  // Sem base escolhida (— base —), mostra todos.
+  const textsFor = (base: string) => Array.from(new Set(
+    data.movidesk_texts.filter(t => !base || t.base === base).map(t => t.text).filter(Boolean)
+  ))
+  // Base conhecida para um sub-status → auto-preenche a base ao escolher.
   const baseForText = (text: string): string => data.movidesk_texts.find(t => t.text === text)?.base || ''
 
   const setIn = (i: number, patch: Partial<MdInRow>) => setInbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
@@ -1283,10 +1285,10 @@ function MovideskStatusMap() {
       {data.base_statuses.map(b => <option key={b} value={b}>{mdBaseLabel(b)}</option>)}
     </select>
   )
-  // Seletor de sub-status: TODOS os valores exatos configurados no Movidesk (nada de texto livre).
+  // Seletor de sub-status: só os EXATOS configurados no Movidesk VINCULADOS à base da linha.
   // `emptyLabel` é a 1ª opção (vazio = pega-tudo na entrada / sem sub-status na saída).
-  const subSelect = (value: string, emptyLabel: string, onChange: (v: string) => void) => {
-    const opts = allSubStatuses
+  const subSelect = (base: string, value: string, emptyLabel: string, onChange: (v: string) => void) => {
+    const opts = textsFor(base)
     const cur = value ?? ''
     return (
       <select className={`${fieldCls} w-full`} style={inputStyle} value={cur} onChange={e => onChange(e.target.value)}>
@@ -1338,7 +1340,7 @@ function MovideskStatusMap() {
                 <tr key={i} className="border-t" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setIn(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    {subSelect(r.movidesk_status_text ?? '', '(qualquer sub-status desta base)', v => { const b = baseForText(v); setIn(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
+                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(qualquer sub-status desta base)', v => { const b = baseForText(v); setIn(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
                   </td>
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{statusSelect(r.helpdesk_status_id || '', v => setIn(i, { helpdesk_status_id: v }))}</td>
@@ -1373,7 +1375,7 @@ function MovideskStatusMap() {
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setOut(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    {subSelect(r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => { const b = baseForText(v); setOut(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
+                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => { const b = baseForText(v); setOut(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
                   </td>
                 </tr>
               ))}
