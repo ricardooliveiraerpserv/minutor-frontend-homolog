@@ -1203,7 +1203,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
 interface MdMapStatus { id: number; key: string; label: string; color: string | null }
 interface MdText { base: string; text: string }
 interface MdInRow { movidesk_base_status: string; movidesk_status_text: string | null; helpdesk_status_id: number }
-interface MdOutRow { helpdesk_status_id: number; movidesk_base_status: string; movidesk_status_text: string | null }
+interface MdOutRow { helpdesk_status_id: number; movidesk_base_status: string; movidesk_status_text: string | null; movidesk_justification?: string | null }
 interface MdMapData { company_id: number | null; statuses: MdMapStatus[]; base_statuses: string[]; movidesk_texts: MdText[]; inbound: MdInRow[]; outbound: MdOutRow[] }
 
 // Rótulo em PT para os status base do Movidesk (valor interno segue em inglês, como a API do Movidesk).
@@ -1252,7 +1252,7 @@ function MovideskStatusMap() {
       const inb = inbound.filter(r => r.movidesk_base_status && r.helpdesk_status_id)
         .map(r => ({ ...r, movidesk_status_text: (r.movidesk_status_text || '').trim() || null }))
       const outb = outbound.filter(r => r.movidesk_base_status)
-        .map(r => ({ ...r, movidesk_status_text: (r.movidesk_status_text || '').trim() || null }))
+        .map(r => ({ ...r, movidesk_status_text: (r.movidesk_status_text || '').trim() || null, movidesk_justification: (r.movidesk_justification || '').trim() || null }))
       const r = await api.put<{ data: MdMapData }>('/help-desk/movidesk-status-map', { inbound: inb, outbound: outb })
       hydrate(r?.data ?? null)
       toast.success('Vínculos de status salvos')
@@ -1362,10 +1362,11 @@ function MovideskStatusMap() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-                <th className="text-left font-semibold px-3 py-2 w-56">Status no Help Desk</th>
+                <th className="text-left font-semibold px-3 py-2 w-52">Status no Help Desk</th>
                 <th className="text-left font-semibold px-3 py-2 w-8"></th>
-                <th className="text-left font-semibold px-3 py-2 w-40">Movidesk (base)</th>
+                <th className="text-left font-semibold px-3 py-2 w-36">Movidesk (base)</th>
                 <th className="text-left font-semibold px-3 py-2">Movidesk (sub-status)</th>
+                <th className="text-left font-semibold px-3 py-2 w-56">Justificativa (Movidesk)</th>
               </tr>
             </thead>
             <tbody>
@@ -1377,11 +1378,16 @@ function MovideskStatusMap() {
                   <td className="px-3 py-1.5">
                     {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => { const b = baseForText(v); setOut(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
                   </td>
+                  <td className="px-3 py-1.5">
+                    <input className={`${fieldCls} w-full`} style={inputStyle} placeholder="(exigida p/ enviar status)"
+                      value={r.movidesk_justification ?? ''} onChange={e => setOut(i, { movidesk_justification: e.target.value })} />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>O Movidesk exige uma <b>justificativa</b> válida (configurada lá) para trocar o status via integração. Sem ela preenchida, a mudança de status feita no Minutor não é enviada ao Movidesk (os demais campos continuam indo).</p>
       </div>
 
       <div className="flex justify-end">
