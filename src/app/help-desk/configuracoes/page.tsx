@@ -1206,6 +1206,12 @@ interface MdInRow { movidesk_base_status: string; movidesk_status_text: string |
 interface MdOutRow { helpdesk_status_id: number; movidesk_base_status: string; movidesk_status_text: string | null }
 interface MdMapData { company_id: number | null; statuses: MdMapStatus[]; base_statuses: string[]; movidesk_texts: MdText[]; inbound: MdInRow[]; outbound: MdOutRow[] }
 
+// Rótulo em PT para os status base do Movidesk (valor interno segue em inglês, como a API do Movidesk).
+const MD_BASE_LABEL: Record<string, string> = {
+  New: 'Novo', InAttendance: 'Em atendimento', Stopped: 'Parado', Resolved: 'Resolvido', Closed: 'Fechado', Canceled: 'Cancelado',
+}
+const mdBaseLabel = (b: string) => MD_BASE_LABEL[b] || b
+
 function MovideskStatusMap() {
   const [data, setData] = useState<MdMapData | null>(null)
   const [inbound, setInbound] = useState<MdInRow[]>([])
@@ -1260,7 +1266,7 @@ function MovideskStatusMap() {
   const baseSelect = (value: string, onChange: (v: string) => void) => (
     <select className={`${fieldCls} w-full`} style={inputStyle} value={value} onChange={e => onChange(e.target.value)}>
       <option value="">— base —</option>
-      {data.base_statuses.map(b => <option key={b} value={b}>{b}</option>)}
+      {data.base_statuses.map(b => <option key={b} value={b}>{mdBaseLabel(b)}</option>)}
     </select>
   )
 
