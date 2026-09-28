@@ -1252,7 +1252,10 @@ function MovideskStatusMap() {
   if (loading) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
   if (!data) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum dado.</p>
 
-  const allTexts = Array.from(new Set(data.movidesk_texts.map(t => t.text)))
+  // Sub-status EXATOS configurados no Movidesk (do cadastro de tickets), filtrados pela base.
+  const textsFor = (base: string) => Array.from(new Set(
+    data.movidesk_texts.filter(t => !base || t.base === base).map(t => t.text).filter(Boolean)
+  ))
 
   const setIn = (i: number, patch: Partial<MdInRow>) => setInbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const setOut = (i: number, patch: Partial<MdOutRow>) => setOutbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
@@ -1269,11 +1272,22 @@ function MovideskStatusMap() {
       {data.base_statuses.map(b => <option key={b} value={b}>{mdBaseLabel(b)}</option>)}
     </select>
   )
+  // Seletor de sub-status: SÓ os valores exatos configurados no Movidesk (nada de texto livre).
+  // `emptyLabel` é a 1ª opção (vazio = pega-tudo na entrada / sem sub-status na saída).
+  const subSelect = (base: string, value: string, emptyLabel: string, onChange: (v: string) => void) => {
+    const opts = textsFor(base)
+    const cur = value ?? ''
+    return (
+      <select className={`${fieldCls} w-full`} style={inputStyle} value={cur} onChange={e => onChange(e.target.value)}>
+        <option value="">{emptyLabel}</option>
+        {cur && !opts.includes(cur) && <option value={cur}>{cur}</option>}
+        {opts.map(t => <option key={t} value={t}>{t}</option>)}
+      </select>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <datalist id="md-all-texts">{allTexts.map(t => <option key={t} value={t} />)}</datalist>
-
       <div className="ds-card p-4" style={{ borderLeft: '3px solid var(--primary)' }}>
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Vínculo de status entre o <b>Movidesk</b> (Promax) e o <b>Help Desk</b> do Minutor.
@@ -1308,8 +1322,7 @@ function MovideskStatusMap() {
                 <tr key={i} className="border-t" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setIn(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    <input className={`${fieldCls} w-full`} style={inputStyle} list="md-all-texts" placeholder="(qualquer sub-status desta base)"
-                      value={r.movidesk_status_text ?? ''} onChange={e => setIn(i, { movidesk_status_text: e.target.value })} />
+                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(qualquer sub-status desta base)', v => setIn(i, { movidesk_status_text: v }))}
                   </td>
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{statusSelect(r.helpdesk_status_id || '', v => setIn(i, { helpdesk_status_id: v }))}</td>
@@ -1344,8 +1357,7 @@ function MovideskStatusMap() {
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setOut(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    <input className={`${fieldCls} w-full`} style={inputStyle} list="md-all-texts" placeholder="(sub-status no Movidesk)"
-                      value={r.movidesk_status_text ?? ''} onChange={e => setOut(i, { movidesk_status_text: e.target.value })} />
+                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => setOut(i, { movidesk_status_text: v }))}
                   </td>
                 </tr>
               ))}
