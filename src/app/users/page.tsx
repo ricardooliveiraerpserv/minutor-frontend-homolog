@@ -150,7 +150,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 export default function UsersPage() {
   const { user: authUser } = useAuth()
   const { isDenied } = useDeniedActions()
-  const { modules } = useNavConfig()
+  const { modules, loading: navLoading } = useNavConfig()
   const router = useRouter()
 
   // Liberação EXPLÍCITA da tela pelo Configurador de Menus: o admin adicionou este usuário no
@@ -167,11 +167,13 @@ export default function UsersPage() {
 
   // Consultor não acessa esta rotina, nem com extra_permissions — redireciona.
   // EXCETO quando liberado explicitamente pelo Configurador de Menus (grantedByMenu).
+  // Só decide DEPOIS do nav-config carregar — senão, no 1º render (modules ainda vazio),
+  // grantedByMenu vem false e o consultor liberado é redirecionado antes do menu resolver.
   useEffect(() => {
-    if (authUser?.type === 'consultor' && !grantedByMenu) {
+    if (authUser?.type === 'consultor' && !navLoading && !grantedByMenu) {
       router.replace('/meu-painel')
     }
-  }, [authUser?.type, grantedByMenu, router])
+  }, [authUser?.type, navLoading, grantedByMenu, router])
 
   const isAdmin      = authUser?.type === 'admin'
   const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
