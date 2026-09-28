@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
+import { useNavConfig, type NavTreeNode } from '@/contexts/nav-config-context'
 import { useRouter } from 'next/navigation'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { UserFormModal } from '@/components/users/user-form-modal'
@@ -149,14 +150,28 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 export default function UsersPage() {
   const { user: authUser } = useAuth()
   const { isDenied } = useDeniedActions()
+  const { modules } = useNavConfig()
   const router = useRouter()
 
+  // Liberação EXPLÍCITA da tela pelo Configurador de Menus: o admin adicionou este usuário no
+  // override users[] do nó /users (menu). É a fonte da verdade do acesso — permite abrir a lista
+  // mesmo sendo consultor. O BE remove os dados de folha do payload nesse caso.
+  const grantedByMenu = useMemo(() => {
+    const uid = authUser?.id
+    if (!uid) return false
+    const walk = (nodes?: NavTreeNode[]): boolean => (nodes ?? []).some(n =>
+      (n.screen === '/users' && !(n.deny_users ?? []).includes(uid) && (n.users ?? []).includes(uid))
+      || walk(n.children))
+    return modules.some(m => walk(m.items))
+  }, [modules, authUser?.id])
+
   // Consultor não acessa esta rotina, nem com extra_permissions — redireciona.
+  // EXCETO quando liberado explicitamente pelo Configurador de Menus (grantedByMenu).
   useEffect(() => {
-    if (authUser?.type === 'consultor') {
+    if (authUser?.type === 'consultor' && !grantedByMenu) {
       router.replace('/meu-painel')
     }
-  }, [authUser?.type, router])
+  }, [authUser?.type, grantedByMenu, router])
 
   const isAdmin      = authUser?.type === 'admin'
   const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
@@ -172,8 +187,9 @@ export default function UsersPage() {
   // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
   // negado pelo Configurador na ação própria de reenviar.
   const canResendWelcome = canResetPwd && !isDenied('/users', 'resend_welcome')
-  // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
-  const canView       = has('users.view_all') || canResetPwd
+  // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only)
+  // OU quem foi liberado explicitamente pelo Configurador (grantedByMenu; sem dados de folha — o BE oculta).
+  const canView       = has('users.view_all') || canResetPwd || grantedByMenu
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
