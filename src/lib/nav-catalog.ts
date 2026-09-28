@@ -104,6 +104,8 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
   { key: '/help-desk/portal',    label: 'Help Desk', group: 'Help Desk' },
   { key: '/help-desk/codigo-fonte', label: 'Solicitar Código-Fonte', group: 'Help Desk' },
+  { key: '/help-desk/configuracoes?tab=movidesk',         label: 'Movidesk (status)',  group: 'Help Desk' },
+  { key: '/help-desk/configuracoes?tab=movidesk-cliente', label: 'Movidesk (cliente)', group: 'Help Desk' },
 
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
   { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
