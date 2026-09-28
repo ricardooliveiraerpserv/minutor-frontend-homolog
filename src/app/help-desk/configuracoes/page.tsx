@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil, Copy, AlertTriangle, Check, X } from 'lucide-react'
+import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil, Copy, AlertTriangle, Check, X, RefreshCw } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { AccessProfiles } from '@/components/help-desk/access-profiles'
 import { Departments } from '@/components/help-desk/departments'
@@ -1218,6 +1218,7 @@ function MovideskStatusMap() {
   const [outbound, setOutbound] = useState<MdOutRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const hydrate = useCallback((d: MdMapData | null) => {
     setData(d ?? null)
@@ -1236,6 +1237,15 @@ function MovideskStatusMap() {
   }, [hydrate])
   useEffect(() => { load() }, [load])
 
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      const r = await api.post<{ data: MdMapData }>('/help-desk/movidesk-status-map/refresh', {})
+      hydrate(r?.data ?? null)
+      toast.success('Catálogo de status atualizado do Movidesk')
+    } catch { toast.error('Falha ao atualizar do Movidesk') } finally { setRefreshing(false) }
+  }
+
   const save = async () => {
     setSaving(true)
     try {
@@ -1252,10 +1262,11 @@ function MovideskStatusMap() {
   if (loading) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
   if (!data) return <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum dado.</p>
 
-  // Sub-status EXATOS configurados no Movidesk (do cadastro de tickets), filtrados pela base.
-  const textsFor = (base: string) => Array.from(new Set(
-    data.movidesk_texts.filter(t => !base || t.base === base).map(t => t.text).filter(Boolean)
-  ))
+  // TODOS os sub-status EXATOS do catálogo do Movidesk (não filtra por base — a base de vários
+  // é desconhecida no cache, então filtrar esconderia opções configuradas).
+  const allSubStatuses = Array.from(new Set(data.movidesk_texts.map(t => t.text).filter(Boolean)))
+  // Base conhecida para um sub-status (quando o Movidesk já trouxe em algum ticket) → auto-preenche.
+  const baseForText = (text: string): string => data.movidesk_texts.find(t => t.text === text)?.base || ''
 
   const setIn = (i: number, patch: Partial<MdInRow>) => setInbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
   const setOut = (i: number, patch: Partial<MdOutRow>) => setOutbound(rows => rows.map((r, idx) => idx === i ? { ...r, ...patch } : r))
@@ -1272,10 +1283,10 @@ function MovideskStatusMap() {
       {data.base_statuses.map(b => <option key={b} value={b}>{mdBaseLabel(b)}</option>)}
     </select>
   )
-  // Seletor de sub-status: SÓ os valores exatos configurados no Movidesk (nada de texto livre).
+  // Seletor de sub-status: TODOS os valores exatos configurados no Movidesk (nada de texto livre).
   // `emptyLabel` é a 1ª opção (vazio = pega-tudo na entrada / sem sub-status na saída).
-  const subSelect = (base: string, value: string, emptyLabel: string, onChange: (v: string) => void) => {
-    const opts = textsFor(base)
+  const subSelect = (value: string, emptyLabel: string, onChange: (v: string) => void) => {
+    const opts = allSubStatuses
     const cur = value ?? ''
     return (
       <select className={`${fieldCls} w-full`} style={inputStyle} value={cur} onChange={e => onChange(e.target.value)}>
@@ -1288,12 +1299,17 @@ function MovideskStatusMap() {
 
   return (
     <div className="space-y-6">
-      <div className="ds-card p-4" style={{ borderLeft: '3px solid var(--primary)' }}>
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+      <div className="ds-card p-4 flex items-start gap-3" style={{ borderLeft: '3px solid var(--primary)' }}>
+        <p className="text-sm flex-1" style={{ color: 'var(--text-muted)' }}>
           Vínculo de status entre o <b>Movidesk</b> (Promax) e o <b>Help Desk</b> do Minutor.
           A <b>Entrada</b> define, ao importar um chamado, qual status do HD corresponde a cada status do Movidesk.
           A <b>Saída</b> define para qual status do Movidesk cada status do HD seria enviado — usada quando ligarmos a sincronização de volta.
+          Os sub-status disponíveis vêm do <b>catálogo real do Movidesk</b>.
         </p>
+        <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg shrink-0" onClick={refresh} disabled={refreshing}
+          title="Rebuscar a lista de status direto do Movidesk">
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> {refreshing ? 'Atualizando…' : 'Atualizar do Movidesk'}
+        </button>
       </div>
 
       {/* ENTRADA */}
@@ -1322,7 +1338,7 @@ function MovideskStatusMap() {
                 <tr key={i} className="border-t" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setIn(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(qualquer sub-status desta base)', v => setIn(i, { movidesk_status_text: v }))}
+                    {subSelect(r.movidesk_status_text ?? '', '(qualquer sub-status desta base)', v => { const b = baseForText(v); setIn(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
                   </td>
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{statusSelect(r.helpdesk_status_id || '', v => setIn(i, { helpdesk_status_id: v }))}</td>
@@ -1357,7 +1373,7 @@ function MovideskStatusMap() {
                   <td className="px-1 text-center" style={{ color: 'var(--text-light)' }}>→</td>
                   <td className="px-3 py-1.5">{baseSelect(r.movidesk_base_status, v => setOut(i, { movidesk_base_status: v }))}</td>
                   <td className="px-3 py-1.5">
-                    {subSelect(r.movidesk_base_status, r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => setOut(i, { movidesk_status_text: v }))}
+                    {subSelect(r.movidesk_status_text ?? '', '(sub-status no Movidesk)', v => { const b = baseForText(v); setOut(i, b ? { movidesk_status_text: v, movidesk_base_status: b } : { movidesk_status_text: v }) })}
                   </td>
                 </tr>
               ))}
