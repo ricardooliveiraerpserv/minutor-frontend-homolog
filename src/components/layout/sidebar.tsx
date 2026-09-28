@@ -450,10 +450,9 @@ const NAV: NavEntry[] = [
     type: 'group', module: 'help_desk', label: 'Help Desk', icon: Headphones,
     items: [
       { label: 'Central de Operações', href: '/help-desk/operacoes', icon: Radar },
-      { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
       { label: 'Entregas vencidas', href: '/help-desk/entregas-vencidas', icon: AlertTriangle },
       { label: 'Solicitar Código-Fonte', href: '/help-desk/codigo-fonte', icon: FileCode },
-      { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
+      { label: 'Chamados', href: '/help-desk/fila', icon: LayoutGrid },
       { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
     ],
   },

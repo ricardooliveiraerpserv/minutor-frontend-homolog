@@ -62,10 +62,10 @@ export function TicketTabs({ activeId }: { activeId?: number }) {
 
   return (
     <div className="flex items-stretch gap-1 overflow-x-auto pb-1 mb-2">
-      <button onClick={() => router.push('/help-desk/fila')} title="Voltar para a fila"
+      <button onClick={() => router.push('/help-desk/fila')} title="Voltar para os chamados"
         className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-t-lg shrink-0 ds-row-hover"
         style={{ border: '1px solid var(--border)', borderBottom: 'none', background: 'var(--surface)', color: 'var(--text-muted)' }}>
-        <List size={13} /> Fila
+        <List size={13} /> Chamados
       </button>
       {tabs.map(t => {
         const active = t.id === activeId

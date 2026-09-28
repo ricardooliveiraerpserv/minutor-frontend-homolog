@@ -464,7 +464,7 @@ export default function HelpDeskFilaPage() {
   }
 
   return (
-    <AppLayout title="Fila (Kanban)">
+    <AppLayout title="Chamados">
       <div className="space-y-2">
         <TicketTabs />
         {/* Abas (segmented, evidente): Fila do agente × Chamados que EU abri (não sou responsável).
