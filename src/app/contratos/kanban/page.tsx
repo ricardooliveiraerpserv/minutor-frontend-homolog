@@ -396,7 +396,11 @@ function contractColumnId(card: ContractCard): string | null {
 }
 
 function isActiveProject(p: ProjectCard): boolean {
-  return ['awaiting_start', 'started', 'liberado_para_testes'].includes(p.status)
+  // Ativo = qualquer status NÃO-terminal, alinhado ao BE /contracts/kanban
+  // (whereNotIn status finished/cancelled/paused). Sem isso, projetos em
+  // 'planning'/'em_producao' vinham do BE mas o board os escondia (não caíam
+  // em nenhuma coluna de coordenador). Terminais têm suas próprias colunas.
+  return !['finished', 'paused', 'cancelled'].includes(p.status)
 }
 
 function statusBadge(card: ContractCard) {
