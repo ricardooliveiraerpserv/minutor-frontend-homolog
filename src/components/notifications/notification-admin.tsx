@@ -196,11 +196,17 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   useEffect(() => { load() }, [load])
 
   const del = async (n: Notif) => { if (!confirm(`Excluir "${n.title}"?`)) return; try { await api.delete(`/notifications/${n.id}`); load(); onChanged?.() } catch { toast.error('Erro') } }
-  const resend = async (n: Notif, channel: 'email' | 'popup') => {
+  const resend = async (n: Notif, channel: 'email' | 'popup' | 'email_only') => {
     setResendMenu(null)
-    const desc = channel === 'popup' ? 'Reabre o pop-up para todos, SEM reenviar e-mail.' : 'Reabre para todos E dispara o e-mail novamente.'
+    const desc = channel === 'popup' ? 'Reabre o pop-up para todos, SEM reenviar e-mail.'
+      : channel === 'email_only' ? 'Reenvia SÓ o e-mail — NÃO reabre o pop-up.'
+      : 'Reabre para todos E dispara o e-mail novamente.'
     if (!confirm(`Reenviar "${n.title}" agora?\n\n${desc}`)) return
-    try { await api.post(`/notifications/${n.id}/resend`, { channel }); toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : 'Reenviado (e-mail + pop-up)'); load(); onChanged?.() }
+    try {
+      await api.post(`/notifications/${n.id}/resend`, { channel })
+      toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : channel === 'email_only' ? 'E-mail reenviado (sem pop-up)' : 'Reenviado (e-mail + pop-up)')
+      load(); onChanged?.()
+    }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao reenviar') }
   }
   // Encerra a campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas). Não apaga.
@@ -268,6 +274,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
                   <div className="absolute right-0 top-full mt-1 z-[61] rounded-lg p-1 shadow-xl min-w-[190px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="text-[10px] px-2.5 pt-1 pb-0.5 uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Reenviar como</div>
                     <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'email')}><Mail size={13} style={{ color: 'var(--primary)' }} /> E-mail + pop-up</button>
+                    <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'email_only')}><Mail size={13} style={{ color: 'var(--primary)' }} /> Somente e-mail</button>
                     <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'popup')}><Bell size={13} style={{ color: 'var(--primary)' }} /> Somente pop-up</button>
                   </div>
                 </>
