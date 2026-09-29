@@ -1320,11 +1320,15 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
   // Pós-processamento compartilhado entre o fluxo normal e o de troca Movidesk.
   const finishAfterSave = async () => {
     if (pendingAttach.length > 0) {
+      // Anexos desta seção são de PROPOSTA/CONTRATO — devem ficar no CONTRATO (entity CONTRACT,
+      // "do contrato"), NÃO como anexo de projeto (que apareceria na aba Documentos p/ o
+      // coordenador). Quando o projeto tem contrato vinculado, sobe pro endpoint do contrato.
+      const contractId = (project as { contract_id?: number | null }).contract_id
       for (const { file, type } of pendingAttach) {
         const fd = new FormData()
         fd.append('file', file)
         fd.append('type', type)
-        await uploadDirect(`/projects/${project.id}/attachments`, fd)
+        await uploadDirect(contractId ? `/contracts/${contractId}/attachments` : `/projects/${project.id}/attachments`, fd)
       }
       setPendingAttach([])
     }
