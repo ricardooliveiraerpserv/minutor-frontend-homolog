@@ -31,6 +31,8 @@ import {
 } from 'recharts'
 import { TimesheetConflictModal, type ConflictTimesheet } from '@/components/timesheet/TimesheetConflictModal'
 import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
+import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 
 // ─── Máscara de valores (privacidade) ──────────────────────────────────────────
 // Contexto que indica se os valores monetários da tela devem ficar ocultos.
@@ -1807,6 +1809,9 @@ export default function MeuPainelPage() {
   const [expPage,     setExpPage]    = useState(1)
   const [expHasNext,  setExpHasNext] = useState(false)
   const [expModal,    setExpModal]   = useState<{ open: boolean; item?: ExpenseItem }>({ open: false })
+  // Modais CANÔNICOS de criação (mesmos das demais telas): form completo + lista de projetos completa.
+  const [newTsOpen,  setNewTsOpen]  = useState(false)
+  const [newExpOpen, setNewExpOpen] = useState(false)
   const [expViewItem, setExpViewItem] = useState<ExpenseItem | null>(null)
   const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
   const [expSaving,   setExpSaving]  = useState(false)
@@ -2064,11 +2069,7 @@ export default function MeuPainelPage() {
 
   // ── Timesheet CRUD ─────────────────────────────────────────────────────────
 
-  const openCreateTs = () => {
-    setTsForm({ ...EMPTY_TS, date: todayISO() })
-    setTsModeTotal(false)
-    setTsModal({ open: true })
-  }
+  const openCreateTs = () => setNewTsOpen(true)   // usa o modal canônico (mesmo das demais telas)
 
   const openEditTs = (item: TimesheetItem) => {
     const proj = projects.find(p => p.id === item.project_id)
@@ -2169,12 +2170,7 @@ export default function MeuPainelPage() {
 
   // ── Expense CRUD ───────────────────────────────────────────────────────────
 
-  const openCreateExp = () => {
-    setExpForm({ ...EMPTY_EXP, expense_date: todayISO() })
-    setExpFile(null)
-    setExpItems([emptyExpenseItem()])
-    setExpModal({ open: true })
-  }
+  const openCreateExp = () => setNewExpOpen(true)   // usa o modal canônico (mesmo das demais telas)
 
   const openEditExp = (item: ExpenseItem) => {
     const proj = projects.find(p => p.id === item.project_id)
@@ -4638,6 +4634,10 @@ export default function MeuPainelPage() {
       )}
 
       {/* ── Modal de conflito ao salvar edição ────────────────────────── */}
+      {/* Modais CANÔNICOS de criação (mesmos das demais telas) — form completo + projetos completos */}
+      <TimesheetFormModal open={newTsOpen} onClose={() => setNewTsOpen(false)} onSaved={() => { setNewTsOpen(false); loadTimesheets() }} currentUser={user} />
+      <ExpenseQuickModal  open={newExpOpen} onClose={() => setNewExpOpen(false)} onSaved={() => { setNewExpOpen(false); loadExpenses() }} currentUser={user} />
+
       {tsEditConflict && (
         <ModalOverlay onClose={() => setTsEditConflict(null)}>
           <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
