@@ -89,8 +89,10 @@ export function NotificationPopups({ userId }: { userId: number }) {
             // Não re-perguntar a cada navegação/refresh; e se já respondeu, nunca mais reabre.
             return !n.my_response && !popped.current.has(keyOf(n))
           }
-          // Leitura obrigatória pura: insiste até o aceite. Demais: só enquanto não exibida.
-          return n.pending_ack || !popped.current.has(keyOf(n))
+          // Leitura obrigatória: insiste ATÉ o aceite; quem já aceitou (pending_ack=false) NÃO
+          // reabre no reenvio/recorrência. Avisos SEM aceite (informativos): reaparecem a cada
+          // reenvio (resent_at muda a chave) como reforço.
+          return n.pending_ack || (!n.requires_ack && !popped.current.has(keyOf(n)))
         })
         .sort((a, b) => (RANK[b.priority] ?? 0) - (RANK[a.priority] ?? 0))
       setQueue(prev => {
