@@ -1405,10 +1405,11 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
               {/* Contatos do cliente */}
               <CustomerContactsSection customerId={d.customer_id} customerName={d.customer?.name} />
 
-              {/* Anexos */}
+              {/* Anexos — SOMENTE LEITURA após criação. Novos documentos do projeto entram
+                  pela aba Documentos; proposta/contrato são geridos na Gestão de Contratos. */}
               <div>
                 <label style={lStyle}>Anexos (aprovação do cliente / proposta, contrato, logo)</label>
-                {(projAttachments.length > 0 || pendingAttach.length > 0) ? (
+                {projAttachments.length > 0 ? (
                   <div className="space-y-1.5 mb-2">
                     {projAttachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
@@ -1421,33 +1422,16 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
-                          {att.source !== 'contract' && (
-                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>
-                          )}
                         </div>
-                      </div>
-                    ))}
-                    {pendingAttach.map((pf, i) => (
-                      <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-                        <div className="min-w-0">
-                          <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{pf.file.name}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{pf.type} · aguardando salvar</p>
-                        </div>
-                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}><X size={12} /></button>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-[11px] italic mb-2" style={{ color: 'var(--text-light)' }}>Nenhum anexo</p>
                 )}
-                <input ref={attachFileRef} type="file" className="hidden"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
-                <button type="button" onClick={() => attachFileRef.current?.click()}
-                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
-                  Clique para adicionar anexo
-                </button>
+                <p className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>
+                  Novos documentos do projeto: use a aba <b>Documentos</b>. Proposta/contrato: gerencie na <b>Gestão de Contratos</b>.
+                </p>
               </div>
 
               <SecTitle>Financeiro</SecTitle>
