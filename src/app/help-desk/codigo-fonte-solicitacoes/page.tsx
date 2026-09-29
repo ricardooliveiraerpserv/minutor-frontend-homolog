@@ -1,0 +1,675 @@
+'use client'
+
+// Help Desk → "Solicitações de Código-Fonte" — relação de TODAS as solicitações de
+// fonte feitas + commits de GMUD (consulta e rastreabilidade). Adaptada do Central de
+// Fontes do homolog: no dev2 NÃO há o contexto de empresa do Prosight, então a tela
+// carrega todas as empresas (admin) e as ações (atender/rejeitar/reabrir) ficam sempre
+// liberadas. Extras: baixar o FONTE ANEXO (.zip do commit) e ABRIR O CHAMADO num
+// painel lateral (drawer), sem sair da tela — nas duas abas.
+
+import { useCallback, useEffect, useState } from 'react'
+import { AlertTriangle, BookOpen, ExternalLink, FileCode2, FilePlus2, GitCommitHorizontal, Info, Paperclip, ShieldCheck, Ticket, X } from 'lucide-react'
+import { AppLayout } from '@/components/layout/app-layout'
+import { Badge, Button, Card, EmptyState, PageHeader, SkeletonTable, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ds'
+import { api, ApiError } from '@/lib/api'
+import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
+import { toast } from 'sonner'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { SearchSelect } from '@/components/ui/search-select'
+
+interface Source {
+  filename: string
+  path: string | null
+  repository: string | null
+  status: string
+  attachment_id: number | null
+}
+
+interface Req {
+  id: number
+  customer_id: number | null
+  customer_name: string | null
+  repository: string | null
+  ticket: string | null
+  priority: 'baixa' | 'media' | 'alta' | string
+  scope_type: 'source' | 'folder' | 'repository' | string
+  paths: string[] | null
+  note: string | null
+  status: 'open' | 'provisioned' | 'rejected' | string
+  requester_name: string | null
+  hd_ticket_id: number | null
+  hd_subject: string | null
+  created_at: string | null
+  kind?: 'provisioning' | 'ticket'
+  raw_status?: string
+  sources?: Source[]
+}
+
+interface Gmud {
+  id: number; source_doc_id: number; ticket_number: string | null; gmud_id: number | null
+  source_commit_sha: string | null; responsavel: string | null; diff_summary: string | null
+  created_at: string | null; filename: string; repository: string; owner: string
+  customer_id: number | null; customer_name: string | null
+  hd_ticket_id: number | null; hd_subject: string | null
+}
+
+interface Pkg {
+  id: number
+  hd_ticket_id: number | null
+  ticket_number: string | null
+  hd_subject: string | null
+  customer_id: number | null
+  customer_name: string | null
+  classification: string | null
+  status: string | null
+  project_name: string | null
+  project_folder: string | null
+  size_bytes: number | null
+  received_at: string | null
+  created_at: string | null
+  files_count: number
+  source_files_count: number
+  matched_count: number
+  published_count: number
+  has_source: boolean
+}
+
+interface Finding {
+  id?: number; severity?: string; category?: string; rule?: string
+  title?: string; description?: string; recommendation?: string
+  file?: string | null; line?: number | null
+}
+
+const dt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—')
+const shortSha = (s: string | null) => (s ? s.slice(0, 8) : '—')
+const prioBadge = (p: string) => p === 'alta' ? <Badge variant="danger">Alta</Badge> : p === 'baixa' ? <Badge variant="default">Baixa</Badge> : <Badge variant="warning">Média</Badge>
+const scopeLabel = (r: Req) => r.scope_type === 'folder' ? `Pasta${r.paths?.[0] ? ` · ${r.paths[0]}` : ''}` : r.scope_type === 'source' ? `${r.paths?.length ?? 0} fonte${(r.paths?.length ?? 0) === 1 ? '' : 's'}` : 'Repositório'
+
+export default function SolicitacoesFontePage() {
+  const [view, setView] = useState<'solicitacoes' | 'gmud' | 'pkgsemfonte'>('solicitacoes')
+  const [rows, setRows] = useState<Req[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [sQ, setSQ] = useState('')
+  const [sClient, setSClient] = useState('')   // filtro por cliente (customer_id) na aba Solicitações
+  const [dateMode, setDateMode] = useState<'month' | 'period'>('month')
+  const [refMonth, setRefMonth] = useState<number | null>(null)
+  const [refYear, setRefYear] = useState<number | null>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [busy, setBusy] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState<number | null>(null)
+  const [gmud, setGmud] = useState<Gmud[] | null>(null)
+  const [gmudErr, setGmudErr] = useState<string | null>(null)
+  const [gText, setGText] = useState('')   // busca por texto (fonte, chamado, responsável…)
+  const [gClient, setGClient] = useState<string>('')   // filtro por cliente (customer_id)
+  const [gDateMode, setGDateMode] = useState<'month' | 'period'>('month')
+  const [gRefMonth, setGRefMonth] = useState<number | null>(null)
+  const [gRefYear, setGRefYear] = useState<number | null>(null)
+  const [gFrom, setGFrom] = useState('')
+  const [gTo, setGTo] = useState('')
+  const [pkg, setPkg] = useState<Pkg[] | null>(null)   // aba "GMUD sem fonte"
+  const [pkgErr, setPkgErr] = useState<string | null>(null)
+
+  // Drawer do chamado (abrir sem sair da tela)
+  const [drawerTicket, setDrawerTicket] = useState<number | null>(null)
+  const [tk, setTk] = useState<Record<string, any> | null>(null)
+  const [tkComments, setTkComments] = useState<Record<string, any>[]>([])
+  const [tkLoading, setTkLoading] = useState(false)
+
+  // Drawer do FONTE: publicação + críticas do CodeAnalysis
+  const [sourceDrawer, setSourceDrawer] = useState<number | null>(null)
+  const [srcMeta, setSrcMeta] = useState<{ filename?: string; owner?: string; repository?: string; sha?: string | null } | null>(null)
+  const [srcTab, setSrcTab] = useState<'publicacao' | 'criticas'>('publicacao')
+  const [pub, setPub] = useState<Record<string, any> | null>(null)
+  const [pubLoading, setPubLoading] = useState(false)
+  const [qa, setQa] = useState<{ state?: string; analysis?: Record<string, any> | null } | null>(null)
+  const [findings, setFindings] = useState<Finding[] | null>(null)
+  const [qaLoading, setQaLoading] = useState(false)
+
+  const load = useCallback(() => {
+    setRows(null); setError(null)
+    const p = new URLSearchParams({ status: 'all' })   // todas as solicitações, todas as empresas
+    api.get<{ data: Req[] }>(`/source-docs/source-requests?${p.toString()}`)
+      .then((r) => setRows(r.data))
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Falha ao carregar as solicitações.'))
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const inDate = (iso: string | null) => {
+    if (dateMode === 'month') {
+      if (refMonth == null || refYear == null) return true
+      if (!iso) return false
+      const d = new Date(iso)
+      return d.getMonth() + 1 === refMonth && d.getFullYear() === refYear
+    }
+    if (!dateFrom && !dateTo) return true
+    if (!iso) return false
+    const t = new Date(iso).getTime()
+    if (dateFrom && t < new Date(`${dateFrom}T00:00:00`).getTime()) return false
+    if (dateTo && t > new Date(`${dateTo}T23:59:59`).getTime()) return false
+    return true
+  }
+  const reqClients = Array.from(new Map((rows ?? []).filter((r) => r.customer_id != null).map((r) => [String(r.customer_id), r.customer_name ?? `#${r.customer_id}`])).entries())
+  const filtered = (rows ?? []).filter((r) => {
+    if (!inDate(r.created_at)) return false
+    if (sClient && String(r.customer_id) !== sClient) return false
+    const q = sQ.trim().toLowerCase()
+    if (!q) return true
+    return [r.customer_name, r.ticket, r.hd_subject, r.requester_name, r.repository].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
+
+  const loadGmud = useCallback(() => {
+    setGmud(null); setGmudErr(null)
+    api.get<{ data: Gmud[] }>(`/source-docs/gmud-commits`)
+      .then((r) => setGmud(r.data))
+      .catch((e) => setGmudErr(e instanceof ApiError ? e.message : 'Falha ao carregar os commits.'))
+  }, [])
+  useEffect(() => { if (view !== 'gmud') return; const t = setTimeout(loadGmud, 300); return () => clearTimeout(t) }, [view, loadGmud])
+
+  // Data (client-side, mesmo padrão das Solicitações): Mês/Ano ou Período.
+  const gInDate = (iso: string | null) => {
+    if (gDateMode === 'month') {
+      if (gRefMonth == null || gRefYear == null) return true
+      if (!iso) return false
+      const d = new Date(iso)
+      return d.getMonth() + 1 === gRefMonth && d.getFullYear() === gRefYear
+    }
+    if (!gFrom && !gTo) return true
+    if (!iso) return false
+    const t = new Date(iso).getTime()
+    if (gFrom && t < new Date(`${gFrom}T00:00:00`).getTime()) return false
+    if (gTo && t > new Date(`${gTo}T23:59:59`).getTime()) return false
+    return true
+  }
+  // Filtro client-side dos commits: por CLIENTE, por TEXTO (fonte, chamado, responsável, resumo, empresa) e por DATA.
+  const gmudClients = Array.from(new Map((gmud ?? []).filter((g) => g.customer_id != null).map((g) => [String(g.customer_id), g.customer_name ?? `#${g.customer_id}`])).entries())
+  const gmudFiltered = (gmud ?? []).filter((g) => {
+    if (!gInDate(g.created_at)) return false
+    if (gClient && String(g.customer_id) !== gClient) return false
+    const q = gText.trim().toLowerCase()
+    if (!q) return true
+    return [g.filename, g.repository, g.owner, g.ticket_number, g.responsavel, g.diff_summary, g.customer_name, g.gmud_id].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
+
+  // Aba "GMUD sem fonte" — pacotes GMUD que ainda não publicaram fonte no catálogo (has_source=false).
+  const loadPkg = useCallback(() => {
+    setPkg(null); setPkgErr(null)
+    api.get<{ data: Pkg[] }>(`/source-docs/gmud-packages`)
+      .then((r) => setPkg(r.data))
+      .catch((e) => setPkgErr(e instanceof ApiError ? e.message : 'Falha ao carregar os pacotes de GMUD.'))
+  }, [])
+  useEffect(() => { if (view !== 'pkgsemfonte') return; const t = setTimeout(loadPkg, 200); return () => clearTimeout(t) }, [view, loadPkg])
+  const pkgClients = Array.from(new Map((pkg ?? []).filter((p) => p.customer_id != null).map((p) => [String(p.customer_id), p.customer_name ?? `#${p.customer_id}`])).entries())
+  const pkgFiltered = (pkg ?? []).filter((p) => {
+    if (p.has_source) return false   // só "sem fonte"
+    if (!gInDate(p.received_at ?? p.created_at)) return false
+    if (gClient && String(p.customer_id) !== gClient) return false
+    const q = gText.trim().toLowerCase()
+    if (!q) return true
+    return [p.ticket_number, p.customer_name, p.project_name, p.project_folder, p.classification, p.status].some((x) => (x ?? '').toString().toLowerCase().includes(q))
+  })
+
+  const on = 'bg-[var(--primary,#157582)] text-white'
+  const off = 'text-[color:var(--text-muted)] hover:text-[color:var(--text)]'
+
+  const setReqStatus = async (id: number, s: string) => {
+    setBusy(id)
+    try { await api.patch(`/source-docs/source-requests/${id}`, { status: s }); toast.success('Solicitação atualizada.'); load() }
+    catch (e) { toast.error(e instanceof ApiError ? e.message : 'Falha ao atualizar.') }
+    finally { setBusy(null) }
+  }
+
+  // Abrir chamado no drawer (sem sair da tela).
+  const openTicket = useCallback((id: number | null) => {
+    if (!id) return
+    setDrawerTicket(id); setTk(null); setTkComments([]); setTkLoading(true)
+    // Chamado completo = dados + TODAS as interações (limit=0).
+    Promise.all([
+      api.get<{ data: Record<string, any> }>(`/help-desk/tickets/${id}`),
+      api.get<{ data: Record<string, any>[] }>(`/help-desk/tickets/${id}/comments?limit=0`),
+    ])
+      .then(([t, c]) => {
+        setTk(t.data)
+        const list = Array.isArray(c?.data) ? [...c.data] : []
+        list.sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime())
+        setTkComments(list)
+      })
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Falha ao carregar o chamado.'))
+      .finally(() => setTkLoading(false))
+  }, [])
+
+  // Abrir o FONTE (publicação + críticas do CodeAnalysis) no drawer, sem sair da tela.
+  const openSource = useCallback((g: Gmud) => {
+    const id = g.source_doc_id
+    if (!id) { toast.error('Fonte sem publicação vinculada.'); return }
+    setSourceDrawer(id)
+    setSrcMeta({ filename: g.filename, owner: g.owner, repository: g.repository, sha: g.source_commit_sha })
+    setSrcTab('publicacao')
+    setPub(null); setPubLoading(true); setQa(null); setFindings(null); setQaLoading(true)
+    api.get<{ data: Record<string, any> }>(`/source-docs/${id}`).then((r) => setPub(r.data)).catch(() => setPub(null)).finally(() => setPubLoading(false))
+    ;(async () => {
+      try {
+        const q = await api.get<{ data: any }>(`/source-docs/${id}/quality`)
+        const state = q?.data?.state
+        let a = q?.data?.analysis ?? null
+        // Se a análise mais recente não está concluída (ex.: nova enfileirada), busca a última COMPLETA no histórico.
+        if (!a || a.status !== 'completed') {
+          try {
+            const h = await api.get<{ data: any }>(`/source-docs/${id}/quality/history`)
+            const items = Array.isArray(h?.data) ? h.data : (h?.data?.items ?? [])
+            const done = items.find((x: any) => x?.status === 'completed')
+            if (done) a = done
+          } catch { /* history opcional */ }
+        }
+        setQa({ state, analysis: a })
+        if (a?.id && a.status === 'completed') {
+          const fr = await api.get<{ data: any }>(`/source-docs/${id}/quality/${a.id}/findings`)
+          setFindings(fr?.data?.findings ?? [])
+        } else { setFindings([]) }
+      } catch { setQa(null); setFindings([]) }
+      finally { setQaLoading(false) }
+    })()
+  }, [])
+
+  const sevBadge = (s?: string) => {
+    const k = (s ?? '').toLowerCase()
+    if (k.includes('crit') || k === 'high' || k === 'alta' || k === 'error') return <Badge variant="danger">{s}</Badge>
+    if (k.includes('warn') || k === 'media' || k === 'medium' || k === 'média') return <Badge variant="warning">{s}</Badge>
+    return <Badge variant="default">{s ?? '—'}</Badge>
+  }
+
+
+  const Field = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</span>
+      <span className="text-sm" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
+    </div>
+  )
+
+  return (
+    <AppLayout title="Solicitações de Código-Fonte">
+      <PageHeader icon={FilePlus2} title="Solicitações de Código-Fonte" subtitle="Consulta e rastreabilidade — todas as solicitações de fonte e commits de GMUD." />
+
+      <div className="mb-4 flex items-start gap-2 rounded-xl px-4 py-2.5 text-xs" style={{ background: 'var(--info-bg)', color: 'var(--info)', border: '1px solid var(--info)' }}>
+        <Info size={14} className="mt-px shrink-0" />
+        <span>
+          Visão de <b>consulta e rastreabilidade</b> das solicitações. Baixe o <b>fonte anexo</b> (.zip do commit) e abra o <b>chamado</b> no painel lateral, sem sair da tela.
+        </span>
+      </div>
+
+      <div className="mb-4 inline-flex overflow-hidden rounded-lg border border-[color:var(--border)] text-sm">
+        <button onClick={() => setView('solicitacoes')} className={`flex items-center gap-1.5 px-4 py-2 font-medium ${view === 'solicitacoes' ? on : off}`}><FilePlus2 size={14} /> Solicitações</button>
+        <button onClick={() => setView('gmud')} className={`flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium ${view === 'gmud' ? on : off}`}><GitCommitHorizontal size={14} /> Commits GMUD</button>
+        <button onClick={() => setView('pkgsemfonte')} className={`flex items-center gap-1.5 border-l border-[color:var(--border)] px-4 py-2 font-medium ${view === 'pkgsemfonte' ? on : off}`}><FileCode2 size={14} /> GMUD sem fonte</button>
+      </div>
+
+      {view === 'solicitacoes' ? (
+      <Card padding="none">
+        <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2 flex-wrap">
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Solicitações</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input value={sQ} onChange={(e) => setSQ(e.target.value)} placeholder="Buscar (fonte, chamado, assunto, solicitante)…"
+              className="rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm text-[color:var(--text)] outline-none w-72 max-w-full" />
+            <SearchSelect value={sClient} onChange={setSClient} placeholder="Filtrar por cliente…"
+              options={[{ id: '', name: 'Todos os clientes' }, ...reqClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
+            <div className="inline-flex items-center gap-1.5">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: dateMode === mode ? 'var(--primary)' : 'transparent', color: dateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {dateMode === 'month'
+                ? <MonthYearPicker month={refMonth} year={refYear} onChange={(m, y) => { if (!m) { setRefMonth(null); setRefYear(null) } else { setRefMonth(m); setRefYear(y) } }} />
+                : <DateRangePicker from={dateFrom} to={dateTo} onChange={(fr, to) => { setDateFrom(fr); setDateTo(to) }} />}
+            </div>
+          </div>
+        </div>
+
+        {error ? <EmptyState icon={FilePlus2} title="Erro" description={error} />
+          : rows === null ? <SkeletonTable rows={6} cols={8} />
+            : filtered.length === 0 ? <EmptyState icon={FilePlus2} title="Nenhuma solicitação" description={(sQ || sClient) ? 'Nada encontrado com esses filtros.' : 'Não há solicitações.'} />
+              : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <Thead><Tr><Th>Cliente</Th><Th>Fonte</Th><Th>Chamado</Th><Th>Prioridade</Th><Th>Solicitante</Th><Th>Data</Th><Th></Th></Tr></Thead>
+                    <Tbody>
+                      {filtered.map((r) => (
+                        <Tr key={r.id} onClick={() => setExpanded(expanded === r.id ? null : r.id)} className="cursor-pointer">
+                          <Td><div className="font-medium">{r.customer_name ?? (r.customer_id ? `#${r.customer_id}` : '—')}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{r.repository ?? '—'}</div></Td>
+                          <Td>
+                            {r.sources && r.sources.length > 0
+                              ? <div className="text-sm">{r.sources.slice(0, 3).map((s) => s.filename).join(', ')}{r.sources.length > 3 ? ` +${r.sources.length - 3}` : ''}</div>
+                              : <span className="text-sm" style={{ color: 'var(--text-light)' }}>{scopeLabel(r)}</span>}
+                            {expanded === r.id && r.paths && r.paths.length > 0 && <div className="mt-1 max-w-md text-xs" style={{ color: 'var(--text-light)' }}>{r.paths.slice(0, 20).join(', ')}{r.paths.length > 20 ? '…' : ''}</div>}
+                            {expanded === r.id && r.note && <div className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>Obs.: {r.note}</div>}
+                          </Td>
+                          <Td>{r.ticket ? <Badge variant={r.hd_ticket_id ? 'success' : 'default'}>#{r.ticket}</Badge> : '—'}</Td>
+                          <Td>{prioBadge(r.priority)}</Td>
+                          <Td className="text-sm">{r.requester_name ?? '—'}</Td>
+                          <Td className="text-xs">{dt(r.created_at)}</Td>
+                          <Td>
+                            <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-end gap-1">
+                              {r.hd_ticket_id && (
+                                <Button size="sm" variant="secondary" onClick={() => openTicket(r.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button>
+                              )}
+                              {r.kind === 'ticket' ? (
+                                <span className="text-xs" style={{ color: 'var(--text-light)' }} title="Pedido aberto pelo chamado — atendido no próprio chamado">via chamado</span>
+                              ) : (
+                                <>
+                                  {r.status !== 'provisioned' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'provisioned')}>Atender</Button>}
+                                  {r.status === 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'rejected')}>Rejeitar</Button>}
+                                  {r.status !== 'open' && <Button size="sm" variant="secondary" disabled={busy === r.id} onClick={() => setReqStatus(r.id, 'open')}>Reabrir</Button>}
+                                </>
+                              )}
+                            </div>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </div>
+              )}
+      </Card>
+      ) : view === 'gmud' ? (
+      <Card padding="none">
+        <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
+          <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
+            <input value={gText} onChange={(e) => setGText(e.target.value)} placeholder="fonte, nº do chamado, responsável, resumo…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          </label>
+          <div className="flex min-w-[200px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <div className="mt-1 normal-case">
+              <SearchSelect value={gClient} onChange={setGClient} placeholder="Filtrar por cliente…"
+                options={[{ id: '', name: 'Todos os clientes' }, ...gmudClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
+            </div>
+          </div>
+          <div className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Data
+            <div className="mt-1 inline-flex items-center gap-1.5 normal-case">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setGDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: gDateMode === mode ? 'var(--primary)' : 'transparent', color: gDateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {gDateMode === 'month'
+                ? <MonthYearPicker month={gRefMonth} year={gRefYear} onChange={(m, y) => { if (!m) { setGRefMonth(null); setGRefYear(null) } else { setGRefMonth(m); setGRefYear(y) } }} />
+                : <DateRangePicker from={gFrom} to={gTo} onChange={(fr, to) => { setGFrom(fr); setGTo(to) }} />}
+            </div>
+          </div>
+        </div>
+        {gmudErr ? <EmptyState icon={GitCommitHorizontal} title="Erro" description={gmudErr} />
+          : gmud === null ? <SkeletonTable rows={6} cols={7} />
+            : gmudFiltered.length === 0 ? <EmptyState icon={GitCommitHorizontal} title="Nenhum commit" description={(gmud?.length ?? 0) === 0 ? 'Nenhuma versão de fonte criada via GMUD.' : 'Nada encontrado com esses filtros.'} />
+              : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <Thead><Tr><Th>Fonte</Th><Th>Cliente</Th><Th>Chamado</Th><Th>Commit</Th><Th>Responsável</Th><Th>Resumo</Th><Th>Data</Th><Th></Th></Tr></Thead>
+                    <Tbody>
+                      {gmudFiltered.map((g) => (
+                        <Tr key={g.id}>
+                          <Td><div className="font-medium">{g.filename}</div><div className="text-xs" style={{ color: 'var(--text-light)' }}>{g.owner}/{g.repository}</div></Td>
+                          <Td className="text-sm">{g.customer_name ?? (g.customer_id ? `#${g.customer_id}` : '—')}</Td>
+                          <Td>{g.hd_ticket_id ? <button onClick={() => openTicket(g.hd_ticket_id)} title={g.hd_subject ? `Abrir chamado: ${g.hd_subject}` : 'Abrir chamado'} className="group inline-flex flex-col gap-0.5 text-left"><span className="inline-flex items-center gap-1"><Badge variant="success">#{g.ticket_number}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60 group-hover:opacity-100" /></span>{g.hd_subject && <span className="max-w-[180px] truncate text-xs group-hover:underline" style={{ color: 'var(--text-light)' }}>{g.hd_subject}</span>}</button> : g.ticket_number ? <Badge variant="default">{g.ticket_number}</Badge> : g.gmud_id ? <Badge variant="default">GMUD #{g.gmud_id}</Badge> : '—'}</Td>
+                          <Td>{g.source_commit_sha ? <a href={`https://github.com/${g.owner}/${g.repository}/commit/${g.source_commit_sha}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 font-mono text-xs hover:underline" style={{ color: 'var(--primary)' }} title="Ver o fonte no commit (GitHub)">{shortSha(g.source_commit_sha)} <ExternalLink size={11} /></a> : '—'}</Td>
+                          <Td className="text-sm">{g.responsavel ?? '—'}</Td>
+                          <Td className="max-w-xs truncate text-xs" style={{ color: 'var(--text-muted)' }}>{g.diff_summary ?? '—'}</Td>
+                          <Td className="text-xs">{dt(g.created_at)}</Td>
+                          <Td>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button size="sm" variant="secondary" onClick={() => openSource(g)} title="Ver publicação do fonte e as críticas do CodeAnalysis"><FileCode2 size={13} /> Fonte</Button>
+                              {g.hd_ticket_id ? <Button size="sm" variant="secondary" onClick={() => openTicket(g.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button> : null}
+                            </div>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </div>
+              )}
+      </Card>
+      ) : (
+      <Card padding="none">
+        <div className="flex flex-wrap items-end gap-2 border-b border-[color:var(--border)] px-5 py-3">
+          <label className="flex min-w-[220px] flex-1 flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Buscar
+            <input value={gText} onChange={(e) => setGText(e.target.value)} placeholder="chamado, cliente, projeto, classificação…" className="mt-1 rounded-lg border border-[color:var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm normal-case text-[color:var(--text)] outline-none" />
+          </label>
+          <div className="flex min-w-[200px] flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Cliente
+            <div className="mt-1 normal-case">
+              <SearchSelect value={gClient} onChange={setGClient} placeholder="Filtrar por cliente…"
+                options={[{ id: '', name: 'Todos os clientes' }, ...pkgClients.sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ id, name }))]} />
+            </div>
+          </div>
+          <div className="flex flex-col text-[11px] uppercase tracking-wide text-[color:var(--text-light)]">Data
+            <div className="mt-1 inline-flex items-center gap-1.5 normal-case">
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                {(['month', 'period'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setGDateMode(mode)} className="px-2.5 py-1.5 font-medium transition-colors"
+                    style={{ background: gDateMode === mode ? 'var(--primary)' : 'transparent', color: gDateMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {gDateMode === 'month'
+                ? <MonthYearPicker month={gRefMonth} year={gRefYear} onChange={(m, y) => { if (!m) { setGRefMonth(null); setGRefYear(null) } else { setGRefMonth(m); setGRefYear(y) } }} />
+                : <DateRangePicker from={gFrom} to={gTo} onChange={(fr, to) => { setGFrom(fr); setGTo(to) }} />}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-start gap-2 px-5 pt-3 text-xs" style={{ color: 'var(--text-light)' }}>
+          <Info size={13} className="mt-px shrink-0" /> Pacotes de GMUD (ZIP recebido no chamado) que ainda <b className="mx-1" style={{ color: 'var(--text-muted)' }}>não publicaram fonte</b> no catálogo.
+        </div>
+        {pkgErr ? <EmptyState icon={FileCode2} title="Erro" description={pkgErr} />
+          : pkg === null ? <SkeletonTable rows={6} cols={8} />
+            : pkgFiltered.length === 0 ? <EmptyState icon={FileCode2} title="Nenhum pacote sem fonte" description={(pkg?.length ?? 0) === 0 ? 'Não há pacotes de GMUD.' : 'Nenhum pacote sem fonte com esses filtros.'} />
+              : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <Thead><Tr><Th>Chamado</Th><Th>Cliente</Th><Th>Classificação</Th><Th>Status</Th><Th>Projeto / Pasta</Th><Th>Arquivos</Th><Th>Recebido em</Th><Th></Th></Tr></Thead>
+                    <Tbody>
+                      {pkgFiltered.map((p) => (
+                        <Tr key={p.id}>
+                          <Td>{p.hd_ticket_id ? <button onClick={() => openTicket(p.hd_ticket_id)} title="Abrir chamado" className="inline-flex items-center gap-1"><Badge variant="success">#{p.ticket_number ?? p.hd_ticket_id}</Badge><Ticket size={12} style={{ color: 'var(--primary)' }} className="opacity-60" /></button> : p.ticket_number ? <Badge variant="default">#{p.ticket_number}</Badge> : '—'}</Td>
+                          <Td className="text-sm">{p.customer_name ?? (p.customer_id ? `#${p.customer_id}` : '—')}</Td>
+                          <Td className="text-sm">{p.classification || '—'}</Td>
+                          <Td><Badge variant="warning">{p.status ?? '—'}</Badge></Td>
+                          <Td className="text-sm">{[p.project_name, p.project_folder].filter(Boolean).join(' / ') || '—'}</Td>
+                          <Td className="text-xs">{p.files_count} arq.{p.source_files_count ? ` · ${p.source_files_count} fonte` : ''}</Td>
+                          <Td className="text-xs">{dt(p.received_at ?? p.created_at)}</Td>
+                          <Td>{p.hd_ticket_id ? <Button size="sm" variant="secondary" onClick={() => openTicket(p.hd_ticket_id)} title="Abrir o chamado sem sair da tela"><Ticket size={13} /> Chamado</Button> : null}</Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </div>
+              )}
+      </Card>
+      )}
+
+      {/* Drawer do chamado — abre sem sair da tela */}
+      {drawerTicket != null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setDrawerTicket(null)}>
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <Ticket size={16} style={{ color: 'var(--primary)' }} />
+                <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  {tk ? `#${tk.ticket_number ?? tk.id} · ${tk.subject ?? ''}` : 'Chamado'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <a href={`/help-desk/tickets/${drawerTicket}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--primary)' }} title="Abrir o chamado completo em nova aba">Completo <ExternalLink size={11} /></a>
+                <button onClick={() => setDrawerTicket(null)} className="rounded-md p-1.5 hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {tkLoading ? <SkeletonTable rows={6} cols={2} />
+                : !tk ? <EmptyState icon={Ticket} title="Chamado" description="Não foi possível carregar o chamado." />
+                  : (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {tk.status && <Badge variant="default">{typeof tk.status === 'object' ? (tk.status.label ?? tk.status.name) : tk.status}</Badge>}
+                        {tk.priority && prioBadge(String(tk.priority))}
+                        {tk.reopen_count ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>Reaberturas: {tk.reopen_count}</span> : null}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Empresa" value={tk.customer?.name ?? '—'} />
+                        <Field label="Solicitante" value={tk.requester?.name ?? tk.solicitante_nome ?? tk.requester_name ?? '—'} />
+                        <Field label="Categoria" value={tk.category?.name ?? '—'} />
+                        <Field label="Serviço" value={tk.service?.name ?? '—'} />
+                        <Field label="Equipe" value={tk.team?.name ?? '—'} />
+                        <Field label="Responsável" value={tk.assignee?.name ?? 'Não atribuído'} />
+                        <Field label="Aberto em" value={dt(tk.created_at ?? null)} />
+                        <Field label="Nível" value={tk.level ?? '—'} />
+                      </div>
+                      {tk.description && (
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</span>
+                          <div className="mt-1 whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface-hover)' }}>{tk.description}</div>
+                        </div>
+                      )}
+
+                      {/* Interações (todas) — chamado completo */}
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Interações ({tkComments.length})</span>
+                        {tkComments.length === 0 ? (
+                          <p className="mt-1 text-sm" style={{ color: 'var(--text-light)' }}>Sem interações.</p>
+                        ) : (
+                          <div className="mt-2 space-y-3">
+                            {tkComments.map((c) => {
+                              const who = c.author?.name ?? c.contact?.name ?? (c.is_system ? 'Sistema' : '—')
+                              const vis = c.visibility === 'internal'
+                                ? <Badge variant="warning">Interna</Badge>
+                                : c.visibility === 'customer'
+                                  ? <Badge variant="success">Cliente</Badge>
+                                  : c.is_system ? <Badge variant="default">Sistema</Badge> : null
+                              const body = String(c.body ?? '')
+                              return (
+                                <div key={c.id} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)', background: c.is_system ? 'var(--surface-sunken)' : 'var(--surface)' }}>
+                                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--text-light)' }}>
+                                    <span className="font-semibold" style={{ color: 'var(--text)' }}>{who}</span>
+                                    {vis}
+                                    {c.channel && <span>· {c.channel}</span>}
+                                    <span>· {dt(c.created_at ?? null)}</span>
+                                  </div>
+                                  {isHtmlBody(body)
+                                    ? <div className="text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(body) }} />
+                                    : <div className="whitespace-pre-wrap text-sm" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>{body}</div>}
+                                  {Array.isArray(c.attachments) && c.attachments.length > 0 && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      {c.attachments.map((a: Record<string, any>) => (
+                                        <span key={a.id} className="inline-flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-light)' }}><Paperclip size={11} /> {a.original_name ?? a.file_name ?? 'anexo'}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Drawer do FONTE — publicação + críticas do CodeAnalysis, sem sair da tela */}
+      {sourceDrawer != null && (
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setSourceDrawer(null)}>
+          <div className="h-full w-full max-w-2xl overflow-y-auto shadow-2xl" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-4 py-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <FileCode2 size={16} style={{ color: 'var(--primary)' }} />
+                <span className="truncate text-sm font-semibold" style={{ color: 'var(--text)' }}>{srcMeta?.filename ?? 'Fonte'}</span>
+                {srcMeta?.owner && srcMeta?.repository && <span className="truncate text-xs" style={{ color: 'var(--text-light)' }}>{srcMeta.owner}/{srcMeta.repository}</span>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {srcMeta?.sha && srcMeta?.owner && srcMeta?.repository && (
+                  <a href={`https://github.com/${srcMeta.owner}/${srcMeta.repository}/commit/${srcMeta.sha}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--primary)' }} title="Ver o fonte no commit (GitHub)">Fonte no GitHub <ExternalLink size={11} /></a>
+                )}
+                <button onClick={() => setSourceDrawer(null)} className="rounded-md p-1.5 hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 border-b px-4 pt-3" style={{ borderColor: 'var(--border)' }}>
+              <button onClick={() => setSrcTab('publicacao')} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${srcTab === 'publicacao' ? 'border-b-2' : ''}`} style={{ color: srcTab === 'publicacao' ? 'var(--primary)' : 'var(--text-muted)', borderColor: srcTab === 'publicacao' ? 'var(--primary)' : 'transparent' }}><BookOpen size={14} /> Publicação</button>
+              <button onClick={() => setSrcTab('criticas')} className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium ${srcTab === 'criticas' ? 'border-b-2' : ''}`} style={{ color: srcTab === 'criticas' ? 'var(--primary)' : 'var(--text-muted)', borderColor: srcTab === 'criticas' ? 'var(--primary)' : 'transparent' }}><ShieldCheck size={14} /> Críticas (CodeAnalysis){findings && findings.length > 0 ? ` · ${findings.length}` : ''}</button>
+            </div>
+
+            <div className="p-4">
+              {srcTab === 'publicacao' ? (
+                pubLoading ? <SkeletonTable rows={5} cols={2} />
+                  : !pub ? <EmptyState icon={BookOpen} title="Publicação" description="Não foi possível carregar a publicação do fonte." />
+                    : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Arquivo" value={pub.filename} />
+                        <Field label="Tipo/Linguagem" value={[pub.tipo, pub.lang].filter(Boolean).join(' · ') || '—'} />
+                        <Field label="Repositório" value={pub.repository ? `${pub.owner ?? ''}/${pub.repository}` : '—'} />
+                        <Field label="Branch" value={pub.branch ?? '—'} />
+                        <Field label="Caminho" value={pub.path ?? '—'} />
+                        <Field label="Tamanho" value={pub.size_bytes != null ? `${pub.size_bytes} bytes` : '—'} />
+                        <Field label="Empresa" value={pub.customer?.name ?? '—'} />
+                        <Field label="Status análise" value={pub.analysis_status ?? '—'} />
+                      </div>
+                    )
+              ) : (
+                qaLoading ? <SkeletonTable rows={5} cols={2} />
+                  : !qa || qa.state === 'never_analyzed' || !qa.analysis ? (
+                    <EmptyState icon={ShieldCheck} title="Sem análise de qualidade" description="Este fonte ainda não passou pelo CodeAnalysis. A análise é disparada sob demanda na Central de Fontes." />
+                  ) : (
+                    <div className="space-y-4">
+                      {(() => {
+                        const cc = { crit: 0, warn: 0, rec: 0 }
+                        for (const f of (findings ?? [])) {
+                          const k = (f.severity ?? '').toLowerCase()
+                          if (k.includes('crit') || k === 'high' || k === 'alta' || k === 'error') cc.crit++
+                          else if (k.includes('warn') || k === 'medium' || k === 'media' || k === 'média') cc.warn++
+                          else cc.rec++
+                        }
+                        return (
+                          <div className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
+                            {qa.analysis?.grade != null && <div className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>{qa.analysis.grade}</div>}
+                            {qa.analysis?.score != null && <Field label="Score" value={String(qa.analysis.score)} />}
+                            {qa.analysis?.risk != null && <Field label="Risco" value={String(qa.analysis.risk)} />}
+                            <Field label="Críticos" value={<span style={{ color: 'var(--danger)' }}>{cc.crit}</span>} />
+                            <Field label="Alertas" value={<span style={{ color: 'var(--warning)' }}>{cc.warn}</span>} />
+                            <Field label="Recomendações" value={String(cc.rec)} />
+                          </div>
+                        )
+                      })()}
+                      {!findings || findings.length === 0 ? (
+                        <EmptyState icon={ShieldCheck} title="Sem apontamentos" description="A análise não retornou críticas para este fonte." />
+                      ) : (
+                        <div className="space-y-2">
+                          {findings.map((f, i) => (
+                            <div key={f.id ?? i} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {sevBadge(f.severity)}
+                                  <span className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{f.title ?? f.rule ?? 'Apontamento'}</span>
+                                </div>
+                                {(f.file || f.line != null) && <span className="shrink-0 font-mono text-xs" style={{ color: 'var(--text-light)' }}>{f.file ?? ''}{f.line != null ? `:${f.line}` : ''}</span>}
+                              </div>
+                              {f.category && <div className="mt-0.5 text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{f.category}</div>}
+                              {f.description && <div className="mt-1 whitespace-pre-wrap text-xs" style={{ color: 'var(--text-muted)' }}>{f.description}</div>}
+                              {f.recommendation && <div className="mt-1 flex items-start gap-1.5 text-xs" style={{ color: 'var(--text)' }}><AlertTriangle size={12} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} /><span>{f.recommendation}</span></div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  )
+}

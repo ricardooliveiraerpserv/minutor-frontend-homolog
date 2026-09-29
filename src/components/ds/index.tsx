@@ -590,3 +590,7 @@ export function Modal({
     </div>
   )
 }
+
+// Help Desk / Código-Fonte — árvore de acervo (adicionado no port HD)
+export { Tree } from './tree'
+export type { TreeNode } from './tree'

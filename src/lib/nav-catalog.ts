@@ -108,6 +108,16 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/competencias/contratacao',   label: 'Contratação / Onboarding',   group: 'Banco de Competências' },
   { key: '/competencias/profissionais', label: 'Profissionais',              group: 'Banco de Competências' },
   { key: '/competencias/responder',     label: 'Minhas Competências',        group: 'Banco de Competências' },
+
+  // Help Desk + Código-Fonte (módulo admin-only — gate pelo nav_module help_desk)
+  { key: '/help-desk/operacoes', label: 'Central de Operações',   group: 'Help Desk' },
+  { key: '/help-desk/tickets',   label: 'Chamados',               group: 'Help Desk' },
+  { key: '/help-desk/fila',      label: 'Fila (Kanban)',          group: 'Help Desk' },
+  { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
+  { key: '/help-desk/portal',    label: 'Help Desk', group: 'Help Desk' },
+  { key: '/help-desk/codigo-fonte', label: 'Solicitar Código-Fonte', group: 'Help Desk' },
+  { key: '/help-desk/configuracoes?tab=movidesk',         label: 'Movidesk (status)',  group: 'Help Desk' },
+  { key: '/help-desk/configuracoes?tab=movidesk-cliente', label: 'Movidesk (cliente)', group: 'Help Desk' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))
