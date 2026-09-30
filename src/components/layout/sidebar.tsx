@@ -895,7 +895,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           // Minimizado: logo do Minutor + inicial do módulo. Expandido: logo + "Minutor",
           // e o nome do módulo ABAIXO (alinhado sob "Minutor"), sem deslocar o nome Minutor.
           const brandIcon = (size: number) => isConecta
-            ? <Image src="/conecta-icon.png" alt="Conecta" width={size} height={size} className="object-contain" priority />
+            ? <Image src="/conecta-mark.png" alt="Conecta" width={size} height={size} className="object-contain" priority />
             : <MinutorIcon size={size} />
           if (collapsed) {
             return (
@@ -1166,7 +1166,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
           {/* CONECTA: SÓ o ícone (sem o nome), alta resolução */}
           <div className="conecta-footer-logo items-center justify-center">
-            <Image src="/conecta-icon.png" alt="Conecta ERP" width={40} height={40} className="object-contain shrink-0" />
+            <Image src="/conecta-mark.png" alt="Conecta ERP" width={40} height={40} className="object-contain shrink-0" />
           </div>
         </div>
       )}

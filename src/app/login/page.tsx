@@ -211,7 +211,7 @@ export default function LoginPage() {
               /* CONECTA — ícone roxo (fundo transparente) + wordmark em BRANCO, direto no splash */
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 4 }}>
                 <Image
-                  src="/conecta-icon.png"
+                  src="/conecta-mark.png"
                   alt="conecta"
                   width={46}
                   height={46}

@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
             </div>
             {/* CONECTA: ícone + wordmark branco (só no tenant, via CSS data-tenant) */}
             <div className="brand-conecta-row" style={{ alignItems: 'center', gap: 14, marginBottom: 24 }}>
-              <Image src="/conecta-icon.png" alt="Conecta" width={40} height={40} style={{ objectFit: 'contain' }} />
+              <Image src="/conecta-mark.png" alt="Conecta" width={40} height={40} style={{ objectFit: 'contain' }} />
               <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '0.10em', color: '#FFFFFF' }}>conecta</span>
             </div>
             <div data-brand-mark="minutor" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
