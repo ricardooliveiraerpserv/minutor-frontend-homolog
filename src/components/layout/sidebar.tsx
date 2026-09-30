@@ -905,12 +905,23 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               </div>
             )
           }
+          if (isConecta) {
+            return (
+              <>
+                {/* CONECTA: lockup OFICIAL completo (ícone + nome + slogan), por tema */}
+                <div className="flex items-center">
+                  <Image src="/conecta-lockup-light.png" alt="Conecta ERP" width={168} height={42} priority className="brand-lockup-light object-contain" style={{ height: 40, width: 'auto' }} />
+                  <Image src="/conecta-lockup-dark.png"  alt="Conecta ERP" width={168} height={42} priority className="brand-lockup-dark object-contain" style={{ height: 40, width: 'auto' }} />
+                </div>
+                {mod && <span className="text-[15px] font-semibold truncate mt-0.5" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
+              </>
+            )
+          }
           return (
             <>
               <div className="flex items-center gap-3">
                 {brandIcon(34)}
-                {/* CONECTA: só a logo, sem o nome. Minutor: logo + "Minutor". */}
-                {!isConecta && <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>}
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>

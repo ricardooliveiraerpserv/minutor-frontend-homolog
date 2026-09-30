@@ -1245,3 +1245,8 @@ html.dark[data-tenant="conecta"] {
 /* Bloco de marca CONECTA em linha (ícone + "conecta") — flex, só no tenant (SSR-safe, sem flash) */
 .brand-conecta-row { display: none; }
 [data-tenant="conecta"] .brand-conecta-row { display: flex; }
+
+/* Lockup CONECTA por tema (topo do sidebar): claro usa texto roxo, escuro usa texto branco */
+.brand-lockup-dark { display: none; }
+html.dark .brand-lockup-light { display: none; }
+html.dark .brand-lockup-dark { display: inline-block; }
