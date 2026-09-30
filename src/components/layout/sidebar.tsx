@@ -1164,15 +1164,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" data-brand-mark="minutor" />
           )}
           {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
-          <div className="conecta-footer-logo items-center gap-2">
-            <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={32} height={32} className="object-contain rounded-md shrink-0" />
-            <div className="flex flex-col leading-tight w-fit">
-              {/* "conecta" espalhado p/ ocupar a MESMA largura do slogan */}
-              <span className="font-bold text-[16px] flex justify-between" style={{ color: 'var(--text)' }} aria-label="conecta">
-                {'conecta'.split('').map((ch, i) => <span key={i}>{ch}</span>)}
-              </span>
-              <span className="text-[9px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
-            </div>
+          {/* CONECTA: SÓ o ícone (sem o nome), alta resolução */}
+          <div className="conecta-footer-logo items-center justify-center">
+            <Image src="/conecta-icon.png" alt="Conecta ERP" width={40} height={40} className="object-contain shrink-0" />
           </div>
         </div>
       )}
