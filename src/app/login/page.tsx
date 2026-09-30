@@ -26,11 +26,6 @@ function LoginForm() {
   const [showPassword, setShowPass] = useState(false)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
-  // Marca por tenant (subdomínio): conecta.minutor.com.br → logo do CONECTA.
-  // Detectado no cliente p/ evitar mismatch de hidratação (splash mostra ERPServ até montar).
-  const [tenant, setTenant]         = useState('')
-  useEffect(() => { setTenant(tenantSlugFromHost(window.location.host)) }, [])
-  const isConecta = tenant === 'conecta'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -176,6 +171,11 @@ const ENV_BANNER =
     : null
 
 export default function LoginPage() {
+  // Marca por tenant (subdomínio): conecta.minutor.com.br → logo do CONECTA.
+  // Detectado no cliente p/ evitar mismatch de hidratação (splash mostra ERPServ até montar).
+  const [tenant, setTenant] = useState('')
+  useEffect(() => { setTenant(tenantSlugFromHost(window.location.host)) }, [])
+  const isConecta = tenant === 'conecta'
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#07090F', position: 'relative', overflow: 'hidden' }}>
 
