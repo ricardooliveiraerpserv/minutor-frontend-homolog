@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { ApiError } from '@/lib/api'
+import { tenantSlugFromHost } from '@/lib/tenant'
 
 // Splash escuro fixo (tela de login não segue o tema light) — variant splash.
 import { MinutorIcon as SharedMinutorIcon } from '@/components/branding/MinutorIcon'
@@ -25,6 +26,11 @@ function LoginForm() {
   const [showPassword, setShowPass] = useState(false)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
+  // Marca por tenant (subdomínio): conecta.minutor.com.br → logo do CONECTA.
+  // Detectado no cliente p/ evitar mismatch de hidratação (splash mostra ERPServ até montar).
+  const [tenant, setTenant]         = useState('')
+  useEffect(() => { setTenant(tenantSlugFromHost(window.location.host)) }, [])
+  const isConecta = tenant === 'conecta'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -201,16 +207,29 @@ export default function LoginPage() {
           {/* ── Cabeçalho de marca ── */}
           <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* ERPServ — logo centralizado */}
+            {/* Marca da empresa — por tenant (subdomínio): CONECTA ou ERPServ (padrão) */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
-              <Image
-                src="/logo.png"
-                alt="ERPServ"
-                width={96}
-                height={32}
-                className="login-erpserv-logo"
-                style={{ objectFit: 'contain' }}
-              />
+              {isConecta ? (
+                <span style={{ display: 'inline-flex', background: '#FFFFFF', borderRadius: 10, padding: '10px 16px' }}>
+                  <Image
+                    src="/conecta-logo.jpg"
+                    alt="CONECTA"
+                    width={150}
+                    height={44}
+                    priority
+                    style={{ objectFit: 'contain' }}
+                  />
+                </span>
+              ) : (
+                <Image
+                  src="/logo.png"
+                  alt="ERPServ"
+                  width={96}
+                  height={32}
+                  className="login-erpserv-logo"
+                  style={{ objectFit: 'contain' }}
+                />
+              )}
             </div>
 
             {/* Minutor — produto */}
