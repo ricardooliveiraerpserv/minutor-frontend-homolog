@@ -40,7 +40,7 @@ export default function AppsLauncherPage() {
       {/* CONECTA: ícone + nome (só no tenant, via CSS data-tenant) */}
       <div className="brand-conecta-row items-center gap-3 mb-1">
         <Image src="/conecta-icon.png" alt="Conecta" width={40} height={40} className="object-contain" />
-        <span className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>conecta</span>
+        <span className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Conecta ERP</span>
       </div>
       <p className="text-sm mb-10" style={{ color: 'var(--text-muted)' }}>Escolha um aplicativo</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl">

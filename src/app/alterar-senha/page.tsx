@@ -188,7 +188,7 @@ export default function AlterarSenhaPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.02em' }}>
-          © {new Date().getFullYear()} <span data-brand-mark="minutor">ERPServ Consultoria</span><span data-brand-mark="conecta">Conecta</span> · Todos os direitos reservados
+          © {new Date().getFullYear()} <span data-brand-mark="minutor">ERPServ Consultoria</span><span data-brand-mark="conecta">Conecta ERP</span> · Todos os direitos reservados
         </p>
       </div>
 
