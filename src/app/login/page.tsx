@@ -208,18 +208,24 @@ export default function LoginPage() {
           <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
             {isConecta ? (
-              /* CONECTA — marca completa (ícone + "conecta" + tagline) num cartão branco */
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <span style={{ display: 'inline-flex', background: '#FFFFFF', borderRadius: 14, padding: '18px 26px' }}>
-                  <Image
-                    src="/conecta-brand.png"
-                    alt="conecta — ERP para a era digital"
-                    width={230}
-                    height={76}
-                    priority
-                    style={{ objectFit: 'contain' }}
-                  />
-                </span>
+              /* CONECTA — ícone roxo (fundo transparente) + wordmark em BRANCO, direto no splash */
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 4 }}>
+                <Image
+                  src="/conecta-icon.png"
+                  alt="conecta"
+                  width={46}
+                  height={46}
+                  priority
+                  style={{ objectFit: 'contain' }}
+                />
+                <div>
+                  <h1 className="login-title" style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: '0.13em', color: '#FFFFFF', lineHeight: 1 }}>
+                    conecta
+                  </h1>
+                  <p style={{ margin: '5px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.45)', fontWeight: 500, letterSpacing: 0 }}>
+                    ERP para a era digital.
+                  </p>
+                </div>
               </div>
             ) : (
               <>
