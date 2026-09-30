@@ -273,7 +273,7 @@ export default function LoginPage() {
 
         {/* Rodapé discreto */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.02em' }}>
-          © {new Date().getFullYear()} ERPServ Consultoria · Todos os direitos reservados
+          © {new Date().getFullYear()} {isConecta ? 'Conecta' : 'ERPServ Consultoria'} · Todos os direitos reservados
         </p>
       </div>
 

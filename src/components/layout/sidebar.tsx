@@ -570,6 +570,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
   const [query, setQuery]             = useState('')
+  // Tenant CONECTA (data-tenant no <html>): usa a logo do Conecta e nunca a do Minutor.
+  const [isConecta, setIsConecta]     = useState(false)
+  useEffect(() => { setIsConecta(document.documentElement.getAttribute('data-tenant') === 'conecta') }, [])
   const searchRef = useRef<HTMLInputElement>(null)
   // Atalho Ctrl/Cmd+K foca a busca do menu de qualquer lugar
   useEffect(() => {
@@ -891,10 +894,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           const mod = navModules.find(m => m.key === selectedModule)
           // Minimizado: logo do Minutor + inicial do módulo. Expandido: logo + "Minutor",
           // e o nome do módulo ABAIXO (alinhado sob "Minutor"), sem deslocar o nome Minutor.
+          const brandIcon = (size: number) => isConecta
+            ? <Image src="/conecta-icon.png" alt="Conecta" width={size} height={size} className="object-contain" priority />
+            : <MinutorIcon size={size} />
           if (collapsed) {
             return (
               <div className="flex flex-col items-center gap-1 mx-auto">
-                <MinutorIcon size={30} />
+                {brandIcon(30)}
                 {mod && <span className="text-[10px] font-bold leading-none" title={mod.label} style={{ color: 'var(--primary)' }}>{mod.label.slice(0, 3)}</span>}
               </div>
             )
@@ -902,8 +908,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           return (
             <>
               <div className="flex items-center gap-3">
-                <MinutorIcon size={34} />
-                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
+                {brandIcon(34)}
+                {/* CONECTA: só a logo, sem o nome. Minutor: logo + "Minutor". */}
+                {!isConecta && <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>}
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>
