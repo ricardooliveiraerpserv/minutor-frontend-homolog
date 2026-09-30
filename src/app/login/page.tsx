@@ -207,45 +207,50 @@ export default function LoginPage() {
           {/* ── Cabeçalho de marca ── */}
           <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* Marca da empresa — por tenant (subdomínio): CONECTA ou ERPServ (padrão) */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
-              {isConecta ? (
-                <span style={{ display: 'inline-flex', background: '#FFFFFF', borderRadius: 10, padding: '10px 16px' }}>
+            {isConecta ? (
+              /* CONECTA — marca completa (ícone + "conecta" + tagline) num cartão branco */
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <span style={{ display: 'inline-flex', background: '#FFFFFF', borderRadius: 14, padding: '18px 26px' }}>
                   <Image
-                    src="/conecta-logo.jpg"
-                    alt="CONECTA"
-                    width={150}
-                    height={44}
+                    src="/conecta-brand.png"
+                    alt="conecta — ERP para a era digital"
+                    width={230}
+                    height={76}
                     priority
                     style={{ objectFit: 'contain' }}
                   />
                 </span>
-              ) : (
-                <Image
-                  src="/logo.png"
-                  alt="ERPServ"
-                  width={96}
-                  height={32}
-                  className="login-erpserv-logo"
-                  style={{ objectFit: 'contain' }}
-                />
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* ERPServ — logo centralizado */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+                  <Image
+                    src="/logo.png"
+                    alt="ERPServ"
+                    width={96}
+                    height={32}
+                    className="login-erpserv-logo"
+                    style={{ objectFit: 'contain' }}
+                  />
+                </div>
 
-            {/* Minutor — produto */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
-              <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <MinutorIcon size={19} />
-              </div>
-              <div>
-                <h1 className="login-title" style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.05 }}>
-                  Minutor
-                </h1>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
-                  Controle de horas e contratos em um só lugar
-                </p>
-              </div>
-            </div>
+                {/* Minutor — produto */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
+                  <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MinutorIcon size={19} />
+                  </div>
+                  <div>
+                    <h1 className="login-title" style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.05 }}>
+                      Minutor
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
+                      Controle de horas e contratos em um só lugar
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
           </div>
 
