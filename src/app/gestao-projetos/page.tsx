@@ -643,6 +643,36 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               <p className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>
                 {project.code}
               </p>
+              {/* Vínculo: Pai / Filho (código+nome do pai) / Independente — vale em todas as abas */}
+              {(() => {
+                const parent = project.parent_project
+                const childCount = project.child_projects?.length ?? 0
+                if (project.parent_project_id) {
+                  return (
+                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}
+                       title={parent ? `Filho de ${parent.code} — ${parent.name}` : 'Projeto filho'}>
+                      <span style={{ color: 'var(--primary)' }}>↳</span>
+                      <span>Filho de</span>
+                      <span className="font-mono font-semibold" style={{ color: 'var(--text-muted)' }}>{parent?.code ?? '—'}</span>
+                      {parent?.name && <span className="truncate" style={{ maxWidth: 200 }}>· {parent.name}</span>}
+                    </p>
+                  )
+                }
+                if (childCount > 0) {
+                  return (
+                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
+                      Pai ({childCount} {childCount === 1 ? 'filho' : 'filhos'})
+                    </p>
+                  )
+                }
+                return (
+                  <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--border-strong)' }} />
+                    Independente
+                  </p>
+                )
+              })()}
             </div>
           </div>
         </td>
