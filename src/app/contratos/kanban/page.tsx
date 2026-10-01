@@ -2763,7 +2763,7 @@ function KanbanContent() {
         const close = () => setProjectAction(null)
         const userType = (user as any)?.type
         if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="overview" />
-        if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
+        if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={() => { close(); load() }} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
         if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="cost" />
         if (action === 'timesheets') return <ProjectDataModal projectId={card.id} projectName={card.project_name} initialTab="timesheets" onClose={close} />
