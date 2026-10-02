@@ -469,7 +469,9 @@ export default function PartnersPage() {
                   <Input
                     type="month"
                     value={rateEffectiveMonth}
-                    min={new Date().toISOString().slice(0, 7)}
+                    /* permite retroagir ao mês anterior (ex.: ajustar valor do mês passado);
+                       meses já fechados não mudam (protegido no backend) */
+                    min={(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7) })()}
                     onChange={e => setRateEffectiveMonth(e.target.value)}
                     className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
                   />
