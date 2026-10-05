@@ -1312,9 +1312,9 @@ function TicketDetailInner({ id }: { id: number }) {
                     }
                     return (
                     <div key={c.id} className={`hd-msg flex gap-2.5 ${right ? 'flex-row-reverse' : ''}`}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: right ? 'var(--primary)' : avatarColor(autor) }}>{iniciais(autor)}</div>
                       <div className={`flex flex-col min-w-0 ${editing ? 'w-full' : html ? 'max-w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${right ? 'items-end' : 'items-start'}`}>
-                        <div className={`flex items-center gap-2 mb-0.5 text-[11px] ${right ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center gap-2 mb-0.5 text-[13px] ${right ? 'flex-row-reverse' : ''}`}>
                           {c.seq != null && (
                             <span className="font-mono font-semibold px-1.5 rounded" title={`Interação #${c.seq}`} style={{ color: 'var(--primary)', background: 'var(--primary-soft)' }}>#{c.seq}</span>
                           )}
