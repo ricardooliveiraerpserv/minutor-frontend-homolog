@@ -91,7 +91,7 @@ export function UnlockScreen() {
         </form>
         <p className="text-xs mt-4 text-center" style={{ color: 'var(--text-light)' }}>
           Esqueceu a master password? Use sua recovery key em{' '}
-          <Link href="/cofre/configuracao" className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+          <Link href="/ambientes/configuracao" className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
             Configuração do Cofre
           </Link>.
         </p>

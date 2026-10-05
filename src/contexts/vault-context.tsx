@@ -253,6 +253,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
 export function useVault(): VaultCtx {
   const ctx = useContext(VaultContext)
-  if (!ctx) throw new Error('useVault precisa do VaultProvider (layout de /cofre)')
+  if (!ctx) throw new Error('useVault precisa do VaultProvider (layout do Cofre/Ambientes)')
   return ctx
 }

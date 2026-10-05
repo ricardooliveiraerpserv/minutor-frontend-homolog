@@ -168,7 +168,7 @@ export default function CofreConfiguracaoPage() {
       <PageHeader
         icon={KeyRound}
         title="Configuração do Cofre"
-        actions={<Link href="/cofre"><Button icon={ArrowLeft}>Voltar ao cofre</Button></Link>}
+        actions={<Link href="/ambientes"><Button icon={ArrowLeft}>Voltar ao cofre</Button></Link>}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

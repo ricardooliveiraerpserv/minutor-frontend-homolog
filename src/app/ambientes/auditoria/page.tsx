@@ -77,7 +77,7 @@ export default function CofreAuditoriaPage() {
         icon={FileText}
         title="Auditoria do Cofre"
         subtitle={`${total} evento(s)`}
-        actions={<Link href="/cofre"><Button icon={ArrowLeft}>Voltar ao cofre</Button></Link>}
+        actions={<Link href="/ambientes"><Button icon={ArrowLeft}>Voltar ao cofre</Button></Link>}
       />
 
       <div className="flex items-end gap-2 flex-wrap mb-4">
