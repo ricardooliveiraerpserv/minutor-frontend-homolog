@@ -1044,7 +1044,10 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           const group = entry as NavGroup
           const GroupIcon = group.icon
           const active = groupActive(group)
-          const open   = openGroups.includes(group.label) || isSearching
+          // Abre o grupo quando: aberto manualmente, buscando, OU é o grupo da rota atual (active).
+          // Sem o "|| active", se o auto-open não rodar a tempo (ex.: full reload + moduleNav async),
+          // o grupo da página atual aparecia COLAPSADO.
+          const open   = openGroups.includes(group.label) || isSearching || active
 
           // Lista plana de links (descendo recursivamente em subgrupos) — usada no modo collapsed.
           const flatLinks = (entries: (NavLink | NavSubGroup)[]): NavLink[] =>
@@ -1097,8 +1100,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     if (!isNavLink(sub)) {
                       const subgroupKey = `${group.label}/${sub.label}`
                       const SubGroupIcon = sub.icon
-                      const sgOpen = openGroups.includes(subgroupKey) || isSearching
                       const sgActive = subGroupActive(sub)
+                      const sgOpen = openGroups.includes(subgroupKey) || isSearching || sgActive
                       return (
                         <div key={sub.label}>
                           <button
