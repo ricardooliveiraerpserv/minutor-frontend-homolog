@@ -1,0 +1,212 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { api } from '@/lib/api'
+import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Plus, Trash2, Pencil, Zap, RefreshCw, Check, AlertTriangle } from 'lucide-react'
+
+/** Fonte Git autorizada de um cliente (Fase 0 — Solicitação de código-fonte). */
+interface Repo {
+  id: number; owner: string; repository: string; full_name: string
+  branch: string; base_path: string; tipo: string; descricao: string | null
+  active: boolean; needs_review?: boolean; created_by: string | null; updated_by: string | null; updated_at: string | null
+}
+const TIPOS: [string, string][] = [['protheus', 'Protheus'], ['fluig', 'Fluig'], ['integracoes', 'Integrações'], ['outros', 'Outros']]
+const BLANK = { owner: '', repository: '', branch: '', base_path: '', tipo: 'protheus', descricao: '', active: true }
+type FormState = typeof BLANK
+
+/**
+ * Seção "Repositórios de Código-Fonte" no cadastro do cliente. READ-ONLY no GitHub.
+ * "Remover" = desativar (preserva rastreabilidade). Só renderiza p/ quem tem source_code.manage.
+ */
+export function SourceReposSection({ customerId }: { customerId: number }) {
+  const [rows, setRows] = useState<Repo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState<FormState | null>(null)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState<number | null>(null)
+  const [status, setStatus] = useState<Record<number, 'ok' | 'fail'>>({})   // ⚡ amarelo=ok · vermelho=fail
+  const testedRef = useRef<Set<number>>(new Set())
+  const [availRepos, setAvailRepos] = useState<{ name: string; default_branch: string | null }[]>([])
+  const [repoOpen, setRepoOpen] = useState(false)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get<{ data: Repo[] }>(`/customers/${customerId}/source-repos`)
+      .then(r => setRows(r?.data ?? [])).catch(() => {}).finally(() => setLoading(false))
+  }, [customerId])
+  useEffect(() => { load() }, [load])
+
+  // Seletor de repositório: lista os repos que a GitHub App enxerga no owner.
+  const owner = form?.owner ?? ''
+  const formOpen = !!form
+  const [availLoading, setAvailLoading] = useState(false)
+  const loadAvail = useCallback((ownerVal: string) => {
+    if (!ownerVal.trim()) { setAvailRepos([]); return }
+    setAvailLoading(true)
+    api.get<{ repos: { name: string; default_branch: string | null }[] }>(`/source-repos/available?owner=${encodeURIComponent(ownerVal.trim())}`)
+      .then(r => setAvailRepos(r?.repos ?? [])).catch(() => setAvailRepos([])).finally(() => setAvailLoading(false))
+  }, [])
+  useEffect(() => {
+    if (!formOpen || !owner.trim()) { setAvailRepos([]); return }
+    const t = setTimeout(() => loadAvail(owner), 350)
+    return () => clearTimeout(t)
+  }, [owner, formOpen, loadAvail])
+
+  // Owner e branch já vêm preenchidos (caso comum erpserv-clientes/main); só o repositório fica pra escolher.
+  const openNew = () => { setEditId(null); setForm({ ...BLANK, owner: 'erpserv-clientes', branch: 'main' }) }
+  const openEdit = (r: Repo) => {
+    setEditId(r.id)
+    setForm({ owner: r.owner, repository: r.repository, branch: r.branch, base_path: r.base_path ?? '', tipo: r.tipo, descricao: r.descricao ?? '', active: r.active })
+  }
+
+  const save = async () => {
+    if (!form) return
+    if (!form.owner.trim() || !form.repository.trim() || !form.branch.trim()) { toast.error('Owner, repositório e branch são obrigatórios'); return }
+    setSaving(true)
+    try {
+      const body = {
+        owner: form.owner.trim(), repository: form.repository.trim(), branch: form.branch.trim(),
+        base_path: form.base_path.trim(), tipo: form.tipo, descricao: form.descricao.trim() || null, active: form.active,
+      }
+      if (editId) await api.put(`/source-repos/${editId}`, body)
+      else await api.post(`/customers/${customerId}/source-repos`, body)
+      toast.success(editId ? 'Repositório atualizado' : 'Repositório adicionado')
+      setForm(null); setEditId(null); load()
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  const deactivate = async (r: Repo) => {
+    if (!window.confirm(`Desativar ${r.full_name}? Não exclui — preserva o histórico.`)) return
+    try { await api.delete(`/source-repos/${r.id}`); toast.success('Repositório desativado'); load() } catch { toast.error('Erro ao desativar') }
+  }
+
+  const verify = async (r: Repo) => {
+    if (!window.confirm(`Confirmar que ${r.full_name} é o repositório correto deste cliente? A GMUD passa a poder commitar nele.`)) return
+    try { await api.post(`/source-repos/${r.id}/verify`, {}); toast.success('Repositório confirmado'); load() } catch { toast.error('Erro ao confirmar') }
+  }
+
+  const test = async (r: Repo, silent = false) => {
+    if (!silent) setTesting(r.id)
+    try {
+      const res = await api.post<{ ok: boolean; message: string; code?: string }>(`/source-repos/${r.id}/test`, {})
+      setStatus(s => ({ ...s, [r.id]: res.ok ? 'ok' : 'fail' }))
+      if (!silent) { res.ok ? toast.success(res.message) : toast.error(res.message, { duration: 6000 }) }
+    } catch (e) {
+      setStatus(s => ({ ...s, [r.id]: 'fail' }))
+      if (!silent) toast.error((e as { message?: string })?.message ?? 'Falha ao testar acesso')
+    } finally { if (!silent) setTesting(null) }
+  }
+
+  // Auto-teste (silencioso) de cada repo ativo ao abrir/atualizar a lista → colore o ⚡.
+  useEffect(() => {
+    rows.forEach(r => {
+      if (r.active && !testedRef.current.has(r.id)) {
+        testedRef.current.add(r.id)
+        test(r, true)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
+
+  const tipoLabel = (t: string) => TIPOS.find(x => x[0] === t)?.[1] ?? t
+
+  return (
+    <div className="mt-4 border-t border-[var(--border)] pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <Label className="text-xs font-semibold text-[var(--text)]">Repositórios de Código-Fonte</Label>
+        {!form && <button type="button" onClick={openNew} className="text-[11px] inline-flex items-center gap-1 text-[var(--primary)]"><Plus size={12} /> Adicionar repositório</button>}
+      </div>
+
+      {loading ? (
+        <p className="text-[11px] text-[var(--text-light)]">Carregando…</p>
+      ) : rows.length === 0 && !form ? (
+        <p className="text-[11px] text-[var(--text-light)]">Nenhum repositório autorizado. Cadastre owner/repositório/branch — a busca de fontes fica restrita a eles.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map(r => (
+            <div key={r.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px]"
+              style={{ background: r.needs_review ? 'var(--warning-bg)' : 'var(--surface-sunken)', border: `1px solid ${r.needs_review ? 'var(--warning-border)' : 'var(--border)'}`, opacity: r.active ? 1 : 0.55 }}>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{tipoLabel(r.tipo)}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-semibold text-[var(--text)]">{r.full_name} <span className="text-[var(--text-light)]">· {r.branch}</span></div>
+                <div className="truncate text-[var(--text-light)]">{r.base_path || '/'}{r.descricao ? ` · ${r.descricao}` : ''}{!r.active ? ' · inativo' : ''}</div>
+                {r.needs_review && (
+                  <div className="flex items-center gap-1 mt-0.5 font-semibold" style={{ color: 'var(--warning-border)' }}>
+                    <AlertTriangle size={10} /> Pendente de verificação — vinculado a um repo pré-existente. A GMUD só commita após confirmar.
+                  </div>
+                )}
+              </div>
+              {r.needs_review && (
+                <button type="button" onClick={() => verify(r)} title="Confirmar que é o repositório correto do cliente" className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md font-semibold"
+                  style={{ background: 'var(--warning-border)', color: '#fff' }}><Check size={11} /> Confirmar</button>
+              )}
+              <button type="button" onClick={() => test(r)} disabled={testing === r.id} className="shrink-0 hover:opacity-80"
+                title={status[r.id] === 'ok' ? 'Conectado — clique para testar de novo' : status[r.id] === 'fail' ? 'Desconectado — clique para ver o erro' : 'Testar acesso (read-only)'}
+                style={{ color: status[r.id] === 'ok' ? 'var(--warning-border)' : status[r.id] === 'fail' ? 'var(--danger-border)' : 'var(--text-muted)' }}><Zap size={13} /></button>
+              <button type="button" onClick={() => openEdit(r)} title="Editar" className="text-[var(--primary)] shrink-0"><Pencil size={12} /></button>
+              {r.active && <button type="button" onClick={() => deactivate(r)} title="Desativar" className="text-[var(--danger-border)] shrink-0"><Trash2 size={12} /></button>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <div className="mt-2 rounded-lg p-2.5 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-2 gap-2">
+            <div><Label className="text-[10px] text-[var(--text-light)]">Owner/Org *</Label><Input value={form.owner} onChange={e => setForm(f => f && ({ ...f, owner: e.target.value }))} placeholder="ex.: erpserv-clientes" className="h-7 text-xs" /></div>
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] text-[var(--text-light)]">Repositório *</Label>
+                <button type="button" onClick={() => loadAvail(owner)} disabled={availLoading || !owner.trim()} title="Atualizar a lista de repositórios que a GitHub App enxerga neste owner"
+                  className="text-[9px] inline-flex items-center gap-0.5" style={{ color: 'var(--primary)', opacity: availLoading || !owner.trim() ? 0.5 : 1 }}>
+                  <RefreshCw size={9} className={availLoading ? 'animate-spin' : ''} /> Atualizar
+                </button>
+              </div>
+              <Input value={form.repository}
+                onFocus={() => setRepoOpen(true)}
+                onBlur={() => setTimeout(() => setRepoOpen(false), 150)}
+                onChange={e => { const v = e.target.value; const m = availRepos.find(r => r.name.toLowerCase() === v.toLowerCase()); setForm(f => f && ({ ...f, repository: v, ...(m?.default_branch ? { branch: m.default_branch } : {}) })); setRepoOpen(true) }}
+                placeholder={availRepos.length ? 'selecione ou digite…' : 'ex.: promax'} className="h-7 text-xs" />
+              {repoOpen && (() => {
+                const q = (form.repository ?? '').trim().toLowerCase()
+                const opts = availRepos.filter(r => !q || r.name.toLowerCase().includes(q)).slice(0, 8)
+                return opts.length ? (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden shadow-lg max-h-44 overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    {opts.map(r => (
+                      <button key={r.name} type="button" onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setForm(f => f && ({ ...f, repository: r.name, ...(r.default_branch ? { branch: r.default_branch } : {}) })); setRepoOpen(false) }}
+                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                        {r.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>· {r.default_branch}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null
+              })()}
+            </div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Branch *</Label><Input value={form.branch} onChange={e => setForm(f => f && ({ ...f, branch: e.target.value }))} placeholder="ex.: main" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Base path (opcional)</Label><Input value={form.base_path} onChange={e => setForm(f => f && ({ ...f, base_path: e.target.value }))} placeholder="(raiz do repo)" className="h-7 text-xs" /></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Tipo</Label>
+              <select value={form.tipo} onChange={e => setForm(f => f && ({ ...f, tipo: e.target.value }))} className="w-full h-7 text-xs rounded-md px-2 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                {TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select></div>
+            <div><Label className="text-[10px] text-[var(--text-light)]">Descrição (opcional)</Label><Input value={form.descricao} onChange={e => setForm(f => f && ({ ...f, descricao: e.target.value }))} className="h-7 text-xs" /></div>
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer"><input type="checkbox" checked={form.active} onChange={e => setForm(f => f && ({ ...f, active: e.target.checked }))} /> Ativo</label>
+            <div className="flex gap-1.5">
+              <Button variant="outline" onClick={() => { setForm(null); setEditId(null) }} className="h-7 text-[11px] border-[var(--border)] text-[var(--text)]">Cancelar</Button>
+              <Button onClick={save} disabled={saving} className="h-7 text-[11px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">{saving ? 'Salvando…' : (editId ? 'Salvar' : 'Adicionar')}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <p className="mt-2 text-[10px] text-[var(--text-light)]">Read-only via GitHub App (Contents: Read-only). Preencha os campos (o texto cinza é só exemplo); "Remover" desativa (não exclui).</p>
+    </div>
+  )
+}

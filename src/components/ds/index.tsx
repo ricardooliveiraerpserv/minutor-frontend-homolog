@@ -47,14 +47,15 @@ interface CardProps {
   children: React.ReactNode
   className?: string
   padding?: 'none' | 'sm' | 'md' | 'lg'
+  style?: React.CSSProperties
 }
 
-export function Card({ children, className, padding = 'md' }: CardProps) {
+export function Card({ children, className, padding = 'md', style }: CardProps) {
   const p = padding === 'none' ? '' : padding === 'sm' ? 'p-4' : padding === 'lg' ? 'p-8' : 'p-6'
   return (
     <div
       className={cn('rounded-2xl', p, className)}
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)', ...style }}
     >
       {children}
     </div>
