@@ -111,8 +111,7 @@ export const NAV_CATALOG: CatalogItem[] = [
 
   // Help Desk + Código-Fonte (módulo admin-only — gate pelo nav_module help_desk)
   { key: '/help-desk/operacoes', label: 'Central de Operações',   group: 'Help Desk' },
-  { key: '/help-desk/tickets',   label: 'Chamados',               group: 'Help Desk' },
-  { key: '/help-desk/fila',      label: 'Fila (Kanban)',          group: 'Help Desk' },
+  { key: '/help-desk/tickets',   label: 'Fila de chamados',       group: 'Help Desk' },
   { key: '/help-desk/kb',        label: 'Base de Conhecimento',   group: 'Help Desk' },
   { key: '/help-desk/portal',    label: 'Help Desk', group: 'Help Desk' },
   { key: '/help-desk/codigo-fonte', label: 'Solicitar Código-Fonte', group: 'Help Desk' },
