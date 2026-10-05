@@ -15,7 +15,11 @@ export function sanitizeRich(html: string): string {
       'table', 'thead', 'tbody', 'tr', 'td', 'th', 'font', 'hr', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'pre', 'small', 'sup', 'sub'],
     ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'style',
       'width', 'height', 'align', 'valign', 'cellpadding', 'cellspacing', 'border', 'colspan', 'rowspan', 'bgcolor',
-      'color', 'face', 'size'],
+      'color', 'face', 'size',
+      // data-att-id: ref de anexo re-hospedado (imagens/arquivos do Movidesk). HdRichHtml resolve
+      // via fetch autenticado de /api/v1/attachments/{id}/download. Sem isto o DOMPurify remove o
+      // atributo e a imagem/chip nunca carrega.
+      'data-att-id'],
   })
 }
 
