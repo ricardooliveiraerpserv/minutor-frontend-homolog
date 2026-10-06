@@ -480,7 +480,9 @@ export default function ClientesPage() {
                   <Label className="text-xs text-[var(--text-muted)]">Contrato{!form.has_contract && <span className="text-[var(--text-light)]"> (sem contrato → fontes são exemplo)</span>}</Label>
                 </div>
               </div>
-              {modal.item && <SourceReposSection customerId={modal.item.id} />}
+              {modal.item?.id && hasPermission('source_code.manage') && (
+                <SourceReposSection customerId={modal.item.id} />
+              )}
               <div className="flex gap-2 mt-5 justify-end">
                 <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                   Cancelar
