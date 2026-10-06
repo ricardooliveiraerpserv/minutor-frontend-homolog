@@ -21,6 +21,7 @@ import { UnlockScreen } from '@/components/vault/unlock-screen'
 import { OnboardingWizard } from '@/components/vault/onboarding-wizard'
 import { BulkAllocationModal } from '@/components/environments/bulk-allocation-modal'
 import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
+import { CofrePessoalInner } from './pessoal/page'
 
 interface ClientRow { customer_id: number; customer_name: string; vault_id: number; environments_count: number; role: string }
 interface CustomerOpt { id: number; name: string }
@@ -399,11 +400,26 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   )
 }
 
-// Página standalone (fallback "de fora"): Cofre de Ambientes com seu próprio AppLayout.
+// Página do Cofre: duas seções sob o MESMO VaultProvider (sem re-unlock ao trocar) —
+// "Cofres de Cliente" (compartilhados) e "Cofre Pessoal" (privado), que fica DENTRO do Cofre.
 export default function AmbientesPage() {
+  const [section, setSection] = useState<'clientes' | 'pessoal'>('clientes')
   return (
     <AppLayout>
-      <CofreAmbientesInner />
+      <div className="mb-3 flex items-center gap-1">
+        {([['clientes', 'Cofres de Cliente', Server], ['pessoal', 'Cofre Pessoal', KeyRound]] as const).map(([k, label, Icon]) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setSection(k)}
+            className="text-sm px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+            style={{ background: section === k ? 'var(--primary-soft)' : 'transparent', color: section === k ? 'var(--primary)' : 'var(--text-muted)', fontWeight: section === k ? 600 : 400 }}
+          >
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </div>
+      {section === 'clientes' ? <CofreAmbientesInner /> : <CofrePessoalInner />}
     </AppLayout>
   )
 }

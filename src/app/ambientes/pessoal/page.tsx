@@ -25,7 +25,8 @@ import { TotpCell } from '@/components/vault/totp-cell'
 interface ItemRow { id: number; type: string; name: string; data: string; key_version: number; updated_at: string }
 interface DecryptedRow extends ItemRow { plain: VaultItemData | null }
 
-export default function CofrePessoalPage() {
+// Conteúdo do Cofre Pessoal SEM AppLayout — reutilizável como aba DENTRO do Cofre (/ambientes).
+export function CofrePessoalInner() {
   const { status, vaults, lock, refreshVaults, getVaultKey } = useVault()
   const [items, setItems] = useState<DecryptedRow[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
@@ -86,7 +87,7 @@ export default function CofrePessoalPage() {
   }
 
   return (
-    <AppLayout>
+    <>
       <PageHeader
         icon={KeyRound}
         title="Cofre Pessoal"
@@ -206,6 +207,15 @@ export default function CofrePessoalPage() {
           </div>
         </div>
       </Modal>
+    </>
+  )
+}
+
+// Página standalone (acesso direto a /ambientes/pessoal): Cofre Pessoal com seu próprio AppLayout.
+export default function CofrePessoalPage() {
+  return (
+    <AppLayout>
+      <CofrePessoalInner />
     </AppLayout>
   )
 }
