@@ -1289,9 +1289,9 @@ function TicketDetailInner({ id }: { id: number }) {
                                     : <div className="whitespace-pre-wrap">{motivo}</div>}
                                 </div>
                               )}
-                              {c.attachments && c.attachments.length > 0 && (
+                              {(() => { const extraAtts = (c.attachments ?? []).filter(a => !(c.body ?? '').includes(`attachments/${a.id}/download`)); return extraAtts.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                  {c.attachments.map(a => {
+                                  {extraAtts.map(a => {
                                     const url = `/api/v1/help-desk/tickets/${id}/comments/${c.id}/attachments/${a.id}/download`
                                     const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                                     const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
@@ -1304,7 +1304,7 @@ function TicketDetailInner({ id }: { id: number }) {
                                         </a>
                                   })}
                                 </div>
-                              )}
+                              ) })()}
                             </div>
                           </div>
                         </div>
@@ -1394,10 +1394,11 @@ function TicketDetailInner({ id }: { id: number }) {
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
-                        {/* Anexos da interação — preview de imagem inline + arquivos */}
-                        {c.attachments && c.attachments.length > 0 && (
+                        {/* Anexos da interação — SÓ os que NÃO estão inline no corpo (evita duplicar
+                            imagem rehospedada do Movidesk, que já aparece dentro do balão). */}
+                        {(() => { const extraAtts = (c.attachments ?? []).filter(a => !(c.body ?? '').includes(`attachments/${a.id}/download`)); return extraAtts.length > 0 && (
                           <div className={`flex flex-wrap gap-2 mt-2 ${right ? 'justify-end' : ''}`}>
-                            {c.attachments.map(a => {
+                            {extraAtts.map(a => {
                               const url = `/api/v1/help-desk/tickets/${id}/comments/${c.id}/attachments/${a.id}/download`
                               const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                               const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
@@ -1410,7 +1411,7 @@ function TicketDetailInner({ id }: { id: number }) {
                                   </a>
                             })}
                           </div>
-                        )}
+                        ) })()}
                       </div>
                     </div>
                     )
