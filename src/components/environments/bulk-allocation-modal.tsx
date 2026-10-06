@@ -9,14 +9,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Users, UserPlus, UserMinus, Building2, CheckSquare, Square, ShieldCheck } from 'lucide-react'
+import { Users, UserPlus, UserMinus, Building2, CheckSquare, Square, ShieldCheck, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button, Card, Modal, Badge } from '@/components/ds'
+import { Button, Card, Modal, Badge, TextInput } from '@/components/ds'
 import { api } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
 import { rsaUnwrap, rsaWrap } from '@/lib/vault-crypto'
 
-interface Person { user_id: number; name: string; email: string; public_key: string }
+interface Person { user_id: number; name: string; email: string; public_key: string | null; configured: boolean }
 interface Team { id: number; name: string; members: Person[]; total: number; not_configured: number }
 interface Client { customer_id: number; customer_name: string | null; vault_id: number; role: 'admin' | 'write' | 'read' | null }
 
@@ -49,12 +49,13 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
   const [mode, setMode] = useState<'add' | 'remove'>('add')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const [peopleQ, setPeopleQ] = useState('')
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     Promise.all([
-      api.get<Person[]>('/vault/public-keys').catch(() => []),
+      api.get<Person[]>('/vault/allocatable-users').catch(() => []),
       api.get<Team[]>('/vault/teams').catch(() => []),
       api.get<Client[]>('/environments/clients').catch(() => []),
     ]).then(([p, t, c]) => {
@@ -79,6 +80,13 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
     () => adminClients.filter(c => selClients.has(c.customer_id)),
     [adminClients, selClients],
   )
+
+  const filteredPeople = useMemo(() => {
+    const q = peopleQ.trim().toLowerCase()
+    const base = q ? people.filter(p => p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)) : people
+    // configurados primeiro (selecionáveis), depois os sem cofre
+    return [...base].sort((a, b) => Number(b.configured) - Number(a.configured) || a.name.localeCompare(b.name, 'pt-BR'))
+  }, [people, peopleQ])
 
   const vaultKeyB64 = useCallback((vaultId: number) => vaults.find(v => v.id === vaultId)?.encrypted_vault_key ?? null, [vaults])
 
@@ -111,7 +119,7 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
           try { keyBytes = await rsaUnwrap(priv, wrapped) } catch { fail += targets.length; continue }
           for (const p of targets) {
             ops.push(async () => {
-              const encrypted_vault_key = await rsaWrap(p.public_key, keyBytes)
+              const encrypted_vault_key = await rsaWrap(p.public_key!, keyBytes) // targets só tem configurados (public_key != null)
               await api.post(`/vault/vaults/${c.vault_id}/members`, { user_id: p.user_id, role, encrypted_vault_key })
             })
           }
@@ -144,10 +152,10 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
     }
   }
 
-  const Row = ({ checked, onClick, children, sub }: { checked: boolean; onClick: () => void; children: React.ReactNode; sub?: React.ReactNode }) => (
-    <button type="button" onClick={onClick}
-      className="flex items-center gap-2 w-full rounded-lg px-2.5 py-1.5 text-left text-sm hover:opacity-90 transition-opacity"
-      style={{ background: checked ? 'var(--primary-soft)' : 'transparent', color: checked ? 'var(--primary)' : 'var(--text)' }}>
+  const Row = ({ checked, onClick, children, sub, disabled }: { checked: boolean; onClick: () => void; children: React.ReactNode; sub?: React.ReactNode; disabled?: boolean }) => (
+    <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
+      className="flex items-center gap-2 w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-opacity disabled:cursor-not-allowed"
+      style={{ background: checked ? 'var(--primary-soft)' : 'transparent', color: checked ? 'var(--primary)' : 'var(--text)', opacity: disabled ? 0.45 : 1 }}>
       {checked ? <CheckSquare className="w-4 h-4 shrink-0" /> : <Square className="w-4 h-4 shrink-0" style={{ color: 'var(--text-light)' }} />}
       <span className="flex-1 truncate">{children}</span>
       {sub}
@@ -194,9 +202,14 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-1 pb-1" style={{ color: 'var(--text-light)' }}>
                 <ShieldCheck className="w-3.5 h-3.5" /> Pessoas
               </div>
-              {people.length === 0 && <span className="text-xs px-2 py-1" style={{ color: 'var(--text-light)' }}>Nenhuma pessoa apta.</span>}
-              {people.map(p => (
-                <Row key={p.user_id} checked={selUsers.has(p.user_id)} onClick={() => toggle(selUsers, p.user_id, setSelUsers)}>
+              <div className="px-1 pb-1 sticky top-0">
+                <TextInput icon={Search} placeholder="Buscar por nome ou e-mail…" value={peopleQ} onChange={e => setPeopleQ(e.target.value)} className="!py-1.5 text-xs" />
+              </div>
+              {filteredPeople.length === 0 && <span className="text-xs px-2 py-1" style={{ color: 'var(--text-light)' }}>Nenhuma pessoa encontrada.</span>}
+              {filteredPeople.map(p => (
+                <Row key={p.user_id} checked={selUsers.has(p.user_id)} disabled={!p.configured}
+                  onClick={() => toggle(selUsers, p.user_id, setSelUsers)}
+                  sub={!p.configured ? <Badge variant="neutral">sem cofre</Badge> : undefined}>
                   {p.name}
                 </Row>
               ))}

@@ -6,18 +6,19 @@
 // /vault/* (funcionam em cofre type='client'); a REMOÇÃO usa o endpoint aditivo do módulo
 // de ambientes (revoga a membership; o gate do reveal corta o acesso na hora).
 
-import { useCallback, useEffect, useState } from 'react'
-import { Trash2, UserPlus, Users } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Trash2, UserPlus, Users, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { Badge, Button, Modal } from '@/components/ds'
+import { Badge, Button, Modal, TextInput } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { rsaWrap } from '@/lib/vault-crypto'
 
 interface MemberRow { user_id: number; name: string; email: string; role: 'admin' | 'write' | 'read'; key_version: number }
-interface PublicKeyRow { user_id: number; name: string; email: string; public_key: string }
-interface TeamRow { id: number; name: string; members: PublicKeyRow[]; total: number; not_configured: number }
+interface PublicKeyRow { user_id: number; name: string; email: string; public_key: string | null; configured: boolean }
+interface TeamMember { user_id: number; name: string; email: string; public_key: string }
+interface TeamRow { id: number; name: string; members: TeamMember[]; total: number; not_configured: number }
 
 const ROLE_LABEL: Record<MemberRow['role'], string> = { admin: 'Admin', write: 'Edita', read: 'Lê' }
 
@@ -36,7 +37,6 @@ export function EnvMembersModal({ open, onClose, vaultId, customerId, vaultName,
   const { user } = useAuth()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [candidates, setCandidates] = useState<PublicKeyRow[]>([])
-  const [pick, setPick] = useState<number | ''>('')
   const [role, setRole] = useState<MemberRow['role']>('read')
   const [busy, setBusy] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<MemberRow | null>(null)
@@ -44,25 +44,31 @@ export function EnvMembersModal({ open, onClose, vaultId, customerId, vaultName,
   const [teamPick, setTeamPick] = useState<number | ''>('')
   const [teamRole, setTeamRole] = useState<MemberRow['role']>('read')
   const [teamBusy, setTeamBusy] = useState(false)
+  const [candQ, setCandQ] = useState('')
 
   const load = useCallback(async () => {
     const rows = await api.get<MemberRow[]>(`/vault/vaults/${vaultId}/members`)
     setMembers(rows)
     if (isVaultAdmin) {
-      const keys = await api.get<PublicKeyRow[]>('/vault/public-keys')
+      const keys = await api.get<PublicKeyRow[]>('/vault/allocatable-users')
       const memberIds = new Set(rows.map(r => r.user_id))
       setCandidates(keys.filter(k => !memberIds.has(k.user_id)))
       setTeams(await api.get<TeamRow[]>('/vault/teams'))
     }
   }, [vaultId, isVaultAdmin])
 
+  const filteredCandidates = useMemo(() => {
+    const q = candQ.trim().toLowerCase()
+    const base = q ? candidates.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)) : candidates
+    return [...base].sort((a, b) => Number(b.configured) - Number(a.configured) || a.name.localeCompare(b.name, 'pt-BR'))
+  }, [candidates, candQ])
+
   useEffect(() => {
-    if (open) { void load(); setPick(''); setRole('read'); setRemoveTarget(null); setTeamPick(''); setTeamRole('read') }
+    if (open) { void load(); setRole('read'); setRemoveTarget(null); setTeamPick(''); setTeamRole('read'); setCandQ('') }
   }, [open, load])
 
-  const add = async () => {
-    const target = candidates.find(c => c.user_id === pick)
-    if (!target) return
+  const add = async (target: PublicKeyRow) => {
+    if (!target.configured || !target.public_key) return
     setBusy(true)
     try {
       const keyBytes = await getVaultKeyBytes()
@@ -71,7 +77,7 @@ export function EnvMembersModal({ open, onClose, vaultId, customerId, vaultName,
         user_id: target.user_id, role, encrypted_vault_key: await rsaWrap(target.public_key, keyBytes),
       })
       toast.success(`${target.name} agora tem acesso a este cliente.`)
-      setPick(''); await load(); onChanged()
+      await load(); onChanged()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : (err instanceof Error ? err.message : 'Falha ao adicionar membro.'))
     } finally { setBusy(false) }
@@ -156,16 +162,29 @@ export function EnvMembersModal({ open, onClose, vaultId, customerId, vaultName,
         </table>
 
         {isVaultAdmin && (
-          <div className="flex items-end gap-2 flex-wrap">
-            <div className="flex-1 min-w-[220px]">
-              <SearchSelect label="Adicionar pessoa" placeholder="Buscar usuário…" value={pick}
-                onChange={v => setPick(v === '' ? '' : Number(v))}
-                options={candidates.map(c => ({ id: c.user_id, name: `${c.name} — ${c.email}` }))} fullWidth />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Adicionar pessoa</span>
+              <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>Papel:</span>
+              <select className="ds-input text-sm" value={role} onChange={e => setRole(e.target.value as MemberRow['role'])}>
+                <option value="read">Lê</option><option value="write">Edita</option><option value="admin">Admin</option>
+              </select>
             </div>
-            <select className="ds-input" value={role} onChange={e => setRole(e.target.value as MemberRow['role'])}>
-              <option value="read">Lê</option><option value="write">Edita</option><option value="admin">Admin</option>
-            </select>
-            <Button variant="primary" icon={UserPlus} loading={busy} disabled={pick === ''} onClick={add}>Adicionar</Button>
+            <TextInput icon={Search} placeholder="Buscar por nome ou e-mail…" value={candQ} onChange={e => setCandQ(e.target.value)} className="!py-1.5 text-sm" />
+            <div className="flex flex-col gap-1 max-h-56 overflow-y-auto" style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 4 }}>
+              {filteredCandidates.length === 0 && <span className="text-xs px-2 py-2 text-center" style={{ color: 'var(--text-light)' }}>Nenhum usuário encontrado.</span>}
+              {filteredCandidates.map(c => (
+                <div key={c.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm" style={{ opacity: c.configured ? 1 : 0.55 }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate" style={{ color: 'var(--text)' }}>{c.name}</div>
+                    <div className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{c.email}</div>
+                  </div>
+                  {c.configured
+                    ? <Button size="sm" variant="secondary" icon={UserPlus} loading={busy} onClick={() => add(c)}>Adicionar</Button>
+                    : <Badge variant="neutral">sem cofre</Badge>}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -185,7 +204,7 @@ export function EnvMembersModal({ open, onClose, vaultId, customerId, vaultName,
 
         {isVaultAdmin && (
           <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-            Só aparecem usuários internos que já configuraram o próprio cofre. Numa equipe, quem ainda não configurou fica de fora até fazer o setup.
+            Todos os usuários internos aparecem. Quem ainda não configurou o próprio cofre fica como <b>sem cofre</b> (não dá para dar acesso até fazer o setup — a chave é cifrada com a chave pública dele). O mesmo vale para membros de equipe.
           </p>
         )}
 
