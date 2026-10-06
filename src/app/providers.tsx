@@ -9,7 +9,7 @@ import { DeniedActionsProvider } from '@/contexts/denied-actions-context'
 import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { ChatNotifier } from '@/components/inbox/chat-notifier'
 import { MeetingAlerts } from '@/components/notifications/meeting-alerts'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -20,6 +20,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     },
   }))
+
+  // Popup do step-up Microsoft do Cofre: ao retornar com ?vault=..., a própria
+  // janela do popup se fecha (a janela principal conclui por polling em
+  // /vault/ms/status). Fora do popup, não faz nada.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.name === 'minutor-vault-ms' && new URLSearchParams(window.location.search).has('vault')) {
+      window.close()
+    }
+  }, [])
 
   return (
     <QueryClientProvider client={queryClient}>
