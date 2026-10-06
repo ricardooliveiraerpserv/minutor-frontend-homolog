@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Users, UserPlus, UserMinus, Building2, CheckSquare, Square, ShieldCheck, Search } from 'lucide-react'
+import { Users, UserPlus, UserMinus, Building2, CheckSquare, Square, ShieldCheck, Search, Server } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Card, Modal, Badge, TextInput } from '@/components/ds'
 import { api } from '@/lib/api'
@@ -22,6 +22,21 @@ interface Client { customer_id: number; customer_name: string | null; vault_id: 
 
 type Role = 'read' | 'write' | 'admin'
 const ROLE_LABEL: Record<Role, string> = { read: 'Ler', write: 'Escrever', admin: 'Admin' }
+
+type EnvType = 'prod' | 'homolog' | 'dev' | 'dr'
+const ENV_TYPE_LABEL: Record<EnvType, string> = { prod: 'Produção', homolog: 'Homologação', dev: 'Desenvolvimento', dr: 'DR' }
+
+type Flags = { can_view: boolean; can_reveal: boolean; can_copy: boolean; can_manage: boolean; can_admin: boolean }
+// Permissão por ambiente conforme o papel (ACL env_permissions). GRANT quando o
+// ambiente é do tipo escolhido; DENY nos demais (restringe o membro àquele tipo).
+const PERM_BY_ROLE: Record<Role, Flags> = {
+  read:  { can_view: true, can_reveal: true, can_copy: true, can_manage: false, can_admin: false },
+  write: { can_view: true, can_reveal: true, can_copy: true, can_manage: true,  can_admin: false },
+  admin: { can_view: true, can_reveal: true, can_copy: true, can_manage: true,  can_admin: true  },
+}
+const DENY: Flags = { can_view: false, can_reveal: false, can_copy: false, can_manage: false, can_admin: false }
+
+interface EnvRow { id: number; type: string }
 
 interface Props {
   open: boolean
@@ -46,6 +61,8 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
   const [selTeams, setSelTeams] = useState<Set<number>>(new Set())
   const [selClients, setSelClients] = useState<Set<number>>(new Set()) // por customer_id
   const [role, setRole] = useState<Role>('read')
+  const [scope, setScope] = useState<'full' | 'env'>('full')
+  const [envType, setEnvType] = useState<EnvType>('prod')
   const [mode, setMode] = useState<'add' | 'remove'>('add')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
@@ -107,7 +124,19 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
     setBusy(true)
     let ok = 0, fail = 0
     try {
-      // Monta as operações (uma por cliente × pessoa)
+      // Escopo por ambiente: pré-carrega os ambientes de cada cliente (p/ gravar
+      // as permissões por ambiente depois da membership).
+      const envsByClient = new Map<number, EnvRow[]>()
+      if (mode === 'add' && scope === 'env') {
+        await Promise.all(targetClients.map(async c => {
+          try { envsByClient.set(c.customer_id, await api.get<EnvRow[]>(`/environments/clients/${c.customer_id}/environments`)) }
+          catch { envsByClient.set(c.customer_id, []) }
+        }))
+      }
+
+      // Monta as operações (uma por cliente × pessoa). No escopo 'env', cada op faz
+      // a membership E, em seguida, as permissões por ambiente (grant no tipo escolhido,
+      // deny nos demais) — nessa ordem, pois o PUT de permissão exige membership.
       type Op = () => Promise<void>
       const ops: Op[] = []
 
@@ -117,10 +146,17 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
           if (!wrapped) { fail += targets.length; continue }
           let keyBytes: Uint8Array
           try { keyBytes = await rsaUnwrap(priv, wrapped) } catch { fail += targets.length; continue }
+          const envs = scope === 'env' ? (envsByClient.get(c.customer_id) ?? []) : []
           for (const p of targets) {
             ops.push(async () => {
               const encrypted_vault_key = await rsaWrap(p.public_key!, keyBytes) // targets só tem configurados (public_key != null)
               await api.post(`/vault/vaults/${c.vault_id}/members`, { user_id: p.user_id, role, encrypted_vault_key })
+              if (scope === 'env') {
+                for (const e of envs) {
+                  const flags = e.type === envType ? PERM_BY_ROLE[role] : DENY
+                  await api.put(`/environments/environments/${e.id}/permissions/${p.user_id}`, flags)
+                }
+              }
             })
           }
         } else {
@@ -178,6 +214,27 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
             </div>
           )}
         </div>
+
+        {/* escopo: cliente inteiro (full) ou só ambientes de um tipo */}
+        {mode === 'add' && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Escopo:</span>
+            <Button size="sm" variant={scope === 'full' ? 'primary' : 'secondary'} icon={Building2} onClick={() => setScope('full')}>Cliente inteiro (full)</Button>
+            <Button size="sm" variant={scope === 'env' ? 'primary' : 'secondary'} icon={Server} onClick={() => setScope('env')}>Só ambientes</Button>
+            {scope === 'env' && (
+              <select value={envType} onChange={e => setEnvType(e.target.value as EnvType)}
+                className="rounded-lg text-xs px-2 py-1.5 outline-none"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                {(Object.keys(ENV_TYPE_LABEL) as EnvType[]).map(t => <option key={t} value={t}>{ENV_TYPE_LABEL[t]}</option>)}
+              </select>
+            )}
+            {scope === 'env' && (
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                acesso só aos ambientes de {ENV_TYPE_LABEL[envType]}; os demais ficam bloqueados.
+              </span>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <p className="text-sm py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</p>
@@ -238,7 +295,8 @@ export function BulkAllocationModal({ open, onClose, onChanged }: Props) {
         )}
 
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-          {targets.length} pessoa(s) × {targetClients.length} cliente(s) = <b>{targets.length * targetClients.length}</b> operação(ões).
+          {targets.length} pessoa(s) × {targetClients.length} cliente(s) = <b>{targets.length * targetClients.length}</b> operação(ões)
+          {mode === 'add' && scope === 'env' && <> · escopo: <b>só {ENV_TYPE_LABEL[envType]}</b></>}.
           {mode === 'add' && ' Alvos sem cofre configurado são ignorados.'}
         </p>
 
