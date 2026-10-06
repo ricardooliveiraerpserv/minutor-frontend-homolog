@@ -10,8 +10,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Globe, KeyRound, Lock, Pencil, Plus, Search, Settings, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { AppLayout } from '@/components/layout/app-layout'
 import { Badge, Button, Card, EmptyState, Modal, PageHeader, Skeleton, TextInput } from '@/components/ds'
 import { api, ApiError } from '@/lib/api'
 import { useVault, type VaultSummary } from '@/contexts/vault-context'
@@ -211,11 +211,10 @@ export function CofrePessoalInner() {
   )
 }
 
-// Página standalone (acesso direto a /ambientes/pessoal): Cofre Pessoal com seu próprio AppLayout.
+// A rota antiga /ambientes/pessoal agora redireciona pra dentro do Cofre (aba Pessoal) — o Cofre
+// Pessoal vive como aba de /ambientes, não como tela separada. Evita página sem abas / confusão.
 export default function CofrePessoalPage() {
-  return (
-    <AppLayout>
-      <CofrePessoalInner />
-    </AppLayout>
-  )
+  const router = useRouter()
+  useEffect(() => { router.replace('/ambientes?tab=pessoal') }, [router])
+  return null
 }

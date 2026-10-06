@@ -403,7 +403,12 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
 // Página do Cofre: duas seções sob o MESMO VaultProvider (sem re-unlock ao trocar) —
 // "Cofres de Cliente" (compartilhados) e "Cofre Pessoal" (privado), que fica DENTRO do Cofre.
 export default function AmbientesPage() {
+  // Padrão = Cofres de Cliente (o Cofre de Ambiente é a tela principal). ?tab=pessoal abre a aba Pessoal
+  // (usado pelo redirect da rota antiga /ambientes/pessoal).
   const [section, setSection] = useState<'clientes' | 'pessoal'>('clientes')
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'pessoal') setSection('pessoal')
+  }, [])
   return (
     <AppLayout>
       <div className="mb-3 flex items-center gap-1">
