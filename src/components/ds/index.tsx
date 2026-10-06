@@ -7,7 +7,7 @@
 import React, { Children, isValidElement, cloneElement, Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Eye, EyeOff } from 'lucide-react'
 import { ScrollableX } from '@/components/ui/scrollable-x'
 
 // ─── PAGE HEADER ─────────────────────────────────────────────────────────────
@@ -367,9 +367,12 @@ export function Button({
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   icon?: LucideIcon
+  revealToggle?: boolean   // mostra um botão de olho p/ ver/esconder a senha (type=password)
 }
 
-export function TextInput({ label, icon: Icon, className, ...props }: InputProps) {
+export function TextInput({ label, icon: Icon, revealToggle, type, className, ...props }: InputProps) {
+  const [reveal, setReveal] = React.useState(false)
+  const effType = revealToggle ? (reveal ? 'text' : 'password') : type
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -386,9 +389,12 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
           />
         )}
         <input
+          type={effType}
           className={cn(
             'w-full rounded-xl text-sm transition-colors outline-none',
-            Icon ? 'pl-9 pr-4 py-2.5' : 'px-4 py-2.5',
+            Icon ? 'pl-9' : 'pl-4',
+            revealToggle ? 'pr-10' : 'pr-4',
+            'py-2.5',
             className
           )}
           style={{
@@ -398,6 +404,18 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
           }}
           {...props}
         />
+        {revealToggle && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setReveal(r => !r)}
+            aria-label={reveal ? 'Esconder senha' : 'Mostrar senha'}
+            className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-70"
+            style={{ color: 'var(--text-light)' }}
+          >
+            {reveal ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        )}
       </div>
     </div>
   )

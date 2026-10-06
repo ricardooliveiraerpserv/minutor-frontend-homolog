@@ -68,6 +68,7 @@ export function UnlockScreen() {
             label="Master password"
             icon={KeyRound}
             type="password"
+            revealToggle
             autoFocus
             autoComplete="off"
             value={masterPassword}

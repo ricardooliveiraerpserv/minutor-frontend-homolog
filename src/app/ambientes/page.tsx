@@ -19,6 +19,7 @@ import { useVault } from '@/contexts/vault-context'
 import { useAuth } from '@/hooks/use-auth'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
 import { OnboardingWizard } from '@/components/vault/onboarding-wizard'
+import { BulkAllocationModal } from '@/components/environments/bulk-allocation-modal'
 import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
 
 interface ClientRow { customer_id: number; customer_name: string; vault_id: number; environments_count: number; role: string }
@@ -41,6 +42,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [favorites, setFavorites] = useState<FavRow[]>([])
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<SearchResult | null>(null)
   // Backfill: criar pastas (cofres) dos clientes que ainda não têm.
@@ -147,6 +149,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
         subtitle={subtitle}
         actions={status === 'unlocked' ? (
           <div className="flex gap-2">
+            <Button icon={Users} onClick={() => setBulkOpen(true)}>Alocar em massa</Button>
             <Link href="/ambientes/configuracao"><Button icon={Settings}>Configuração</Button></Link>
             <Button icon={Lock} onClick={lock}>Travar</Button>
           </div>
@@ -353,6 +356,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
       )}
 
       <NewClientModal open={newOpen} onClose={() => setNewOpen(false)} publicKey={publicKey} existing={clients.map(c => c.customer_id)} onCreated={() => void load()} />
+      <BulkAllocationModal open={bulkOpen} onClose={() => setBulkOpen(false)} onChanged={() => void load()} />
 
       <Modal open={backfill !== null} onClose={() => { if (!backfill?.running) setBackfill(null) }} title="Criar pastas dos clientes existentes">
         <div className="flex flex-col gap-4">
