@@ -53,6 +53,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [tab, setTab] = useState<'ativos' | 'inativos'>('ativos')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [filter, setFilter] = useState('')
+  const [pastaFilter, setPastaFilter] = useState<'todos' | 'com' | 'sem'>('todos')
   const [sortKey, setSortKey] = useState<'name' | 'env'>('name')
   const [sortAsc, setSortAsc] = useState(true)
   const [creatingId, setCreatingId] = useState<number | null>(null)
@@ -121,6 +122,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const vaultByCustomer = new Map(clients.map(c => [c.customer_id, c]))
   const shownCustomers = (tab === 'ativos' ? activeCustomers : inactiveCustomers)
     .filter(c => !filter.trim() || c.name.toLowerCase().includes(filter.trim().toLowerCase()))
+    .filter(c => pastaFilter === 'todos' || (vaultByCustomer.has(c.id) ? pastaFilter === 'com' : pastaFilter === 'sem'))
   const sortedCustomers = [...shownCustomers].sort((a, b) => {
     const cmp = sortKey === 'name'
       ? a.name.localeCompare(b.name, 'pt-BR')
@@ -273,6 +275,15 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
               </div>
             </div>
             <div className="flex gap-2 items-center">
+              <div className="inline-flex rounded-lg overflow-hidden shrink-0" style={{ border: '1px solid var(--border)' }}>
+                {([['todos', 'Todas'], ['com', 'Com pasta'], ['sem', 'Sem pasta']] as const).map(([k, lbl]) => (
+                  <button key={k} type="button" onClick={() => setPastaFilter(k)}
+                    className="px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
+                    style={{ background: pastaFilter === k ? 'var(--primary-soft)' : 'transparent', color: pastaFilter === k ? 'var(--primary)' : 'var(--text-muted)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
               <div className="w-44"><TextInput icon={Search} placeholder="Filtrar cliente…" value={filter} onChange={e => setFilter(e.target.value)} /></div>
               {isAdmin && <>
                 <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas</Button>
