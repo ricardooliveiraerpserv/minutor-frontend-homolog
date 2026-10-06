@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { sanitizeEmail } from '@/lib/sanitize-html'
+import { fetchAuthedObjectUrl } from '@/lib/authed-image'
 
 /**
  * Renderiza o corpo de um e-mail (descrição/resposta recebida) num <iframe> ISOLADO —
@@ -27,12 +28,20 @@ export function EmailFrame({ html, onImageClick }: { html: string; onImageClick?
   // clicáveis: ao clicar num print dentro do corpo, abre o lightbox no documento pai.
   const wireImages = useCallback(() => {
     const doc = ref.current?.contentDocument
-    if (!doc || !onImageClick) return
+    if (!doc) return
     doc.querySelectorAll('img').forEach((img) => {
-      img.style.cursor = 'zoom-in'
-      img.onclick = (e) => { e.preventDefault(); onImageClick(img.currentSrc || img.src, img.alt || undefined) }
+      // Imagens re-hospedadas do Movidesk (<img src="/api/.../download">): a API exige token
+      // Bearer, que a tag <img> não envia → 401 "quebrada". Busca COM token e troca por object URL.
+      const raw = img.getAttribute('src') || ''
+      if (raw.startsWith('/api/')) {
+        fetchAuthedObjectUrl(raw).then((u) => { img.src = u; setTimeout(resize, 50) }).catch(() => {})
+      }
+      if (onImageClick) {
+        img.style.cursor = 'zoom-in'
+        img.onclick = (e) => { e.preventDefault(); onImageClick(img.currentSrc || img.src, img.alt || undefined) }
+      }
     })
-  }, [onImageClick])
+  }, [onImageClick, resize])
 
   const srcDoc = `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank">
