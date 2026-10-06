@@ -46,7 +46,7 @@ export type VaultStatus = 'loading' | 'unconfigured' | 'locked' | 'unlocked'
 
 // Timeout do auto-lock (minutos). Só o NÚMERO persiste — nunca chaves.
 const LS_TIMEOUT_KEY = 'minutor_vault_lock_min'
-export const LOCK_TIMEOUT_OPTIONS = [1, 5, 15, 30] as const
+export const LOCK_TIMEOUT_OPTIONS = [1, 5, 10, 15, 30] as const
 const HIDDEN_LOCK_MS = 60_000
 
 interface VaultCtx {
