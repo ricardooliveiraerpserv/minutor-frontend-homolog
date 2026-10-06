@@ -411,16 +411,18 @@ export default function AmbientesPage() {
   }, [])
   return (
     <AppLayout>
-      <div className="mb-3 flex items-center gap-1">
+      <div className="mb-4 inline-flex items-center gap-1 p-1 rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
         {([['clientes', 'Cofres de Cliente', Server], ['pessoal', 'Cofre Pessoal', KeyRound]] as const).map(([k, label, Icon]) => (
           <button
             key={k}
             type="button"
             onClick={() => setSection(k)}
-            className="text-sm px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
-            style={{ background: section === k ? 'var(--primary-soft)' : 'transparent', color: section === k ? 'var(--primary)' : 'var(--text-muted)', fontWeight: section === k ? 600 : 400 }}
+            className="text-sm px-4 py-2 rounded-lg inline-flex items-center gap-2 transition-colors"
+            style={section === k
+              ? { background: 'var(--primary)', color: '#fff', fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }
+              : { background: 'transparent', color: 'var(--text-muted)', fontWeight: 500 }}
           >
-            <Icon size={15} /> {label}
+            <Icon size={16} /> {label}
           </button>
         ))}
       </div>
