@@ -145,7 +145,15 @@ export default function DashboardPage() {
     // administrativo, consultor e parceiro_admin (consultor). Outros caem
     // numa página em branco, então redireciona pra sua respectiva home.
     if (user.type === 'coordenador')                        router.replace('/timesheets')
-    else if (user.type === 'cliente')                       router.replace('/portal-cliente')
+    else if (user.type === 'cliente') {
+      // Gestor do cliente cai no Home executivo (visão da empresa). Cliente comum
+      // (visibilidade por convite) cai direto em "Demandas e Projetos" — ele não
+      // enxerga o resumo executivo da empresa.
+      const am = (user as any).allowed_modules as string[] | null | undefined
+      const canProj = !am || am.includes('projetos')
+      if ((user as any).is_customer_manager)  router.replace('/portal-cliente')
+      else                                    router.replace(canProj ? '/contratos/pipeline' : '/help-desk/portal')
+    }
     else if (user.type === 'parceiro_admin' && (user as any).is_executive) router.replace('/partner-dashboard')
   }, [user, router])
 

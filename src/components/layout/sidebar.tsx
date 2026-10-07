@@ -931,6 +931,26 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       // Acesso por módulo POR USUÁRIO: null/ausente = todos (legado); senão só o que foi liberado.
       const allowed = user?.allowed_modules ?? null
       const canModule = (m: string) => !allowed || allowed.includes(m)
+
+      // Cliente NÃO-gestor (visibilidade por convite): menu enxuto. Só acompanha os
+      // cards em que foi convidado — "Demandas e Projetos" (lista já escopada no backend)
+      // + "Meus Processos". NÃO vê o resumo executivo da empresa (Home), dashboards de
+      // contrato nem indicadores. O gestor do cliente (is_customer_manager) vê tudo.
+      const isCustomerManager = !!user?.is_customer_manager
+      if (!isCustomerManager) {
+        const lean: NavEntry[] = [
+          { type: 'item', label: 'Comunicados',    href: '/comunicados',           icon: Megaphone, badge: 'comunicados' },
+          { type: 'item', label: 'Meus Processos', href: '/portal-cliente/kanban', icon: LayoutGrid },
+        ]
+        if (canModule('help_desk')) {
+          lean.push({ type: 'item', label: 'Help Desk', href: '/help-desk/portal', icon: Headphones })
+        }
+        if (canModule('projetos')) {
+          lean.push({ type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid })
+        }
+        return lean
+      }
+
       // Home e Comunicados são sempre visíveis (não pertencem a Projetos nem Help Desk).
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
