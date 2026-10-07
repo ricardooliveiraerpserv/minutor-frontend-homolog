@@ -1429,9 +1429,11 @@ function TicketDetailInner({ id }: { id: number }) {
                                 ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                     <img src={url} alt={nome} className="max-h-48 object-contain" />
                                   </button>
-                                : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                                    <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
-                                  </a>
+                                : <div key={a.id} className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                    <Paperclip size={15} /> <span className="truncate max-w-[180px]">{nome}</span>{a.human_size ? <span className="font-normal opacity-70">· {a.human_size}</span> : null}
+                                    <button type="button" onClick={() => viewAtt(url)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={15} /></button>
+                                    <button type="button" onClick={() => downloadAtt(url, nome)} title="Baixar" className="hover:opacity-70"><Download size={15} /></button>
+                                  </div>
                             })}
                           </div>
                         )}
