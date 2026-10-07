@@ -1133,6 +1133,13 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
     a.href = url; a.download = att.original_name; a.click()
     URL.revokeObjectURL(url)
   }
+  const viewAttachment = async (att: any) => {
+    try {
+      const res = await fetch(`/api/v1/contracts/${card.id}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   const fields: [string, string][] = full ? [
     ['Categoria',           full.categoria === 'sustentacao' ? 'Sustentação' : 'Projeto'],
@@ -1353,6 +1360,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                               <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{ATT_LABEL[att.type] ?? att.type}{att.size != null ? ` · ${fmtSize(att.size)}` : ''}</p>
                             </div>
                           </div>
+                          <button onClick={() => viewAttachment(att)} title="Visualizar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}>
                             <Download size={14} />
                           </button>

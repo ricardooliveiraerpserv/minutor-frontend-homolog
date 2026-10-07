@@ -85,35 +85,42 @@ function MessagesSkeleton() {
 }
 
 function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number }) {
+  const baseUrl = `/api/v1/contract-messages/${messageId}/attachments/${att.id}/download`
+
+  const handleView = async () => {
+    try {
+      const res = await fetch(`${baseUrl}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob())
+      window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
   const handleDownload = async () => {
     try {
-      const res = await fetch(`/api/v1/contract-messages/${messageId}/attachments/${att.id}/download`, {
-        credentials: 'same-origin',
-      })
+      const res = await fetch(baseUrl, { credentials: 'same-origin' })
       if (!res.ok) throw new Error()
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = att.original_name; a.click()
-      URL.revokeObjectURL(url)
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a'); a.href = url; a.download = att.original_name; a.click(); URL.revokeObjectURL(url)
     } catch { toast.error('Erro ao baixar arquivo') }
   }
 
   return (
-    <button
-      onClick={handleDownload}
-      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-80 max-w-[220px]"
+    <div
+      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs max-w-[240px]"
       style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
     >
-      {att.mime_type?.startsWith('image/') ? (
-        <Eye size={11} style={{ color: 'var(--warning)' }} />
-      ) : (
-        <FileText size={11} style={{ color: 'var(--warning)' }} />
-      )}
-      <span className="truncate flex-1 text-left" style={{ color: 'var(--text)' }}>{att.original_name}</span>
+      <button onClick={handleView} className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80" title="Visualizar">
+        {att.mime_type?.startsWith('image/') ? (
+          <Eye size={11} style={{ color: 'var(--warning)' }} />
+        ) : (
+          <FileText size={11} style={{ color: 'var(--warning)' }} />
+        )}
+        <span className="truncate" style={{ color: 'var(--text)' }}>{att.original_name}</span>
+      </button>
       <span className="shrink-0" style={{ color: 'var(--text-light)' }}>{formatBytes(att.file_size)}</span>
-      <Download size={10} className="shrink-0" style={{ color: 'var(--text-light)' }} />
-    </button>
+      <button onClick={handleView} title="Visualizar" className="shrink-0 hover:opacity-70"><Eye size={12} style={{ color: 'var(--text-light)' }} /></button>
+      <button onClick={handleDownload} title="Baixar" className="shrink-0 hover:opacity-70"><Download size={12} style={{ color: 'var(--text-light)' }} /></button>
+    </div>
   )
 }
 

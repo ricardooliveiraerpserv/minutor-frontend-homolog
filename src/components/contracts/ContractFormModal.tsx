@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { toast } from 'sonner'
-import { Plus, X, Trash2, FileText, Download, ExternalLink, CheckCircle } from 'lucide-react'
+import { Plus, X, Trash2, FileText, Download, Eye, ExternalLink, CheckCircle } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -616,6 +616,13 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
     a.href = url; a.download = att.original_name; a.click()
     URL.revokeObjectURL(url)
   }
+  const viewAttachment = async (contractId: number, att: ContractAttachment) => {
+    try {
+      const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   const deleteAttachment = async (contractId: number, attId: number) => {
     if (!confirm('Remover este arquivo?')) return
@@ -662,7 +669,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => downloadAttachment(internalEdit.id, att)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
+                  <button onClick={() => viewAttachment(internalEdit.id, att)} title="Visualizar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Eye size={13} /></button>
+                  <button onClick={() => downloadAttachment(internalEdit.id, att)} title="Baixar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
                   <button onClick={() => deleteAttachment(internalEdit.id, att.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"><Trash2 size={13} /></button>
                 </div>
               </div>
@@ -1054,7 +1062,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => downloadAttachment(internalEdit.id, att)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
+                          <button type="button" onClick={() => viewAttachment(internalEdit.id, att)} title="Visualizar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Eye size={13} /></button>
+                          <button type="button" onClick={() => downloadAttachment(internalEdit.id, att)} title="Baixar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
                           <button type="button" onClick={() => deleteAttachment(internalEdit.id, att.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"><Trash2 size={13} /></button>
                         </div>
                       </div>

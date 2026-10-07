@@ -1024,6 +1024,13 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     const blob = await res.blob(); const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = att.original_name; a.click(); URL.revokeObjectURL(url)
   }
+  const viewProjAtt = async (att: any) => {
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
   const deleteProjAtt = async (att: any) => {
     if (!confirm('Remover este anexo?')) return
     try { await api.delete(`/projects/${project.id}/attachments/${att.id}`); setProjAttachments(p => p.filter(x => x.id !== att.id)); toast.success('Anexo removido') }
@@ -1498,6 +1505,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          <button type="button" onClick={() => viewProjAtt(att)} title="Visualizar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                           {att.source !== 'contract' && (
                             <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>

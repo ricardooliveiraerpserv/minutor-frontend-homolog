@@ -7,7 +7,7 @@ import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { MeetingsPanel } from '@/components/meetings/meetings-panel'
 import { toast } from 'sonner'
-import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
+import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, Eye, FileText } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 import { Skeleton } from '@/components/ui/loading'
@@ -133,6 +133,13 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
     const blob = await res.blob(); const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = att.original_name; a.click(); URL.revokeObjectURL(url)
+  }
+  const viewViewAtt = async (att: any) => {
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
   }
 
   const reload = () => {
@@ -531,6 +538,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                               <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{att.type ?? 'anexo'}{att.source === 'contract' ? ' · do contrato' : ''}</p>
                             </div>
                           </div>
+                          <button type="button" onClick={() => viewViewAtt(att)} title="Visualizar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button type="button" onClick={() => downloadViewAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                         </div>
                       ))}

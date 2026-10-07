@@ -321,6 +321,13 @@ export default function ContratosPage() {
     a.href = url; a.download = att.original_name; a.click()
     URL.revokeObjectURL(url)
   }
+  const viewAttachment = async (contractId: number, att: ContractAttachment) => {
+    try {
+      const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   // ─── Project menu items (aba Projetos, admin/coordenador) ────────────────
   const PROJECT_MENU_ITEMS = [
@@ -634,7 +641,8 @@ export default function ContratosPage() {
                               <p className="text-[10px] text-[var(--text-muted)]">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
                             </div>
                           </div>
-                          <button onClick={() => downloadAttachment(vc.id, att)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
+                          <button onClick={() => viewAttachment(vc.id, att)} title="Visualizar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Eye size={13} /></button>
+                          <button onClick={() => downloadAttachment(vc.id, att)} title="Baixar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
                         </div>
                       ))}
                     </div>

@@ -105,7 +105,8 @@ export async function fetchAsBlob(url: string): Promise<{ blobUrl: string; filen
  * em nova aba ou força o save dependendo de `download`.
  */
 export async function downloadAttachment(id: number, opts: { download?: boolean } = {}): Promise<void> {
-  const url = `/api/v1/attachments/${id}/download`
+  // view (download=false) → ?view=1: backend serve inline e converte Office p/ PDF (Gotenberg).
+  const url = `/api/v1/attachments/${id}/download${opts.download ? '' : '?view=1'}`
   const res = await fetch(url, { credentials: 'same-origin' })
   if (!res.ok) {
     throw new Error(`Falha no download (HTTP ${res.status})`)
