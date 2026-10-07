@@ -12,7 +12,7 @@ import { EmailFrame } from './email-frame'
 
 // Macro (ex-playbook): só preenche o texto da interação.
 export interface MacroItem { id: number; name: string; color?: string | null; category?: string | null; reply?: string | null; internal?: string | null }
-export interface ComposerHandle { insertMacroReply: (text: string) => void; focusReply: (v: 'customer' | 'internal') => void }
+export interface ComposerHandle { insertMacroReply: (text: string) => void; focusReply: (v: 'customer' | 'internal') => void; armStatus: (statusId: number, just?: { id: number; name: string } | null) => void }
 
 // Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
 function localToday(): string {
@@ -40,7 +40,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   onSent: () => void
   statuses?: ComposerStatus[]
   currentStatusId?: number
-  onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string }) => void | Promise<void>
+  onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string; justification_id?: number | null }) => void | Promise<void>
   currentDevDelivery?: string | null   // data de entrega já salva no chamado (Em Desenvolvimento)
   onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
@@ -62,6 +62,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
   const [sendStatus, setSendStatus] = useState<number | undefined>(undefined)
+  // Justificativa "armada" junto do status (ex.: Cancelado + motivo) — exibida como "Status/Motivo"
+  // e enviada no apply. Fica pendente até o envio do texto (não finaliza no clique do motivo).
+  const [armedJust, setArmedJust] = useState<{ id: number; name: string } | null>(null)
   const [stOpen, setStOpen] = useState(false)  // dropdown custom de status
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
@@ -152,6 +155,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (!window.confirm(msg)) return
     }
     setSendStatus(s.id)
+    setArmedJust(null)
     // Em Desenvolvimento: pré-carrega a data já salva no chamado (se houver) e injeta o texto fixo
     // com essa data. Sem data ainda, o texto só entra quando o consultor escolher a previsão.
     if (s.key === 'em_desenvolvimento') {
@@ -236,7 +240,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     const ed = edRef.current
     if (ed) { ed.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => ed.focus(), 250) }
   }
-  useImperativeHandle(ref, () => ({ insertMacroReply, focusReply }), [sendStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Arma um status + justificativa a partir do modal (não finaliza — espera o texto).
+  const armStatus = (statusId: number, just?: { id: number; name: string } | null) => { setSendStatus(statusId); setArmedJust(just ?? null) }
+  useImperativeHandle(ref, () => ({ insertMacroReply, focusReply, armStatus }), [sendStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const insertImage = (dataUrl: string) => {
     const ed = edRef.current; if (!ed) return
@@ -363,8 +369,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       // Aplica o status quando muda; em "Em Desenvolvimento" aplica também no "Manter" para
       // PERSISTIR a data de entrega (o backend faz early-return na transição de mesmo status).
       const applyStatus = !!sendStatus && (sendStatus !== currentStatusId || (isDevStatus && !!devDelivery))
-      if (onApplyStatus && applyStatus) {
-        await onApplyStatus(sendStatus!, isDevStatus ? { dev_delivery_at: devDelivery } : undefined)
+      const statusExtra = { ...(isDevStatus ? { dev_delivery_at: devDelivery } : {}), justification_id: armedJust?.id ?? null }
+      // Terminal (cancelado/fechado): posta o texto ANTES de encerrar — senão o chamado fecha e a interação é barrada.
+      if (onApplyStatus && applyStatus && !selStatus?.is_terminal) {
+        await onApplyStatus(sendStatus!, statusExtra)
       }
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
@@ -381,6 +389,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         fd.append('no_charge', noCharge ? '1' : '0')
       }
       const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
+      // Terminal: encerra DEPOIS do texto postado (o chamado ainda estava aberto ao postar).
+      if (onApplyStatus && applyStatus && selStatus?.is_terminal) {
+        await onApplyStatus(sendStatus!, statusExtra)
+      }
       if (ed) ed.innerHTML = ''
       try { localStorage.removeItem(draftKey) } catch { /* ignore */ }
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
@@ -391,7 +403,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (canSchedule && schedDate && onSchedule) { await onSchedule(schedDate, schedTime); toast.success('Chamado agendado — SLA pausado') }
       setSchedDate(''); setSchedTime('')
       setDevDelivery(''); devTemplateRef.current = null
-      setSendStatus(undefined) // volta a exigir escolha na próxima interação
+      setSendStatus(undefined); setArmedJust(null) // volta a exigir escolha na próxima interação
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
     } finally { setSending(false) }
@@ -508,7 +520,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                   Cores: terminal (Fechado/Cancelado) = danger; resolvido (Resolvido/GMUD) = warning. */}
               <button type="button" onClick={() => setStOpen(o => !o)} aria-label="Status ao enviar"
                 className="ds-input inline-flex items-center gap-1.5" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b', color: statusColor(selStatus), fontWeight: isCritical(selStatus) ? 700 : 400 }}>
-                {selStatus ? (selStatus.id === currentStatusId ? `Manter: ${selStatus.label}` : selStatus.label) : '— Selecione o status —'}
+                {selStatus ? (selStatus.id === currentStatusId ? `Manter: ${selStatus.label}` : (armedJust ? `${selStatus.label}/${armedJust.name}` : selStatus.label)) : '— Selecione o status —'}
                 <ChevronDown size={13} />
               </button>
               {stOpen && (<>
@@ -583,7 +595,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
             )
           })}
           {sendStatus && sendStatus !== currentStatusId && (
-            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ao enviar → <strong>{statuses.find(s => s.id === sendStatus)?.label ?? ''}</strong></span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ao enviar → <strong>{(statuses.find(s => s.id === sendStatus)?.label ?? '') + (armedJust ? `/${armedJust.name}` : '')}</strong></span>
           )}
           <label className="inline-flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded-md" style={{ color: 'var(--text-muted)' }}>
             <Paperclip size={14} /> Anexar

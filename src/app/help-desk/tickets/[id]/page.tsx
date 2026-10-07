@@ -964,7 +964,7 @@ function TicketDetailInner({ id }: { id: number }) {
             <div className="flex flex-col items-start gap-1">
               <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
                 <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
-                {t.status?.label ?? '—'}
+                {t.status?.label ?? '—'}{t.justification?.name ? `/${t.justification.name}` : ''}
               </span>
               {/* Legenda: previsão de entrega em homologação (só em "Em Desenvolvimento"). */}
               {t.dev_delivery_at && t.status?.key === 'em_desenvolvimento' && (
@@ -1202,7 +1202,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
                     timeMode={t.apontamento_time_mode ?? 'optional'}
-                    onApplyStatus={(sid, extra) => onStatusSelect(String(sid), extra)}
+                    onApplyStatus={(sid, extra) => changeStatus(String(sid), extra?.justification_id ?? null, extra)}
                     currentDevDelivery={t.dev_delivery_at}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
@@ -1860,12 +1860,12 @@ function TicketDetailInner({ id }: { id: number }) {
                   onClick={() => {
                     if (/totvs/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'totvs' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
                     else if (/terceir|fornecedor/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'other' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
-                    else { changeStatus(pendingStatus, j.id, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }
+                    else { composerRef.current?.armStatus(Number(pendingStatus), { id: j.id, name: j.name }); setPendingStatus(null); setPendingExtra(null) }
                   }}>{j.name}</button>
               ))}
             </div>
             <div className="flex justify-between pt-1">
-              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { changeStatus(pendingStatus, null, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }}>Mudar sem justificativa</button>
+              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { composerRef.current?.armStatus(Number(pendingStatus), null); setPendingStatus(null); setPendingExtra(null) }}>Mudar sem justificativa</button>
               <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setPendingStatus(null)}>Cancelar</button>
             </div>
           </div>
