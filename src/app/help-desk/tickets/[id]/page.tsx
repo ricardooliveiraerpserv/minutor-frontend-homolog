@@ -31,7 +31,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, Building2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, Building2, Download, type LucideIcon } from 'lucide-react'
 import { useTicketPresence } from '@/hooks/use-ticket-presence'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
@@ -312,6 +312,28 @@ function TicketDetailInner({ id }: { id: number }) {
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
       toast.dismiss(tid)
     } catch (e) { toast.dismiss(tid); toast.error((e as { message?: string })?.message ?? 'Erro ao gerar relatório') }
+  }
+  // Anexos: fetch autenticado (cookie + token por aba) p/ Visualizar (inline) ou Baixar.
+  const attFetch = (url: string) => {
+    const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+    return fetch(url, { credentials: 'same-origin', headers: sToken ? { Authorization: `Bearer ${sToken}` } : {} })
+  }
+  const viewAtt = async (url: string) => {
+    try {
+      const res = await attFetch(`${url}${url.includes('?') ? '&' : '?'}view=1`)
+      if (!res.ok) throw new Error()
+      const obj = URL.createObjectURL(await res.blob())
+      window.open(obj, '_blank')
+      setTimeout(() => URL.revokeObjectURL(obj), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
+  const downloadAtt = async (url: string, name: string) => {
+    try {
+      const res = await attFetch(url)
+      if (!res.ok) throw new Error()
+      const obj = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a'); a.href = obj; a.download = name; a.click(); URL.revokeObjectURL(obj)
+    } catch { toast.error('Erro ao baixar arquivo') }
   }
   const [merged, setMerged] = useState<MergedRow[]>(c0?.merged ?? [])
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
@@ -1299,9 +1321,11 @@ function TicketDetailInner({ id }: { id: number }) {
                                       ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                           <img src={url} alt={nome} className="max-h-48 object-contain" />
                                         </button>
-                                      : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                                          <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
-                                        </a>
+                                      : <div key={a.id} className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                          <Paperclip size={15} /> <span className="truncate max-w-[180px]">{nome}</span>{a.human_size ? <span className="font-normal opacity-70">· {a.human_size}</span> : null}
+                                          <button type="button" onClick={() => viewAtt(url)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={15} /></button>
+                                          <button type="button" onClick={() => downloadAtt(url, nome)} title="Baixar" className="hover:opacity-70"><Download size={15} /></button>
+                                        </div>
                                   })}
                                 </div>
                               )}
@@ -1464,11 +1488,17 @@ function TicketDetailInner({ id }: { id: number }) {
                         )}
                         {atts.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {atts.map(a => (
-                              <a key={a.id} href={`/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                                <Paperclip size={12} /> <span className="max-w-[180px] truncate">{a.original_name ?? a.file_name ?? `Anexo #${a.id}`}</span>{a.human_size ? ` · ${a.human_size}` : ''}
-                              </a>
-                            ))}
+                            {atts.map(a => {
+                              const aUrl = `/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`
+                              const aNome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
+                              return (
+                              <div key={a.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                                <Paperclip size={12} /> <span className="max-w-[160px] truncate">{aNome}</span>{a.human_size ? <span className="opacity-70">· {a.human_size}</span> : null}
+                                <button type="button" onClick={() => viewAtt(aUrl)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={13} /></button>
+                                <button type="button" onClick={() => downloadAtt(aUrl, aNome)} title="Baixar" className="hover:opacity-70"><Download size={13} /></button>
+                              </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>

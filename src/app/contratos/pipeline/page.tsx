@@ -1158,9 +1158,11 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const color = statusColor[card.status] ?? '#94a3b8'
   const hasReq = !!card.contract_request_id
 
-  const fetchAttachmentBlob = async (msgId: number, attId: number) => {
-    const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${attId}/download`, {
+  const fetchAttachmentBlob = async (msgId: number, attId: number, view = false) => {
+    const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+    const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${attId}/download${view ? '?view=1' : ''}`, {
       credentials: 'same-origin',
+      headers: sToken ? { Authorization: `Bearer ${sToken}` } : {},
     })
     if (!res.ok) throw new Error()
     return res.blob()
@@ -1178,9 +1180,10 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
 
   const viewReqAttachment = async (msgId: number, att: { id: number; original_name: string }) => {
     try {
-      const blob = await fetchAttachmentBlob(msgId, att.id)
+      const blob = await fetchAttachmentBlob(msgId, att.id, true)
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch { toast.error('Erro ao abrir arquivo') }
   }
 
@@ -3018,7 +3021,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           <div className="mt-2 flex flex-wrap gap-2">
                             {msg.attachments.map(att => (
                               <button key={att.id}
-                                onClick={async () => { try { const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' }); if (!res.ok) throw new Error(); window.open(URL.createObjectURL(await res.blob()), '_blank') } catch { toast.error('Erro ao abrir arquivo') } }}
+                                onClick={async () => { try { const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download?view=1`, { credentials: 'same-origin' }); if (!res.ok) throw new Error(); window.open(URL.createObjectURL(await res.blob()), '_blank') } catch { toast.error('Erro ao abrir arquivo') } }}
                                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] hover:bg-[var(--surface-hover)]" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
                                 <Paperclip size={9} /><span className="max-w-[160px] truncate">{att.original_name}</span>
                               </button>
@@ -3892,7 +3895,7 @@ function ReqChatPanel({ requestId, visibility, readOnly }: {
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
+                            const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download?view=1`, { credentials: 'same-origin' })
                             if (!res.ok) throw new Error()
                             const blob = await res.blob()
                             window.open(URL.createObjectURL(blob), '_blank')
