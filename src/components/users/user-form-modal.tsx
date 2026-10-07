@@ -1097,7 +1097,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <input
                   type="checkbox"
                   checked={!!form.is_customer_manager}
-                  onChange={e => setForm(f => ({ ...f, is_customer_manager: e.target.checked }))}
+                  onChange={e => setForm(f => {
+                    const on = e.target.checked
+                    // Gestor precisa do módulo Projetos — garante na lista (null = todos já inclui).
+                    let am = f.allowed_modules
+                    if (on && Array.isArray(am) && !am.includes('projetos')) am = [...am, 'projetos']
+                    return { ...f, is_customer_manager: on, allowed_modules: am }
+                  })}
                   className="mt-0.5"
                 />
                 <span>
