@@ -104,11 +104,14 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     const cf = classFilled ?? { category: true, service: true, priority: true, level: true, agent: true, project: true }
     const m: string[] = []
     if (!cf.agent) m.push('Agente')
-    if ((!isManager || concluir) && !cf.category) m.push('Categoria')
-    if (!cf.service) m.push('Serviço')
-    if (!cf.priority) m.push('Urgência')
-    if (!cf.level) m.push('Nível')
-    if (cf.project === false) m.push('Contrato/Projeto')
+    // Cancelamento não exige triagem — basta o responsável (Agente) estar preenchido.
+    if (s.key !== 'cancelado') {
+      if ((!isManager || concluir) && !cf.category) m.push('Categoria')
+      if (!cf.service) m.push('Serviço')
+      if (!cf.priority) m.push('Urgência')
+      if (!cf.level) m.push('Nível')
+      if (cf.project === false) m.push('Contrato/Projeto')
+    }
     return m.length ? `Preencha a triagem antes: ${m.join(', ')}.` : ''
   }
   const classBlock = blockFor(selStatus)
