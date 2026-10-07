@@ -9,6 +9,7 @@ import { MeetingsPanel } from '@/components/meetings/meetings-panel'
 import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, Eye, FileText } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
+import { ClientViewersManager } from '@/components/projects/client-viewers-manager'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 import { Skeleton } from '@/components/ui/loading'
 
@@ -448,6 +449,8 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     ))}
                   </div>
                 )}
+
+                {!isClienteViewer && <ClientViewersManager projectId={p.id} />}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>

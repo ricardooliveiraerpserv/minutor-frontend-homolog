@@ -2,6 +2,8 @@
 
 import { useApiQuery } from '@/hooks/use-query'
 import { CalendarDays } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { ClientViewersManager } from './client-viewers-manager'
 
 /**
  * Visão Geral do projeto para o CLIENTE — progresso por etapa, em dias.
@@ -25,6 +27,8 @@ function fmtDate(iso: string | null): string {
 }
 
 export function ClientProjectOverview({ projectId }: { projectId: number }) {
+  const { user } = useAuth()
+  const isManager = user?.type === 'cliente' && !!user?.is_customer_manager
   const { data, loading } = useApiQuery<ScheduleResp>(`/client/projects/${projectId}/schedule`)
 
   if (loading && !data) return <div style={{ color: 'var(--text-muted)' }}>Carregando…</div>
@@ -63,6 +67,9 @@ export function ClientProjectOverview({ projectId }: { projectId: number }) {
           })}
         </div>
       </div>
+
+      {/* Gestor do cliente pode convidar outros usuários da sua empresa para ver este projeto. */}
+      {isManager && <ClientViewersManager projectId={projectId} />}
     </div>
   )
 }

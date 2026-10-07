@@ -35,6 +35,7 @@ interface UserData {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  is_customer_manager?: boolean | null
   company_ids?: number[]
   allowed_modules?: string[] | null
   partner_id?: number | null
@@ -355,6 +356,8 @@ const EMPTY_FORM = {
   is_partner_consultor: false,
   is_partner_adm: false,
   customer_id: '' as number | '',
+  // Gestor do cliente: vê todos os projetos da empresa e pode convidar outros usuários aos cards.
+  is_customer_manager: false,
   // Empresas do grupo (ERPSERV/BIZIFY) vinculadas — define as abas do portal (cliente) / fila (agente).
   company_ids: [] as number[],
   // Acesso a módulos do cliente. null = todos (legado); [] ou lista = recorte explícito.
@@ -526,6 +529,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           is_partner_consultor: false,
           is_partner_adm:       item.is_executive ?? false,
           customer_id:          item.customer_id ?? '',
+          is_customer_manager:  item.is_customer_manager ?? false,
           company_ids:          item.company_ids ?? [],
           allowed_modules:      (item.allowed_modules ?? null) as string[] | null,
           partner_id:           item.partner_id  ?? '',
@@ -608,6 +612,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
+        is_customer_manager: form.profiles.includes('cliente') ? form.is_customer_manager : false,
         // Acesso por módulo só faz sentido p/ cliente; null = todos (não restringe).
         allowed_modules: form.profiles.includes('cliente') ? form.allowed_modules : null,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
@@ -787,6 +792,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         contract_type:    (profiles.length && !profiles.includes('cliente')) ? f.contract_type : '',
         coordinator_type: profiles.includes('coordenador')  ? f.coordinator_type : '',
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
+        is_customer_manager: profiles.includes('cliente')   ? f.is_customer_manager : false,
         allowed_modules:  profiles.includes('cliente')      ? f.allowed_modules : null,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
         // Perfil HD só continua se o KIND continuar compatível (cliente↔cliente, agente↔agente).
@@ -1083,6 +1089,25 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 options={customers.map(c => ({ value: c.id, label: c.name }))}
                 placeholder="Selecione a empresa..."
               />
+            )}
+
+            {/* ── Cliente: gestor do cliente (vê todos os projetos da empresa + convida outros) ── */}
+            {isCliente && (
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_customer_manager}
+                  onChange={e => setForm(f => ({ ...f, is_customer_manager: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="text-sm text-[var(--text)]">Gestor do cliente</span>
+                  <span className="block text-[10px] text-[var(--text-light)]">
+                    Enxerga TODOS os projetos da empresa e pode convidar outros usuários para os cards.
+                    Clientes sem esta opção só veem os projetos em que foram convidados.
+                  </span>
+                </span>
+              </label>
             )}
 
             {/* ── Cliente: empresa(s) do grupo ERPSERV/BIZIFY — define as abas do portal (OBRIGATÓRIO) ── */}

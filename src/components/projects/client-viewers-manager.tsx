@@ -17,6 +17,7 @@ interface Viewer { id: number; name: string; email?: string | null }
 export function ClientViewersManager({ projectId }: { projectId: number }) {
   const { user } = useAuth()
   const canManage = user?.type === 'admin' || user?.type === 'coordenador'
+    || (user?.type === 'cliente' && !!user?.is_customer_manager)
   const [viewers, setViewers] = useState<Viewer[]>([])
   const [clientOpts, setClientOpts] = useState<{ id: number; name: string }[]>([])
   const [adding, setAdding] = useState(false)
