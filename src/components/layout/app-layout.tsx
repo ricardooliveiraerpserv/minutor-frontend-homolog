@@ -37,7 +37,10 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
   const pathname = usePathname()
   // Guard CENTRAL de 'view': se o admin bloqueou a visualização desta tela p/ este usuário
   // (Configurador → Ações), a tela inteira fica travada — vale p/ TODAS as telas de uma vez.
-  const viewBlocked = isDenied(pathname, 'view')
+  // Exceção: COORDENADOR em /users — ele entra p/ definir gestor do cliente e/ou resetar
+  // senha da equipe, mesmo sem 'view'. O corpo da tela gateia cada ação individualmente.
+  const coordUsersException = pathname === '/users' && user?.type === 'coordenador'
+  const viewBlocked = isDenied(pathname, 'view') && !coordUsersException
   const [companyName, setCompanyName] = useState<string | null>(null)
   // Drawer de navegação no mobile (sidebar off-canvas).
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
