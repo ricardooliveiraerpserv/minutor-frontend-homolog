@@ -4474,7 +4474,7 @@ function KanbanContent() {
   const [loading,         setLoading]         = useState(true)
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
   // Tab inicial do RequestDetailModal — usado quando vem de deep link #chat
-  const [requestInitialTab, setRequestInitialTab] = useState<'details' | 'comments' | 'log' | undefined>(undefined)
+  const [requestInitialTab, setRequestInitialTab] = useState<'details' | 'comments' | 'diary' | 'log' | undefined>(undefined)
   const [planDecisionCard,     setPlanDecisionCard]     = useState<RequestCard | null>(null)
   const [contractCreateForReq, setContractCreateForReq] = useState<RequestCard | null>(null)
   const [subprojetoForReq, setSubprojetoForReq] = useState<{ card: RequestCard; projectId: number; subSeq: string } | null>(null)
