@@ -468,6 +468,14 @@ function ContractKanbanCard({
 function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
   const { user: viewerUser } = useAuth()
   const [showParticipants, setShowParticipants] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menuOpen) return
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [menuOpen])
   const canManageViewers = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
     || (viewerUser?.type === 'cliente' && !!(viewerUser as any)?.is_customer_manager)
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
@@ -513,28 +521,35 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
           {URGENCIA_LABEL[card.nivel_urgencia] ?? card.nivel_urgencia}
         </span>
         <div className="flex items-center gap-2">
-          {isReqInicio && onView && (
-            <button
-              onClick={onView}
-              className="text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors hover:opacity-80"
-              style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>
-              Visualizar
+          <div className="relative" ref={menuRef}>
+            <button onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }} title="Ações"
+              className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" style={{ color: '#a78bfa' }}>
+              <MoreVertical size={13} />
             </button>
-          )}
-          {onChat && (
-            <button onClick={onChat}
-              className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Abrir Chat"
-              style={{ color: '#a78bfa' }}>
-              <MessageSquare size={11} />
-            </button>
-          )}
-          {canManageViewers && (
-            <button onClick={e => { e.stopPropagation(); setShowParticipants(true) }}
-              className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Participantes (convidar clientes)"
-              style={{ color: '#a78bfa' }}>
-              <UserCheck size={11} />
-            </button>
-          )}
+            {menuOpen && (
+              <div className="absolute right-0 top-6 z-[100] w-52 rounded-xl overflow-hidden shadow-2xl"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                {isReqInicio && onView && (
+                  <button onClick={e => { setMenuOpen(false); onView(e) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                    <Eye size={13} style={{ color: 'var(--text-light)' }} /> Visualizar
+                  </button>
+                )}
+                {onChat && (
+                  <button onClick={e => { setMenuOpen(false); onChat(e) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                    <MessageSquare size={13} style={{ color: 'var(--text-light)' }} /> Chat
+                  </button>
+                )}
+                {canManageViewers && (
+                  <button onClick={e => { e.stopPropagation(); setMenuOpen(false); setShowParticipants(true) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                    <UserCheck size={13} style={{ color: 'var(--text-light)' }} /> Participantes
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
             {new Date(card.created_at).toLocaleDateString('pt-BR')}
           </span>
