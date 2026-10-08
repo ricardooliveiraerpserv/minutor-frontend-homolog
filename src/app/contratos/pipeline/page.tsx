@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
 import { ClientViewersManager } from '@/components/projects/client-viewers-manager'
+import { ProjectEnvironmentsManager } from '@/components/projects/project-environments-manager'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -14,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, BookOpen, Server } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -702,6 +703,7 @@ const CONTRACT_MENU_ITEMS = [
 const PROJECT_PRIMARY_ITEMS = [
   { action: 'view',     label: 'Gestão de Projetos', icon: Eye,           clientVisible: true },
   { action: 'participants', label: 'Participantes',  icon: UserCheck,     clientVisible: true, requiresManage: true },
+  { action: 'environments', label: 'Ambientes',      icon: Server,        clientVisible: false, requiresManage: true }, // vincular ambiente(s) do cofre
   { action: 'diary',    label: 'Diário do Projeto',  icon: BookOpen,      clientVisible: false }, // interno — cliente não vê
   { action: 'comments', label: 'Comentários',        icon: MessageSquare, clientVisible: true, accent: true, legend: 'O cliente participa' },
 ]
@@ -730,6 +732,7 @@ function ProjectKanbanCard({
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
   const [openMenu, setOpenMenu] = useState<null | 'primary' | 'secondary'>(null)
   const [showParticipants, setShowParticipants] = useState(false)
+  const [showEnvironments, setShowEnvironments] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
@@ -823,7 +826,7 @@ function ProjectKanbanCard({
                       return (
                         <button
                           key={item.action}
-                          onClick={e => { e.stopPropagation(); setOpenMenu(null); if (item.action === 'participants') { setShowParticipants(true) } else { onAction(item.action) } }}
+                          onClick={e => { e.stopPropagation(); setOpenMenu(null); if (item.action === 'participants') { setShowParticipants(true) } else if (item.action === 'environments') { setShowEnvironments(true) } else { onAction(item.action) } }}
                           className="w-full flex items-start gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                           style={{ color: c }}
                         >
@@ -982,6 +985,24 @@ function ProjectKanbanCard({
                   </button>
                 </div>
                 <ClientViewersManager projectId={card.id} />
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {showEnvironments && createPortal(
+            <div onClick={e => { e.stopPropagation(); setShowEnvironments(false) }} onMouseDown={e => e.stopPropagation()}
+              style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Ambientes do projeto</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.customer_name}{card.project_name ? ' · ' + card.project_name : ''}</div>
+                  </div>
+                  <button onClick={() => setShowEnvironments(false)} title="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}><X size={18} /></button>
+                </div>
+                <ProjectEnvironmentsManager projectId={card.id} />
               </div>
             </div>,
             document.body
