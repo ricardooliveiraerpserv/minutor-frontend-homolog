@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, Folder, FolderOpen, FolderPlus, KeyRound, LayoutGrid, List, Lock, Plus, Search, Server, Settings, ShieldAlert, ShieldCheck, Star, Users, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
@@ -398,9 +399,13 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
 
 // Página standalone (fallback "de fora"): Cofre de Ambientes com seu próprio AppLayout.
 export default function AmbientesPage() {
+  // Cofre de Ambientes = Cofre de Senhas (mesmo cofre). Entrada única: /cofre.
+  // As telas de detalhe (/ambientes/[cliente] e /ambientes/environments/[id]) seguem ativas.
+  const router = useRouter()
+  useEffect(() => { router.replace('/cofre') }, [router])
   return (
     <AppLayout>
-      <CofreAmbientesInner />
+      <div style={{ padding: 24, color: 'var(--text-muted)' }}>Redirecionando para o Cofre…</div>
     </AppLayout>
   )
 }

@@ -6,7 +6,7 @@ import { KeyRound, Lock, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button, Card, TextInput } from '@/components/ds'
 import { useVault } from '@/contexts/vault-context'
-import { ApiError } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { requestMicrosoftStepUp, StepUpCancelled } from '@/lib/vault-stepup'
 
 /**
@@ -22,6 +22,28 @@ export function UnlockScreen() {
   const [busy, setBusy] = useState(false)
 
   const canSubmit = !!masterPassword && (isMs || totp.length >= 6)
+
+  // Recomeçar do zero (perdeu master password E recovery key). Destrutivo: apaga o cofre pessoal.
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetConfirm, setResetConfirm] = useState('')
+  const [resetTotp, setResetTotp] = useState('')
+  const [resetBusy, setResetBusy] = useState(false)
+  const canReset = resetConfirm.trim().toUpperCase() === 'RECOMECAR' && (isMs || resetTotp.length >= 6)
+
+  const doReset = async () => {
+    if (!canReset || resetBusy) return
+    if (!confirm('Tem certeza? Isto APAGA todo o seu cofre pessoal — não há como recuperar os itens.')) return
+    setResetBusy(true)
+    try {
+      if (isMs) await requestMicrosoftStepUp()
+      await api.post('/vault/profile/reset', { confirm: 'RECOMECAR', totp_code: isMs ? undefined : resetTotp })
+      toast.success('Cofre apagado. Configure um novo a seguir.')
+      window.location.reload()
+    } catch (err) {
+      if (err instanceof StepUpCancelled) toast.info('Verificação Microsoft cancelada.')
+      else toast.error(err instanceof ApiError ? err.message : 'Falha ao recomeçar o cofre.')
+    } finally { setResetBusy(false) }
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,6 +117,33 @@ export function UnlockScreen() {
             Configuração do Cofre
           </Link>.
         </p>
+
+        {/* Perdeu master password E recovery key → recomeçar do zero (destrutivo). */}
+        {!resetOpen ? (
+          <p className="text-xs mt-2 text-center">
+            <button type="button" onClick={() => setResetOpen(true)} className="hover:underline" style={{ color: 'var(--danger)' }}>
+              Perdi também a recovery key — recomeçar o cofre do zero
+            </button>
+          </p>
+        ) : (
+          <div className="mt-3 p-3 rounded-lg" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+            <p className="text-xs font-semibold" style={{ color: 'var(--danger-border)' }}>Recomeçar o cofre do zero</p>
+            <p className="text-[11px] mt-1" style={{ color: 'var(--text)' }}>
+              O cofre é zero-knowledge: sem a master password e sem a recovery key, os itens são <b>indecifráveis</b>.
+              Isto <b>APAGA</b> todo o seu cofre pessoal (sem recuperação) e exige o seu 2º fator. Depois você configura um novo.
+            </p>
+            <div className="mt-2 flex flex-col gap-2">
+              {!isMs && (
+                <TextInput label="Código do autenticador" inputMode="numeric" value={resetTotp} onChange={e => setResetTotp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" />
+              )}
+              <TextInput label='Digite "RECOMECAR" para confirmar' value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} placeholder="RECOMECAR" />
+              <div className="flex justify-end gap-2">
+                <Button type="button" onClick={() => { setResetOpen(false); setResetConfirm(''); setResetTotp('') }}>Cancelar</Button>
+                <Button type="button" variant="danger" loading={resetBusy} disabled={!canReset} onClick={doReset}>Apagar e recomeçar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   )
