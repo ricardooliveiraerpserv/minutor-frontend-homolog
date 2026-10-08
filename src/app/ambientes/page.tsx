@@ -19,6 +19,7 @@ import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
 import { useAuth } from '@/hooks/use-auth'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
+import { OnboardingWizard } from '@/components/vault/onboarding-wizard'
 import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
 
 interface ClientRow { customer_id: number; customer_name: string; vault_id: number; environments_count: number; role: string }
@@ -155,20 +156,9 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
 
       {status === 'loading' && <Skeleton className="h-64" />}
 
-      {status === 'unconfigured' && (
-        <Card className="max-w-md mx-auto text-center">
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
-              <KeyRound className="w-6 h-6" style={{ color: 'var(--primary)' }} />
-            </div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Configure seu cofre primeiro</h2>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              O Cofre de Ambientes usa a mesma chave-mestra do Cofre de Senhas. Configure seu perfil lá uma vez.
-            </p>
-            <Link href="/cofre"><Button variant="primary">Ir para o Cofre</Button></Link>
-          </div>
-        </Card>
-      )}
+      {/* Não configurado (1º acesso ou após recomeçar do zero): o próprio Cofre faz o
+          onboarding aqui (define chave-mestra + recovery key). Sem redirect circular. */}
+      {status === 'unconfigured' && <OnboardingWizard />}
 
       {status === 'locked' && <UnlockScreen />}
 
