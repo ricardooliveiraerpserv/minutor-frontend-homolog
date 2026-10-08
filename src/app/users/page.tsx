@@ -688,26 +688,32 @@ export default function UsersPage() {
           </button>
           {canEdit && (
             <>
-              <button
-                type="button"
-                onClick={() => bulkSetSustentacao(true)}
-                disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                <Check size={12} />
-                {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
-              </button>
-              <button
-                type="button"
-                onClick={() => bulkSetSustentacao(false)}
-                disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                <X size={12} />
-                {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
-              </button>
+              {/* Ações de consultor/interno — não aparecem no filtro Cliente. */}
+              {filterRole !== 'cliente' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => bulkSetSustentacao(true)}
+                    disabled={bulkSustLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Check size={12} />
+                    {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bulkSetSustentacao(false)}
+                    disabled={bulkSustLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <X size={12} />
+                    {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
+                  </button>
+                </>
+              )}
 
-              {/* ── Gestor do cliente em massa ── */}
+              {/* ── Gestor do cliente em massa — só no filtro Cliente ── */}
+              {filterRole === 'cliente' && (
               <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
                 <span className="text-[11px] text-[var(--text-light)]">Gestor do cliente:</span>
                 <button
@@ -729,7 +735,10 @@ export default function UsersPage() {
                   {bulkMgrLoading ? 'Salvando...' : 'Desmarcar'}
                 </button>
               </div>
+              )}
 
+              {filterRole !== 'cliente' && (
+              <>
               {/* ── Tipo de contrato em massa ── */}
               <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
                 <span className="text-[11px] text-[var(--text-light)]">Tipo de contrato:</span>
@@ -751,6 +760,8 @@ export default function UsersPage() {
                   {bulkContractLoading ? 'Aplicando...' : 'Aplicar'}
                 </button>
               </div>
+              </>
+              )}
 
               {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) — só na aba HD ── */}
               {hdMode && hdProfiles.length > 0 && (
