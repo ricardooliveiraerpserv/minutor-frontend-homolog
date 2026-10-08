@@ -107,6 +107,18 @@ export const SCREEN_ACTIONS_CATALOG: Record<string, ScreenActionOption[]> = {
     { label: 'Ver como Consultor', permission: 'ver_como.consultor' },
     { label: 'Ver como Parceiro',  permission: 'ver_como.parceiro' },
   ],
+  // Ações do card em Demandas e Projetos (⋮). São de UI — governáveis por perfil
+  // na CFG de menus. "Participantes" = convidar clientes a ver o card do projeto.
+  '/contratos/pipeline': [
+    { label: 'Visualizar' },
+    { label: 'Participantes' },
+    { label: 'Editar' },
+    { label: 'Alterar Status' },
+    { label: 'Apont. & Despesas' },
+    { label: 'Selecionar Equipe' },
+    { label: 'Comentários' },
+    { label: 'Excluir' },
+  ],
 }
 
 /** Tira query/hash da key pra casar no catálogo (ex.: '/cadastros?tab=x' → '/cadastros'). */

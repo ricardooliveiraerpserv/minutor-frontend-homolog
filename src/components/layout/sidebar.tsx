@@ -772,7 +772,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    return withProcessos([...home, ...built])
+    const finalNav = withProcessos([...home, ...built])
+    // Coordenador pode DEFINIR GESTORES do cliente → acesso à tela Usuários (aba Cliente),
+    // mesmo que a árvore do Configurador não traga o item. Injetado de forma idempotente.
+    if (isCoordenador && !finalNav.some(e => e.type === 'item' && e.href === '/users')) {
+      finalNav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
+    }
+    return finalNav
   }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,

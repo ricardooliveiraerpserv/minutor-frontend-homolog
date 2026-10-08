@@ -613,7 +613,9 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
       window.removeEventListener('resize', close)
     }
   }, [open])
-  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
+  const canManageViewers = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
+    || (viewerUser?.type === 'cliente' && !!(viewerUser as any)?.is_customer_manager)
+  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && (!(item as any).requiresManage || canManageViewers) && !isDenied('/contratos/pipeline', item.action))
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!open && btnRef.current) {
@@ -6053,6 +6055,22 @@ function KanbanContent() {
         if (action === 'aportes')    return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="aportes" />
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
+        if (action === 'participants') return (
+          <div onClick={close} onMouseDown={e => e.stopPropagation()}
+            style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Participantes do projeto</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.customer_name}{card.project_name ? ' · ' + card.project_name : ''}</div>
+                </div>
+                <button onClick={close} title="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}><X size={18} /></button>
+              </div>
+              <ClientViewersManager projectId={card.id} />
+            </div>
+          </div>
+        )
         return null
       })()}
 
