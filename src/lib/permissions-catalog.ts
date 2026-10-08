@@ -102,7 +102,6 @@ export const SCREEN_ACTIONS_CATALOG: Record<string, ScreenActionOption[]> = {
     { label: 'Editar',              permission: 'users.update' },
     { label: 'Resetar senha',       permission: 'users.reset_password' },
     { label: 'Reenviar boas-vindas' },   // ação de UI — sem permissão dedicada
-    { label: 'Definir gestor do cliente' }, // ação de UI — marca/desmarca gestor (admin+coord)
     { label: 'Excluir',             permission: 'users.delete' },
   ],
   // "Ver como": cada bloco é uma ação liberável por perfil. Libere aqui quem pode ver

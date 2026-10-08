@@ -178,7 +178,8 @@ export default function UsersPage() {
   const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
   // Definir gestores do cliente: admin E coordenador (escopo restrito — ação dedicada no BE).
-  const canSetManager = isAdmin || authUser?.type === 'coordenador'
+  // Governável na CFG de menus: o admin pode BLOQUEAR a ação 'set_manager' por perfil/usuário.
+  const canSetManager = (isAdmin || authUser?.type === 'coordenador') && !isDenied('/users', 'set_manager')
   // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
   // negado pelo Configurador na ação própria de reenviar.
   const canResendWelcome = canResetPwd && !isDenied('/users', 'resend_welcome')
