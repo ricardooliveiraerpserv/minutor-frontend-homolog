@@ -777,7 +777,7 @@ export default function UsersPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
               {filterRole === 'cliente' && (
-                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Gestor</th>
+                <th onClick={() => { setSort('is_customer_manager'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Gestor<SortIcon active={sort === 'is_customer_manager'} dir={sortDir as 'asc' | 'desc'} /></th>
               )}
               <th onClick={() => { setSort('type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Perfil<SortIcon active={sort === 'type'} dir={sortDir as 'asc' | 'desc'} /></th>
               <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>
