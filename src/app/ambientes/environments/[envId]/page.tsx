@@ -102,6 +102,19 @@ export default function AmbienteDetailPage() {
   // Sem `permissions` no payload (compat), assume tudo liberado — o BE ainda enforça.
   const perms: EnvPerms = env?.permissions ?? { view: true, reveal: true, copy: true, manage: true, admin: false, source: 'default' }
 
+  const [supportBusy, setSupportBusy] = useState(false)
+  const toggleSupportBase = async () => {
+    if (!env) return
+    setSupportBusy(true)
+    try {
+      const next = !env.is_support_base
+      await api.put(`/environments/environments/${env.id}`, { is_support_base: next })
+      toast.success(next ? 'Marcado como base da sustentação' : 'Removido de base da sustentação')
+      await load()
+    } catch (err) { toast.error(err instanceof ApiError ? err.message : 'Falha ao atualizar.') }
+    finally { setSupportBusy(false) }
+  }
+
   const confirmDelete = async () => {
     if (!del) return
     try {
@@ -130,15 +143,28 @@ export default function AmbienteDetailPage() {
         }
       />
 
-      {/* Legenda: base da sustentação + projetos em desenvolvimento neste ambiente */}
-      {(env.is_support_base || (env.projects && env.projects.length > 0)) && (
+      {/* Base da sustentação (toggle direto) + projetos em desenvolvimento neste ambiente */}
+      {(perms.manage || env.is_support_base || (env.projects && env.projects.length > 0)) && (
         <div className="mb-4 flex flex-col gap-2">
-          {env.is_support_base && (
+          {perms.manage ? (
+            <div className="ds-card p-3 flex items-center justify-between gap-3 flex-wrap"
+              style={{ background: env.is_support_base ? 'var(--success-bg)' : 'var(--surface-hover)', border: `1px solid ${env.is_support_base ? 'var(--success-border)' : 'var(--border)'}` }}>
+              <span className="text-sm inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <Server size={14} style={{ color: 'var(--text-light)' }} />
+                {env.is_support_base
+                  ? <>Este ambiente é a <b>base usada pela sustentação</b> deste cliente.</>
+                  : <>Marque como a <b>base usada pela sustentação</b> — aparece no chamado p/ avisar o suporte.</>}
+              </span>
+              <Button variant={env.is_support_base ? 'secondary' : 'primary'} loading={supportBusy} onClick={toggleSupportBase}>
+                {env.is_support_base ? 'Remover base da sustentação' : 'Marcar como base da sustentação'}
+              </Button>
+            </div>
+          ) : env.is_support_base ? (
             <div className="ds-card p-2.5 text-xs inline-flex items-center gap-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
               <Server size={13} style={{ color: 'var(--text-light)' }} />
               <span style={{ color: 'var(--text)' }}>Base usada pela <b>sustentação</b> deste cliente.</span>
             </div>
-          )}
+          ) : null}
           {env.projects && env.projects.length > 0 && (
             <div className="ds-card p-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
               <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--primary)' }}>Projeto(s) em desenvolvimento neste ambiente</div>
