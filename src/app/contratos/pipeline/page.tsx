@@ -466,6 +466,10 @@ function ContractKanbanCard({
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
 function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
+  const { user: viewerUser } = useAuth()
+  const [showParticipants, setShowParticipants] = useState(false)
+  const canManageViewers = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
+    || (viewerUser?.type === 'cliente' && !!(viewerUser as any)?.is_customer_manager)
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -524,11 +528,36 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
               <MessageSquare size={11} />
             </button>
           )}
+          {canManageViewers && (
+            <button onClick={e => { e.stopPropagation(); setShowParticipants(true) }}
+              className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Participantes (convidar clientes)"
+              style={{ color: '#a78bfa' }}>
+              <UserCheck size={11} />
+            </button>
+          )}
           <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
             {new Date(card.created_at).toLocaleDateString('pt-BR')}
           </span>
         </div>
       </div>
+
+      {showParticipants && createPortal(
+        <div onClick={e => { e.stopPropagation(); setShowParticipants(false) }} onMouseDown={e => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Participantes da requisição</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{card.customer_name}{card.project_name ? ' · ' + card.project_name : ''}</div>
+              </div>
+              <button onClick={() => setShowParticipants(false)} title="Fechar" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}><X size={18} /></button>
+            </div>
+            <ClientViewersManager basePath={`/contract-requests/${card.id}/client-viewers`} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

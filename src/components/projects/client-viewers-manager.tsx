@@ -14,10 +14,12 @@ import { SearchSelect } from '@/components/ui/search-select'
  */
 interface Viewer { id: number; name: string; email?: string | null }
 
-export function ClientViewersManager({ projectId }: { projectId: number }) {
+export function ClientViewersManager({ projectId, basePath }: { projectId?: number; basePath?: string }) {
   const { user } = useAuth()
   const canManage = user?.type === 'admin' || user?.type === 'coordenador'
     || (user?.type === 'cliente' && !!user?.is_customer_manager)
+  // Base dos endpoints: projeto (padrão) ou requisição (basePath explícito).
+  const base = basePath ?? `/projects/${projectId}/client-viewers`
   const [viewers, setViewers] = useState<Viewer[]>([])
   const [clientOpts, setClientOpts] = useState<{ id: number; name: string }[]>([])
   const [adding, setAdding] = useState(false)
@@ -26,37 +28,37 @@ export function ClientViewersManager({ projectId }: { projectId: number }) {
 
   async function load() {
     try {
-      const r = await api.get<{ items: Viewer[] }>(`/projects/${projectId}/client-viewers`)
+      const r = await api.get<{ items: Viewer[] }>(base)
       setViewers(r.items ?? [])
     } catch { /* */ }
   }
-  useEffect(() => { load() }, [projectId])
+  useEffect(() => { load() }, [base])
 
-  // Só clientes do MESMO customer do projeto (BE filtra por customer_id).
+  // Só clientes do MESMO customer (BE filtra por customer_id).
   useEffect(() => {
     if (!canManage) return
-    api.get<{ items: { id: number; name: string }[] }>(`/projects/${projectId}/client-viewers/available`)
+    api.get<{ items: { id: number; name: string }[] }>(`${base}/available`)
       .then(r => setClientOpts((r.items ?? []).map(x => ({ id: x.id, name: x.name }))))
       .catch(() => {})
-  }, [canManage, projectId, viewers.length])
+  }, [canManage, base, viewers.length])
 
   async function add(uid: string) {
     if (!uid) return
     setBusy(true)
     try {
-      const r = await api.post<{ item: Viewer }>(`/projects/${projectId}/client-viewers`, { user_id: Number(uid) })
+      const r = await api.post<{ item: Viewer }>(base, { user_id: Number(uid) })
       setViewers(v => v.some(x => x.id === r.item.id) ? v : [...v, r.item].sort((a, b) => a.name.localeCompare(b.name)))
       setPick(''); setAdding(false)
-      toast.success('Cliente vinculado ao projeto')
+      toast.success('Cliente convidado')
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao vincular')
     } finally { setBusy(false) }
   }
 
   async function remove(uid: number) {
-    if (!confirm('Remover a visão global deste cliente?')) return
+    if (!confirm('Remover este cliente?')) return
     try {
-      await api.delete(`/projects/${projectId}/client-viewers/${uid}`)
+      await api.delete(`${base}/${uid}`)
       setViewers(v => v.filter(x => x.id !== uid))
       toast.success('Vínculo removido')
     } catch (e) {
