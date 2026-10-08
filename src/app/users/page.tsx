@@ -278,15 +278,16 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterHdProfile: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterHdProfile: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterHdProfile, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
   const setFilterHdProfile = (v: string) => setFilter({ filterHdProfile: v, page: 1 } as any)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', page: 1 } as any) }
+  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterManager: '', page: 1 } as any) }
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
+  const setFilterManager  = (v: string) => setFilter({ filterManager: v, page: 1 } as any)
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -343,6 +344,7 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
+      if (filterManager) p.set('is_customer_manager', '1')
       if (filterHdProfile) p.set('helpdesk_access_profile_id', filterHdProfile)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
@@ -352,7 +354,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterHdProfile, sort, sortDir])
 
   useEffect(() => { load() }, [load])
 
@@ -665,6 +667,13 @@ export default function UsersPage() {
         {filterRole === 'cliente' && customers.length > 0 && (
           <SearchSelect subtle value={filterCustomer} onChange={v => { setFilterCustomer(v); setPage(1) }} placeholder="Todos os clientes"
             options={customers.map(c => ({ id: c.id, name: c.name }))} />
+        )}
+        {filterRole === 'cliente' && (
+          <button type="button" onClick={() => setFilterManager(filterManager ? '' : '1')}
+            title="Mostrar apenas gestores do cliente"
+            className={`flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium border transition-colors ${filterManager ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]' : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
+            {filterManager ? '✓ ' : ''}Só gestores
+          </button>
         )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
