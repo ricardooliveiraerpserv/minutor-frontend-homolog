@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
+import { ClientViewersManager } from '@/components/projects/client-viewers-manager'
 import { ProjectConversation } from '@/components/portal-cliente/project-conversation'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -2538,6 +2539,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     )}
                   </div>
                 )}
+
+                {/* Participantes do projeto (convite de clientes p/ ver o card) */}
+                {!isClienteViewer && p && <ClientViewersManager projectId={p.id} />}
 
                 {/* Identification + Team */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
