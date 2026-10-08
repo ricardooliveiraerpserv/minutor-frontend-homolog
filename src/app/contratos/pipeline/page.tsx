@@ -465,8 +465,9 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card, onView, onChat, onDiary }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void; onDiary?: (e: React.MouseEvent) => void }) {
   const { user: viewerUser } = useAuth()
+  const isCliente = viewerUser?.type === 'cliente'
   const [showParticipants, setShowParticipants] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -529,16 +530,22 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
             {menuOpen && (
               <div className="absolute right-0 top-6 z-[100] w-52 rounded-xl overflow-hidden shadow-2xl"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                {isReqInicio && onView && (
+                {!isCliente && isReqInicio && onView && (
                   <button onClick={e => { setMenuOpen(false); onView(e) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
                     <Eye size={13} style={{ color: 'var(--text-light)' }} /> Visualizar
                   </button>
                 )}
+                {!isCliente && onDiary && (
+                  <button onClick={e => { setMenuOpen(false); onDiary(e) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                    <BookOpen size={13} style={{ color: 'var(--text-light)' }} /> Diário do Projeto
+                  </button>
+                )}
                 {onChat && (
                   <button onClick={e => { setMenuOpen(false); onChat(e) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                    <MessageSquare size={13} style={{ color: 'var(--text-light)' }} /> Chat
+                    <MessageSquare size={13} style={{ color: 'var(--text-light)' }} /> Comentários
                   </button>
                 )}
                 {canManageViewers && (
@@ -4224,7 +4231,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
 
 function KanbanColumn({
   col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
-  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onProjectAction, onContractAction,
+  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onRequestDiary, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
@@ -4243,6 +4250,7 @@ function KanbanColumn({
   onRequestClick?: (card: RequestCard) => void
   onRequestView?: (card: RequestCard) => void
   onRequestChat?: (card: RequestCard) => void
+  onRequestDiary?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
   onContractMove?: (card: ContractCard, toCol: string) => void
@@ -4353,6 +4361,7 @@ function KanbanColumn({
                       card={card}
                       onView={onRequestView ? e => { e.stopPropagation(); onRequestView(card) } : undefined}
                       onChat={onRequestChat ? e => { e.stopPropagation(); onRequestChat(card) } : undefined}
+                      onDiary={onRequestDiary ? e => { e.stopPropagation(); onRequestDiary(card) } : undefined}
                     />
                   </div>
                 )}
@@ -4439,7 +4448,7 @@ function KanbanContent() {
   const [loading,         setLoading]         = useState(true)
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
   // Tab inicial do RequestDetailModal — usado quando vem de deep link #chat
-  const [requestInitialTab, setRequestInitialTab] = useState<'details' | 'comments' | 'log' | undefined>(undefined)
+  const [requestInitialTab, setRequestInitialTab] = useState<'details' | 'comments' | 'diary' | 'log' | undefined>(undefined)
   const [planDecisionCard,     setPlanDecisionCard]     = useState<RequestCard | null>(null)
   const [contractCreateForReq, setContractCreateForReq] = useState<RequestCard | null>(null)
   const [subprojetoForReq, setSubprojetoForReq] = useState<{ card: RequestCard; projectId: number; subSeq: string } | null>(null)
@@ -5785,6 +5794,7 @@ function KanbanContent() {
                   }
                   onRequestView={setSelectedRequest}
                   onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                  onRequestDiary={card => { setRequestInitialTab('diary'); setSelectedRequest(card) }}
                   onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
                   getContractCols={getAvailableContractCols}
                 />
@@ -5829,6 +5839,7 @@ function KanbanContent() {
                     onProjectAction={(card, action) => { if (action === 'view') { router.push(isCliente ? `/portal-cliente/projetos/${card.id}` : `/projetos/${card.id}/cronograma`); return } setProjectAction({ card, action }) }}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                  onRequestDiary={card => { setRequestInitialTab('diary'); setSelectedRequest(card) }}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
                     getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
                     />
