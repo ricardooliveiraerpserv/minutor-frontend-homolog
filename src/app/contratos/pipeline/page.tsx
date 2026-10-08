@@ -703,7 +703,6 @@ const CONTRACT_MENU_ITEMS = [
 const PROJECT_PRIMARY_ITEMS = [
   { action: 'view',     label: 'Gestão de Projetos', icon: Eye,           clientVisible: true },
   { action: 'participants', label: 'Participantes',  icon: UserCheck,     clientVisible: true, requiresManage: true },
-  { action: 'environments', label: 'Ambientes',      icon: Server,        clientVisible: false, requiresManage: true }, // vincular ambiente(s) do cofre
   { action: 'diary',    label: 'Diário do Projeto',  icon: BookOpen,      clientVisible: false }, // interno — cliente não vê
   { action: 'comments', label: 'Comentários',        icon: MessageSquare, clientVisible: true, accent: true, legend: 'O cliente participa' },
 ]
@@ -713,6 +712,7 @@ const PROJECT_SECONDARY_ITEMS = [
   { action: 'status',     label: 'Alterar Status',    icon: Layers,  clientVisible: false },
   { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,   clientVisible: false },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users,   clientVisible: false },
+  { action: 'environments', label: 'Ambientes',       icon: Server,  clientVisible: false, requiresManage: true }, // vincular ambiente(s) do cofre
   { action: 'delete',     label: 'Excluir',           icon: Trash2,  clientVisible: false, danger: true, adminOnly: true },
 ]
 // Combinado (usado pela lista).
