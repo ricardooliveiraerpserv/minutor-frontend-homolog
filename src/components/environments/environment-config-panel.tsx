@@ -376,10 +376,11 @@ function EditEnvModal({ open, onClose, env, onSaved }: { open: boolean; onClose:
   const [statusV, setStatusV] = useState(env.status)
   const [rdpHost, setRdpHost] = useState(env.rdp_host ?? '')
   const [rdpPort, setRdpPort] = useState(env.rdp_port ? String(env.rdp_port) : '')
+  const [supportBase, setSupportBase] = useState(!!(env as { is_support_base?: boolean }).is_support_base)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (open) { setName(env.name); setType(env.type); setStatusV(env.status); setRdpHost(env.rdp_host ?? ''); setRdpPort(env.rdp_port ? String(env.rdp_port) : '') }
+    if (open) { setName(env.name); setType(env.type); setStatusV(env.status); setRdpHost(env.rdp_host ?? ''); setRdpPort(env.rdp_port ? String(env.rdp_port) : ''); setSupportBase(!!(env as { is_support_base?: boolean }).is_support_base) }
   }, [open, env])
 
   const save = async () => {
@@ -388,6 +389,7 @@ function EditEnvModal({ open, onClose, env, onSaved }: { open: boolean; onClose:
     try {
       await api.put(`/environments/environments/${env.id}`, {
         name: name.trim(), type, status: statusV,
+        is_support_base: supportBase,
         rdp_host: rdpHost.trim() || null,
         rdp_port: rdpPort.trim() ? Number(rdpPort) : null,
       })
@@ -414,6 +416,15 @@ function EditEnvModal({ open, onClose, env, onSaved }: { open: boolean; onClose:
           <TextInput label="Porta RDP" inputMode="numeric" placeholder="3389" value={rdpPort} onChange={e => setRdpPort(e.target.value.replace(/\D/g, ''))} />
         </div>
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>O host RDP habilita o &quot;Abrir RDP&quot; no Acesso Rápido (gera um .rdp). É metadado — nunca a senha.</p>
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={supportBase} onChange={e => setSupportBase(e.target.checked)} className="mt-0.5" />
+          <span>
+            <span className="text-sm" style={{ color: 'var(--text)' }}>Base usada pela sustentação</span>
+            <span className="block text-[10px]" style={{ color: 'var(--text-light)' }}>
+              Marca este ambiente como a base que o suporte usa. Aparece no chamado para avisar se há projeto na mesma base. Único por cliente.
+            </span>
+          </span>
+        </label>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancelar</Button>
           <Button variant="primary" loading={busy} disabled={!name.trim()} onClick={save}>Salvar</Button>

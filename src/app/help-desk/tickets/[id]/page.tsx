@@ -920,6 +920,55 @@ function TicketDetailInner({ id }: { id: number }) {
     <AppLayout title={t.ticket_number ?? `Chamado #${t.id}`}>
       <div className="space-y-4">
         <TicketTabs activeId={id} />
+
+        {/* Contexto de AMBIENTE/BASE do cliente (cofre ↔ projeto). Avisa a sustentação. */}
+        {(() => {
+          const ec = (t as any)?.env_context as {
+            support_environment?: { name: string; type: string } | null
+            projects?: { id: number; code: string; name: string; same_base: boolean; environments: { name: string; type: string }[] }[]
+          } | null | undefined
+          if (!ec || (!ec.support_environment && !(ec.projects?.length))) return null
+          const same  = (ec.projects || []).filter(p => p.same_base)
+          const other = (ec.projects || []).filter(p => !p.same_base)
+          return (
+            <div className="space-y-2">
+              {ec.support_environment && (
+                <div className="ds-card p-2.5 text-xs" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Base usada pela sustentação: </span>
+                  <b style={{ color: 'var(--text)' }}>{ec.support_environment.name}</b>
+                  <span style={{ color: 'var(--text-light)' }}> · {ec.support_environment.type}</span>
+                </div>
+              )}
+              {same.length > 0 && (
+                <div className="ds-card p-3" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+                  <div className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--danger-border)' }}>
+                    <Info size={16} /> Atenção: há projeto sendo desenvolvido na MESMA base da sustentação
+                  </div>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
+                    {same.map(p => `${p.code} - ${p.name}`).join(', ')} está nesta mesma base.{' '}
+                    <b>Fale com o coordenador antes de qualquer atividade.</b>
+                  </p>
+                </div>
+              )}
+              {other.length > 0 && (
+                <div className="ds-card p-3 text-sm" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+                  <span className="inline-flex items-center gap-2 font-semibold" style={{ color: 'var(--warning-border)' }}>
+                    <Info size={15} /> Projeto(s) em andamento neste cliente (em outra base)
+                  </span>
+                  <ul className="mt-1 space-y-0.5">
+                    {other.map(p => (
+                      <li key={p.id} style={{ color: 'var(--text)' }}>
+                        • {p.code} - {p.name}{' '}
+                        <span style={{ color: 'var(--text-light)' }}>(base: {p.environments.map(e => e.name).join(', ') || '—'})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {/* Modo Atendimento — barra de controles contínua */}
         {modoAtivo && final === null && <ModoAtendimentoBar currentId={id} onPrev={prevTicket} onSkip={skipTicket} onEnd={openFinal} />}
 

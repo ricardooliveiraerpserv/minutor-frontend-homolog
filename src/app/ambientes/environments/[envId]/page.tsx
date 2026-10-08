@@ -30,7 +30,8 @@ import { EnvPermissionsModal } from '@/components/environments/env-permissions-m
 import { EnvQuickAccess } from '@/components/environments/env-quick-access'
 
 interface EnvPerms { view: boolean; reveal: boolean; copy: boolean; manage: boolean; admin: boolean; source: string }
-interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; rdp_host: string | null; rdp_port: number | null; is_favorite?: boolean; permissions?: EnvPerms }
+interface EnvProjectRow { id: number; code: string; name: string; status: string }
+interface EnvDetail { id: number; name: string; type: string; status: string; vault_id: number; rdp_host: string | null; rdp_port: number | null; is_favorite?: boolean; permissions?: EnvPerms; is_support_base?: boolean; projects?: EnvProjectRow[] }
 interface CredRow { id: number; category: string; label: string; username: string | null; has_secret: boolean; secret_id: number | null; critical: boolean }
 interface DbRow { id: number; engine: string; server: string; port: number | null; instance: string | null; database: string | null; username: string | null; has_password: boolean; secret_id: number | null; always_on: boolean; critical: boolean }
 interface AppRow { id: number; name: string; version: string | null; build: string | null; root_path: string | null; port: number | null; ini_attachment_id: number | null }
@@ -128,6 +129,28 @@ export default function AmbienteDetailPage() {
           </div>
         }
       />
+
+      {/* Legenda: base da sustentação + projetos em desenvolvimento neste ambiente */}
+      {(env.is_support_base || (env.projects && env.projects.length > 0)) && (
+        <div className="mb-4 flex flex-col gap-2">
+          {env.is_support_base && (
+            <div className="ds-card p-2.5 text-xs inline-flex items-center gap-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+              <Server size={13} style={{ color: 'var(--text-light)' }} />
+              <span style={{ color: 'var(--text)' }}>Base usada pela <b>sustentação</b> deste cliente.</span>
+            </div>
+          )}
+          {env.projects && env.projects.length > 0 && (
+            <div className="ds-card p-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--primary)' }}>Projeto(s) em desenvolvimento neste ambiente</div>
+              <ul className="space-y-0.5">
+                {env.projects.map(p => (
+                  <li key={p.id} className="text-sm" style={{ color: 'var(--text)' }}>• {p.code} - {p.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ⚡ Acesso Rápido ao Ambiente */}
       <div className="mb-4">

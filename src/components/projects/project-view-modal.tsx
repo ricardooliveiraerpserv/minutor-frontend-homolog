@@ -1057,6 +1057,8 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
   const [optConsultants,    setOptConsultants]    = useState<{id:number;name:string}[]>([])
   const [optGroups,         setOptGroups]         = useState<{id:number;name:string}[]>([])
   const [optParentProjects, setOptParentProjects] = useState<{id:number;name:string}[]>([])
+  const [optEnvironments,   setOptEnvironments]   = useState<{id:number;name:string;type:string}[]>([])
+  const [selectedEnvIds,    setSelectedEnvIds]    = useState<number[]>(Array.isArray((project as any)?.environments) ? (project as any).environments.map((e:any)=>e.id) : [])
   const [teamSearch,        setTeamSearch]        = useState('')
   const [teamTab,           setTeamTab]           = useState<'coord'|'consult'|'group'>('coord')
 
@@ -1086,6 +1088,9 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
       api.get<any>(`/projects?${qs}`).then(r => {
         setOptParentProjects(items(r).map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}` })))
       }).catch(() => {})
+      // Ambientes do cofre do cliente (seletor de ambiente do projeto).
+      api.get<{ items: {id:number;name:string;type:string}[] }>(`/projects/customer-environments?customer_id=${d.customer_id}`)
+        .then(r => setOptEnvironments(r.items ?? [])).catch(() => {})
     }
   }, [])
 
@@ -1119,6 +1124,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
         coordinator_ids: form.coordinator_ids,
         consultant_ids: form.consultant_ids,
         consultant_group_ids: form.consultant_group_ids,
+        environment_ids: selectedEnvIds,
       }
       if (form.service_type_id)               payload.service_type_id               = Number(form.service_type_id)
       if (form.contract_type_id)              payload.contract_type_id              = Number(form.contract_type_id)
@@ -1238,6 +1244,26 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 <div><label style={lStyle}>Tipo de Serviço</label><select value={form.service_type_id} onChange={setF('service_type_id')} style={iStyle}><option value="">Selecione...</option>{optServiceTypes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
               </div>
               <div><label style={lStyle}>Projeto Pai (Subprojeto)</label><select value={form.parent_project_id} onChange={setF('parent_project_id')} style={iStyle}><option value="">Nenhum</option>{optParentProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+              <div>
+                <label style={lStyle}>Ambiente(s) do cofre em desenvolvimento</label>
+                {optEnvironments.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum ambiente cadastrado no cofre para este cliente.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {optEnvironments.map(env => {
+                      const sel = selectedEnvIds.includes(env.id)
+                      return (
+                        <button key={env.id} type="button" onClick={() => setSelectedEnvIds(ids => toggleId(ids, env.id))}
+                          className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
+                          style={{ borderColor: sel ? 'var(--primary)' : 'var(--border)', background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)', color: sel ? 'var(--primary)' : 'var(--text-muted)' }}>
+                          {sel ? '✓ ' : ''}{env.name} <span style={{ opacity: 0.6 }}>· {env.type}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Define o(s) ambiente(s) onde a equipe desenvolve — aparece no cofre e avisa a sustentação nos chamados.</p>
+              </div>
               <div><label style={lStyle}>Descrição</label><textarea value={form.description} onChange={setF('description')} style={{ ...iStyle, resize: 'vertical', minHeight: '64px' }} /></div>
 
               {/* Contatos do cliente */}
