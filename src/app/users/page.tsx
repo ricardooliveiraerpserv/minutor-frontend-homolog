@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
+import { SearchSelect } from '@/components/ui/search-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -206,17 +207,18 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
+  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
   // Limpa TODOS os filtros (busca, aba, ativos, e os filtros específicos).
-  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterBond || filterContract || filterConsultantType || filterSust)
-  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any)
+  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterManager || filterBond || filterContract || filterConsultantType || filterSust)
+  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any)
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
+  const setFilterManager  = (v: string) => setFilter({ filterManager: v, page: 1 } as any)
   const setFilterBond          = (v: string) => setFilter({ filterBond: v, page: 1 } as any)
   const setFilterContract      = (v: string) => setFilter({ filterContract: v, page: 1 } as any)
   const setFilterConsultantType= (v: string) => setFilter({ filterConsultantType: v, page: 1 } as any)
@@ -242,6 +244,7 @@ export default function UsersPage() {
         if (filterRole) p.set('type', filterRole)
         if (filterPartner) p.set('partner_id', filterPartner)
         if (filterCustomer) p.set('customer_id', filterCustomer)
+        if (filterManager) p.set('is_customer_manager', '1')
         if (filterBond) p.set('work_bond', filterBond)
         if (filterContract) p.set('contract_type', filterContract)
         if (filterConsultantType) p.set('consultant_type', filterConsultantType)
@@ -259,7 +262,7 @@ export default function UsersPage() {
       setExportOpen(false)
     } catch { toast.error('Erro ao exportar usuários') }
     finally { setExporting(false) }
-  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust])
+  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust])
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -316,6 +319,7 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
+      if (filterManager)  p.set('is_customer_manager', '1')
       if (filterBond)          p.set('work_bond', filterBond)
       if (filterContract)      p.set('contract_type', filterContract)
       if (filterConsultantType) p.set('consultant_type', filterConsultantType)
@@ -329,7 +333,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
 
   // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
   const loadCounts = useCallback(() => {
@@ -558,14 +562,25 @@ export default function UsersPage() {
             </select>
           </>
         )}
-        {filterRole === 'cliente' && customers.length > 0 && (
-          <select
-            value={filterCustomer}
-            onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todos os clientes</option>
-            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </select>
+        {filterRole === 'cliente' && (
+          <>
+            {customers.length > 0 && (
+              <div style={{ minWidth: 200 }}>
+                <SearchSelect
+                  value={filterCustomer}
+                  onChange={v => { setFilterCustomer(v); setPage(1) }}
+                  options={[{ id: '', name: 'Todos os clientes' }, ...customers.map(c => ({ id: c.id, name: c.name }))]}
+                  placeholder="Buscar cliente…"
+                  wide
+                />
+              </div>
+            )}
+            <button type="button" onClick={() => setFilterManager(filterManager ? '' : '1')}
+              title="Mostrar apenas gestores do cliente"
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium border transition-colors ${filterManager ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]' : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
+              {filterManager ? '✓ ' : ''}Só gestores
+            </button>
+          </>
         )}
         {filterRole === 'consultor' && (
           <>
