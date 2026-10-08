@@ -9,6 +9,8 @@ export interface User {
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null
+  // Gestor do cliente: vê TODOS os projetos da empresa e pode convidar.
+  is_customer_manager?: boolean | null
   partner_id?: number | null
   is_executive?: boolean | null
   extra_permissions?: string[] | null

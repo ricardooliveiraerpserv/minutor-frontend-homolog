@@ -140,7 +140,7 @@ export default function DashboardPage() {
     // administrativo, consultor e parceiro_admin (consultor). Outros caem
     // numa página em branco, então redireciona pra sua respectiva home.
     if (user.type === 'coordenador')                        router.replace('/timesheets')
-    else if (user.type === 'cliente')                       router.replace('/portal-cliente')
+    else if (user.type === 'cliente')                       router.replace((user as any).is_customer_manager ? '/portal-cliente' : '/contratos/pipeline')
     else if (user.type === 'parceiro_admin' && (user as any).is_executive) router.replace('/partner-dashboard')
   }, [user, router])
 

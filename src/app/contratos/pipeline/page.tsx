@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
+import { ClientViewersManager } from '@/components/projects/client-viewers-manager'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
@@ -664,6 +665,7 @@ const CONTRACT_MENU_ITEMS = [
 
 const PROJECT_MENU_ITEMS = [
   { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: false },
+  { action: 'participants', label: 'Participantes',  icon: UserCheck,     clientVisible: true, requiresManage: true },
   { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
   // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
   { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
@@ -687,9 +689,14 @@ function ProjectKanbanCard({
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showParticipants, setShowParticipants] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
+  // Pode gerir participantes do card — espelha o ensureCanManage do backend:
+  // admin, coordenador ou gestor do cliente (mesma empresa).
+  const canManageViewers = viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'
+    || (viewerUser?.type === 'cliente' && !!(viewerUser as any)?.is_customer_manager)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -708,7 +715,7 @@ function ProjectKanbanCard({
 
   // Ações disponíveis pra ESTE viewer. Se vazio (ex.: cliente — todos clientVisible:false),
   // não renderiza o botão/menu (senão o dropdown vazio vira uma "linha" inútil).
-  const projMenuItems = PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
+  const projMenuItems = PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && (!(item as any).requiresManage || canManageViewers) && !isDenied('/contratos/pipeline', item.action))
 
   return (
     <Draggable draggableId={uniqueCardId(card)} index={index} isDragDisabled={!canDrag}>
@@ -766,7 +773,7 @@ function ProjectKanbanCard({
                       return (
                         <button
                           key={item.action}
-                          onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
+                          onClick={e => { e.stopPropagation(); setMenuOpen(false); if (item.action === 'participants') { setShowParticipants(true) } else { onAction(item.action) } }}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                           style={{ color: 'var(--text)' }}
                         >
@@ -899,6 +906,34 @@ function ProjectKanbanCard({
                 ))}
               </select>
             </div>
+          )}
+
+          {showParticipants && createPortal(
+            <div
+              onClick={e => { e.stopPropagation(); setShowParticipants(false) }}
+              onMouseDown={e => e.stopPropagation()}
+              style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{ width: 'min(560px, 100%)', maxHeight: '85vh', overflow: 'auto', background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', padding: 16 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Participantes do projeto</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      {card.customer_name}{card.project_name ? ' · ' + card.project_name : ''}
+                    </div>
+                  </div>
+                  <button onClick={() => setShowParticipants(false)} title="Fechar"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <ClientViewersManager projectId={card.id} />
+              </div>
+            </div>,
+            document.body
           )}
         </div>
       )}

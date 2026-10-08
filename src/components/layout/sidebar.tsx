@@ -672,6 +672,17 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       return [] as NavEntry[]
     }
     if (isCliente) {
+      // Cliente NÃO-gestor (visibilidade por convite): menu enxuto — só acompanha os
+      // cards em que foi convidado. Vê "Demandas e Projetos" (lista já escopada no
+      // backend) + "Meus Processos". Sem resumo executivo da empresa, dashboards de
+      // contrato, centros de custo ou indicadores. Gestor do cliente vê o menu completo.
+      if (!user?.is_customer_manager) {
+        return [
+          { type: 'item', label: 'Comunicados',          href: '/comunicados',           icon: Megaphone, badge: 'comunicados' },
+          { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
+          { type: 'item', label: 'Demandas e Projetos',  href: '/contratos/pipeline',    icon: LayoutGrid },
+        ] as NavEntry[]
+      }
       // Filtra dashboards pelos tipos de contrato que o cliente realmente possui
       const DASH_MAP: Record<string, { label: string; href: string; icon: typeof BarChart2 }> = {
         'fixed_hours':   { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',   icon: BarChart2 },

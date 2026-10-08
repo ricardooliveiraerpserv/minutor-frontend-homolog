@@ -36,6 +36,7 @@ interface UserData {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  is_customer_manager?: boolean | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
   is_executive?: boolean
@@ -350,6 +351,8 @@ const EMPTY_FORM = {
   is_partner_consultor: false,
   is_partner_adm: false,
   customer_id: '' as number | '',
+  // Gestor do cliente: vê todos os projetos da empresa e pode convidar outros aos cards.
+  is_customer_manager: false,
   partner_id: '' as number | '',
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
@@ -496,6 +499,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           is_partner_consultor: false,
           is_partner_adm:       item.is_executive ?? false,
           customer_id:          item.customer_id ?? '',
+          is_customer_manager:  item.is_customer_manager ?? false,
           partner_id:           item.partner_id  ?? '',
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
@@ -575,6 +579,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
+        is_customer_manager: form.profiles.includes('cliente') ? form.is_customer_manager : false,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
         is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
         rate_type:    form.rate_type,
@@ -729,6 +734,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         contract_type:    (profiles.length && !profiles.includes('cliente')) ? f.contract_type : '',
         coordinator_type: profiles.includes('coordenador')  ? f.coordinator_type : '',
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
+        is_customer_manager: profiles.includes('cliente')   ? f.is_customer_manager : false,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
       }
     })
@@ -965,6 +971,25 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                 options={customers.map(c => ({ value: c.id, label: c.name }))}
                 placeholder="Selecione a empresa..."
               />
+            )}
+
+            {/* ── Cliente: gestor do cliente (vê todos os projetos da empresa + convida outros) ── */}
+            {isCliente && (
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_customer_manager}
+                  onChange={e => setForm(f => ({ ...f, is_customer_manager: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="text-sm text-[var(--text)]">Gestor do cliente</span>
+                  <span className="block text-[10px] text-[var(--text-light)]">
+                    Enxerga TODOS os projetos da empresa e pode convidar outros usuários para os cards.
+                    Clientes sem esta opção só veem os projetos em que foram convidados.
+                  </span>
+                </span>
+              </label>
             )}
 
             {/* ── Consultor: tipo de consultor (colapsável) ── */}
