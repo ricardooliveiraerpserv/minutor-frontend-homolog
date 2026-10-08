@@ -835,7 +835,7 @@ export default function UsersPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
               {filterRole === 'cliente' && (
-                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Gestor</th>
+                <th onClick={() => { setSort('is_customer_manager'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Gestor<SortIcon active={sort === 'is_customer_manager'} dir={sortDir as 'asc' | 'desc'} /></th>
               )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
