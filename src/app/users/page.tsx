@@ -177,11 +177,13 @@ export default function UsersPage() {
   const canEdit       = has('users.update')        && !isDenied('/users', 'edit')
   const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
+  // Definir gestores do cliente: admin E coordenador (escopo restrito — ação dedicada no BE).
+  const canSetManager = isAdmin || authUser?.type === 'coordenador'
   // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
   // negado pelo Configurador na ação própria de reenviar.
   const canResendWelcome = canResetPwd && !isDenied('/users', 'resend_welcome')
   // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
-  const canView       = has('users.view_all') || canResetPwd
+  const canView       = has('users.view_all') || canResetPwd || canSetManager
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
@@ -482,7 +484,7 @@ export default function UsersPage() {
     if (selectedIds.size === 0) return
     setBulkMgrLoading(true)
     try {
-      await Promise.all([...selectedIds].map(id => api.put(`/users/${id}`, { is_customer_manager: value })))
+      await Promise.all([...selectedIds].map(id => api.patch(`/users/${id}/customer-manager`, { is_customer_manager: value })))
       toast.success(`Gestor do cliente ${value ? 'marcado' : 'desmarcado'} para ${selectedIds.size} usuário(s)`)
       setSelectedIds(new Set())
       load()
@@ -683,18 +685,36 @@ export default function UsersPage() {
       </div>
 
       {/* Barra de ação em massa */}
-      {selectedIds.size > 0 && canResetPwd && (
+      {selectedIds.size > 0 && (canResetPwd || canSetManager) && (
         <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg">
           <span className="text-xs text-[var(--text-muted)]">{selectedIds.size} usuário(s) selecionado(s)</span>
-          <button
-            type="button"
-            onClick={resendWelcomeBulk}
-            disabled={bulkResending}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            <Mail size={12} />
-            {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
-          </button>
+          {canResetPwd && (
+            <button
+              type="button"
+              onClick={resendWelcomeBulk}
+              disabled={bulkResending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <Mail size={12} />
+              {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
+            </button>
+          )}
+
+          {/* ── Gestor do cliente em massa — admin + coordenador, só no filtro Cliente ── */}
+          {filterRole === 'cliente' && canSetManager && (
+            <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+              <span className="text-[11px] text-[var(--text-light)]">Gestor do cliente:</span>
+              <button type="button" onClick={() => bulkSetCustomerManager(true)} disabled={bulkMgrLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50">
+                <Check size={12} />{bulkMgrLoading ? 'Salvando...' : 'Marcar'}
+              </button>
+              <button type="button" onClick={() => bulkSetCustomerManager(false)} disabled={bulkMgrLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50">
+                <X size={12} />{bulkMgrLoading ? 'Salvando...' : 'Desmarcar'}
+              </button>
+            </div>
+          )}
+
           {canEdit && (
             <>
               {/* Ações de consultor/interno — não aparecem no filtro Cliente. */}
@@ -719,31 +739,6 @@ export default function UsersPage() {
                     {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
                   </button>
                 </>
-              )}
-
-              {/* ── Gestor do cliente em massa — só no filtro Cliente ── */}
-              {filterRole === 'cliente' && (
-              <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
-                <span className="text-[11px] text-[var(--text-light)]">Gestor do cliente:</span>
-                <button
-                  type="button"
-                  onClick={() => bulkSetCustomerManager(true)}
-                  disabled={bulkMgrLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-                >
-                  <Check size={12} />
-                  {bulkMgrLoading ? 'Salvando...' : 'Marcar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => bulkSetCustomerManager(false)}
-                  disabled={bulkMgrLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-                >
-                  <X size={12} />
-                  {bulkMgrLoading ? 'Salvando...' : 'Desmarcar'}
-                </button>
-              </div>
               )}
 
               {filterRole !== 'cliente' && (

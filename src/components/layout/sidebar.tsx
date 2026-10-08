@@ -849,7 +849,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       // mas o perfil coordenador só tem o módulo Serviços — como gerir senha da equipe
       // é transversal, exibimos SEMPRE (alwaysVisible), independente do módulo. A tela
       // /users gateia as ações (modo "só redefinir senha") pra esses perfis.
-      if (hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
+      // Todo coordenador acessa Usuários (pode DEFINIR GESTORES do cliente, além de gerir
+      // senha da equipe quando tem permissão). A tela gateia as ações por permissão.
+      nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
 
       // 🎫 Help Desk — coordenador entra pela Central de Operações (torre de controle).
       // Só p/ quem atende (agente = vinculado a alguma equipe); admin sempre.
