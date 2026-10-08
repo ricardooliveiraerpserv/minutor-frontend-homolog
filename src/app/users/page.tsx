@@ -39,6 +39,7 @@ interface UserItem {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  is_customer_manager?: boolean | null
   customer?: { id: number; name: string } | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
@@ -317,6 +318,7 @@ export default function UsersPage() {
   const [bulkResending,  setBulkResending]  = useState(false)
   const [bulkDeleting,   setBulkDeleting]   = useState(false)
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
+  const [bulkMgrLoading, setBulkMgrLoading] = useState(false)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
   const [bulkHdLoading, setBulkHdLoading] = useState(false)
@@ -471,6 +473,19 @@ export default function UsersPage() {
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar usuários') }
     finally { setBulkSustLoading(false) }
+  }
+
+  // Gestor do cliente em massa (só faz sentido p/ perfil cliente; BE ignora nos demais).
+  const bulkSetCustomerManager = async (value: boolean) => {
+    if (selectedIds.size === 0) return
+    setBulkMgrLoading(true)
+    try {
+      await Promise.all([...selectedIds].map(id => api.put(`/users/${id}`, { is_customer_manager: value })))
+      toast.success(`Gestor do cliente ${value ? 'marcado' : 'desmarcado'} para ${selectedIds.size} usuário(s)`)
+      setSelectedIds(new Set())
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar usuários') }
+    finally { setBulkMgrLoading(false) }
   }
 
   // Aplica o Perfil HD aos selecionados. O BE pula os incompatíveis (agente×cliente).
@@ -692,6 +707,29 @@ export default function UsersPage() {
                 {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
               </button>
 
+              {/* ── Gestor do cliente em massa ── */}
+              <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                <span className="text-[11px] text-[var(--text-light)]">Gestor do cliente:</span>
+                <button
+                  type="button"
+                  onClick={() => bulkSetCustomerManager(true)}
+                  disabled={bulkMgrLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  <Check size={12} />
+                  {bulkMgrLoading ? 'Salvando...' : 'Marcar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkSetCustomerManager(false)}
+                  disabled={bulkMgrLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  <X size={12} />
+                  {bulkMgrLoading ? 'Salvando...' : 'Desmarcar'}
+                </button>
+              </div>
+
               {/* ── Tipo de contrato em massa ── */}
               <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
                 <span className="text-[11px] text-[var(--text-light)]">Tipo de contrato:</span>
@@ -785,6 +823,9 @@ export default function UsersPage() {
               {filterRole === 'cliente' && (
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
+              {filterRole === 'cliente' && (
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Gestor</th>
+              )}
               <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
               {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Departamento</th>}
@@ -798,7 +839,7 @@ export default function UsersPage() {
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : displayUsers.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 9 : 8) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={(canResetPwd ? 9 : 8) + (filterRole === 'parceiro_admin' ? 1 : 0) + (filterRole === 'cliente' ? 2 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : displayUsers.map(user => (
               <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 {canResetPwd && (
@@ -833,6 +874,13 @@ export default function UsersPage() {
                   <td className="px-3 py-2.5 hidden sm:table-cell">
                     {user.customer?.name
                       ? <span className="text-xs font-medium text-[var(--text)]">{user.customer.name}</span>
+                      : <span className="text-xs text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
+                {filterRole === 'cliente' && (
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
+                    {user.is_customer_manager
+                      ? <Badge variant="outline" className="text-[10px] bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]">Gestor</Badge>
                       : <span className="text-xs text-[var(--text-muted)]">—</span>}
                   </td>
                 )}
