@@ -15,7 +15,7 @@ import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, Pin } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, Pin, BookOpen } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -474,8 +474,9 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void; onDelete?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card, onView, onChat, onDiary, onDelete }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void; onDiary?: (e: React.MouseEvent) => void; onDelete?: (e: React.MouseEvent) => void }) {
   const { user: viewerUser } = useAuth()
+  const isCliente = viewerUser?.type === 'cliente'
   const [showParticipants, setShowParticipants] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -542,16 +543,22 @@ function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCa
             {menuOpen && (
               <div className="absolute right-0 top-6 z-[100] w-52 rounded-xl overflow-hidden shadow-2xl"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                {isReqInicio && onView && (
+                {!isCliente && isReqInicio && onView && (
                   <button onClick={e => { setMenuOpen(false); onView(e) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
                     <Eye size={13} style={{ color: 'var(--text-light)' }} /> Visualizar
                   </button>
                 )}
+                {!isCliente && onDiary && (
+                  <button onClick={e => { setMenuOpen(false); onDiary(e) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                    <BookOpen size={13} style={{ color: 'var(--text-light)' }} /> Diário do Projeto
+                  </button>
+                )}
                 {onChat && (
                   <button onClick={e => { setMenuOpen(false); onChat(e) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                    <MessageSquare size={13} style={{ color: 'var(--text-light)' }} /> Chat
+                    <MessageSquare size={13} style={{ color: 'var(--text-light)' }} /> Comentários
                   </button>
                 )}
                 {canManageViewers && (
@@ -560,7 +567,7 @@ function RequestKanbanCard({ card, onView, onChat, onDelete }: { card: RequestCa
                     <UserCheck size={13} style={{ color: 'var(--text-light)' }} /> Participantes
                   </button>
                 )}
-                {onDelete && (
+                {!isCliente && onDelete && (
                   <button onClick={e => { setMenuOpen(false); onDelete(e) }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}>
                     <Trash2 size={13} style={{ color: 'var(--danger)' }} /> Excluir
@@ -4248,7 +4255,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
 
 function KanbanColumn({
   col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
-  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onRequestDelete, onProjectAction, onContractAction,
+  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onRequestDiary, onRequestDelete, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
@@ -4267,6 +4274,7 @@ function KanbanColumn({
   onRequestClick?: (card: RequestCard) => void
   onRequestView?: (card: RequestCard) => void
   onRequestChat?: (card: RequestCard) => void
+  onRequestDiary?: (card: RequestCard) => void
   onRequestDelete?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
@@ -4378,6 +4386,7 @@ function KanbanColumn({
                       card={card}
                       onView={onRequestView ? e => { e.stopPropagation(); onRequestView(card) } : undefined}
                       onChat={onRequestChat ? e => { e.stopPropagation(); onRequestChat(card) } : undefined}
+                      onDiary={onRequestDiary ? e => { e.stopPropagation(); onRequestDiary(card) } : undefined}
                       onDelete={onRequestDelete ? e => { e.stopPropagation(); onRequestDelete(card) } : undefined}
                     />
                   </div>
@@ -5808,6 +5817,7 @@ function KanbanContent() {
                   }
                   onRequestView={setSelectedRequest}
                   onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                  onRequestDiary={card => { setRequestInitialTab('diary'); setSelectedRequest(card) }}
                   onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                   onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
                   getContractCols={getAvailableContractCols}
@@ -5853,6 +5863,7 @@ function KanbanContent() {
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
+                  onRequestDiary={card => { setRequestInitialTab('diary'); setSelectedRequest(card) }}
                     onRequestDelete={user?.type === 'admin' ? setDelRequest : undefined}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
                     getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
