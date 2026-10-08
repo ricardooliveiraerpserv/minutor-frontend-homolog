@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, UserPlus
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, UserPlus, UserCheck
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -323,6 +323,7 @@ export default function UsersPage() {
   const [bulkDeleting,   setBulkDeleting]   = useState(false)
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
   const [bulkMgrLoading, setBulkMgrLoading] = useState(false)
+  const [mgrToggling, setMgrToggling] = useState<number | null>(null)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
   const [bulkHdLoading, setBulkHdLoading] = useState(false)
@@ -491,6 +492,18 @@ export default function UsersPage() {
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar usuários') }
     finally { setBulkMgrLoading(false) }
+  }
+
+  // Marca/desmarca gestor de UM cliente (pelo ⋮ da linha).
+  const toggleManager = async (u: UserItem) => {
+    setMgrToggling(u.id)
+    try {
+      const next = !u.is_customer_manager
+      await api.patch(`/users/${u.id}/customer-manager`, { is_customer_manager: next })
+      toast.success(next ? 'Marcado como gestor do cliente' : 'Gestor do cliente removido')
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar') }
+    finally { setMgrToggling(null) }
   }
 
   // Aplica o Perfil HD aos selecionados. O BE pula os incompatíveis (agente×cliente).
@@ -872,6 +885,10 @@ export default function UsersPage() {
                     ...(canViewDetail    ? [{ label: 'Visualizar',           icon: <Eye      size={12} />, onClick: () => setViewUser(user) }] : []),
                     ...(canEdit          ? [{ label: 'Editar',               icon: <Pencil   size={12} />, onClick: () => openEdit(user) }] : []),
                     ...(canResetPwd      ? [{ label: 'Resetar senha',        icon: <KeyRound size={12} />, onClick: () => resetPassword(user), disabled: resetting === user.id }] : []),
+                    ...(canSetManager && user.type === 'cliente'
+                      ? [{ label: user.is_customer_manager ? 'Remover gestor do cliente' : 'Marcar como gestor do cliente',
+                           icon: <UserCheck size={12} />, onClick: () => toggleManager(user), disabled: mgrToggling === user.id }]
+                      : []),
                     ...(canResendWelcome && user.is_pending_invite ? [{ label: 'Convidar', icon: <UserPlus size={12} />, onClick: () => invite(user), disabled: resending === user.id }] : []),
                     ...(canResendWelcome && !user.is_pending_invite ? [{ label: 'Reenviar boas-vindas', icon: <Mail     size={12} />, onClick: () => resendWelcome(user), disabled: resending === user.id }] : []),
                     ...(canDelete        ? [{ label: 'Excluir',              icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
