@@ -461,6 +461,33 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       setGhHistoryLoading(false)
     }
   }
+  // Edição inline de uma linha do histórico — corrigir o valor ou a vigência já lançados.
+  const [ghEditId, setGhEditId] = useState<number | null>(null)
+  const [ghEditMonth, setGhEditMonth] = useState('')
+  const [ghEditHours, setGhEditHours] = useState('')
+  const [ghEditSaving, setGhEditSaving] = useState(false)
+  const startGhEdit = (h: any) => {
+    setGhEditId(h.id)
+    setGhEditMonth(h.effective_from ? String(h.effective_from).slice(0, 7) : '')
+    setGhEditHours(h.new_guaranteed_hours != null ? String(Number(h.new_guaranteed_hours)) : '')
+  }
+  const saveGhEdit = async (logId: number) => {
+    if (userId == null) return
+    setGhEditSaving(true)
+    try {
+      await api.put(`/users/${userId}/guaranteed-hours-history/${logId}`, {
+        new_guaranteed_hours: ghEditHours === '' ? null : Number(ghEditHours),
+        effective_from: ghEditMonth ? `${ghEditMonth}-01` : null,
+      })
+      toast.success('Histórico atualizado')
+      setGhEditId(null)
+      await openGhHistory()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar histórico')
+    } finally {
+      setGhEditSaving(false)
+    }
+  }
 
   // Carrega clientes + parceiros uma vez ao abrir.
   useEffect(() => {
@@ -1538,24 +1565,49 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                       <th className="text-left font-semibold px-3 py-2">Horas / mês</th>
                       <th className="text-left font-semibold px-3 py-2">Alterado por</th>
                       <th className="text-left font-semibold px-3 py-2">Em</th>
+                      <th className="text-right font-semibold px-3 py-2">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ghHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
                       <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {h.effective_from
+                          {ghEditId === h.id ? (
+                            <Input type="month" value={ghEditMonth} onChange={e => setGhEditMonth(e.target.value)}
+                              className="w-32 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-7 text-xs" />
+                          ) : h.effective_from
                             ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
                             : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
                         </td>
                         <td className="px-3 py-2 tabular-nums whitespace-nowrap">
-                          {h.old_guaranteed_hours != null ? `${Number(h.old_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
-                          <span className="text-[var(--text-light)]"> → </span>
-                          {h.new_guaranteed_hours != null ? `${Number(h.new_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                          {ghEditId === h.id ? (
+                            <Input type="number" min="0" max="744" step="1" value={ghEditHours}
+                              onChange={e => setGhEditHours(e.target.value)} placeholder="sem piso"
+                              className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-7 text-xs" />
+                          ) : (<>
+                            {h.old_guaranteed_hours != null ? `${Number(h.old_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                            <span className="text-[var(--text-light)]"> → </span>
+                            {h.new_guaranteed_hours != null ? `${Number(h.new_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                          </>)}
                         </td>
                         <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
                           {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                          {ghEditId === h.id ? (
+                            <div className="flex items-center justify-end gap-3">
+                              <button type="button" disabled={ghEditSaving} onClick={() => saveGhEdit(h.id)}
+                                className="text-[11px] font-medium text-[var(--primary)] hover:underline disabled:opacity-50">
+                                {ghEditSaving ? 'Salvando…' : 'Salvar'}
+                              </button>
+                              <button type="button" onClick={() => setGhEditId(null)}
+                                className="text-[11px] text-[var(--text-light)] hover:underline">Cancelar</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => startGhEdit(h)}
+                              className="text-[11px] font-medium text-[var(--primary)] hover:underline">Editar</button>
+                          )}
                         </td>
                       </tr>
                     ))}
