@@ -1496,7 +1496,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               <Input
                 type="month"
                 value={ghEffectiveMonth}
-                min={new Date().toISOString().slice(0, 7)}
+                min={(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })()}
                 onChange={e => setGhEffectiveMonth(e.target.value)}
                 className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
               />
