@@ -440,6 +440,28 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
     }
   }
 
+  // Vigência das HORAS GARANTIDAS (piso) — mesma mecânica do valor/hora, independente dele.
+  const [ghModalOpen, setGhModalOpen] = useState(false)
+  const [ghEffectiveMonth, setGhEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  const pendingRateEffRef = useRef<string | undefined>(undefined)
+  const [ghHistoryOpen, setGhHistoryOpen] = useState(false)
+  const [ghHistory, setGhHistory] = useState<any[]>([])
+  const [ghHistoryLoading, setGhHistoryLoading] = useState(false)
+  const openGhHistory = async () => {
+    if (userId == null) return
+    setGhHistoryOpen(true)
+    setGhHistoryLoading(true)
+    try {
+      const res = await api.get<{ hasNext: boolean; items: any[] }>(`/users/${userId}/guaranteed-hours-history?pageSize=100`)
+      setGhHistory(Array.isArray(res?.items) ? res.items : [])
+    } catch {
+      setGhHistory([])
+      toast.error('Erro ao carregar histórico de horas garantidas')
+    } finally {
+      setGhHistoryLoading(false)
+    }
+  }
+
   // Carrega clientes + parceiros uma vez ao abrir.
   useEffect(() => {
     if (!open) return
@@ -555,7 +577,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
     } catch { toast.error('Não foi possível buscar o CEP') } finally { setCepLoading(false) }
   }
 
-  const save = async (hourlyRateEffectiveFrom?: string) => {
+  const save = async (hourlyRateEffectiveFrom?: string, guaranteedEffectiveFrom?: string) => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
 
     // Empresa base OBRIGATÓRIA para consultor/parceiro — sem ela os apontamentos
@@ -655,8 +677,15 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           || form.rate_type !== ((editItem.rate_type as string | undefined) ?? 'hourly')
         )
         const vigenciaChanged = rateChanged || typeChanged
+        // Horas garantidas (piso) — vigência PRÓPRIA, mesma mecânica do valor/hora.
+        // '' = apagado → sem piso a partir do mês escolhido (meses anteriores mantêm o valor).
+        const ghFormNum = form.guaranteed_hours === '' ? null : Number(form.guaranteed_hours)
+        const ghOrigNum = (editItem.guaranteed_hours === null || editItem.guaranteed_hours === undefined) ? null : Number(editItem.guaranteed_hours)
+        const ghChanged = isConsultorEdit && form.consultant_type === 'horista' && ghFormNum !== ghOrigNum
         if (vigenciaChanged && !hourlyRateEffectiveFrom) { setSaving(false); setRateModalOpen(true); return }
+        if (ghChanged && !guaranteedEffectiveFrom) { setSaving(false); pendingRateEffRef.current = hourlyRateEffectiveFrom; setGhModalOpen(true); return }
         if (vigenciaChanged && hourlyRateEffectiveFrom) { payload.hourly_rate_effective_from = hourlyRateEffectiveFrom }
+        if (ghChanged && guaranteedEffectiveFrom) { payload.guaranteed_hours_effective_from = guaranteedEffectiveFrom }
         await api.put(`/users/${editItem.id}`, payload)
         toast.success('Usuário atualizado')
       } else {
@@ -1019,7 +1048,15 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
             {/* ── Horas garantidas (Horista apenas) ── */}
             {isConsultor && form.consultant_type === 'horista' && (
               <div>
-                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Horas garantidas / mês</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Horas garantidas / mês</Label>
+                  {isEdit && (
+                    <button type="button" onClick={openGhHistory}
+                      className="text-[10px] font-medium text-[var(--primary)] hover:underline">
+                      Histórico
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Input type="number" min="0" max="744" step="1"
                     value={form.guaranteed_hours}
@@ -1438,6 +1475,96 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
             )}
             <div className="flex items-center justify-end mt-5">
               <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vigência das HORAS GARANTIDAS (piso) — mês a partir do qual o novo piso (ou a ausência dele) vale */}
+      {ghModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência das horas garantidas</p>
+            <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
+              {form.guaranteed_hours === ''
+                ? 'A partir de qual mês o piso de horas garantidas deixa de valer? Meses anteriores mantêm o piso vigente.'
+                : 'A partir de qual mês esse piso de horas garantidas passa a valer? Meses anteriores (fechamentos já feitos) não mudam.'}
+            </p>
+            <div className="mb-5">
+              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
+              <Input
+                type="month"
+                value={ghEffectiveMonth}
+                min={new Date().toISOString().slice(0, 7)}
+                onChange={e => setGhEffectiveMonth(e.target.value)}
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => setGhModalOpen(false)}
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
+              <Button
+                onClick={() => { setGhModalOpen(false); save(pendingRateEffRef.current, `${ghEffectiveMonth}-01`) }}
+                disabled={!ghEffectiveMonth}
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de horas garantidas (somente leitura) */}
+      {ghHistoryOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-[var(--text)]">Histórico de horas garantidas</p>
+              <button onClick={() => setGhHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
+                <X size={16} />
+              </button>
+            </div>
+            {ghHistoryLoading ? (
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Carregando…</p>
+            ) : ghHistory.length === 0 ? (
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Nenhuma alteração registrada.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--border)]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
+                      <th className="text-left font-semibold px-3 py-2">Vigência</th>
+                      <th className="text-left font-semibold px-3 py-2">Horas / mês</th>
+                      <th className="text-left font-semibold px-3 py-2">Alterado por</th>
+                      <th className="text-left font-semibold px-3 py-2">Em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ghHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
+                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {h.effective_from
+                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                            : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                          {h.old_guaranteed_hours != null ? `${Number(h.old_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                          <span className="text-[var(--text-light)]"> → </span>
+                          {h.new_guaranteed_hours != null ? `${Number(h.new_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                        </td>
+                        <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
+                          {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex items-center justify-end mt-5">
+              <Button variant="outline" onClick={() => setGhHistoryOpen(false)}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
             </div>
           </div>
