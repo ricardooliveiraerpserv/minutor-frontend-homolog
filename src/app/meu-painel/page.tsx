@@ -2709,11 +2709,11 @@ export default function MeuPainelPage() {
           )}
 
           {/* Linha 1 — Serviços (oculto para parceiro simples que já tem hero) */}
-          {!isParceiroSimples && <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 [&>*]:min-w-0">
+          {!isParceiroSimples && <div className={`grid gap-3 grid-cols-2 sm:grid-cols-3 ${pendingHours > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} [&>*]:min-w-0`}>
             <SummaryCard
-              label="Horas no Período"
+              label="Horas aprovadas"
               value={`${workedHours.toFixed(1)}h`}
-              sub={pendingHours > 0 ? `aprovadas · ${pendingHours.toFixed(1)}h a aprovar` : 'aprovadas no período'}
+              sub="aprovadas no período"
               icon={Clock}
               accent="bg-[var(--primary-soft)] text-[var(--primary)]"
               onClick={() => setActiveTab('timesheets')}
