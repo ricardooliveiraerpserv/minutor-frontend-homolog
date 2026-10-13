@@ -199,6 +199,8 @@ interface MyClosing {
   horas_trabalhadas?: number
   horas_pendentes?: number
   valor_pendente?: number
+  horas_ajuste?: number
+  valor_ajuste?: number
   all_approved?: boolean
 }
 
@@ -1047,7 +1049,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function SummaryCard({
-  label, value, sub, icon: Icon, accent, onClick, featured = false, money = false,
+  label, value, sub, icon: Icon, accent, onClick, featured = false, money = false, tone,
 }: {
   label: string
   value: string
@@ -1057,18 +1059,27 @@ function SummaryCard({
   onClick?: () => void
   featured?: boolean
   money?: boolean
+  tone?: 'warning' | 'purple'
 }) {
+  const toneCard = tone === 'warning'
+    ? 'border-2 border-[color:var(--warning)]/40 bg-[var(--warning-bg)]'
+    : tone === 'purple'
+      ? 'border-2 border-[color:var(--purple)]/40 bg-[var(--purple-bg)]'
+      : ''
+  const toneLabel = tone === 'warning' ? 'text-[var(--warning)]' : tone === 'purple' ? 'text-[var(--purple)]' : 'text-[var(--text-light)]'
   return (
     <div
       onClick={onClick}
       className={`rounded-xl p-5 transition-colors ${
         featured
           ? 'border-2 border-[var(--primary)] bg-[var(--primary-soft)] shadow-[0_0_20px_var(--primary-soft)]'
-          : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
+          : tone
+            ? `${toneCard} ${onClick ? 'cursor-pointer hover:brightness-95' : ''}`
+            : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>{label}</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[var(--primary)]' : toneLabel}`}>{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${featured ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : accent}`}>
           <Icon size={14} />
         </div>
@@ -2291,7 +2302,12 @@ export default function MeuPainelPage() {
   // ficam à parte (informativo) e só entram no valor após o coordenador aprovar.
   const pendingHours    = myClosing?.horas_pendentes ?? 0
   const pendingValue    = myClosing?.valor_pendente ?? 0
+  const ajusteHours     = myClosing?.horas_ajuste ?? 0
+  const ajusteValue     = myClosing?.valor_ajuste ?? 0
   const workedHours     = myClosing?.horas_trabalhadas != null ? myClosing.horas_trabalhadas : tsTotalMin / 60
+  // Distribuição dos cards: 4 base + cards de pendente/ajuste quando houver.
+  const nExtraStatusCards = (pendingHours > 0 ? 1 : 0) + (ajusteHours > 0 ? 1 : 0)
+  const hoursGridCols = nExtraStatusCards === 2 ? 'lg:grid-cols-6' : nExtraStatusCards === 1 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
 
   // Proporcionalidade: se bank_hours_start_date cai no mês selecionado
   const consultantStartStr = (user as any)?.bank_hours_start_date as string | null | undefined
@@ -2709,7 +2725,7 @@ export default function MeuPainelPage() {
           )}
 
           {/* Linha 1 — Serviços (oculto para parceiro simples que já tem hero) */}
-          {!isParceiroSimples && <div className={`grid gap-3 grid-cols-2 sm:grid-cols-3 ${pendingHours > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} [&>*]:min-w-0`}>
+          {!isParceiroSimples && <div className={`grid gap-3 grid-cols-2 sm:grid-cols-3 ${hoursGridCols} [&>*]:min-w-0`}>
             <SummaryCard
               label="Horas aprovadas"
               value={`${workedHours.toFixed(1)}h`}
@@ -2805,6 +2821,18 @@ export default function MeuPainelPage() {
                 sub={pendingValue > 0 ? `≈ ${formatBRL(pendingValue)} · entra após aprovar` : 'entra no valor após aprovação'}
                 icon={Clock}
                 accent="bg-[var(--warning-bg)] text-[var(--warning)]"
+                tone="warning"
+                onClick={() => setActiveTab('timesheets')}
+              />
+            )}
+            {ajusteHours > 0 && (
+              <SummaryCard
+                label="Ajuste solicitado"
+                value={`${ajusteHours.toFixed(1)}h`}
+                sub={ajusteValue > 0 ? `≈ ${formatBRL(ajusteValue)} · clique para ajustar` : 'clique para ajustar e reenviar'}
+                icon={AlertTriangle}
+                accent="bg-[var(--purple-bg)] text-[var(--purple)]"
+                tone="purple"
                 onClick={() => setActiveTab('timesheets')}
               />
             )}
