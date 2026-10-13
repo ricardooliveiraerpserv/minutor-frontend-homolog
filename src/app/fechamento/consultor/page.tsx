@@ -513,6 +513,27 @@ export default function FechamentoConsultorPage() {
   // (modo 'despesa' só envia despesas → não exige 100% de horas aprovadas.)
   const reportBlocked = reportTargetRow?.all_approved === false && reportTarget?.mode !== 'despesa'
 
+  // Drill-down dos apontamentos pendentes/ajuste (badge clicável). "Voltar" fecha o modal.
+  const [pendenciasModal, setPendenciasModal] = useState<{ userId: number; nome: string } | null>(null)
+  const [pendenciasRows, setPendenciasRows] = useState<ApontamentoRow[] | null>(null)
+  const [pendenciasLoading, setPendenciasLoading] = useState(false)
+  const openPendencias = useCallback(async (c: ConsultorBase) => {
+    setPendenciasModal({ userId: c.user_id, nome: c.nome })
+    setPendenciasRows(null)
+    setPendenciasLoading(true)
+    try {
+      // Exatamente os apontamentos contabilizados na pendência (mesmo filtro do BE).
+      const res = await api.get<{ data: ApontamentoRow[] }>(
+        `/fechamento-consultor/${c.user_id}/${yearMonth}/apontamentos-pendentes`,
+      )
+      setPendenciasRows(res.data ?? [])
+    } catch {
+      setPendenciasRows([])
+    } finally {
+      setPendenciasLoading(false)
+    }
+  }, [yearMonth])
+
   // Atualiza o status de envio de um consultor nas 3 listas (otimista, sem refetch).
   const patchEnvio = useCallback((userId: number, envio_em: string | null, envio_por: string | null) => {
     setData(prev => {
@@ -856,13 +877,15 @@ export default function FechamentoConsultorPage() {
     if (hp > 0) parts.push(`${fmtH(hp)} a aprovar`)
     if (ha > 0) parts.push(`${fmtH(ha)} em ajuste`)
     return (
-      <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit"
+      <button
+        type="button"
+        onClick={() => openPendencias(c)}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit transition-opacity hover:opacity-80 cursor-pointer"
         style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}
-        title={`${n} apontamento(s) aguardando aprovação/ajuste — envio bloqueado até 100% aprovado`}
+        title={`${n} apontamento(s) aguardando aprovação/ajuste — clique para ver (envio bloqueado até 100% aprovado)`}
       >
         <Clock size={10} /> {n} apont.{parts.length ? ` · ${parts.join(' + ')}` : ''}
-      </span>
+      </button>
     )
   }
 
@@ -1803,9 +1826,12 @@ export default function FechamentoConsultorPage() {
                     Enviar e-mail
                   </Button>
                   {reportBlocked && (
-                    <div
-                      className="flex items-start gap-1.5 px-2 py-1.5 rounded text-[11px] leading-tight"
+                    <button
+                      type="button"
+                      onClick={() => reportTargetRow && openPendencias(reportTargetRow)}
+                      className="flex items-start gap-1.5 px-2 py-1.5 rounded text-[11px] leading-tight text-left w-full transition-opacity hover:opacity-80 cursor-pointer"
                       style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}
+                      title="Clique para ver os apontamentos pendentes/ajuste"
                     >
                       <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                       <span>
@@ -1813,9 +1839,9 @@ export default function FechamentoConsultorPage() {
                         aprovação/ajuste
                         {(reportTargetRow?.horas_pendentes ?? 0) > 0 ? ` · ${fmtH(reportTargetRow?.horas_pendentes ?? 0)} a aprovar` : ''}
                         {(reportTargetRow?.horas_ajuste ?? 0) > 0 ? ` · ${fmtH(reportTargetRow?.horas_ajuste ?? 0)} em ajuste` : ''}.
-                        Só é possível enviar com 100% aprovado.
+                        Clique para ver · só é possível enviar com 100% aprovado.
                       </span>
-                    </div>
+                    </button>
                   )}
                 </>
               )}
@@ -1931,6 +1957,106 @@ export default function FechamentoConsultorPage() {
                 onClick={sendReportEmail}
               >
                 {sendingEmail ? 'Enviando…' : 'Enviar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drill-down: apontamentos EXATOS contabilizados como pendência/ajuste. */}
+      {pendenciasModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)' }}
+          onClick={e => { if (e.target === e.currentTarget) setPendenciasModal(null) }}
+        >
+          <div
+            className="ds-card flex flex-col w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  Apontamentos pendentes de aprovação / ajuste
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {pendenciasModal.nome} · {fmtYearMonth(yearMonth)}
+                  {pendenciasRows && (
+                    <> · {pendenciasRows.length} apont. · {fmtH(pendenciasRows.reduce((s, r) => s + (r.horas_base ?? r.horas), 0))}</>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => setPendenciasModal(null)}
+                className="p-1 rounded transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5">
+              {pendenciasLoading ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  <RefreshCw size={16} className="animate-spin" /> Carregando apontamentos…
+                </div>
+              ) : !pendenciasRows || pendenciasRows.length === 0 ? (
+                <div className="flex items-center justify-center py-10 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Nenhum apontamento pendente de aprovação ou ajuste.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
+                        <th className="text-left font-medium py-2 pr-3">Data</th>
+                        <th className="text-left font-medium py-2 pr-3">Cliente</th>
+                        <th className="text-left font-medium py-2 pr-3">Projeto</th>
+                        <th className="text-left font-medium py-2 pr-3">Ticket</th>
+                        <th className="text-left font-medium py-2 pr-3">Título</th>
+                        <th className="text-right font-medium py-2 pr-3">Horas</th>
+                        <th className="text-left font-medium py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendenciasRows.map(r => {
+                        const ajuste = r.status === 'adjustment_requested'
+                        return (
+                          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td className="py-2 pr-3 whitespace-nowrap font-mono" style={{ color: 'var(--text)' }}>{fmtDate(r.data)}</td>
+                            <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{r.cliente || '—'}</td>
+                            <td className="py-2 pr-3" style={{ color: 'var(--text)' }}>
+                              <span style={{ color: 'var(--text-light)' }}>{r.projeto_codigo}</span> {r.projeto}
+                            </td>
+                            <td className="py-2 pr-3 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{r.ticket || '—'}</td>
+                            <td className="py-2 pr-3" style={{ color: 'var(--text-muted)' }}>{r.titulo || '—'}</td>
+                            <td className="py-2 pr-3 text-right whitespace-nowrap font-mono" style={{ color: 'var(--text)' }}>{fmtH(r.horas_base ?? r.horas)}</td>
+                            <td className="py-2">
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
+                                style={ajuste
+                                  ? { background: 'var(--purple-bg, #ede9fe)', color: 'var(--purple, #7c3aed)' }
+                                  : { background: 'var(--warning-bg)', color: 'var(--warning)' }}
+                              >
+                                {ajuste ? <><AlertTriangle size={10} /> Ajuste solicitado</> : <><Clock size={10} /> Pendente</>}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer com Voltar */}
+            <div className="flex items-center justify-end gap-2 px-5 py-3.5 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+              <Button variant="ghost" size="sm" icon={X} onClick={() => setPendenciasModal(null)}>
+                Voltar
               </Button>
             </div>
           </div>
