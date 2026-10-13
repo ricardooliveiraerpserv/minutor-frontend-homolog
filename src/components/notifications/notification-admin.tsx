@@ -860,7 +860,12 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
 }
 
 interface Guest { nome: string; parentesco: string | null; idade?: number | null }
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null; guests?: Guest[] }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[] }
+
+// Rótulo amigável da origem da resposta (e-mail × sistema).
+function sourceLabel(src?: string | null): string {
+  return src === 'email' ? 'e-mail' : src === 'app' ? 'sistema' : ''
+}
 interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
 
 /** Log de uma comunicação (admin): quem visualizou (e quando) + resultado dos botões de decisão. */
@@ -890,7 +895,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     const wb = XLSX.utils.book_new()
     if (withGuests) {
       const aff = data?.summary.actions[0]
-      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
+      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Confirmou por', 'Total do grupo']]
       let totalTitulares = 0
       let totalFamAdultos = 0
       let totalCriancas = 0
@@ -902,11 +907,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
         const totalInd = (confirmou ? 1 : 0) + nGuests
         if (confirmou) totalTitulares += 1
         titularRows.push(aoa.length)
-        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
+        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', r.response ? sourceLabel(r.response_source) : '', confirmou ? totalInd : ''])
         ;(r.guests ?? []).forEach(g => {
           const crianca = g.idade != null && g.idade <= 7
           if (crianca) { totalCriancas += 1; criancaRows.push(aoa.length) } else totalFamAdultos += 1
-          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', ''])
+          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', '', ''])
         })
       })
       const totalGeral = totalTitulares + totalFamAdultos + totalCriancas
@@ -918,9 +923,9 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       aoa.push(['Crianças (até 7 anos)', totalCriancas])
       aoa.push(['TOTAL GERAL', totalGeral])
       const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 14 }]
       // Cores: cabeçalho (teal), linhas de TITULAR (destaque verde-claro), crianças (amarelo-claro)
-      const NCOLS = 10
+      const NCOLS = 11
       const styleRow = (rowIdx: number, style: Record<string, unknown>) => {
         for (let c = 0; c < NCOLS; c++) {
           const addr = XLSX.utils.encode_cell({ r: rowIdx, c })
@@ -937,10 +942,10 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       }
       XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
     } else {
-      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
-      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '']))
+      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta', 'Confirmou por']]
+      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', r.response ? sourceLabel(r.response_source) : '']))
       const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }]
+      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
       XLSX.utils.book_append_sheet(wb, ws, 'Log')
     }
     XLSX.writeFile(wb, fname)
@@ -1023,7 +1028,14 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                         {data.summary.actions.length > 0 && (
                           <td className="px-3 py-2">
                             {r.response
-                              ? <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
+                              ? <div className="flex flex-col items-start gap-0.5">
+                                  <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
+                                  {sourceLabel(r.response_source) && (
+                                    <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
+                                      {r.response_source === 'email' ? '✉️ via e-mail' : '🖥️ via sistema'}
+                                    </span>
+                                  )}
+                                </div>
                               : <span style={{ color: 'var(--text-light)' }}>—</span>}
                           </td>
                         )}
