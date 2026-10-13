@@ -114,7 +114,7 @@ interface Notif {
   send_email: boolean; visible: boolean; requires_ack: boolean; cta_label: string | null; cta_url: string | null
   version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
-  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean
+  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean; guest_other_user_ids?: number[] | null
   created_at?: string
 }
 // Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
@@ -473,6 +473,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const removeAction = (i: number) => setActions(a => a.filter((_, idx) => idx !== i))
   // Confirmar presença: permite ao respondente informar acompanhantes/familiares.
   const [allowGuests, setAllowGuests] = useState<boolean>((draft as { allow_guests?: boolean }).allow_guests ?? false)
+  // Usuários autorizados a indicar acompanhante "Outro" (além da família).
+  const [guestOtherUsers, setGuestOtherUsers] = useState<MSOpt[]>([])
 
   // enquete (type=poll)
   const [pollQuestion, setPollQuestion] = useState(draft.poll?.question ?? '')
@@ -485,6 +487,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   // meta (tipos de contratação)
   const [contractOpts, setContractOpts] = useState<Opt[]>([])
   const draftUserIds = draft.target_users ?? []
+  const draftOtherIds = (draft as { guest_other_user_ids?: number[] }).guest_other_user_ids ?? []
 
   // prévia
   const [preview, setPreview] = useState<{ html: string; recipients: number } | null>(null)
@@ -496,11 +499,16 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       .catch(() => {})
   }, [])
 
-  // hidrata os chips dos usuários já selecionados (edição)
+  // hidrata os chips dos usuários já selecionados (edição) — destinatários e autorizados a "Outro"
   useEffect(() => {
-    if (!draftUserIds.length) return
+    if (!draftUserIds.length && !draftOtherIds.length) return
     api.get<{ data: UserHit[] }>('/notifications/users')
-      .then(r => setPickedUsers((r.data ?? []).filter(u => draftUserIds.includes(u.id)).map(u => ({ id: u.id, name: u.name, sub: u.email }))))
+      .then(r => {
+        const all = r.data ?? []
+        const toOpt = (u: UserHit) => ({ id: u.id, name: u.name, sub: u.email })
+        if (draftUserIds.length) setPickedUsers(all.filter(u => draftUserIds.includes(u.id)).map(toOpt))
+        if (draftOtherIds.length) setGuestOtherUsers(all.filter(u => draftOtherIds.includes(u.id)).map(toOpt))
+      })
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -573,6 +581,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       actions: type === 'poll' ? [] : actions.map(a => a.trim()).filter(Boolean),
       // Acompanhantes: só faz sentido com botões de decisão (Confirmar presença).
       allow_guests: type !== 'poll' && actions.map(a => a.trim()).filter(Boolean).length > 0 ? allowGuests : false,
+      guest_other_user_ids: (type !== 'poll' && actions.map(a => a.trim()).filter(Boolean).length > 0 && allowGuests) ? guestOtherUsers.map(u => u.id) : [],
       version: Number(version) || 1, expires_at: expiresAt,
       ...(poll ? { poll } : {}),
     }
@@ -673,6 +682,17 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
                 </span>
               </span>
             </label>
+          )}
+          {actions.length > 0 && allowGuests && (
+            <div className="pt-2">
+              <label className="block text-[13px] mb-1" style={{ color: 'var(--text)' }}>
+                Quem pode indicar acompanhante <b>“Outro”</b> (além da família)
+                <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  Só os escolhidos aqui poderão indicar não-familiares. Os demais ficam limitados a Cônjuge e Filho(a).
+                </span>
+              </label>
+              <MultiSelect placeholder="Buscar por nome ou e-mail…" selected={guestOtherUsers} onChange={setGuestOtherUsers} search={searchUsers} />
+            </div>
           )}
           {/* Limite da decisão + recorrência p/ re-perguntar (o usuário pode "Decidir depois" até o limite) */}
           {actions.length > 0 && (
@@ -860,7 +880,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
 }
 
 interface Guest { nome: string; parentesco: string | null; idade?: number | null }
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean; can_invite_other?: boolean }
 
 // Rótulo amigável da origem da resposta (e-mail × sistema).
 function sourceLabel(src?: string | null): string {
@@ -877,6 +897,12 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   // Modal de confirmação (revogar / cancelar convite / reativar) — substitui o confirm() nativo.
   const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' } | null>(null)
   const [busy, setBusy] = useState(false)
+  // "Pode convidar além da família (Outro)?" marcado no modal de revogar/reativar.
+  const [allowOther, setAllowOther] = useState(false)
+  const openConfirm = (row: LogRow, mode: 'revoke' | 'cancel' | 'reactivate') => {
+    setAllowOther(!!row.can_invite_other)
+    setConfirmAction({ row, mode })
+  }
 
   const load = useCallback(() => {
     setLoading(true)
@@ -895,7 +921,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
         toast.success(`Convite de ${row.user_name} cancelado — não recebe mais.`)
       } else {
         // revoke e reactivate usam o mesmo endpoint (limpa resposta + reativa + reenvia e-mail).
-        const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: row.user_id })
+        const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: row.user_id, can_invite_other: allowOther })
         toast.success(mode === 'reactivate'
           ? `Convite de ${row.user_name} reativado — voltará a receber.`
           : `Resposta de ${row.user_name} revogada — voltará a receber${res?.data?.email_resent ? ' (e-mail reenviado)' : ''}.`)
@@ -1060,7 +1086,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                               <div className="flex flex-col items-start gap-0.5">
                                 <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>🚫 Convite cancelado</span>
                                 <button
-                                  onClick={() => setConfirmAction({ row: r, mode: 'reactivate' })}
+                                  onClick={() => openConfirm(r, 'reactivate')}
                                   className="inline-flex items-center gap-1 text-[10px] mt-0.5 hover:underline"
                                   style={{ color: 'var(--primary)' }}
                                   title="Reativar o convite — a pessoa volta a receber"
@@ -1083,7 +1109,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {r.response && (
                                     <button
-                                      onClick={() => setConfirmAction({ row: r, mode: 'revoke' })}
+                                      onClick={() => openConfirm(r, 'revoke')}
                                       className="inline-flex items-center gap-1 text-[10px] hover:underline"
                                       style={{ color: 'var(--warning)' }}
                                       title="Revogar resposta — a pessoa volta a receber o convite"
@@ -1092,7 +1118,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                                     </button>
                                   )}
                                   <button
-                                    onClick={() => setConfirmAction({ row: r, mode: 'cancel' })}
+                                    onClick={() => openConfirm(r, 'cancel')}
                                     className="inline-flex items-center gap-1 text-[10px] hover:underline"
                                     style={{ color: 'var(--danger, #dc2626)' }}
                                     title="Cancelar convite — a pessoa não recebe mais"
@@ -1150,7 +1176,15 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
             <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               onClick={e => e.stopPropagation()}>
               <h3 className="text-base font-semibold mb-2" style={{ color: 'var(--text)' }}>{cfg.title}</h3>
-              <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{cfg.msg}</p>
+              <p className="text-sm mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{cfg.msg}</p>
+              {mode !== 'cancel' && data?.summary.allow_guests && (
+                <label className="flex items-start gap-2 text-[13px] mb-4 cursor-pointer p-2.5 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>
+                  <input type="checkbox" checked={allowOther} onChange={e => setAllowOther(e.target.checked)} className="mt-0.5" />
+                  <span>Esta pessoa pode <b>convidar além da família</b> (opção “Outro”)?
+                    <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>Se desmarcado, só poderá indicar Cônjuge e Filho(a).</span>
+                  </span>
+                </label>
+              )}
               <div className="flex justify-end gap-2">
                 <button onClick={() => setConfirmAction(null)} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Fechar</button>
                 <button onClick={runAction} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: cfg.color }}>

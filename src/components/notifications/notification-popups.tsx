@@ -18,8 +18,11 @@ interface Notif {
   expires_at?: string | null                              // prazo da decisão
   my_response?: string | null                             // botão de decisão já clicado (não re-perguntar)
   allow_guests?: boolean                                  // Confirmar presença: permite informar familiares
+  can_invite_other?: boolean                              // pode indicar acompanhante "Outro" (além da família)
 }
-interface GuestRow { nome: string; parentesco: string; idade: string }
+interface GuestRow { nome: string; parentesco: string; idade: string; is_child?: boolean }
+// Idade obrigatória p/ Filho(a) e p/ "Outro" marcado como criança.
+function needsAge(g: GuestRow): boolean { return g.parentesco === 'Filho(a)' || (g.parentesco === 'Outro' && !!g.is_child) }
 // chave de "já exibido": muda quando o aviso é reenviado (resent_at) → o pop-up reaparece.
 const keyOf = (n: Notif) => `${n.id}@${n.resent_at ?? ''}`
 
@@ -171,7 +174,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
     try {
       const payload: { action: string; guests?: { nome: string; parentesco: string; idade: string }[] } = { action }
       if (guestList) payload.guests = guestList
-        .map(g => ({ nome: g.nome.trim(), parentesco: g.parentesco.trim(), idade: g.parentesco === 'Filho(a)' ? g.idade.trim() : '' }))
+        .map(g => ({ nome: g.nome.trim(), parentesco: g.parentesco.trim(), idade: needsAge(g) ? g.idade.trim() : '' }))
         .filter(g => g.nome)
       await api.post(`/notifications/${n.id}/respond`, payload)
       markSeen(n); setQueue(q => q.filter(x => x.id !== n.id))
@@ -299,16 +302,24 @@ export function NotificationPopups({ userId }: { userId: number }) {
           <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
             <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Informe o <b>nome completo</b> e o <b>parentesco</b> de cada familiar (idade obrigatória p/ filho). <b>Todos os campos são obrigatórios.</b> Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
             {guests.map((g, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="flex items-center gap-2 flex-wrap">
                 <input className="ds-input flex-1 min-w-0 text-sm" placeholder="Nome completo *" value={g.nome} maxLength={120}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, nome: e.target.value } : x))} />
                 <select className="ds-input w-32 text-sm" value={g.parentesco}
-                  onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: e.target.value === 'Filho(a)' ? x.idade : '' } : x))}>
+                  onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: '', is_child: false } : x))}>
                   <option value="">Parentesco *</option>
                   <option value="Cônjuge">Cônjuge</option>
                   <option value="Filho(a)">Filho(a)</option>
+                  {guestModal.n.can_invite_other && <option value="Outro">Outro</option>}
                 </select>
-                {g.parentesco === 'Filho(a)' && (
+                {g.parentesco === 'Outro' && (
+                  <label className="inline-flex items-center gap-1 text-[12px] whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                    <input type="checkbox" checked={!!g.is_child}
+                      onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, is_child: e.target.checked, idade: e.target.checked ? x.idade : '' } : x))} />
+                    é criança?
+                  </label>
+                )}
+                {needsAge(g) && (
                   <input className="ds-input w-24 text-sm" type="number" min={0} max={120} placeholder="Idade *" value={g.idade}
                     onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, idade: e.target.value } : x))} />
                 )}
@@ -323,8 +334,8 @@ export function NotificationPopups({ userId }: { userId: number }) {
           <div className="px-5 py-3 flex items-center justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
             <button onClick={() => respond(guestModal.n, guestModal.action, [])} disabled={busy}
               className="ds-btn-secondary text-sm px-4 py-2 rounded-lg">Sem familiares</button>
-            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (g.parentesco === 'Filho(a)' && !g.idade.trim()))}
-              title={guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (g.parentesco === 'Filho(a)' && !g.idade.trim())) ? 'Preencha nome e parentesco (idade p/ filho) — ou use "Sem familiares"' : undefined}
+            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (needsAge(g) && !g.idade.trim()))}
+              title={guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (needsAge(g) && !g.idade.trim())) ? 'Preencha nome, parentesco e a idade quando for criança — ou use "Sem familiares"' : undefined}
               className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Confirmar presença</button>
           </div>
         </div>
