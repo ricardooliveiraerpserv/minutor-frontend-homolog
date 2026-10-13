@@ -34,6 +34,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/gestao-projetos',   label: 'Gestão de Contratos',  group: 'Gestão Contratual' },
   { key: '/contratos/kanban',  label: 'Kanban Contratos',     group: 'Gestão Contratual' },
   { key: '/rateio-horas',      label: 'Rateio de Horas',      group: 'Gestão Contratual' },
+  { key: '/faturamento-on-demand', label: 'Faturamento On Demand', group: 'Gestão Contratual' },
 
   // Administrativo — Financeiro / Fechamento
   { key: '/fechamento',               label: 'Fechamento Geral',         group: 'Financeiro' },
