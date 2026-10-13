@@ -1621,11 +1621,16 @@ export default function FechamentoClientePage() {
                               <Tr key={c.customer_id}>
                                 <Td className="text-sm font-medium">{c.nome}</Td>
                                 <Td>
-                                  <div className="flex flex-wrap gap-1">
+                                  <div className="flex flex-wrap gap-1 items-center">
                                     {Array.from(c.tipos).map(t => (
                                       <span key={t} className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap"
                                         style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{t}</span>
                                     ))}
+                                    {odStatusMap.get(c.customer_id) === 'bloqueado'
+                                      ? <Badge variant="danger">On Demand bloqueado</Badge>
+                                      : odStatusMap.get(c.customer_id) === 'liberado'
+                                        ? <Badge variant="success">On Demand liberado</Badge>
+                                        : null}
                                   </div>
                                 </Td>
                                 <Td right muted className="tabular-nums text-xs">{c.total_horas.toFixed(2)}h</Td>
