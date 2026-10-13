@@ -376,13 +376,16 @@ export default function FechamentoClientePage() {
     }
   }
 
-  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean) => {
+  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean, blocked = false) => {
     if (!isOd) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+    const odBloqueado = blocked && !invoiced
     return (
-      <button type="button" disabled={!canInvoice}
+      <button type="button" disabled={!canInvoice || odBloqueado}
         onClick={e => { e.stopPropagation(); toggleInvoiced(projetoId, invoiced) }}
         className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-default"
-        title={invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
+        title={odBloqueado
+          ? 'Faturamento On Demand não liberado pelo coordenador'
+          : (invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada')}
         style={invoiced
           ? { background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }
           : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
@@ -1043,13 +1046,17 @@ export default function FechamentoClientePage() {
               <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-light)' }}>
                 Faturamento (NFS-e)
               </p>
-              {odProjetos.map(p => (
+              {odProjetos.map(p => {
+                const odBloqueado = status?.on_demand_status === 'bloqueado' && !p.invoiced
+                return (
                 <button
                   key={p.projeto_id}
                   type="button"
-                  disabled={!canInvoice}
+                  disabled={!canInvoice || odBloqueado}
                   onClick={() => toggleInvoiced(p.projeto_id, !!p.invoiced)}
-                  title={p.invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
+                  title={odBloqueado
+                    ? 'Faturamento On Demand não liberado pelo coordenador'
+                    : (p.invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada')}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={p.invoiced
                     ? { background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }
@@ -1058,7 +1065,13 @@ export default function FechamentoClientePage() {
                   {p.invoiced ? <Check size={13} /> : null}
                   {odProjetos.length > 1 ? `${p.codigo}: ` : ''}{p.invoiced ? 'Faturado' : 'Marcar como faturado'}
                 </button>
-              ))}
+                )
+              })}
+              {status?.on_demand_status === 'bloqueado' && (
+                <p className="text-[11px]" style={{ color: 'var(--danger)' }}>
+                  Bloqueado — libere em “Faturamento On Demand” antes de faturar.
+                </p>
+              )}
             </div>
           )}
 
@@ -1453,7 +1466,7 @@ export default function FechamentoClientePage() {
                             </td>
                             <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
                               {!hasMult && c.projetos[0]
-                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand')
+                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand', odStatusMap.get(c.customer_id) === 'bloqueado')
                                 : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                             </td>
                           </tr>
@@ -1485,7 +1498,7 @@ export default function FechamentoClientePage() {
                                 {formatBRL(p.total_display)}
                               </td>
                               <td className="px-5 py-2.5">
-                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand')}
+                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand', odStatusMap.get(c.customer_id) === 'bloqueado')}
                               </td>
                             </tr>
                           ))}
