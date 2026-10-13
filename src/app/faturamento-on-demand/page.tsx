@@ -27,6 +27,7 @@ interface Row {
   horas_total: number
   pct_aprovado: number
   released: boolean
+  auto_released?: boolean
   released_by: string | null
   released_at: string | null
   can_release: boolean
@@ -217,8 +218,9 @@ export default function FaturamentoOnDemandPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="success">Liberado</Badge>
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-                            {r.released_by ? `por ${r.released_by}` : ''}
-                            {r.released_at ? ` · ${new Date(r.released_at).toLocaleDateString('pt-BR')}` : ''}
+                            {r.auto_released
+                              ? 'mês já faturado'
+                              : `${r.released_by ? `por ${r.released_by}` : ''}${r.released_at ? ` · ${new Date(r.released_at).toLocaleDateString('pt-BR')}` : ''}`}
                           </span>
                           {r.can_release && (
                             <Button variant="secondary" size="sm" icon={RotateCcw} loading={savingId === r.project_id} onClick={() => toggle(r)}>
