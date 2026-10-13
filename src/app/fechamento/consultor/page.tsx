@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
@@ -8,7 +8,7 @@ import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { escapeHtml } from '@/lib/sanitize'
-import { RefreshCw, Printer, FileText, Users, Search, X, Mail, FileSpreadsheet, Send, Check } from 'lucide-react'
+import { RefreshCw, Printer, FileText, Users, Search, X, Mail, FileSpreadsheet, Send, Check, Clock, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { NotasPjCell, type NotasPayload } from '@/components/fechamento/NotasPjCell'
 import {
@@ -46,6 +46,10 @@ interface ConsultorBase {
   envio_por: string | null  // nome de quem enviou
   notas?: NotasPayload      // NFS-e + Nota de débito (só consultor PJ avulso)
   is_bizify?: boolean       // funcionário Bizify (relatório sai com logo Bizify)
+  horas_pendentes?: number  // horas de apontamentos pendentes de aprovação
+  horas_ajuste?: number     // horas de apontamentos com ajuste solicitado
+  pendencias_count?: number // nº de apontamentos pendentes + ajuste
+  all_approved?: boolean    // true = 100% aprovado (libera o envio ao consultor)
 }
 
 interface ConsultorHorista extends ConsultorBase {
@@ -496,6 +500,19 @@ export default function FechamentoConsultorPage() {
   // Consultor cujo status de envio está sendo limpo (spinner/disable no botão).
   const [limpandoEnvio, setLimpandoEnvio] = useState<number | null>(null)
 
+  // Linha do consultor do relatório aberto (p/ saber se está 100% aprovado).
+  const reportTargetRow = useMemo<ConsultorBase | null>(() => {
+    if (!reportTarget || !data) return null
+    const all: ConsultorBase[] = [
+      ...data.horistas, ...data.banco_horas, ...data.fixos,
+      ...(data.bizify ? [...data.bizify.horistas, ...data.bizify.banco_horas, ...data.bizify.fixos] : []),
+    ]
+    return all.find(c => c.user_id === reportTarget.userId) ?? null
+  }, [reportTarget, data])
+  // Envio BLOQUEADO enquanto houver apontamento pendente de aprovação/ajuste.
+  // (modo 'despesa' só envia despesas → não exige 100% de horas aprovadas.)
+  const reportBlocked = reportTargetRow?.all_approved === false && reportTarget?.mode !== 'despesa'
+
   // Atualiza o status de envio de um consultor nas 3 listas (otimista, sem refetch).
   const patchEnvio = useCallback((userId: number, envio_em: string | null, envio_por: string | null) => {
     setData(prev => {
@@ -827,6 +844,40 @@ export default function FechamentoConsultorPage() {
     return r
   }
 
+  // Badge de pendência: aparece quando o consultor NÃO está 100% aprovado.
+  // Mostra nº de apontamentos + horas pendentes/ajuste. O envio ao consultor fica
+  // bloqueado enquanto houver pendência (regra no BE: 422 HORAS_PENDENTES).
+  function PendenciaBadge({ c }: { c: ConsultorBase }) {
+    if (c.all_approved !== false) return null
+    const n = c.pendencias_count ?? 0
+    const hp = c.horas_pendentes ?? 0
+    const ha = c.horas_ajuste ?? 0
+    const parts: string[] = []
+    if (hp > 0) parts.push(`${fmtH(hp)} a aprovar`)
+    if (ha > 0) parts.push(`${fmtH(ha)} em ajuste`)
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit"
+        style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}
+        title={`${n} apontamento(s) aguardando aprovação/ajuste — envio bloqueado até 100% aprovado`}
+      >
+        <Clock size={10} /> {n} apont.{parts.length ? ` · ${parts.join(' + ')}` : ''}
+      </span>
+    )
+  }
+
+  // Nome do consultor + badge de pendência logo abaixo (usado nas 3 tabelas).
+  function NomeCell({ c }: { c: ConsultorBase }) {
+    return (
+      <Td className="font-medium text-[var(--text)]">
+        <div className="flex flex-col gap-0.5">
+          <span>{c.nome}</span>
+          <PendenciaBadge c={c} />
+        </div>
+      </Td>
+    )
+  }
+
   // Célula de status de envio: badge "Enviado" + legenda (data/hora/quem) + limpar.
   function EnvioCell({ c }: { c: ConsultorBase }) {
     if (!c.envio_em) {
@@ -1048,7 +1099,7 @@ export default function FechamentoConsultorPage() {
               const hasGuaranteed = c.guaranteed_prorated > 0 && c.horas_a_pagar > c.horas_trabalhadas
               return (
                 <Tr key={c.user_id}>
-                  <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
+                  <NomeCell c={c} />
                   <Td right className="font-mono text-[var(--text)]">{fmtH(c.horas_trabalhadas)}</Td>
                   <Td right>
                     <div className="flex flex-col items-end gap-0.5">
@@ -1738,15 +1789,35 @@ export default function FechamentoConsultorPage() {
               </Button>
 
               {canSendEmail && reportTarget && (
-                <Button
-                  size="sm"
-                  icon={Mail}
-                  className="w-full !justify-start"
-                  title={`Enviar para ${reportTarget.name} (cópia financeiro)`}
-                  onClick={openCompose}
-                >
-                  Enviar e-mail
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    icon={Mail}
+                    disabled={reportBlocked}
+                    className="w-full !justify-start"
+                    title={reportBlocked
+                      ? 'Envio bloqueado: há apontamentos pendentes de aprovação/ajuste. Só é possível enviar com 100% aprovado.'
+                      : `Enviar para ${reportTarget.name} (cópia financeiro)`}
+                    onClick={openCompose}
+                  >
+                    Enviar e-mail
+                  </Button>
+                  {reportBlocked && (
+                    <div
+                      className="flex items-start gap-1.5 px-2 py-1.5 rounded text-[11px] leading-tight"
+                      style={{ background: 'var(--warning-bg)', color: 'var(--warning)' }}
+                    >
+                      <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                      <span>
+                        Envio bloqueado — {reportTargetRow?.pendencias_count ?? 0} apontamento(s) pendente(s) de
+                        aprovação/ajuste
+                        {(reportTargetRow?.horas_pendentes ?? 0) > 0 ? ` · ${fmtH(reportTargetRow?.horas_pendentes ?? 0)} a aprovar` : ''}
+                        {(reportTargetRow?.horas_ajuste ?? 0) > 0 ? ` · ${fmtH(reportTargetRow?.horas_ajuste ?? 0)} em ajuste` : ''}.
+                        Só é possível enviar com 100% aprovado.
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
 
               {reportTarget && (
@@ -1855,6 +1926,8 @@ export default function FechamentoConsultorPage() {
                 size="sm"
                 icon={Send}
                 loading={sendingEmail}
+                disabled={reportBlocked}
+                title={reportBlocked ? 'Envio bloqueado: há apontamentos pendentes de aprovação/ajuste.' : undefined}
                 onClick={sendReportEmail}
               >
                 {sendingEmail ? 'Enviando…' : 'Enviar'}
