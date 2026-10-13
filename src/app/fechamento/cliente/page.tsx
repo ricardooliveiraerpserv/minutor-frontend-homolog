@@ -60,6 +60,7 @@ interface ClienteStatus {
   closed_by_name?: string
   envio_em?: string | null   // ISO do último envio por e-mail; null = não enviado
   envio_por?: string | null  // nome de quem enviou
+  on_demand_status?: 'liberado' | 'bloqueado' | null // liberação de faturamento On Demand
 }
 
 interface ApontamentoRow {
@@ -809,6 +810,8 @@ export default function FechamentoClientePage() {
 
   // Status de envio por cliente (legenda nas listas) — do /fechamento-cliente.
   const enviadoMap = new Map(clientes.map(c => [c.customer_id, { envio_em: c.envio_em, envio_por: c.envio_por }]))
+  // Liberação de faturamento On Demand por cliente (liberado/bloqueado) — do /fechamento-cliente.
+  const odStatusMap = new Map(clientes.map(c => [c.customer_id, c.on_demand_status ?? null]))
 
   // Desconto por cliente (valor + descritivo) — do /fechamento-cliente.
   const descontoMap = new Map(clientes.map(c => [c.customer_id, { valor: c.desconto ?? 0, descricao: c.desconto_descricao ?? null }]))
@@ -1070,15 +1073,28 @@ export default function FechamentoClientePage() {
           </Button>
 
           {canSendEmail && (
-            <Button
-              size="sm"
-              icon={Mail}
-              className="w-full !justify-start"
-              title={`Enviar ${isDesp ? 'despesas' : 'fechamento'} de ${clienteNome} por e-mail`}
-              onClick={openCompose}
-            >
-              Enviar e-mail
-            </Button>
+            (!isDesp && status?.on_demand_status === 'bloqueado') ? (
+              <div
+                className="rounded-lg px-3 py-2 text-xs flex items-start gap-1.5"
+                style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
+              >
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Faturamento On Demand <strong>bloqueado</strong> — o coordenador responsável precisa liberar
+                  em “Faturamento On Demand” antes de enviar o fechamento ao cliente.
+                </span>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                icon={Mail}
+                className="w-full !justify-start"
+                title={`Enviar ${isDesp ? 'despesas' : 'fechamento'} de ${clienteNome} por e-mail`}
+                onClick={openCompose}
+              >
+                Enviar e-mail
+              </Button>
+            )
           )}
 
           {canSendEmail && (
@@ -1406,10 +1422,17 @@ export default function FechamentoClientePage() {
                               </div>
                             </td>
                             <td className="px-5 py-3">
-                              {st === 'closed'
-                                ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
-                                : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Aberto</span>
-                              }
+                              <div className="flex flex-col gap-1 items-start">
+                                {st === 'closed'
+                                  ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
+                                  : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Aberto</span>
+                                }
+                                {odStatusMap.get(c.customer_id) === 'bloqueado'
+                                  ? <Badge variant="danger">On Demand bloqueado</Badge>
+                                  : odStatusMap.get(c.customer_id) === 'liberado'
+                                    ? <Badge variant="success">On Demand liberado</Badge>
+                                    : null}
+                              </div>
                             </td>
                             <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--text)' }}>
                               {c.total_horas.toFixed(2)}h
