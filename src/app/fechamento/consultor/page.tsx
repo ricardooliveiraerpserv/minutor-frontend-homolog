@@ -1759,10 +1759,21 @@ export default function FechamentoConsultorPage() {
       </div>
       {/* Modal de visualização do relatório */}
       {reportHtml && (() => {
-        // Total do consultor alvo (lookup em `data` por user_id) — só pra exibir no header do painel.
-        const targetTotal = reportTarget
-          ? [...(data?.horistas ?? []), ...(data?.banco_horas ?? []), ...(data?.fixos ?? [])]
-              .find(c => c.user_id === reportTarget.userId)?.total
+        // Valor do consultor alvo no header do painel, conforme o MODO do relatório:
+        // serviços → total (mão de obra); despesas → total_despesas; ambos → recebimento
+        // (total + despesas − desconto − adiantamento + adicional + empréstimo). Antes mostrava
+        // sempre `total` (serviços), ignorando despesas/adicional → divergia do recebimento.
+        const targetRow = reportTarget
+          ? [...(data?.horistas ?? []), ...(data?.banco_horas ?? []), ...(data?.fixos ?? []),
+             ...(data?.bizify ? [...data.bizify.horistas, ...data.bizify.banco_horas, ...data.bizify.fixos] : [])]
+              .find(c => c.user_id === reportTarget.userId)
+          : undefined
+        const targetTotal = targetRow
+          ? (reportTarget?.mode === 'despesa'
+              ? (targetRow.total_despesas ?? 0)
+              : reportTarget?.mode === 'servicos'
+                ? targetRow.total
+                : (targetRow.recebimento ?? targetRow.total))
           : undefined
         const closeModal = () => { setReportHtml(null); setReportTarget(null) }
         return (
