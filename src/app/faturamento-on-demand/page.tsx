@@ -19,6 +19,7 @@ interface Row {
   customer_id: number | null
   coordinators: string[]
   horas_a_aprovar: number
+  horas_ajuste: number
   horas_aprovadas: number
   horas_total: number
   released: boolean
@@ -89,7 +90,7 @@ export default function FaturamentoOnDemandPage() {
         </div>
 
         {loading ? (
-          <SkeletonTable rows={6} cols={7} />
+          <SkeletonTable rows={6} cols={8} />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Receipt}
@@ -104,6 +105,7 @@ export default function FaturamentoOnDemandPage() {
                 <Th>Cliente</Th>
                 <Th>Coordenador</Th>
                 <Th right>A aprovar</Th>
+                <Th right>Ajuste</Th>
                 <Th right>Aprovadas</Th>
                 <Th right>Total</Th>
                 <Th>Faturamento</Th>
@@ -118,7 +120,16 @@ export default function FaturamentoOnDemandPage() {
                   </Td>
                   <Td label="Cliente">{r.customer || '—'}</Td>
                   <Td label="Coordenador" muted>{r.coordinators?.length ? r.coordinators.join(', ') : '—'}</Td>
-                  <Td label="A aprovar" right mono>{fmtH(r.horas_a_aprovar)}</Td>
+                  <Td label="A aprovar" right mono>
+                    <span style={{ color: r.horas_a_aprovar > 0 ? 'var(--warning)' : 'var(--text-light)', fontWeight: r.horas_a_aprovar > 0 ? 700 : 400 }}>
+                      {fmtH(r.horas_a_aprovar)}
+                    </span>
+                  </Td>
+                  <Td label="Ajuste" right mono>
+                    <span style={{ color: r.horas_ajuste > 0 ? 'var(--purple)' : 'var(--text-light)', fontWeight: r.horas_ajuste > 0 ? 700 : 400 }}>
+                      {fmtH(r.horas_ajuste)}
+                    </span>
+                  </Td>
                   <Td label="Aprovadas" right mono>{fmtH(r.horas_aprovadas)}</Td>
                   <Td label="Total" right mono><strong>{fmtH(r.horas_total)}</strong></Td>
                   <Td label="Faturamento">
