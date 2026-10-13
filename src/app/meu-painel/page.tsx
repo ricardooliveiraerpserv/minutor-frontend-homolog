@@ -195,6 +195,11 @@ interface MyClosing {
   adicional: number
   adicional_desc: string | null
   recebimento: number
+  // Horas APROVADAS (base do valor) + PENDENTES de aprovação (informativo, não pagas).
+  horas_trabalhadas?: number
+  horas_pendentes?: number
+  valor_pendente?: number
+  all_approved?: boolean
 }
 
 /**
@@ -2282,7 +2287,11 @@ export default function MeuPainelPage() {
       ? Math.round(ts.effort_minutes * (ts.consultant_extra_pct / 100))
       : 0), 0),
   [timesheets])
-  const workedHours     = tsTotalMin / 60
+  // Horas base do VALOR = só APROVADAS (vêm do fechamento). As pendentes de aprovação
+  // ficam à parte (informativo) e só entram no valor após o coordenador aprovar.
+  const pendingHours    = myClosing?.horas_pendentes ?? 0
+  const pendingValue    = myClosing?.valor_pendente ?? 0
+  const workedHours     = myClosing?.horas_trabalhadas != null ? myClosing.horas_trabalhadas : tsTotalMin / 60
 
   // Proporcionalidade: se bank_hours_start_date cai no mês selecionado
   const consultantStartStr = (user as any)?.bank_hours_start_date as string | null | undefined
@@ -2703,8 +2712,8 @@ export default function MeuPainelPage() {
           {!isParceiroSimples && <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 [&>*]:min-w-0">
             <SummaryCard
               label="Horas no Período"
-              value={minutesToHours(tsTotalMin)}
-              sub={`${(tsTotalMin / 60).toFixed(1)}h apontadas`}
+              value={`${workedHours.toFixed(1)}h`}
+              sub={pendingHours > 0 ? `aprovadas · ${pendingHours.toFixed(1)}h a aprovar` : 'aprovadas no período'}
               icon={Clock}
               accent="bg-[var(--primary-soft)] text-[var(--primary)]"
               onClick={() => setActiveTab('timesheets')}
@@ -2789,6 +2798,16 @@ export default function MeuPainelPage() {
               accent="bg-[var(--purple-bg)] text-[var(--purple)]"
               onClick={() => setActiveTab('timesheets')}
             />
+            {pendingHours > 0 && (
+              <SummaryCard
+                label="Pendente de aprovação"
+                value={`${pendingHours.toFixed(1)}h`}
+                sub={pendingValue > 0 ? `≈ ${formatBRL(pendingValue)} · entra após aprovar` : 'entra no valor após aprovação'}
+                icon={Clock}
+                accent="bg-[var(--warning-bg)] text-[var(--warning)]"
+                onClick={() => setActiveTab('timesheets')}
+              />
+            )}
           </div>}
 
           {/* Hero de remuneração — fixo com despesas inline */}
