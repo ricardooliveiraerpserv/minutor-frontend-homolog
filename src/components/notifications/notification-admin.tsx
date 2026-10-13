@@ -860,7 +860,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
 }
 
 interface Guest { nome: string; parentesco: string | null; idade?: number | null }
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[] }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean }
 
 // Rótulo amigável da origem da resposta (e-mail × sistema).
 function sourceLabel(src?: string | null): string {
@@ -874,7 +874,9 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
   const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
-  const [revoking, setRevoking] = useState<number | null>(null)
+  // Modal de confirmação (revogar / cancelar convite / reativar) — substitui o confirm() nativo.
+  const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' } | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -883,18 +885,27 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   }, [notif.id])
   useEffect(() => { load() }, [load])
 
-  // Revoga a resposta de um destinatário → volta a pendente e recebe de novo (pop-up + e-mail).
-  const revoke = async (r: LogRow) => {
-    if (!confirm(`Revogar a resposta de ${r.user_name}?\n\nA resposta e os acompanhantes serão apagados, o pop-up volta a aparecer e a pessoa recebe o convite de novo (inclusive por e-mail).`)) return
-    setRevoking(r.user_id)
+  const runAction = async () => {
+    if (!confirmAction) return
+    const { row, mode } = confirmAction
+    setBusy(true)
     try {
-      const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: r.user_id })
-      toast.success(`Convite revogado — ${r.user_name} voltará a receber${res?.data?.email_resent ? ' (e-mail reenviado)' : ''}.`)
+      if (mode === 'cancel') {
+        await api.post(`/notifications/${notif.id}/cancel-invite`, { user_id: row.user_id, cancel: true })
+        toast.success(`Convite de ${row.user_name} cancelado — não recebe mais.`)
+      } else {
+        // revoke e reactivate usam o mesmo endpoint (limpa resposta + reativa + reenvia e-mail).
+        const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: row.user_id })
+        toast.success(mode === 'reactivate'
+          ? `Convite de ${row.user_name} reativado — voltará a receber.`
+          : `Resposta de ${row.user_name} revogada — voltará a receber${res?.data?.email_resent ? ' (e-mail reenviado)' : ''}.`)
+      }
+      setConfirmAction(null)
       load()
     } catch (e) {
-      toast.error((e as { message?: string })?.message || 'Erro ao revogar')
+      toast.error((e as { message?: string })?.message || 'Erro na ação')
     } finally {
-      setRevoking(null)
+      setBusy(false)
     }
   }
 
@@ -1045,25 +1056,52 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                         <td className="px-3 py-2" style={{ color: r.viewed_at ? 'var(--text-muted)' : 'var(--text-light)' }}>{r.viewed_at ? dt(r.viewed_at) : '—'}</td>
                         {data.summary.actions.length > 0 && (
                           <td className="px-3 py-2">
-                            {r.response
-                              ? <div className="flex flex-col items-start gap-0.5">
-                                  <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
-                                  {sourceLabel(r.response_source) && (
-                                    <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
-                                      {r.response_source === 'email' ? '✉️ via e-mail' : '🖥️ via sistema'}
-                                    </span>
+                            {r.cancelled ? (
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>🚫 Convite cancelado</span>
+                                <button
+                                  onClick={() => setConfirmAction({ row: r, mode: 'reactivate' })}
+                                  className="inline-flex items-center gap-1 text-[10px] mt-0.5 hover:underline"
+                                  style={{ color: 'var(--primary)' }}
+                                  title="Reativar o convite — a pessoa volta a receber"
+                                >
+                                  <RefreshCw size={10} /> Reativar
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-start gap-0.5">
+                                {r.response
+                                  ? <>
+                                      <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
+                                      {sourceLabel(r.response_source) && (
+                                        <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
+                                          {r.response_source === 'email' ? '✉️ via e-mail' : '🖥️ via sistema'}
+                                        </span>
+                                      )}
+                                    </>
+                                  : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {r.response && (
+                                    <button
+                                      onClick={() => setConfirmAction({ row: r, mode: 'revoke' })}
+                                      className="inline-flex items-center gap-1 text-[10px] hover:underline"
+                                      style={{ color: 'var(--warning)' }}
+                                      title="Revogar resposta — a pessoa volta a receber o convite"
+                                    >
+                                      <RefreshCw size={10} /> Revogar
+                                    </button>
                                   )}
                                   <button
-                                    onClick={() => revoke(r)}
-                                    disabled={revoking === r.user_id}
-                                    className="inline-flex items-center gap-1 text-[10px] mt-0.5 disabled:opacity-50 hover:underline"
+                                    onClick={() => setConfirmAction({ row: r, mode: 'cancel' })}
+                                    className="inline-flex items-center gap-1 text-[10px] hover:underline"
                                     style={{ color: 'var(--danger, #dc2626)' }}
-                                    title="Revogar resposta — a pessoa volta a receber o convite"
+                                    title="Cancelar convite — a pessoa não recebe mais"
                                   >
-                                    <Ban size={10} /> {revoking === r.user_id ? 'Revogando…' : 'Revogar'}
+                                    <Ban size={10} /> Cancelar convite
                                   </button>
                                 </div>
-                              : <span style={{ color: 'var(--text-light)' }}>—</span>}
+                              </div>
+                            )}
                           </td>
                         )}
                         {data.summary.allow_guests && (
@@ -1095,6 +1133,34 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
           )}
         </div>
       </div>
+
+      {confirmAction && (() => {
+        const { row, mode } = confirmAction
+        const cfg = mode === 'cancel'
+          ? { title: 'Cancelar convite', color: 'var(--danger, #dc2626)', confirmLabel: 'Cancelar convite',
+              msg: <>O convite de <b>{row.user_name}</b> será cancelado: a pessoa <b>deixa de receber</b> (pop-up e e-mail) e sai da apuração. A resposta e os acompanhantes dela são apagados. Você pode <b>reativar</b> depois.</> }
+          : mode === 'reactivate'
+            ? { title: 'Reativar convite', color: 'var(--primary)', confirmLabel: 'Reativar',
+                msg: <>O convite de <b>{row.user_name}</b> será reativado: volta a aparecer como pendente e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
+            : { title: 'Revogar resposta', color: 'var(--warning)', confirmLabel: 'Revogar',
+                msg: <>A resposta e os acompanhantes de <b>{row.user_name}</b> serão apagados. A pessoa volta a <b>pendente</b> e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
+        return (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }}
+            onClick={e => { e.stopPropagation(); if (!busy) setConfirmAction(null) }}>
+            <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+              onClick={e => e.stopPropagation()}>
+              <h3 className="text-base font-semibold mb-2" style={{ color: 'var(--text)' }}>{cfg.title}</h3>
+              <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{cfg.msg}</p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setConfirmAction(null)} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Fechar</button>
+                <button onClick={runAction} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: cfg.color }}>
+                  {busy ? 'Processando…' : cfg.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
