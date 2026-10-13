@@ -569,6 +569,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const searchParams = useSearchParams()
   const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
+  // Grupos que o usuário FECHOU explicitamente (vence o auto-open do grupo da rota atual).
+  // Limpo ao navegar (muda pathname) — navegar reabre o grupo da página.
+  const [closedGroups, setClosedGroups] = useState<string[]>([])
   const [query, setQuery]             = useState('')
   // Tenant CONECTA (data-tenant no <html>): usa a logo do Conecta e nunca a do Minutor.
   const [isConecta, setIsConecta]     = useState(false)
@@ -811,14 +814,30 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     })
   }, [pathname, moduleNav])
 
+  // Ao navegar, zera os grupos fechados manualmente (a nova página reabre seu grupo).
+  useEffect(() => { setClosedGroups([]) }, [pathname])
+
   // First two letters of name for avatar
   const initials = user?.name
     ? user.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?'
   const avatarUrl = secureUrl(user?.profile_photo_url)
 
-  const toggleGroup = (label: string) =>
-    setOpenGroups(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label])
+  // Um grupo está aberto se: buscando, aberto manualmente, OU é o grupo da rota atual
+  // (active) E o usuário não o fechou explicitamente.
+  const isGroupOpen = (label: string, active: boolean) =>
+    query.trim().length > 0 || openGroups.includes(label) || (active && !closedGroups.includes(label))
+
+  const toggleGroup = (label: string, active: boolean) => {
+    const currentlyOpen = isGroupOpen(label, active)
+    if (currentlyOpen) {
+      setOpenGroups(prev => prev.filter(l => l !== label))
+      if (active) setClosedGroups(prev => prev.includes(label) ? prev : [...prev, label])
+    } else {
+      setOpenGroups(prev => prev.includes(label) ? prev : [...prev, label])
+      setClosedGroups(prev => prev.filter(l => l !== label))
+    }
+  }
 
   const isActive = (href: string, matchPaths?: string[], exactMatch?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
@@ -1064,7 +1083,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           // Abre o grupo quando: aberto manualmente, buscando, OU é o grupo da rota atual (active).
           // Sem o "|| active", se o auto-open não rodar a tempo (ex.: full reload + moduleNav async),
           // o grupo da página atual aparecia COLAPSADO.
-          const open   = openGroups.includes(group.label) || isSearching || active
+          const open   = isGroupOpen(group.label, active)
 
           // Lista plana de links (descendo recursivamente em subgrupos) — usada no modo collapsed.
           const flatLinks = (entries: (NavLink | NavSubGroup)[]): NavLink[] =>
@@ -1099,7 +1118,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           return (
             <div key={group.label}>
               <button
-                onClick={() => toggleGroup(group.label)}
+                onClick={() => toggleGroup(group.label, active)}
                 className={cn('w-full', base)}
                 style={active ? { color: 'var(--text)' } : undefined}
               >
@@ -1118,11 +1137,11 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                       const subgroupKey = `${group.label}/${sub.label}`
                       const SubGroupIcon = sub.icon
                       const sgActive = subGroupActive(sub)
-                      const sgOpen = openGroups.includes(subgroupKey) || isSearching || sgActive
+                      const sgOpen = isGroupOpen(subgroupKey, sgActive)
                       return (
                         <div key={sub.label}>
                           <button
-                            onClick={() => toggleGroup(subgroupKey)}
+                            onClick={() => toggleGroup(subgroupKey, sgActive)}
                             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium sidebar-item"
                             style={sgActive ? { color: 'var(--text)' } : undefined}
                           >
