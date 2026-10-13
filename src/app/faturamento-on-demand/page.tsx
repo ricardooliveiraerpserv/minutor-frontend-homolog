@@ -50,7 +50,7 @@ export default function FaturamentoOnDemandPage() {
   const [fCliente, setFCliente] = useState('')
   const [fCoord, setFCoord] = useState('')
   const [fExec, setFExec] = useState('')
-  const [fStatus, setFStatus] = useState<'all' | 'open' | 'released'>('all')
+  const [fStatus, setFStatus] = useState<'all' | 'open' | 'released' | 'sem_mov'>('all')
 
   const ym = `${year}-${String(month).padStart(2, '0')}`
 
@@ -92,7 +92,8 @@ export default function FaturamentoOnDemandPage() {
     if (fCoord && !(r.coordinators || []).includes(fCoord)) return false
     if (fExec && r.executivo !== fExec) return false
     if (fStatus === 'released' && !r.released) return false
-    if (fStatus === 'open' && r.released) return false
+    if (fStatus === 'open' && (r.released || r.horas_total <= 0)) return false
+    if (fStatus === 'sem_mov' && r.horas_total > 0) return false
     return true
   }), [rows, fCliente, fCoord, fExec, fStatus])
 
@@ -104,7 +105,7 @@ export default function FaturamentoOnDemandPage() {
   }, [])
   const { sorted, thProps } = useTableSort(filtered, accessor)
 
-  const StatusBtn = ({ v, label }: { v: 'all' | 'open' | 'released'; label: string }) => (
+  const StatusBtn = ({ v, label }: { v: 'all' | 'open' | 'released' | 'sem_mov'; label: string }) => (
     <button
       type="button"
       onClick={() => setFStatus(v)}
@@ -147,6 +148,7 @@ export default function FaturamentoOnDemandPage() {
             <StatusBtn v="all" label="Todos" />
             <StatusBtn v="open" label="Em aberto" />
             <StatusBtn v="released" label="Liberados" />
+            <StatusBtn v="sem_mov" label="Sem movimento" />
           </div>
           {(fCliente || fCoord || fExec || fStatus !== 'all') && (
             <button type="button" className="text-xs underline" style={{ color: 'var(--text-light)' }}
@@ -228,6 +230,10 @@ export default function FaturamentoOnDemandPage() {
                             </Button>
                           )}
                         </div>
+                      ) : r.horas_total <= 0 ? (
+                        <span className="inline-flex items-center text-xs" style={{ color: 'var(--text-light)' }}>
+                          Sem movimento
+                        </span>
                       ) : r.can_release ? (
                         <Button variant="primary" size="sm" icon={Check} loading={savingId === r.project_id} onClick={() => toggle(r)}>
                           Liberar faturamento

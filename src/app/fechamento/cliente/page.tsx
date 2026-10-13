@@ -60,7 +60,7 @@ interface ClienteStatus {
   closed_by_name?: string
   envio_em?: string | null   // ISO do último envio por e-mail; null = não enviado
   envio_por?: string | null  // nome de quem enviou
-  on_demand_status?: 'liberado' | 'bloqueado' | null // liberação de faturamento On Demand
+  on_demand_status?: 'liberado' | 'bloqueado' | 'sem_movimento' | null // liberação de faturamento On Demand
 }
 
 interface ApontamentoRow {
@@ -1444,7 +1444,9 @@ export default function FechamentoClientePage() {
                                   ? <Badge variant="danger">On Demand bloqueado</Badge>
                                   : odStatusMap.get(c.customer_id) === 'liberado'
                                     ? <Badge variant="success">On Demand liberado</Badge>
-                                    : null}
+                                    : odStatusMap.get(c.customer_id) === 'sem_movimento'
+                                      ? <Badge variant="default">Sem movimento</Badge>
+                                      : null}
                               </div>
                             </td>
                             <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--text)' }}>
@@ -1643,7 +1645,9 @@ export default function FechamentoClientePage() {
                                       ? <Badge variant="danger">On Demand bloqueado</Badge>
                                       : odStatusMap.get(c.customer_id) === 'liberado'
                                         ? <Badge variant="success">On Demand liberado</Badge>
-                                        : null}
+                                        : odStatusMap.get(c.customer_id) === 'sem_movimento'
+                                          ? <Badge variant="default">Sem movimento</Badge>
+                                          : null}
                                   </div>
                                 </Td>
                                 <Td right muted className="tabular-nums text-xs">{c.total_horas.toFixed(2)}h</Td>
