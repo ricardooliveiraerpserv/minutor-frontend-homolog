@@ -874,11 +874,29 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
   const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
+  const [revoking, setRevoking] = useState<number | null>(null)
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true)
     api.get<{ data: LogData }>(`/notifications/${notif.id}/log`)
       .then(r => setData(r.data ?? null)).catch(() => {}).finally(() => setLoading(false))
   }, [notif.id])
+  useEffect(() => { load() }, [load])
+
+  // Revoga a resposta de um destinatário → volta a pendente e recebe de novo (pop-up + e-mail).
+  const revoke = async (r: LogRow) => {
+    if (!confirm(`Revogar a resposta de ${r.user_name}?\n\nA resposta e os acompanhantes serão apagados, o pop-up volta a aparecer e a pessoa recebe o convite de novo (inclusive por e-mail).`)) return
+    setRevoking(r.user_id)
+    try {
+      const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: r.user_id })
+      toast.success(`Convite revogado — ${r.user_name} voltará a receber${res?.data?.email_resent ? ' (e-mail reenviado)' : ''}.`)
+      load()
+    } catch (e) {
+      toast.error((e as { message?: string })?.message || 'Erro ao revogar')
+    } finally {
+      setRevoking(null)
+    }
+  }
 
   const dt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
   const rows = (data?.recipients ?? []).filter(r => {
@@ -1035,6 +1053,15 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                                       {r.response_source === 'email' ? '✉️ via e-mail' : '🖥️ via sistema'}
                                     </span>
                                   )}
+                                  <button
+                                    onClick={() => revoke(r)}
+                                    disabled={revoking === r.user_id}
+                                    className="inline-flex items-center gap-1 text-[10px] mt-0.5 disabled:opacity-50 hover:underline"
+                                    style={{ color: 'var(--danger, #dc2626)' }}
+                                    title="Revogar resposta — a pessoa volta a receber o convite"
+                                  >
+                                    <Ban size={10} /> {revoking === r.user_id ? 'Revogando…' : 'Revogar'}
+                                  </button>
                                 </div>
                               : <span style={{ color: 'var(--text-light)' }}>—</span>}
                           </td>
