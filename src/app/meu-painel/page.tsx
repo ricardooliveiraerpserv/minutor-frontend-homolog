@@ -2305,9 +2305,9 @@ export default function MeuPainelPage() {
   const ajusteHours     = myClosing?.horas_ajuste ?? 0
   const ajusteValue     = myClosing?.valor_ajuste ?? 0
   const workedHours     = myClosing?.horas_trabalhadas != null ? myClosing.horas_trabalhadas : tsTotalMin / 60
-  // Distribuição dos cards: 4 base + cards de pendente/ajuste quando houver.
-  const nExtraStatusCards = (pendingHours > 0 ? 1 : 0) + (ajusteHours > 0 ? 1 : 0)
-  const hoursGridCols = nExtraStatusCards === 2 ? 'lg:grid-cols-6' : nExtraStatusCards === 1 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+  // Distribuição dos cards: 4 base + card de Ajuste (sempre) + Pendente (quando houver).
+  const nExtraStatusCards = 1 + (pendingHours > 0 ? 1 : 0)
+  const hoursGridCols = nExtraStatusCards === 2 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
 
   // Proporcionalidade: se bank_hours_start_date cai no mês selecionado
   const consultantStartStr = (user as any)?.bank_hours_start_date as string | null | undefined
@@ -2825,17 +2825,17 @@ export default function MeuPainelPage() {
                 onClick={() => setActiveTab('timesheets')}
               />
             )}
-            {ajusteHours > 0 && (
-              <SummaryCard
-                label="Ajuste solicitado"
-                value={`${ajusteHours.toFixed(1)}h`}
-                sub={ajusteValue > 0 ? `≈ ${formatBRL(ajusteValue)} · clique para ajustar` : 'clique para ajustar e reenviar'}
-                icon={AlertTriangle}
-                accent="bg-[var(--purple-bg)] text-[var(--purple)]"
-                tone="purple"
-                onClick={() => setActiveTab('timesheets')}
-              />
-            )}
+            <SummaryCard
+              label="Ajuste solicitado"
+              value={`${ajusteHours.toFixed(1)}h`}
+              sub={ajusteHours > 0
+                ? `≈ ${formatBRL(ajusteValue)} · clique para ajustar`
+                : 'nenhum ajuste solicitado'}
+              icon={AlertTriangle}
+              accent={ajusteHours > 0 ? 'bg-[var(--purple-bg)] text-[var(--purple)]' : 'bg-[var(--surface-hover)] text-[var(--text-light)]'}
+              tone={ajusteHours > 0 ? 'purple' : undefined}
+              onClick={ajusteHours > 0 ? () => setActiveTab('timesheets') : undefined}
+            />
           </div>}
 
           {/* Hero de remuneração — fixo com despesas inline */}
