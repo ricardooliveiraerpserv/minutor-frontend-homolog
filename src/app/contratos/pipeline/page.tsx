@@ -3033,7 +3033,6 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   </div>
                   <div className="divide-y px-4" style={{ borderColor: 'var(--border)' }}>
                     {p.sold_hours != null && <Row label="Horas Contratadas" value={`${fmt(p.sold_hours, 1)}h`} />}
-                    {p.initial_hours_balance != null && <Row label="Saldo Inicial" value={`${fmt(p.initial_hours_balance, 1)}h`} />}
                     {(p.hour_contribution ?? 0) > 0 && <Row label="Aporte Inicial de Horas" value={`${fmt(p.hour_contribution, 1)}h`} />}
                     {(p.total_contributions_hours ?? 0) > 0 && <Row label="Total Aportes" value={`${fmt(p.total_contributions_hours, 1)}h`} />}
                     {p.exceeded_hour_contribution != null && <Row label="Aporte Excedido" value={`${fmt(p.exceeded_hour_contribution, 1)}h`} />}
@@ -3156,7 +3155,7 @@ interface ProjectEditForm {
   name: string; description: string; status: string; start_date: string
   expected_end_date: string; delivery_percentage: string
   sold_hours: string; project_value: string; hourly_rate: string
-  additional_hourly_rate: string; initial_hours_balance: string
+  additional_hourly_rate: string
   allow_negative_balance: boolean
 }
 
@@ -3172,7 +3171,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     project_value:           String(project.project_value ?? ''),
     hourly_rate:             String(project.hourly_rate ?? ''),
     additional_hourly_rate:  String(project.additional_hourly_rate ?? ''),
-    initial_hours_balance:   String(project.initial_hours_balance ?? ''),
     allow_negative_balance:  false,
   })
   const [saving, setSaving] = useState(false)
@@ -3197,7 +3195,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.project_value !== '')          payload.project_value          = Number(form.project_value)
       if (form.hourly_rate !== '')            payload.hourly_rate            = Number(form.hourly_rate)
       if (form.additional_hourly_rate !== '') payload.additional_hourly_rate = Number(form.additional_hourly_rate)
-      if (form.initial_hours_balance !== '')  payload.initial_hours_balance  = Number(form.initial_hours_balance)
       await api.put(`/projects/${project.id}`, payload)
       toast.success('Projeto atualizado')
       onSaved()
@@ -3318,10 +3315,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               <div>
                 <label style={labelStyle}>Horas Contratadas</label>
                 <input type="number" value={form.sold_hours} onChange={setF('sold_hours')} style={inputStyle} placeholder="0" step="1" />
-              </div>
-              <div>
-                <label style={labelStyle}>Saldo Inicial de Horas</label>
-                <input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={inputStyle} placeholder="0" step="1" />
               </div>
             </div>
             <div className="flex items-center gap-3 mt-3 px-4 py-3 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
