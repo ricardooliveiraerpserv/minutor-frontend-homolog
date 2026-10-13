@@ -59,6 +59,7 @@ export const NAV_CATALOG: CatalogItem[] = [
 
   // Administrativo — Cadastros
   { key: '/clientes',                          label: 'Clientes',               group: 'Cadastros' },
+  { key: '/clientes/executivos',               label: 'Cliente × Executivo',    group: 'Cadastros' },
   { key: '/partners',                          label: 'Parceiros',              group: 'Cadastros' },
   { key: '/cadastros?tab=executives',          label: 'Executivos',             group: 'Cadastros' },
   { key: '/cadastros?tab=payment_methods',     label: 'Formas de Pagamento',    group: 'Cadastros' },
