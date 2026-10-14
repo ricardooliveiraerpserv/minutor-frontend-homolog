@@ -62,14 +62,17 @@ export function TicketTabs({ activeId }: { activeId?: number }) {
       router.push(next ? `/help-desk/tickets/${next.id}` : '/help-desk/fila')
     }
   }
+  // Fecha TODAS as abas de uma vez (botão "Fechar todas"). Permanece na tela atual.
+  const closeAll = () => clearTicketTabs()
 
   return (
-    <div className="flex items-stretch gap-1 overflow-x-auto pb-1 mb-2">
+    <div className="flex items-stretch gap-1 pb-1 mb-2">
       <button onClick={() => router.push('/help-desk/fila')} title="Voltar para os chamados"
         className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-t-lg shrink-0 ds-row-hover"
         style={{ border: '1px solid var(--border)', borderBottom: 'none', background: 'var(--surface)', color: 'var(--text-muted)' }}>
         <List size={13} /> Chamados
       </button>
+      <div className="flex items-stretch gap-1 overflow-x-auto flex-1 min-w-0">
       {tabs.map(t => {
         const active = t.id === activeId
         return (
@@ -88,6 +91,14 @@ export function TicketTabs({ activeId }: { activeId?: number }) {
           </button>
         )
       })}
+      </div>
+      {tabs.length > 1 && (
+        <button onClick={closeAll} title="Fechar todas as abas"
+          className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-t-lg shrink-0 ds-row-hover"
+          style={{ border: '1px solid var(--border)', borderBottom: 'none', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+          <X size={13} /> Fechar todas
+        </button>
+      )}
     </div>
   )
 }

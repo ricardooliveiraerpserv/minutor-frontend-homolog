@@ -9,7 +9,6 @@ import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
-import { clearTicketTabs } from '@/components/help-desk/ticket-tabs'
 import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
 import { ClientKanbanInvitePopup } from '@/components/notifications/client-kanban-invite-popup'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
@@ -47,8 +46,6 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   // Fecha o drawer ao trocar de rota.
   useEffect(() => { setMobileNavOpen(false) }, [pathname])
-  // Abas de chamados abertos só valem DENTRO do Help Desk — ao sair da área, limpa.
-  useEffect(() => { if (!pathname?.startsWith('/help-desk')) clearTicketTabs() }, [pathname])
 
   useEffect(() => {
     if (!loading && !user) {

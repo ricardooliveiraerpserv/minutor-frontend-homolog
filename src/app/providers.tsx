@@ -10,19 +10,6 @@ import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { ChatNotifier } from '@/components/inbox/chat-notifier'
 import { MeetingAlerts } from '@/components/notifications/meeting-alerts'
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
-import { clearHdTabs } from '@/lib/hd-tabs'
-
-// Abas de chamados abertos só valem DENTRO do Help Desk: ao navegar p/ fora de /help-desk,
-// limpa as abas. Fica no Providers (persiste entre rotas → confiável).
-function HdTabsGuard() {
-  const pathname = usePathname()
-  useEffect(() => {
-    if (!pathname || pathname.startsWith('/help-desk')) return
-    clearHdTabs()
-  }, [pathname])
-  return null
-}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -54,7 +41,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <TooltipProvider>
           <AuthProvider>
-            <HdTabsGuard />
             <PresenceHeartbeat />
             <ChatNotifier />
             <MeetingAlerts />
