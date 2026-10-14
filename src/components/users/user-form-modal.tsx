@@ -414,9 +414,12 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   const [cepLoading, setCepLoading] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
-  // Vigência do novo valor-hora: quando o hourly_rate muda, perguntamos a partir de qual mês passa a valer.
+  // Vigência do novo valor-hora/tipo: quando o hourly_rate OU o tipo muda, perguntamos a partir de qual mês passa a valer.
   const [rateModalOpen, setRateModalOpen] = useState(false)
   const [rateEffectiveMonth, setRateEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  // Permite datar a vigência RETROATIVAMENTE (até 24 meses atrás) — ex.: a troca de tipo valeu desde um mês passado.
+  // Meses já fechados não mudam (snapshot do fechamento). Mesmo racional do cadastro de parceiro.
+  const minVigenciaMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 24); return d.toISOString().slice(0, 7) })()
   // Fluxo sensível: trocar o responsável pelos recebimentos do parceiro (1=pergunta, 2=confirmação).
   const [receiverConfirm, setReceiverConfirm] = useState<1 | 2 | null>(null)
   const receiverIntentRef = useRef(false)
@@ -1486,14 +1489,14 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência da alteração</p>
             <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
-              A partir de qual mês essa alteração (valor hora / tipo) passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
+              A partir de qual mês essa alteração (valor hora / tipo de contratação) passa a valer? Pode ser um mês <b>passado</b> (retroativo). Meses já fechados não mudam.
             </p>
             <div className="mb-5">
               <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
               <Input
                 type="month"
                 value={rateEffectiveMonth}
-                min={new Date().toISOString().slice(0, 7)}
+                min={minVigenciaMonth}
                 onChange={e => setRateEffectiveMonth(e.target.value)}
                 className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
               />
