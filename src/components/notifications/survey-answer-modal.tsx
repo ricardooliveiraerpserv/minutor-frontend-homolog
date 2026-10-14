@@ -102,15 +102,18 @@ function PersonSelect({ people, value, onChange }: { people: { id: number; name:
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const selected = people.find(p => String(p.id) === value)
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
+  // Ao abrir, rola a lista à vista (o modal tem overflow — senão a lista fica escondida atrás do rodapé).
+  useEffect(() => { if (open) listRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [open])
   const filtered = q.trim() ? people.filter(p => p.name.toLowerCase().includes(q.toLowerCase())) : people
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref}>
       <input
         className="ds-input w-full text-sm"
         placeholder="Buscar pessoa…"
@@ -120,7 +123,8 @@ function PersonSelect({ people, value, onChange }: { people: { id: number; name:
         onChange={e => { setQ(e.target.value); setOpen(true) }}
       />
       {open && (
-        <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-auto rounded-lg shadow-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+        // Inline (não-absoluto) p/ não ser cortado pelo overflow do modal; rola junto.
+        <div ref={listRef} className="mt-1 max-h-48 overflow-auto rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
           {filtered.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Ninguém encontrado.</div>}
           {filtered.map(p => (
             <button
