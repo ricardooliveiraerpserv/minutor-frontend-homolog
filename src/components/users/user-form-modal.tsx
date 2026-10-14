@@ -867,12 +867,18 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           <>
             {/* ── STATUS (Ativo/Inativo) em destaque + janela de pagamento (no topo) ── */}
             <div className="rounded-xl p-3 space-y-2" style={{ border: `1.5px solid ${form.enabled ? 'var(--success-border, #22c55e)' : 'var(--danger-border, #ef4444)'}`, background: form.enabled ? 'var(--success-bg, var(--surface-hover))' : 'var(--danger-bg, var(--surface-sunken))' }}>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)' }}>
                   <span style={{ width: 9, height: 9, borderRadius: 999, background: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)', display: 'inline-block' }} />
                   {form.enabled ? 'Ativo' : 'Inativo'}
                 </span>
-                <Toggle value={form.enabled} onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))} label="" />
+                <button type="button" onClick={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0"
+                  style={form.enabled
+                    ? { background: 'transparent', border: '1.5px solid var(--danger, #dc2626)', color: 'var(--danger, #dc2626)' }
+                    : { background: 'var(--success, #16a34a)', border: '1.5px solid var(--success, #16a34a)', color: '#fff' }}>
+                  {form.enabled ? 'Inativar' : 'Ativar'}
+                </button>
               </div>
               {isEdit && !form.enabled && (
                 <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface))' }}>
