@@ -284,7 +284,7 @@ export default function PartnersPage() {
                 </td>
               </tr>
             ) : items.map(item => (
-              <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
+              <tr key={item.id} className={`border-b border-[var(--border)] transition-colors ${!item.active ? 'bg-[var(--surface-sunken)] opacity-60 hover:opacity-100 hover:bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'}`}>
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
@@ -340,6 +340,52 @@ export default function PartnersPage() {
               {modal.item ? 'Editar Parceiro' : 'Novo Parceiro'}
             </h3>
             <div className="space-y-3">
+              {/* ── STATUS (Ativo/Inativo) em destaque + janela de pagamento (no topo) ── */}
+              <div className="rounded-xl p-3 space-y-2" style={{ border: `1.5px solid ${form.active ? 'var(--success-border, #22c55e)' : 'var(--danger-border, #ef4444)'}`, background: form.active ? 'var(--success-bg, var(--surface-hover))' : 'var(--danger-bg, var(--surface-sunken))' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: form.active ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)' }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 999, background: form.active ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)', display: 'inline-block' }} />
+                    {form.active ? 'Ativo' : 'Inativo'}
+                  </span>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, active: !f.active }))}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0"
+                    style={form.active
+                      ? { background: 'transparent', border: '1.5px solid var(--danger, #dc2626)', color: 'var(--danger, #dc2626)' }
+                      : { background: 'var(--success, #16a34a)', border: '1.5px solid var(--success, #16a34a)', color: '#fff' }}>
+                    {form.active ? 'Inativar' : 'Ativar'}
+                  </button>
+                </div>
+                {modal.item && !form.active && (
+                  <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface))' }}>
+                    <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar fechamento até o mês *</label>
+                    <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
+                      className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>A partir do mês seguinte, o parceiro sai dos fechamentos/folha. (o mês escolhido ainda é pago)</p>
+                  </div>
+                )}
+                {modal.item && form.active && !modal.item.active && (
+                  <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                    <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
+                      <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular fechamento ao reativar
+                    </label>
+                    {payrollResume && (
+                      <div>
+                        <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
+                        <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
+                          className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {modal.item && payrollSummary?.has_windows && (
+                  <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                    {payrollSummary.payable_now
+                      ? `Fechamento ativo${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
+                      : `Fechamento encerrado${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
                 <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -454,44 +500,6 @@ export default function PartnersPage() {
               {form.pricing_type === 'variable' && (
                 <p className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]">
                   Cada consultor deste parceiro terá seu próprio valor hora definido no cadastro de usuário.
-                </p>
-              )}
-              <div className="flex items-center gap-2">
-                <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
-                  className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
-                </button>
-                <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
-              </div>
-
-              {/* Janela de pagamento (folha/fechamento parceiro) */}
-              {modal.item && !form.active && (
-                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface-hover))' }}>
-                  <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar fechamento até o mês *</label>
-                  <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
-                    className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>A partir do mês seguinte, o parceiro sai dos fechamentos/folha. (o mês escolhido ainda é pago)</p>
-                </div>
-              )}
-              {modal.item && form.active && !modal.item.active && (
-                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
-                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
-                    <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular fechamento ao reativar
-                  </label>
-                  {payrollResume && (
-                    <div>
-                      <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
-                      <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
-                        className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                    </div>
-                  )}
-                </div>
-              )}
-              {modal.item && payrollSummary?.has_windows && (
-                <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-                  {payrollSummary.payable_now
-                    ? `Fechamento ativo${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
-                    : `Fechamento encerrado${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
                 </p>
               )}
             </div>
