@@ -19,6 +19,7 @@ import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { PageHeader } from '@/components/ds'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -1952,7 +1953,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                       <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--brand-purple)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                         {sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}
                       </div>
-                      <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}</span>
+                      <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                     </button>
                   )
                 })}
@@ -3704,7 +3705,7 @@ function GestaoProjetosInner() {
                           return (
                             <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
                               <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
-                                {c.name}
+                                {c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} />
                                 {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
                               </span>
                               <button type="button" title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
@@ -3736,7 +3737,7 @@ function GestaoProjetosInner() {
                             style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
                             {on && <Check size={11} style={{ color: '#fff' }} />}
                           </span>
-                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}</span>
+                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                           {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
                         </button>
                       )
@@ -4449,7 +4450,7 @@ function GestaoProjetosInner() {
                     <input type="checkbox" checked={bulkAllocConsIds.has(c.id)}
                       onChange={() => setBulkAllocConsIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
                       className="w-4 h-4 rounded accent-[var(--primary)]" />
-                    <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
+                    <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </label>
                 ))}
               {bulkAllocTab === 'grupos' && consultantGroups
@@ -4527,7 +4528,7 @@ function GestaoProjetosInner() {
                       <input type="radio" name="byres-cons" checked={byResConsId === c.id}
                         onChange={() => setByResConsId(c.id)}
                         className="w-4 h-4 accent-[var(--primary)]" />
-                      <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
+                      <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                     </label>
                   ))}
                 {byResTab === 'grupo' && consultantGroups

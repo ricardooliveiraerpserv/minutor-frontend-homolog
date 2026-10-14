@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText, Eye, SquarePen, Plus, Calculator } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { Skeleton } from '@/components/ui/loading'
 
 // ─── Types (duplicados da página do kanban — manter idênticos) ──────────────────
@@ -1597,7 +1598,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                   const sel = form.consultant_ids.includes(c.id)
                   return <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>{sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}</div>
-                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}</span>
+                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </button>
                 })}
                 {teamTab === 'group' && filteredGroups.map(g => {
