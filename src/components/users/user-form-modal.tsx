@@ -455,6 +455,36 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       setRateHistoryLoading(false)
     }
   }
+  // Edição inline de uma linha do histórico de valor/tipo (corrigir vigência, valor ou tipo).
+  const [rateEditId, setRateEditId] = useState<number | null>(null)
+  const [rateEditMonth, setRateEditMonth] = useState('')
+  const [rateEditRate, setRateEditRate] = useState('')
+  const [rateEditType, setRateEditType] = useState<ConsultantType | ''>('')
+  const [rateEditSaving, setRateEditSaving] = useState(false)
+  const startRateEdit = (h: any) => {
+    setRateEditId(h.id)
+    setRateEditMonth(h.effective_from ? String(h.effective_from).slice(0, 7) : '')
+    setRateEditRate(h.new_hourly_rate != null ? String(Number(h.new_hourly_rate)) : '')
+    setRateEditType((h.new_consultant_type as ConsultantType) ?? '')
+  }
+  const saveRateEdit = async () => {
+    if (userId == null || rateEditId == null) return
+    setRateEditSaving(true)
+    try {
+      const rate_type = rateEditType === 'horista' ? 'hourly' : rateEditType ? 'monthly' : null
+      await api.put(`/users/${userId}/hourly-rate-history/${rateEditId}`, {
+        effective_from: rateEditMonth ? `${rateEditMonth}-01` : null,
+        new_hourly_rate: rateEditRate === '' ? null : Number(rateEditRate),
+        new_consultant_type: rateEditType || null,
+        new_rate_type: rate_type,
+      })
+      toast.success('Histórico atualizado')
+      setRateEditId(null)
+      await openRateHistory()
+    } catch { toast.error('Erro ao salvar') } finally { setRateEditSaving(false) }
+  }
+  // Rótulos amigáveis do tipo de consultor.
+  const TYPE_LABEL: Record<string, string> = { fixo: 'Fixo', horista: 'Horista', banco_de_horas: 'Banco de Horas' }
 
   // Vigência das HORAS GARANTIDAS (piso) — mesma mecânica do valor/hora, independente dele.
   const [ghModalOpen, setGhModalOpen] = useState(false)
@@ -1518,9 +1548,9 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       {/* Histórico de valores-hora (somente leitura) */}
       {rateHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+          <div className="w-full max-w-3xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores</p>
+              <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores e tipo</p>
               <button onClick={() => setRateHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                 <X size={16} />
               </button>
@@ -1536,29 +1566,56 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                     <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
                       <th className="text-left font-semibold px-3 py-2">Vigência</th>
                       <th className="text-left font-semibold px-3 py-2">Valor</th>
+                      <th className="text-left font-semibold px-3 py-2">Tipo</th>
                       <th className="text-left font-semibold px-3 py-2">Alterado por</th>
                       <th className="text-left font-semibold px-3 py-2">Em</th>
+                      <th className="text-right font-semibold px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
-                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
+                    {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => {
+                      const editing = rateEditId === h.id
+                      const typeChanged = (h.new_consultant_type ?? null) !== (h.old_consultant_type ?? null)
+                      return (
+                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)] align-top">
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {h.effective_from
-                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
-                            : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
+                          {editing
+                            ? <Input type="month" min={minVigenciaMonth} value={rateEditMonth} onChange={e => setRateEditMonth(e.target.value)} className="h-7 text-xs w-[7.5rem] bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)]" />
+                            : (h.effective_from
+                              ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                              : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>)}
                         </td>
                         <td className="px-3 py-2 tabular-nums whitespace-nowrap">
-                          {h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-                          <span className="text-[var(--text-light)]"> → </span>
-                          {h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                          {editing
+                            ? <Input type="number" step="0.01" value={rateEditRate} onChange={e => setRateEditRate(e.target.value)} placeholder="valor hora" className="h-7 text-xs w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)]" />
+                            : <>{h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}<span className="text-[var(--text-light)]"> → </span>{h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</>}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {editing
+                            ? <select value={rateEditType} onChange={e => setRateEditType(e.target.value as ConsultantType | '')} className="h-7 text-xs rounded-md border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text)] px-1">
+                                <option value="">—</option>
+                                <option value="fixo">Fixo</option>
+                                <option value="horista">Horista</option>
+                                <option value="banco_de_horas">Banco de Horas</option>
+                              </select>
+                            : (typeChanged
+                              ? <><span className="text-[var(--text-light)]">{TYPE_LABEL[h.old_consultant_type] ?? '—'}</span><span className="text-[var(--text-light)]"> → </span><b>{TYPE_LABEL[h.new_consultant_type] ?? '—'}</b></>
+                              : <span className="text-[var(--text-muted)]">{TYPE_LABEL[h.new_consultant_type] ?? '—'}</span>)}
                         </td>
                         <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
                           {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
                         </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                          {editing
+                            ? <span className="inline-flex gap-1">
+                                <button onClick={saveRateEdit} disabled={rateEditSaving} className="text-[var(--primary)] hover:underline disabled:opacity-50">{rateEditSaving ? '…' : 'Salvar'}</button>
+                                <button onClick={() => setRateEditId(null)} className="text-[var(--text-light)] hover:underline">Cancelar</button>
+                              </span>
+                            : <button onClick={() => startRateEdit(h)} className="text-[var(--primary)] hover:underline inline-flex items-center gap-1"><PenLine size={11} /> Editar</button>}
+                        </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
