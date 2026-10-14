@@ -451,10 +451,7 @@ interface SResData { survey_id: number; anonymous: boolean; total: number; close
 function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [data, setData] = useState<SResData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showResp, setShowResp] = useState(true)
-  const [openResp, setOpenResp] = useState<Set<number>>(new Set())
-  const toggleResp = (id: number) => setOpenResp(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  const [respFilter, setRespFilter] = useState('') // response_id (string) do respondente filtrado, '' = todos
+  const [respFilter, setRespFilter] = useState('') // response_id (string) do respondente selecionado no topo, '' = visão geral
   const surveyId = notif.survey?.survey_id
   useEffect(() => {
     if (!surveyId) { setLoading(false); return }
@@ -514,77 +511,66 @@ function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }
                   <span><b>Identificação interna (confidencial).</b> Esta pesquisa é anônima para quem responde — eles <b>não sabem</b> que conseguimos ver quem respondeu. Use com responsabilidade.</span>
                 </div>
               )}
-              {data.questions.map((q, qi) => (
-                <div key={q.id} className="space-y-1.5">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{qi + 1}. {q.label}</p>
-                  {q.type === 'choice' && ((q.options?.some(o => o.count > 0))
-                    ? <Chart rows={(q.options || []).map(o => ({ name: o.label, value: o.count }))} />
-                    : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
-                  {q.type === 'person' && ((q.people?.length)
-                    ? <Chart rows={(q.people || []).map(p => ({ name: p.name, value: p.count }))} />
-                    : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
-                  {q.type === 'text' && (
-                    <div className="space-y-1">
-                      {(q.answers?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>}
-                      {(q.answers || []).map((a, i) => (
-                        <div key={i} className="text-[13px] rounded-lg px-2.5 py-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                          {a.text}
-                          {a.respondent && <span className="block text-[10px]" style={{ color: 'var(--text-light)' }}>— {a.respondent}{data.anonymous && ' (interno)'}</span>}
+              {/* Seletor no TOPO: ao escolher uma pessoa, mostra SÓ o resultado dela. */}
+              {data.respondents.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <PersonSelect
+                      placeholder="Ver resposta de uma pessoa…"
+                      people={data.respondents.map(r => ({ id: r.response_id, name: r.respondent || 'Anônimo' }))}
+                      value={respFilter}
+                      onChange={id => setRespFilter(id)}
+                    />
+                  </div>
+                  {respFilter && <button onClick={() => setRespFilter('')} className="text-xs whitespace-nowrap hover:underline" style={{ color: 'var(--primary)' }}>Ver todos</button>}
+                </div>
+              )}
+
+              {respFilter ? (() => {
+                // RESULTADO INDIVIDUAL de uma pessoa (formulário inteiro dela).
+                const r = data.respondents.find(x => String(x.response_id) === respFilter)
+                if (!r) return <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Resposta não encontrada.</p>
+                return (
+                  <div className="rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                      <span className="flex-1 truncate text-[13px] font-semibold" style={{ color: 'var(--text)' }}>{r.respondent || 'Anônimo'}{data.anonymous && r.respondent && <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}> (interno)</span>}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmt(r.submitted_at)}</span>
+                    </div>
+                    <div className="px-3 py-2.5 space-y-3">
+                      {data.questions.map((q, qi) => (
+                        <div key={q.id}>
+                          <p className="text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>{qi + 1}. {q.label}</p>
+                          <p className="text-[13px] whitespace-pre-wrap" style={{ color: (r.answers[q.id] ? 'var(--text)' : 'var(--text-light)') }}>{r.answers[q.id] || '— (sem resposta)'}</p>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              ))}
-
-              <div className="pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-                <button onClick={() => setShowResp(s => !s)} className="text-xs inline-flex items-center gap-1.5 font-semibold mb-1.5" style={{ color: 'var(--primary)' }}>
-                  <Users size={13} /> Respostas individuais ({data.respondents.length}) {showResp ? '▾' : '▸'}
-                </button>
-                {showResp && (
-                  <div className="space-y-1.5">
-                    {data.respondents.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Ninguém respondeu ainda.</p>}
-                    {/* Filtro por pessoa (com busca) p/ ver o resultado individual de um respondente. */}
-                    {data.respondents.length > 1 && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="flex-1 min-w-0">
-                          <PersonSelect
-                            placeholder="Filtrar por pessoa…"
-                            people={data.respondents.map(r => ({ id: r.response_id, name: r.respondent || 'Anônimo' }))}
-                            value={respFilter}
-                            onChange={id => { setRespFilter(id); setOpenResp(new Set([Number(id)])) }}
-                          />
-                        </div>
-                        {respFilter && <button onClick={() => setRespFilter('')} className="text-[11px] whitespace-nowrap hover:underline" style={{ color: 'var(--primary)' }}>Ver todos</button>}
+                  </div>
+                )
+              })() : (
+                // VISÃO GERAL (agregado por pergunta: gráficos + textos).
+                data.questions.map((q, qi) => (
+                  <div key={q.id} className="space-y-1.5">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{qi + 1}. {q.label}</p>
+                    {q.type === 'choice' && ((q.options?.some(o => o.count > 0))
+                      ? <Chart rows={(q.options || []).map(o => ({ name: o.label, value: o.count }))} />
+                      : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
+                    {q.type === 'person' && ((q.people?.length)
+                      ? <Chart rows={(q.people || []).map(p => ({ name: p.name, value: p.count }))} />
+                      : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
+                    {q.type === 'text' && (
+                      <div className="space-y-1">
+                        {(q.answers?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>}
+                        {(q.answers || []).map((a, i) => (
+                          <div key={i} className="text-[13px] rounded-lg px-2.5 py-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                            {a.text}
+                            {a.respondent && <span className="block text-[10px]" style={{ color: 'var(--text-light)' }}>— {a.respondent}{data.anonymous && ' (interno)'}</span>}
+                          </div>
+                        ))}
                       </div>
                     )}
-                    {data.respondents.filter(r => !respFilter || String(r.response_id) === respFilter).map((r, idx) => {
-                      const isOpen = openResp.has(r.response_id)
-                      return (
-                        <div key={r.response_id} className="rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                          <button onClick={() => toggleResp(r.response_id)} className="w-full flex items-center gap-2 px-3 py-2 text-left">
-                            <ChevronDown size={14} style={{ color: 'var(--text-muted)', transform: isOpen ? 'none' : 'rotate(-90deg)', transition: 'transform .15s', flexShrink: 0 }} />
-                            <span className="flex-1 truncate text-[12.5px] font-medium" style={{ color: 'var(--text)' }}>
-                              {idx + 1}. {r.respondent || 'Anônimo'}{data.anonymous && r.respondent && <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}> (interno)</span>}
-                            </span>
-                            <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmt(r.submitted_at)}</span>
-                          </button>
-                          {isOpen && (
-                            <div className="px-3 pb-2.5 pt-0.5 space-y-2">
-                              {data.questions.map((q, qi) => (
-                                <div key={q.id}>
-                                  <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{qi + 1}. {q.label}</p>
-                                  <p className="text-[13px] whitespace-pre-wrap" style={{ color: (r.answers[q.id] ? 'var(--text)' : 'var(--text-light)') }}>{r.answers[q.id] || '— (sem resposta)'}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
                   </div>
-                )}
-              </div>
+                ))
+              )}
             </>
           )}
         </div>
