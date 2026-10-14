@@ -1082,13 +1082,13 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
 }
 
 interface Guest { nome: string; parentesco: string | null; idade?: number | null }
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean; can_invite_other?: boolean }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean; can_invite_other?: boolean; survey_responded?: boolean }
 
 // Rótulo amigável da origem da resposta (e-mail × sistema).
 function sourceLabel(src?: string | null): string {
   return src === 'email' ? 'e-mail' : src === 'app' ? 'sistema' : ''
 }
-interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
+interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number; is_survey?: boolean; survey_id?: number | null; survey_responded?: number } }
 
 /** Log de uma comunicação (admin): quem visualizou (e quando) + resultado dos botões de decisão. */
 function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
@@ -1097,11 +1097,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
   const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
   // Modal de confirmação (revogar / cancelar convite / reativar) — substitui o confirm() nativo.
-  const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' | 'survey_revoke' } | null>(null)
   const [busy, setBusy] = useState(false)
   // "Pode convidar além da família (Outro)?" marcado no modal de revogar/reativar.
   const [allowOther, setAllowOther] = useState(false)
-  const openConfirm = (row: LogRow, mode: 'revoke' | 'cancel' | 'reactivate') => {
+  const openConfirm = (row: LogRow, mode: 'revoke' | 'cancel' | 'reactivate' | 'survey_revoke') => {
     setAllowOther(!!row.can_invite_other)
     setConfirmAction({ row, mode })
   }
@@ -1118,7 +1118,10 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     const { row, mode } = confirmAction
     setBusy(true)
     try {
-      if (mode === 'cancel') {
+      if (mode === 'survey_revoke') {
+        await api.post(`/surveys/${data?.summary.survey_id}/revoke`, { user_id: row.user_id })
+        toast.success(`Resposta de ${row.user_name} apagada — poderá responder de novo.`)
+      } else if (mode === 'cancel') {
         await api.post(`/notifications/${notif.id}/cancel-invite`, { user_id: row.user_id, cancel: true })
         toast.success(`Convite de ${row.user_name} cancelado — não recebe mais.`)
       } else {
@@ -1274,6 +1277,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Visualizou</th>
                       {data.summary.actions.length > 0 && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Resposta</th>}
                       {data.summary.allow_guests && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Familiares</th>}
+                      {data.summary.is_survey && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Pesquisa</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1352,6 +1356,18 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                             })()}
                           </td>
                         )}
+                        {data.summary.is_survey && (
+                          <td className="px-3 py-2">
+                            {r.survey_responded ? (
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>✓ Respondeu</span>
+                                <button onClick={() => openConfirm(r, 'survey_revoke')} className="inline-flex items-center gap-1 text-[10px] hover:underline" style={{ color: 'var(--warning)' }} title="Revogar: apaga a resposta e libera para responder de novo">
+                                  <RefreshCw size={10} /> Revogar
+                                </button>
+                              </div>
+                            ) : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Não respondeu</span>}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1370,8 +1386,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
           : mode === 'reactivate'
             ? { title: 'Reativar convite', color: 'var(--primary)', confirmLabel: 'Reativar',
                 msg: <>O convite de <b>{row.user_name}</b> será reativado: volta a aparecer como pendente e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
-            : { title: 'Revogar resposta', color: 'var(--warning)', confirmLabel: 'Revogar',
-                msg: <>A resposta e os acompanhantes de <b>{row.user_name}</b> serão apagados. A pessoa volta a <b>pendente</b> e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
+            : mode === 'survey_revoke'
+              ? { title: 'Revogar resposta da pesquisa', color: 'var(--warning)', confirmLabel: 'Revogar',
+                  msg: <>A resposta de <b>{row.user_name}</b> será <b>apagada</b> e ela volta a <b>pendente</b>, podendo responder a pesquisa de novo (pelo pop-up ou pelo e-mail).</> }
+              : { title: 'Revogar resposta', color: 'var(--warning)', confirmLabel: 'Revogar',
+                  msg: <>A resposta e os acompanhantes de <b>{row.user_name}</b> serão apagados. A pessoa volta a <b>pendente</b> e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
         return (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }}
             onClick={e => { e.stopPropagation(); if (!busy) setConfirmAction(null) }}>
