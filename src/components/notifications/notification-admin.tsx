@@ -445,7 +445,7 @@ function PollResults({ notif, onClose }: { notif: Notif; onClose: () => void }) 
 }
 
 // ── Resultados da Pesquisa (admin): gráficos (escolha/pessoa) + texto + Excel ──
-interface SResQuestion { id: number; label: string; type: 'text' | 'person' | 'choice'; required: boolean; options?: { id: number; label: string; count: number }[]; people?: { user_id: number; name: string; count: number }[]; answers?: { text: string; respondent: string | null }[] }
+interface SResQuestion { id: number; label: string; type: 'text' | 'person' | 'choice'; required: boolean; options?: { id: number; label: string; count: number; voters?: string[] }[]; people?: { user_id: number; name: string; count: number; voters?: string[] }[]; answers?: { text: string; respondent: string | null }[] }
 interface SResData { survey_id: number; anonymous: boolean; total: number; closed: boolean; questions: SResQuestion[]; respondents: { response_id: number; user_id: number | null; respondent: string | null; submitted_at: string | null; answers: Record<string, string> }[] }
 
 function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }) {
@@ -476,12 +476,27 @@ function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }
     XLSX.writeFile(wb, `Pesquisa_${(notif.title || 'pesquisa').replace(/[^\w]+/g, '_')}.xlsx`)
   }
 
-  const Chart = ({ rows }: { rows: { name: string; value: number }[] }) => (
+  // Tooltip do gráfico: mostra quem votou (nomes). Lista grande → rola (maxHeight + overflow).
+  const VoterTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { name: string; value: number; voters?: string[] } }[] }) => {
+    if (!active || !payload?.length) return null
+    const d = payload[0].payload
+    const voters = d.voters ?? []
+    return (
+      <div className="rounded-lg shadow-lg text-[12px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', maxWidth: 240, padding: '8px 10px' }}>
+        <div className="font-semibold mb-1">{d.name} · {d.value} voto{d.value === 1 ? '' : 's'}</div>
+        {voters.length > 0
+          ? <div className="overflow-y-auto pr-1" style={{ maxHeight: 150 }}>{voters.map((v, i) => <div key={i} className="text-[11.5px] leading-snug" style={{ color: 'var(--text-muted)' }}>• {v}</div>)}</div>
+          : <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem identificação dos votantes.</div>}
+      </div>
+    )
+  }
+
+  const Chart = ({ rows }: { rows: { name: string; value: number; voters?: string[] }[] }) => (
     <ResponsiveContainer width="100%" height={Math.max(70, rows.length * 34)}>
       <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 24, top: 2, bottom: 2 }}>
         <XAxis type="number" allowDecimals={false} hide />
         <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-        <RTooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+        <RTooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<VoterTooltip />} wrapperStyle={{ pointerEvents: 'auto', zIndex: 50 }} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 11 }}>
           {rows.map((_, i) => <Cell key={i} fill="#0d9488" />)}
         </Bar>
@@ -552,10 +567,10 @@ function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }
                   <div key={q.id} className="space-y-1.5">
                     <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{qi + 1}. {q.label}</p>
                     {q.type === 'choice' && ((q.options?.some(o => o.count > 0))
-                      ? <Chart rows={(q.options || []).map(o => ({ name: o.label, value: o.count }))} />
+                      ? <Chart rows={(q.options || []).map(o => ({ name: o.label, value: o.count, voters: o.voters }))} />
                       : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
                     {q.type === 'person' && ((q.people?.length)
-                      ? <Chart rows={(q.people || []).map(p => ({ name: p.name, value: p.count }))} />
+                      ? <Chart rows={(q.people || []).map(p => ({ name: p.name, value: p.count, voters: p.voters }))} />
                       : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
                     {q.type === 'text' && (
                       <div className="space-y-1">
