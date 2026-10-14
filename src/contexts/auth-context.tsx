@@ -79,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // — assim deslogar aqui NÃO derruba as outras abas.
     const stoken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
     try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
+    // Abas de chamados abertos não persistem após deslogar (limpa hd_open_tickets_*).
+    try {
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const k = window.localStorage.key(i)
+        if (k && k.startsWith('hd_open_tickets_')) window.localStorage.removeItem(k)
+      }
+      window.dispatchEvent(new Event('hd-tabs-changed'))
+    } catch { /* noop */ }
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',

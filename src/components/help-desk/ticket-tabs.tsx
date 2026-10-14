@@ -21,6 +21,22 @@ function write(tabs: TicketTab[], uid?: number | null) {
   window.dispatchEvent(new Event('hd-tabs-changed')) // avisa componentes na MESMA aba do navegador
 }
 
+/** Limpa TODAS as abas de chamados abertos (de todos os usuários no navegador). Chamar no logout
+ *  e ao sair do Help Desk — as abas não devem persistir fora da navegação do HD. */
+export function clearTicketTabs() {
+  if (typeof window === 'undefined') return
+  try {
+    const toRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('hd_open_tickets_')) toRemove.push(k)
+    }
+    let changed = false
+    toRemove.forEach(k => { localStorage.removeItem(k); changed = true })
+    if (changed) window.dispatchEvent(new Event('hd-tabs-changed'))
+  } catch { /* noop */ }
+}
+
 /** Registra (ou atualiza) um chamado como aba aberta. Chamar quando o detalhe carrega. */
 export function addTicketTab(t: TicketTab, uid?: number | null) {
   if (typeof window === 'undefined') return
