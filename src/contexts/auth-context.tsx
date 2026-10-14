@@ -70,6 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token && typeof window !== 'undefined') {
       try { window.sessionStorage.setItem('minutor_token', data.token) } catch { /* noop */ }
     }
+    // Sessão nova começa sem abas de chamados abertas (não herda da sessão anterior).
+    try {
+      for (let i = window.localStorage.length - 1; i >= 0; i--) {
+        const k = window.localStorage.key(i)
+        if (k && k.startsWith('hd_open_tickets_')) window.localStorage.removeItem(k)
+      }
+      window.dispatchEvent(new Event('hd-tabs-changed'))
+    } catch { /* noop */ }
     setUser(user)
     return { user, requiresPasswordChange: data.requires_password_change === true }
   }
