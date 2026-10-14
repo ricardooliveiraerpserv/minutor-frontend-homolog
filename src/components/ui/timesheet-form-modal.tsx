@@ -176,7 +176,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       api.get<any>('/users?pageSize=200&exclude_type=cliente')
         .then(r => {
           const items = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-          setConsultants(items)
+          // Usuário de parceiro: prefixa o nome do parceiro (ex.: "Raho · Thiago Reis") p/ identificar de quem é.
+          setConsultants(items.map((u: any) => ({ ...u, name: u.partner?.name ? `${u.partner.name} · ${u.name}` : u.name })))
         })
         .catch(() => {})
     }

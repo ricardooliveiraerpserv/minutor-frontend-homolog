@@ -614,7 +614,8 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
         api.get<any>('/expense-credit-card-users').catch(() => null),
       ])
       setCategories(Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : [])
-      if (u) setModalUsers(Array.isArray(u?.items) ? u.items : [])
+      // Usuário de parceiro: prefixa o nome do parceiro (ex.: "Raho · Thiago Reis") no seletor.
+      if (u) setModalUsers((Array.isArray(u?.items) ? u.items : []).map((x: any) => ({ ...x, name: x.partner?.name ? `${x.partner.name} · ${x.name}` : x.name })))
       const ccList = Array.isArray(cc?.data) ? cc.data : Array.isArray(cc?.items) ? cc.items : []
       setCcUserIds(new Set(ccList.map((x: any) => Number(x.id))))
     } catch { /* silencioso */ }

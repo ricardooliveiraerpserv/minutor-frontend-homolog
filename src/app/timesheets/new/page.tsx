@@ -64,7 +64,8 @@ export default function NewTimesheetPage() {
   useEffect(() => {
     if (!isAdmin) return
     api.get<any>('/users?pageSize=200')
-      .then(r => setUsers(Array.isArray(r?.items) ? r.items : []))
+      // Usuário de parceiro: prefixa o nome do parceiro (ex.: "Raho · Thiago Reis").
+      .then(r => setUsers((Array.isArray(r?.items) ? r.items : []).map((u: any) => ({ ...u, name: u.partner?.name ? `${u.partner.name} · ${u.name}` : u.name }))))
       .catch(() => {})
   }, [isAdmin])
 

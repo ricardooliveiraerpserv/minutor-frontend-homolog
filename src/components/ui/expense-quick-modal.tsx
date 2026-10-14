@@ -55,7 +55,8 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
         ])
         setCustomers(Array.isArray(cust?.items) ? cust.items : Array.isArray(cust?.data) ? cust.data : [])
         setCategories(Array.isArray(cat?.items) ? cat.items : Array.isArray(cat?.data) ? cat.data : [])
-        if (us) setModalUsers(Array.isArray(us?.items) ? us.items : [])
+        // Usuário de parceiro: prefixa o nome do parceiro (ex.: "Raho · Thiago Reis").
+        if (us) setModalUsers((Array.isArray(us?.items) ? us.items : []).map((u: any) => ({ id: u.id, name: u.partner?.name ? `${u.partner.name} · ${u.name}` : u.name })))
       } catch { /* silencioso */ }
     })()
   }, [open, canActAsUser])
