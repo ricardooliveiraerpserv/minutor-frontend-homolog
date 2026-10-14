@@ -104,7 +104,7 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
 
 function OptBadge({ label }: { label?: string | null }) {
   if (!label) return null
-  return <span className="inline-block align-middle px-1.5 py-0.5 mr-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
+  return <span className="inline-block align-middle px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
 }
 
 function SearchSelect({ value, onChange, options, placeholder }: {
@@ -133,7 +133,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
       <button type="button" onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm outline-none text-left"
         style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: selected ? 'var(--text)' : 'var(--text-light)' }}>
-        <span className="truncate text-sm">{selected ? <><OptBadge label={selected.badge} />{selected.name}</> : placeholder}</span>
+        <span className="truncate text-sm">{selected ? <>{selected.name}<OptBadge label={selected.badge} /></> : placeholder}</span>
         <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
       {open && (
@@ -154,7 +154,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}>
-                  <OptBadge label={o.badge} />{o.name}
+                  {o.name}<OptBadge label={o.badge} />
                 </button>
               ))}
           </div>

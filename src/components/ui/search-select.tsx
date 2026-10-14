@@ -8,7 +8,7 @@ export interface SearchSelectOption { id: number | string; name: string; badge?:
 // Badge (pill) mostrada na frente do nome — ex.: nome do parceiro no seletor de usuário.
 function OptBadge({ label }: { label?: string | null }) {
   if (!label) return null
-  return <span className="inline-block align-middle px-1.5 py-0.5 mr-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
+  return <span className="inline-block align-middle px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
 }
 
 export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled }: {
@@ -85,7 +85,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="truncate text-sm" title={selected ? selected.name : undefined}>{selected ? <><OptBadge label={selected.badge} />{selected.name}</> : placeholder}</span>
+        <span className="truncate text-sm" title={selected ? selected.name : undefined}>{selected ? <>{selected.name}<OptBadge label={selected.badge} /></> : placeholder}</span>
         <ChevronDown size={13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
 
@@ -123,7 +123,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
                 <button key={o.id} type="button" onClick={() => select(String(o.id))} title={o.name}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors whitespace-normal break-words leading-snug"
                   style={{ color: String(o.id) === String(value) ? 'var(--primary)' : 'var(--text)' }}>
-                  <OptBadge label={o.badge} />{o.name}
+                  {o.name}<OptBadge label={o.badge} />
                 </button>
               ))}
           </div>
