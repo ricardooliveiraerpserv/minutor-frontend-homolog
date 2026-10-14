@@ -865,6 +865,48 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         {/* ── Campos comuns ── */}
         {form.profiles.length > 0 && (
           <>
+            {/* ── STATUS (Ativo/Inativo) em destaque + janela de pagamento (no topo) ── */}
+            <div className="rounded-xl p-3 space-y-2" style={{ border: `1.5px solid ${form.enabled ? 'var(--success-border, #22c55e)' : 'var(--danger-border, #ef4444)'}`, background: form.enabled ? 'var(--success-bg, var(--surface-hover))' : 'var(--danger-bg, var(--surface-sunken))' }}>
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)' }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 999, background: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)', display: 'inline-block' }} />
+                  {form.enabled ? 'Ativo' : 'Inativo'}
+                </span>
+                <Toggle value={form.enabled} onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))} label="" />
+              </div>
+              {isEdit && !form.enabled && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface))' }}>
+                  <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar folha/salário até o mês *</label>
+                  <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
+                    className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    A partir do mês seguinte, o colaborador deixa de aparecer nos fechamentos e na folha. (o mês escolhido ainda é pago)
+                  </p>
+                </div>
+              )}
+              {isEdit && form.enabled && editItem && !editItem.enabled && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular folha ao reativar
+                  </label>
+                  {payrollResume && (
+                    <div>
+                      <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
+                      <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
+                        className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    </div>
+                  )}
+                </div>
+              )}
+              {isEdit && payrollSummary?.has_windows && (
+                <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  {payrollSummary.payable_now
+                    ? `Folha ativa${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
+                    : `Folha encerrada${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
+                </p>
+              )}
+            </div>
+
             <div>
               <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -1417,45 +1459,6 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               </div>
             )}
 
-            {/* ── Ativo ── */}
-            <Toggle
-              value={form.enabled}
-              onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
-              label="Ativo"
-            />
-
-            {/* ── Janela de pagamento (folha/fechamentos) ── */}
-            {isEdit && !form.enabled && (
-              <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface-sunken))' }}>
-                <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar folha/salário até o mês *</label>
-                <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
-                  className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  A partir do mês seguinte, o colaborador deixa de aparecer nos fechamentos e na folha. (o mês escolhido ainda é pago)
-                </p>
-              </div>
-            )}
-            {isEdit && form.enabled && editItem && !editItem.enabled && (
-              <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
-                  <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular folha ao reativar
-                </label>
-                {payrollResume && (
-                  <div>
-                    <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
-                    <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
-                      className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                  </div>
-                )}
-              </div>
-            )}
-            {isEdit && payrollSummary?.has_windows && (
-              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
-                {payrollSummary.payable_now
-                  ? `Folha ativa${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
-                  : `Folha encerrada${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
-              </p>
-            )}
           </>
         )}
 

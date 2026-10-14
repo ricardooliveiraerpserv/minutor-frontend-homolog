@@ -813,7 +813,13 @@ export default function UsersPage() {
             {loading ? <TableSkeleton /> : users.length === 0 ? (
               <tr><td colSpan={(canResetPwd ? 8 : 7) + (filterRole === 'parceiro_admin' ? 1 : 0) + (filterRole === 'cliente' ? 2 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
-              <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
+              <tr key={user.id} className={`border-b border-[var(--border)] transition-colors ${
+                selectedIds.has(user.id)
+                  ? 'bg-[var(--primary-soft)]'
+                  : !user.enabled
+                    ? 'bg-[var(--surface-sunken)] opacity-60 hover:opacity-100 hover:bg-[var(--surface-hover)]'
+                    : 'hover:bg-[var(--surface-hover)]'
+              }`}>
                 {canResetPwd && (
                   <td className="px-3 py-2.5 w-8">
                     <button type="button" onClick={() => toggleSelect(user.id)} className="text-[var(--text-light)] hover:text-[var(--text)] flex items-center">
