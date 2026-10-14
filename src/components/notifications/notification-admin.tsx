@@ -1124,7 +1124,7 @@ interface LogData { recipients: LogRow[]; summary: { total: number; viewed: numb
 function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [data, setData] = useState<LogData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
+  const [filter, setFilter] = useState<'all' | 'viewed' | 'pending' | 'responded'>('all')
   const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
   // Modal de confirmação (revogar / cancelar convite / reativar) — substitui o confirm() nativo.
   const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' | 'survey_revoke' | 'poll_revoke' } | null>(null)
@@ -1183,11 +1183,23 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   }
 
   const dt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
+  const didRespond = (r: LogRow) => !!r.survey_responded || !!r.poll_voted
   const rows = (data?.recipients ?? []).filter(r => {
-    const okView = filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at
+    const okView = filter === 'all' ? true
+      : filter === 'viewed' ? !!r.viewed_at
+      : filter === 'responded' ? didRespond(r)
+      : !r.viewed_at
     const okResp = respFilter === 'all' ? true : respFilter === 'none' ? !r.response : r.response === respFilter
     return okView && okResp
   })
+  // Contagem por aba (ignora convites cancelados).
+  const activeRecs = (data?.recipients ?? []).filter(r => !r.cancelled)
+  const tabCount = (k: string) => k === 'all' ? activeRecs.length
+    : k === 'viewed' ? activeRecs.filter(r => r.viewed_at).length
+    : k === 'responded' ? activeRecs.filter(didRespond).length
+    : activeRecs.filter(r => !r.viewed_at).length
+  const hasResponded = !!(data?.summary.is_survey || data?.summary.is_poll)
+  const tabs: [string, string][] = [['all', 'Todos'], ['viewed', 'Visualizaram'], ['pending', 'Não viram'], ...(hasResponded ? [['responded', 'Responderam'] as [string, string]] : [])]
 
   // Exporta as linhas FILTRADAS em Excel real (.xlsx). Quando há familiares: 1 linha por PESSOA
   // (titular + cada familiar abaixo) com coluna "Convidado de" indicando de quem o familiar é.
@@ -1289,11 +1301,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 })()}
               </div>
 
-              {/* Filtro por visualização + exportar */}
-              <div className="flex items-center gap-1 text-[11px]">
-                {([['all', 'Todos'], ['viewed', 'Visualizaram'], ['pending', 'Não viram']] as const).map(([k, l]) => (
-                  <button key={k} onClick={() => setFilter(k)} className="px-2.5 py-1 rounded-md font-medium"
-                    style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
+              {/* Filtro por visualização/resposta + exportar */}
+              <div className="flex items-center gap-1 text-[11px] flex-wrap">
+                {tabs.map(([k, l]) => (
+                  <button key={k} onClick={() => setFilter(k as 'all' | 'viewed' | 'pending' | 'responded')} className="px-2.5 py-1 rounded-md font-medium"
+                    style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l} ({tabCount(k)})</button>
                 ))}
                 <div className="flex-1" />
                 <button onClick={exportXlsx} title="Exportar em Excel (.xlsx)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
