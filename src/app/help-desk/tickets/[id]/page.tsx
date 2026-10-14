@@ -936,14 +936,14 @@ function TicketDetailInner({ id }: { id: number }) {
         )}
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="min-w-0">
               <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.ticket_number ?? `#${t.id}`}</span>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.subject}</h1>
+              <h1 className="text-lg font-semibold break-words" style={{ color: 'var(--text)' }}>{t.subject}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
             {/* Olho: quem está visualizando o chamado agora — só se o perfil de acesso permitir a colisão. */}
             {(t.can_see_collision !== false || user?.type === 'admin') && (
             <span
