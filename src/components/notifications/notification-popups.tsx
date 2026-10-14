@@ -7,12 +7,10 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock, ChevronsDown, ClipboardList } from 'lucide-react'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
+import { SurveyAnswerModal, type SurveyData } from './survey-answer-modal'
 
 interface PollOpt { id: number; label: string }
 interface PollData { poll_id: number; question: string; multiple_choice: boolean; options: PollOpt[]; has_voted: boolean; my_option_ids: number[]; closed: boolean }
-// Pesquisa (survey): formulário com várias perguntas (texto/pessoa/escolha).
-interface SurveyQ { id: number; label: string; type: 'text' | 'person' | 'choice'; required: boolean; multiple: boolean; options: { id: number; label: string }[] }
-interface SurveyData { survey_id: number; anonymous: boolean; closed: boolean; has_responded: boolean; people?: { id: number; name: string }[]; questions: SurveyQ[] }
 interface Notif {
   id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll' | 'survey'
   priority: 'low' | 'medium' | 'high' | 'critical'; requires_ack: boolean; pending_ack: boolean
@@ -80,8 +78,6 @@ export function NotificationPopups({ userId }: { userId: number }) {
   const [guests, setGuests] = useState<GuestRow[]>([])
   // Modal de resposta da PESQUISA (survey).
   const [surveyModal, setSurveyModal] = useState<Notif | null>(null)
-  type SAns = { text?: string; user_id?: string; option_ids?: number[] }
-  const [surveyAns, setSurveyAns] = useState<Record<number, SAns>>({})
   const bodyRef = useRef<HTMLDivElement>(null)
   const [canOk, setCanOk] = useState(true)   // gate: só libera o OK após rolar até o fim quando há barra
   const popped = useRef<Set<string>>(new Set())
@@ -216,31 +212,8 @@ export function NotificationPopups({ userId }: { userId: number }) {
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao votar') } finally { setBusy(false) }
   }
 
-  // ── Pesquisa (survey) ──
-  const openSurvey = (n: Notif) => { setSurveyAns({}); setSurveyModal(n) }
-  const surveyValid = (n: Notif) => (n.survey?.questions ?? []).every(q => {
-    if (!q.required) return true
-    const a = surveyAns[q.id] || {}
-    if (q.type === 'text') return !!a.text?.trim()
-    if (q.type === 'person') return !!a.user_id
-    return (a.option_ids?.length ?? 0) > 0
-  })
-  const submitSurvey = async (n: Notif) => {
-    if (!n.survey) return
-    if (!surveyValid(n)) { toast.error('Responda as perguntas obrigatórias.'); return }
-    setBusy(true)
-    try {
-      const answers = n.survey.questions.map(q => {
-        const a = surveyAns[q.id] || {}
-        if (q.type === 'text') return { question_id: q.id, text: a.text ?? '' }
-        if (q.type === 'person') return { question_id: q.id, user_id: a.user_id ?? '' }
-        return { question_id: q.id, option_ids: a.option_ids ?? [] }
-      })
-      await api.post(`/surveys/${n.survey.survey_id}/respond`, { answers })
-      markSeen(n); setQueue(q => q.filter(x => x.id !== n.id)); setSurveyModal(null); setSurveyAns({})
-      toast.success('Pesquisa respondida ✓')
-    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao enviar') } finally { setBusy(false) }
-  }
+  // ── Pesquisa (survey) ── respondida no <SurveyAnswerModal>; aqui só abrimos.
+  const openSurvey = (n: Notif) => setSurveyModal(n)
 
   const mandatory = current.type === 'require_ack' || current.pending_ack
 
@@ -385,62 +358,14 @@ export function NotificationPopups({ userId }: { userId: number }) {
       </div>
     )}
 
-    {/* Modal de resposta da PESQUISA */}
+    {/* Modal de resposta da PESQUISA (componente compartilhado com o Meu Dia) */}
     {surveyModal?.survey && (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
-        <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-            <ClipboardList size={16} style={{ color: 'var(--primary)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{surveyModal.title}</span>
-            <button onClick={() => setSurveyModal(null)} className="ml-auto" style={{ color: 'var(--text-muted)' }} aria-label="Fechar"><X size={16} /></button>
-          </div>
-          <div className="px-5 py-4 space-y-4 overflow-y-auto">
-            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
-              {surveyModal.survey.anonymous ? 'Respostas anônimas — sua identidade não é registrada.' : 'Respondendo de forma identificada (seu nome fica registrado).'} Perguntas com <b>*</b> são obrigatórias.
-            </p>
-            {surveyModal.survey.questions.map((q, qi) => {
-              const a = surveyAns[q.id] || {}
-              return (
-                <div key={q.id} className="space-y-1.5">
-                  <label className="block text-sm font-medium" style={{ color: 'var(--text)' }}>{qi + 1}. {q.label} {q.required && <span style={{ color: 'var(--danger, #dc2626)' }}>*</span>}</label>
-                  {q.type === 'text' && (
-                    <input className="ds-input w-full text-sm" placeholder="Sua resposta" value={a.text ?? ''} onChange={e => setSurveyAns(s => ({ ...s, [q.id]: { ...s[q.id], text: e.target.value } }))} />
-                  )}
-                  {q.type === 'person' && (
-                    <select className="ds-input w-full text-sm" value={a.user_id ?? ''} onChange={e => setSurveyAns(s => ({ ...s, [q.id]: { ...s[q.id], user_id: e.target.value } }))}>
-                      <option value="">Selecione a pessoa…</option>
-                      {(surveyModal.survey!.people ?? []).map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-                    </select>
-                  )}
-                  {q.type === 'choice' && (
-                    <div className="space-y-1">
-                      {q.options.map(o => {
-                        const picked = (a.option_ids ?? []).includes(o.id)
-                        const toggle = () => setSurveyAns(s => {
-                          const cur = s[q.id]?.option_ids ?? []
-                          const next = q.multiple ? (cur.includes(o.id) ? cur.filter(x => x !== o.id) : [...cur, o.id]) : [o.id]
-                          return { ...s, [q.id]: { ...s[q.id], option_ids: next } }
-                        })
-                        return (
-                          <button key={o.id} type="button" onClick={toggle} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm"
-                            style={{ border: `1px solid ${picked ? 'var(--primary)' : 'var(--border)'}`, background: picked ? 'var(--primary-soft)' : 'var(--surface)', color: 'var(--text)' }}>
-                            <span className="inline-flex items-center justify-center shrink-0" style={{ width: 16, height: 16, borderRadius: q.multiple ? 4 : 999, border: `1.5px solid ${picked ? 'var(--primary)' : 'var(--border)'}`, background: picked ? 'var(--primary)' : 'transparent' }}>{picked && <CheckCircle2 size={11} style={{ color: 'var(--primary-fg)' }} />}</span>
-                            {o.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <div className="px-5 py-3 flex items-center justify-end gap-2 border-t" style={{ borderColor: 'var(--border)' }}>
-            <button onClick={() => setSurveyModal(null)} disabled={busy} className="ds-btn-secondary text-sm px-4 py-2 rounded-lg">Cancelar</button>
-            <button onClick={() => submitSurvey(surveyModal)} disabled={busy} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><CheckCircle2 size={15} /> Enviar respostas</button>
-          </div>
-        </div>
-      </div>
+      <SurveyAnswerModal
+        title={surveyModal.title}
+        survey={surveyModal.survey}
+        onClose={() => setSurveyModal(null)}
+        onSubmitted={() => { markSeen(surveyModal); setQueue(q => q.filter(x => x.id !== surveyModal.id)); setSurveyModal(null) }}
+      />
     )}
     </>
   )

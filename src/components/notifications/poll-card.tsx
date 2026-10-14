@@ -20,7 +20,7 @@ const PRIO: Record<string, { label: string; color: string; bg: string }> = {
 }
 
 /** Card de enquete: antes do voto mostra opções (radio/checkbox); depois, resultados em %. */
-export function PollCard({ title, priority, poll: initial }: { title: string; priority: string; poll: Poll }) {
+export function PollCard({ title, priority, poll: initial, onVoted }: { title: string; priority: string; poll: Poll; onVoted?: () => void }) {
   const [poll, setPoll] = useState<Poll>(initial)
   const [sel, setSel] = useState<number[]>(initial.my_option_ids ?? [])
   const [editing, setEditing] = useState<boolean>(!initial.has_voted)
@@ -44,7 +44,7 @@ export function PollCard({ title, priority, poll: initial }: { title: string; pr
     try {
       const body = poll.multiple_choice ? { option_ids: sel } : { option_id: sel[0] }
       const r = await api.post<{ data: Poll }>(`/polls/${poll.poll_id}/vote`, body)
-      setPoll(r.data); setEditing(false); toast.success('Voto registrado')
+      setPoll(r.data); setEditing(false); toast.success('Voto registrado'); onVoted?.()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao votar') } finally { setSaving(false) }
   }
 
