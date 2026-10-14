@@ -752,17 +752,17 @@ export default function FechamentoFolhaPage() {
                 disabled={rows.length === 0}
                 wide
               />
-              {/* ── Filtro por categoria de linha ── */}
+              {/* ── Filtro por categoria de linha (aba Raho só se houver linha Raho — regra antiga desativada) ── */}
               <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--border)' }}>
                 {([
                   ['todos',      'Todos'],
                   ['cooperados', 'Cooperados'],
-                  ['raho',       'Raho'],
+                  ...(rows.some(r => r.is_raho) ? [['raho', 'Raho'] as [string, string]] : []),
                   ['manuais',    'Manuais'],
-                ] as const).map(([val, lbl]) => (
+                ] as [string, string][]).map(([val, lbl]) => (
                   <button
                     key={val}
-                    onClick={() => setCategoria(val)}
+                    onClick={() => setCategoria(val as typeof categoria)}
                     className="px-2.5 py-1.5 font-medium transition-colors whitespace-nowrap"
                     style={{
                       background: categoria === val ? 'var(--primary-soft)' : 'transparent',
