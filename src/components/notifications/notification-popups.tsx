@@ -10,7 +10,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { SurveyAnswerModal, type SurveyData } from './survey-answer-modal'
 
 interface PollOpt { id: number; label: string }
-interface PollData { poll_id: number; question: string; multiple_choice: boolean; options: PollOpt[]; has_voted: boolean; my_option_ids: number[]; closed: boolean }
+interface PollData { poll_id: number; question: string; multiple_choice: boolean; options: PollOpt[]; has_voted: boolean; my_option_ids: number[]; closed: boolean; repop_at?: string | null }
 interface Notif {
   id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll' | 'survey'
   priority: 'low' | 'medium' | 'high' | 'critical'; requires_ack: boolean; pending_ack: boolean
@@ -25,7 +25,11 @@ interface GuestRow { nome: string; parentesco: string; idade: string; is_child?:
 // Idade obrigatória p/ Filho(a) e p/ "Outro" marcado como criança.
 function needsAge(g: GuestRow): boolean { return g.parentesco === 'Filho(a)' || (g.parentesco === 'Outro' && !!g.is_child) }
 // chave de "já exibido": muda quando o aviso é reenviado (resent_at) → o pop-up reaparece.
-const keyOf = (n: Notif) => `${n.id}@${n.resent_at ?? ''}`
+// Para pesquisa/enquete inclui tb o repop_at (per-user): ao admin revogar, muda só p/ essa pessoa.
+const keyOf = (n: Notif) => {
+  const rp = n.survey?.repop_at ?? n.poll?.repop_at
+  return `${n.id}@${n.resent_at ?? ''}${rp ? '@' + rp : ''}`
+}
 
 const RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 const POLL_MS = 30000   // rede de segurança; o tempo real vem do SSE (/notifications/stream)

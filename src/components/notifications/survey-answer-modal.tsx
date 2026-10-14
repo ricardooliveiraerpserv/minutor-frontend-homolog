@@ -7,7 +7,7 @@ import { CheckCircle2, ClipboardList, X } from 'lucide-react'
 
 // Pesquisa (survey): formulário com várias perguntas (texto/pessoa/escolha).
 export interface SurveyQ { id: number; label: string; type: 'text' | 'person' | 'choice'; required: boolean; multiple: boolean; options: { id: number; label: string }[] }
-export interface SurveyData { survey_id: number; anonymous: boolean; closed: boolean; has_responded: boolean; people?: { id: number; name: string }[]; questions: SurveyQ[] }
+export interface SurveyData { survey_id: number; anonymous: boolean; closed: boolean; has_responded: boolean; repop_at?: string | null; people?: { id: number; name: string }[]; questions: SurveyQ[] }
 type SAns = { text?: string; user_id?: string; option_ids?: number[] }
 
 /**
@@ -98,7 +98,7 @@ export function SurveyAnswerModal({ title, survey, onClose, onSubmitted }: { tit
 }
 
 /** Seletor de pessoa com busca por texto (combobox): filtra ao digitar e seleciona ao clicar. */
-function PersonSelect({ people, value, onChange }: { people: { id: number; name: string }[]; value: string; onChange: (id: string) => void }) {
+export function PersonSelect({ people, value, onChange, placeholder = 'Buscar pessoa…' }: { people: { id: number; name: string }[]; value: string; onChange: (id: string) => void; placeholder?: string }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -116,7 +116,7 @@ function PersonSelect({ people, value, onChange }: { people: { id: number; name:
     <div ref={ref}>
       <input
         className="ds-input w-full text-sm"
-        placeholder="Buscar pessoa…"
+        placeholder={placeholder}
         autoComplete="off"
         value={open ? q : (selected?.name ?? '')}
         onFocus={() => { setOpen(true); setQ('') }}
