@@ -40,6 +40,8 @@ interface FolhaRow {
   // Diretoria. SOMENTE-LEITURA na folha — nenhum campo é editável aqui.
   from_diretoria?: boolean
   partner_label?: string | null
+  // Vínculo de fechamento → Produção não editável (vem do fechamento, sempre calculada).
+  producao_locked?: boolean
   // Valores ORIGINAIS calculados do mês (Raho) — p/ legenda "original" quando alterado.
   producao_calc?: number
   valor_hora_calc?: number
@@ -1172,11 +1174,11 @@ export default function FechamentoFolhaPage() {
                           ) : r.is_parceiro_total ? '—' : fmtNum(r.valor_hora, 2)}
                         </Td>
 
-                        {/* ── Produção: editável p/ todos (exceto diretor); legendas = produção calculada + despesa do mês ── */}
+                        {/* ── Produção: vínculo de fechamento → read-only (vem do fechamento); sócio/manual → editável ── */}
                         <Td right>
                           <div className="flex flex-col items-end gap-0.5">
-                            {readOnly ? (
-                              <span className="tabular-nums font-medium" style={{ color: 'var(--text)' }}>{formatBRL(e.producao || 0)}</span>
+                            {(readOnly || r.producao_locked) ? (
+                              <span className="tabular-nums font-medium" style={{ color: 'var(--text)' }}>{formatBRL((r.producao_locked ? r.producao : e.producao) || 0)}</span>
                             ) : (
                               <MaskedNum
                                 value={e.producao}
