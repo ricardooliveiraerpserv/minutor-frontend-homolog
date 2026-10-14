@@ -852,9 +852,14 @@ export default function FechamentoConsultorPage() {
 
   // ─── Filtros ──────────────────────────────────────────────────────────────
 
+  // "Com movimento" = tem valor/horas aprovadas OU PENDÊNCIA (apontamento pendente/ajuste).
+  // Regra do sistema: consultor com apontamento pendente aparece no fechamento (com a legenda).
+  const temMovimento = (c: ConsultorBase) =>
+    c.total > 0 || c.horas_trabalhadas > 0 || (c.horas_pendentes ?? 0) > 0 || (c.pendencias_count ?? 0) > 0
+
   function applyFilters<T extends ConsultorBase>(rows: T[]): T[] {
     let r = rows
-    if (apenasComMovimento) r = r.filter(c => c.total > 0 || c.horas_trabalhadas > 0)
+    if (apenasComMovimento) r = r.filter(temMovimento)
     if (contractType) r = r.filter(c => c.contract_type === contractType)
     if (envioFilter === 'enviado') r = r.filter(c => !!c.envio_em)
     else if (envioFilter === 'nao_enviado') r = r.filter(c => !c.envio_em)
@@ -1379,7 +1384,7 @@ export default function FechamentoConsultorPage() {
     // por nome (pra bater com as abas), mas IGNORA o filtro de Tipo de Contrato:
     // esta tabela É a quebra por contrato, então mostra todos os tipos sempre.
     const baseSemFiltroContrato = (todos as ConsultorBase[]).filter(c => {
-      if (apenasComMovimento && !(c.total > 0 || c.horas_trabalhadas > 0)) return false
+      if (apenasComMovimento && !temMovimento(c)) return false
       if (filterNome.trim() && !c.nome.toLowerCase().includes(filterNome.trim().toLowerCase())) return false
       return true
     })
