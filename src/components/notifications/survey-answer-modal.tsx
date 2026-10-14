@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { CheckCircle2, ClipboardList, X } from 'lucide-react'
@@ -63,10 +63,7 @@ export function SurveyAnswerModal({ title, survey, onClose, onSubmitted }: { tit
                   <input className="ds-input w-full text-sm" placeholder="Sua resposta" value={a.text ?? ''} onChange={e => setAns(s => ({ ...s, [q.id]: { ...s[q.id], text: e.target.value } }))} />
                 )}
                 {q.type === 'person' && (
-                  <select className="ds-input w-full text-sm" value={a.user_id ?? ''} onChange={e => setAns(s => ({ ...s, [q.id]: { ...s[q.id], user_id: e.target.value } }))}>
-                    <option value="">Selecione a pessoa…</option>
-                    {(survey.people ?? []).map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-                  </select>
+                  <PersonSelect people={survey.people ?? []} value={a.user_id ?? ''} onChange={id => setAns(s => ({ ...s, [q.id]: { ...s[q.id], user_id: id } }))} />
                 )}
                 {q.type === 'choice' && (
                   <div className="space-y-1">
@@ -96,6 +93,48 @@ export function SurveyAnswerModal({ title, survey, onClose, onSubmitted }: { tit
           <button onClick={submit} disabled={busy} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><CheckCircle2 size={15} /> Enviar respostas</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Seletor de pessoa com busca por texto (combobox): filtra ao digitar e seleciona ao clicar. */
+function PersonSelect({ people, value, onChange }: { people: { id: number; name: string }[]; value: string; onChange: (id: string) => void }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = people.find(p => String(p.id) === value)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+  const filtered = q.trim() ? people.filter(p => p.name.toLowerCase().includes(q.toLowerCase())) : people
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className="ds-input w-full text-sm"
+        placeholder="Buscar pessoa…"
+        autoComplete="off"
+        value={open ? q : (selected?.name ?? '')}
+        onFocus={() => { setOpen(true); setQ('') }}
+        onChange={e => { setQ(e.target.value); setOpen(true) }}
+      />
+      {open && (
+        <div className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-auto rounded-lg shadow-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          {filtered.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>Ninguém encontrado.</div>}
+          {filtered.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => { onChange(String(p.id)); setOpen(false); setQ('') }}
+              className="w-full text-left px-3 py-2 text-sm"
+              style={{ color: 'var(--text)', background: String(p.id) === value ? 'var(--primary-soft)' : 'transparent' }}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
