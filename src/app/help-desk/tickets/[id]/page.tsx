@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
+import { HelpDeskGlobalSearch } from '@/components/help-desk/global-search'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useConfirm } from '@/components/ui/use-confirm'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -897,7 +898,11 @@ function TicketDetailInner({ id }: { id: number }) {
   return (
     <AppLayout title={t.ticket_number ?? `Chamado #${t.id}`}>
       <div className="space-y-4">
-        <TicketTabs activeId={id} />
+        {/* Abas de chamados abertos + lupa da BUSCA GLOBAL (igual à fila: acha qualquer chamado e abre). */}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0"><TicketTabs activeId={id} /></div>
+          <HelpDeskGlobalSearch onOpen={(tid) => { if (tid !== id) router.push(`/help-desk/tickets/${tid}`) }} />
+        </div>
         {/* Modo Atendimento — barra de controles contínua */}
         {modoAtivo && final === null && <ModoAtendimentoBar currentId={id} onPrev={prevTicket} onSkip={skipTicket} onEnd={openFinal} />}
 
