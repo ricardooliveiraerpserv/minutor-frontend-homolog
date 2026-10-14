@@ -13,6 +13,7 @@ import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { SearchSelect } from '@/components/ui/search-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass, Pin, BookOpen } from 'lucide-react'
@@ -3688,7 +3689,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   const allow = manualIds.has(c.id)
                   return (
                     <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                       <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
                         title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                         className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
@@ -3709,7 +3710,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 <div className="flex flex-wrap gap-1.5">
                   {allConsultants.filter(c => selectedIds.has(c.id)).map(c => (
                     <span key={c.id} className="inline-flex items-center gap-1 text-[11px] rounded-lg px-2 py-1" style={{ background: 'var(--surface)', border: '1px solid rgba(139,92,246,0.35)', color: 'var(--text)' }}>
-                      {c.name}
+                      {c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} />
                       <button onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))} title="Desalocar" className="hover:opacity-70" style={{ color: 'var(--danger)' }}><X size={12} /></button>
                     </span>
                   ))}
@@ -3744,7 +3745,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? '#8b5cf6' : 'var(--surface)', border: `1.5px solid ${sel ? '#8b5cf6' : 'var(--text-light)'}` }}>
                       {sel && <Check size={12} style={{ color: '#fff' }} />}
                     </div>
-                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}</span>
+                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </button>
                 )
               })}

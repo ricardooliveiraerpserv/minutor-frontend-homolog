@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X, Check, MessageSquare, Trash2, Search, Download, FileText } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { SustProjectsInline } from '@/components/dashboard/SustProjectsInline'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -551,7 +552,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   const allow = manualIds.has(c.id)
                   return (
                     <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                       <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
                         title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                         className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
@@ -585,7 +586,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                       {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
                     </div>
-                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}</span>
+                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </button>
                 )
               })}
