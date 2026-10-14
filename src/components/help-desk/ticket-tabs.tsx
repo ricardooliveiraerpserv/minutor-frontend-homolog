@@ -4,38 +4,25 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Headset, List } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { hdTabsKey, clearHdTabs } from '@/lib/hd-tabs'
 
 // Abas de chamados abertos (estilo Movidesk): alternar entre tickets sem voltar pra lista.
-// Estado persistido em localStorage POR USUÁRIO → cada login vê só as SUAS abas (não vaza entre perfis).
+// Estado em sessionStorage POR USUÁRIO → NÃO persiste "para sempre"; some ao fechar a aba do
+// navegador, ao deslogar e ao sair do Help Desk. (Antes era localStorage e ficava pra sempre.)
 
 export type TicketTab = { id: number; number: string | null; subject: string }
 const MAX = 12
-// Chave escopada pelo usuário logado (evita que outro perfil veja as abas de quem usou o navegador antes).
-const keyFor = (uid?: number | null) => `hd_open_tickets_${uid ?? 'anon'}`
 
 function read(uid?: number | null): TicketTab[] {
-  try { const v = JSON.parse(localStorage.getItem(keyFor(uid)) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] }
+  try { const v = JSON.parse(sessionStorage.getItem(hdTabsKey(uid)) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] }
 }
 function write(tabs: TicketTab[], uid?: number | null) {
-  localStorage.setItem(keyFor(uid), JSON.stringify(tabs.slice(-MAX)))
+  sessionStorage.setItem(hdTabsKey(uid), JSON.stringify(tabs.slice(-MAX)))
   window.dispatchEvent(new Event('hd-tabs-changed')) // avisa componentes na MESMA aba do navegador
 }
 
-/** Limpa TODAS as abas de chamados abertos (de todos os usuários no navegador). Chamar no logout
- *  e ao sair do Help Desk — as abas não devem persistir fora da navegação do HD. */
-export function clearTicketTabs() {
-  if (typeof window === 'undefined') return
-  try {
-    const toRemove: string[] = []
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i)
-      if (k && k.startsWith('hd_open_tickets_')) toRemove.push(k)
-    }
-    let changed = false
-    toRemove.forEach(k => { localStorage.removeItem(k); changed = true })
-    if (changed) window.dispatchEvent(new Event('hd-tabs-changed'))
-  } catch { /* noop */ }
-}
+/** Limpa TODAS as abas (logout / sair do Help Desk). Reexporta o util leaf. */
+export const clearTicketTabs = clearHdTabs
 
 /** Registra (ou atualiza) um chamado como aba aberta. Chamar quando o detalhe carrega. */
 export function addTicketTab(t: TicketTab, uid?: number | null) {

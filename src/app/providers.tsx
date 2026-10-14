@@ -11,20 +11,15 @@ import { ChatNotifier } from '@/components/inbox/chat-notifier'
 import { MeetingAlerts } from '@/components/notifications/meeting-alerts'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { clearHdTabs } from '@/lib/hd-tabs'
 
 // Abas de chamados abertos só valem DENTRO do Help Desk: ao navegar p/ fora de /help-desk,
-// limpa as chaves hd_open_tickets_*. Fica no Providers (persiste entre rotas → confiável).
+// limpa as abas. Fica no Providers (persiste entre rotas → confiável).
 function HdTabsGuard() {
   const pathname = usePathname()
   useEffect(() => {
-    if (typeof window === 'undefined' || !pathname || pathname.startsWith('/help-desk')) return
-    try {
-      for (let i = window.localStorage.length - 1; i >= 0; i--) {
-        const k = window.localStorage.key(i)
-        if (k && k.startsWith('hd_open_tickets_')) window.localStorage.removeItem(k)
-      }
-      window.dispatchEvent(new Event('hd-tabs-changed'))
-    } catch { /* noop */ }
+    if (!pathname || pathname.startsWith('/help-desk')) return
+    clearHdTabs()
   }, [pathname])
   return null
 }
