@@ -1133,6 +1133,15 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     setAllowOther(!!row.can_invite_other)
     setConfirmAction({ row, mode })
   }
+  // Reenviar o e-mail da comunicação só p/ UM destinatário (quem não respondeu/leu).
+  const [resendingId, setResendingId] = useState<number | null>(null)
+  const resendUser = async (row: LogRow) => {
+    setResendingId(row.user_id)
+    try {
+      const r = await api.post<{ data: { emailed: number } }>(`/notifications/${notif.id}/resend-user`, { user_id: row.user_id })
+      toast.success(r.data?.emailed ? `E-mail reenviado para ${row.user_name}.` : `Reenvio registrado — ${row.user_name} não tem e-mail para envio.`)
+    } catch { toast.error('Erro ao reenviar') } finally { setResendingId(null) }
+  }
 
   const load = useCallback(() => {
     setLoading(true)
@@ -1393,7 +1402,14 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                                   <RefreshCw size={10} /> Revogar
                                 </button>
                               </div>
-                            ) : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Não respondeu</span>}
+                            ) : (
+                              <div className="flex flex-col items-start gap-0.5">
+                                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Não respondeu</span>
+                                <button onClick={() => resendUser(r)} disabled={resendingId === r.user_id} className="inline-flex items-center gap-1 text-[10px] hover:underline disabled:opacity-50" style={{ color: 'var(--primary)' }} title="Reenviar o e-mail da pesquisa para esta pessoa">
+                                  <RefreshCw size={10} /> {resendingId === r.user_id ? 'Reenviando…' : 'Reenviar'}
+                                </button>
+                              </div>
+                            )}
                           </td>
                         )}
                       </tr>
