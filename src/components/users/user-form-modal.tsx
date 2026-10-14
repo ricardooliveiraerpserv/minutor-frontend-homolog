@@ -421,6 +421,19 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   const [receiverConfirm, setReceiverConfirm] = useState<1 | 2 | null>(null)
   const receiverIntentRef = useRef(false)
 
+  // Janela de pagamento (folha/fechamentos): até qual mês pagar quando inativo; retomada ao reativar.
+  const curMonth = () => new Date().toISOString().slice(0, 7)
+  const [payrollEnd, setPayrollEnd] = useState<string>('')
+  const [payrollResume, setPayrollResume] = useState<boolean>(true)
+  const [payrollResumeFrom, setPayrollResumeFrom] = useState<string>('')
+  const [payrollSummary, setPayrollSummary] = useState<{ has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } | null>(null)
+  useEffect(() => {
+    if (!open || userId == null) { setPayrollSummary(null); return }
+    api.get<{ data: { has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } }>(`/payroll-windows?holder_type=user&holder_id=${userId}`)
+      .then(r => { setPayrollSummary(r.data ?? null); setPayrollEnd(r.data?.paid_until ?? curMonth()); setPayrollResumeFrom(curMonth()) })
+      .catch(() => {})
+  }, [open, userId])
+
   // Histórico de valores-hora (somente leitura) — GET /users/{id}/hourly-rate-history
   const [rateHistoryOpen, setRateHistoryOpen] = useState(false)
   const [rateHistory, setRateHistory] = useState<any[]>([])
@@ -621,6 +634,11 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         name:        form.name,
         email:       form.email,
         enabled:     form.enabled,
+        // Janela de pagamento (só na edição): corte ao inativar / retomada ao reativar.
+        ...(isEdit && !form.enabled ? { payroll_end_month: payrollEnd || curMonth() } : {}),
+        ...(isEdit && form.enabled && editItem && !editItem.enabled
+          ? { payroll_resume: payrollResume, payroll_resume_from: payrollResume ? (payrollResumeFrom || curMonth()) : null }
+          : {}),
         can_use_bot: form.can_use_bot,
         bot_allowed_scopes: form.bot_allowed_scopes,
         bot_visibility: form.bot_visibility,
@@ -1405,6 +1423,39 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
               label="Ativo"
             />
+
+            {/* ── Janela de pagamento (folha/fechamentos) ── */}
+            {isEdit && !form.enabled && (
+              <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface-sunken))' }}>
+                <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar folha/salário até o mês *</label>
+                <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
+                  className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  A partir do mês seguinte, o colaborador deixa de aparecer nos fechamentos e na folha. (o mês escolhido ainda é pago)
+                </p>
+              </div>
+            )}
+            {isEdit && form.enabled && editItem && !editItem.enabled && (
+              <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
+                  <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular folha ao reativar
+                </label>
+                {payrollResume && (
+                  <div>
+                    <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
+                    <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
+                      className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                  </div>
+                )}
+              </div>
+            )}
+            {isEdit && payrollSummary?.has_windows && (
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                {payrollSummary.payable_now
+                  ? `Folha ativa${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
+                  : `Folha encerrada${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
+              </p>
+            )}
           </>
         )}
 

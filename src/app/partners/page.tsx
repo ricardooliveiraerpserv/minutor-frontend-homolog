@@ -81,6 +81,19 @@ export default function PartnersPage() {
   const [modal, setModal]     = useState<{ open: boolean; item?: PartnerItem }>({ open: false })
   const [form, setForm]       = useState({ ...EMPTY_FORM })
   const [saving, setSaving]   = useState(false)
+  // Janela de pagamento (folha/fechamento parceiro): corte ao inativar / retomada ao reativar.
+  const curMonth = () => new Date().toISOString().slice(0, 7)
+  const [payrollEnd, setPayrollEnd] = useState('')
+  const [payrollResume, setPayrollResume] = useState(true)
+  const [payrollResumeFrom, setPayrollResumeFrom] = useState('')
+  const [payrollSummary, setPayrollSummary] = useState<{ has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } | null>(null)
+  useEffect(() => {
+    const id = modal.item?.id
+    if (!modal.open || !id) { setPayrollSummary(null); return }
+    api.get<{ data: { has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } }>(`/payroll-windows?holder_type=partner&holder_id=${id}`)
+      .then(r => { setPayrollSummary(r.data ?? null); setPayrollEnd(r.data?.paid_until ?? curMonth()); setPayrollResumeFrom(curMonth()) })
+      .catch(() => {})
+  }, [modal.open, modal.item?.id])
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   // Vigência do novo valor-hora: quando o hourly_rate muda, perguntamos a partir de qual mês passa a valer.
@@ -165,6 +178,11 @@ export default function PartnersPage() {
         email:        form.email || null,
         phone:        form.phone || null,
         active:        form.active,
+        // Janela de pagamento (só na edição): corte ao inativar / retomada ao reativar.
+        ...(modal.item && !form.active ? { payroll_end_month: payrollEnd || curMonth() } : {}),
+        ...(modal.item && form.active && !modal.item.active
+          ? { payroll_resume: payrollResume, payroll_resume_from: payrollResume ? (payrollResumeFrom || curMonth()) : null }
+          : {}),
         pricing_type:  form.pricing_type,
         hourly_rate:   form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
         contract_type: form.contract_type || null,
@@ -445,6 +463,37 @@ export default function PartnersPage() {
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
+
+              {/* Janela de pagamento (folha/fechamento parceiro) */}
+              {modal.item && !form.active && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface-hover))' }}>
+                  <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar fechamento até o mês *</label>
+                  <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
+                    className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>A partir do mês seguinte, o parceiro sai dos fechamentos/folha. (o mês escolhido ainda é pago)</p>
+                </div>
+              )}
+              {modal.item && form.active && !modal.item.active && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular fechamento ao reativar
+                  </label>
+                  {payrollResume && (
+                    <div>
+                      <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
+                      <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
+                        className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    </div>
+                  )}
+                </div>
+              )}
+              {modal.item && payrollSummary?.has_windows && (
+                <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  {payrollSummary.payable_now
+                    ? `Fechamento ativo${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
+                    : `Fechamento encerrado${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
+                </p>
+              )}
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })}
