@@ -50,6 +50,8 @@ interface UserData {
   is_bizify_coordinator?: boolean
   full_name?: string | null
   cpf?: string | null
+  cnpj?: string | null
+  tax_regime?: string | null
   matricula?: string | null
   birth_date?: string | null
   signature?: SignatureData | null
@@ -113,6 +115,28 @@ const formatCpf = (raw: string): string => {
 
 // Máscara de CEP 00000-000.
 const formatCep = (raw: string): string => raw.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2')
+
+// Máscara de CNPJ 00.000.000/0000-00.
+const formatCnpj = (raw: string): string => {
+  const d = raw.replace(/\D/g, '').slice(0, 14)
+  return d
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5')
+}
+
+// Regime tributário do consultor (PJ). Base do levantamento da Reforma Tributária.
+const TAX_REGIME_OPTIONS = [
+  { value: '',                 label: '— não informado —' },
+  { value: 'mei',              label: 'MEI' },
+  { value: 'simples_nacional', label: 'Simples Nacional' },
+  { value: 'lucro_presumido',  label: 'Lucro Presumido' },
+  { value: 'lucro_real',       label: 'Lucro Real' },
+  { value: 'nao_aplica',       label: 'Não se aplica (Pessoa Física)' },
+]
+const TAX_REGIME_LABEL: Record<string, string> =
+  Object.fromEntries(TAX_REGIME_OPTIONS.filter(o => o.value).map(o => [o.value, o.label]))
 
 function resolveTypeForBackend(profile: ProfileType): string {
   if (profile === 'administrator') return 'admin'
@@ -364,6 +388,8 @@ const EMPTY_FORM = {
   // Folha de pagamento
   full_name: '',
   cpf: '',
+  cnpj: '',
+  tax_regime: '',
   matricula: '',
   birth_date: '',
   // Assinatura padrão (estruturada)
@@ -412,6 +438,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   const [loadingItem, setLoadingItem] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [cepLoading, setCepLoading] = useState(false)
+  const [cnpjLoading, setCnpjLoading] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
   // Vigência do novo valor-hora/tipo: quando o hourly_rate OU o tipo muda, perguntamos a partir de qual mês passa a valer.
@@ -605,6 +632,8 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           is_bizify_coordinator:      item.is_bizify_coordinator ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
+          cnpj:                       item.cnpj ?? '',
+          tax_regime:                 item.tax_regime ?? '',
           matricula:                  item.matricula ?? '',
           birth_date:                 (item.birth_date ?? '').slice(0, 10),
           signature:                  (item.signature as SignatureData | undefined) ?? {},
@@ -648,6 +677,21 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         state:          data.uf         || '',
       }))
     } catch { toast.error('Não foi possível buscar o CEP') } finally { setCepLoading(false) }
+  }
+
+  // Consulta o CNPJ na Receita (backend → BrasilAPI) e preenche o regime tributário.
+  const lookupCnpj = async () => {
+    const d = (form.cnpj || '').replace(/\D/g, '')
+    if (d.length !== 14) { toast.error('Informe um CNPJ com 14 dígitos'); return }
+    setCnpjLoading(true)
+    try {
+      const data = await api.get<{ tax_regime: string; razao_social?: string | null }>(`/users/cnpj-lookup/${d}`)
+      setForm(f => ({ ...f, tax_regime: data.tax_regime }))
+      const nome = data.razao_social ? ` (${data.razao_social})` : ''
+      toast.success(`Regime: ${TAX_REGIME_LABEL[data.tax_regime] ?? data.tax_regime}${nome}`)
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível consultar o CNPJ')
+    } finally { setCnpjLoading(false) }
   }
 
   const save = async (hourlyRateEffectiveFrom?: string, guaranteedEffectiveFrom?: string) => {
@@ -723,6 +767,8 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       if (payrollProfile) {
         payload.full_name      = form.full_name || null
         payload.cpf            = form.cpf || null
+        payload.cnpj           = form.cnpj || null
+        payload.tax_regime     = form.tax_regime || null
         payload.matricula      = form.matricula || null
         payload.birth_date     = form.birth_date || null
         payload.payroll_status = form.payroll_status || PAYROLL_STATUS_DEFAULT
@@ -1301,6 +1347,26 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                       className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                 </div>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label className="text-xs text-[var(--text-muted)]">CNPJ</Label>
+                    <Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: formatCnpj(e.target.value) }))}
+                      placeholder="00.000.000/0000-00" inputMode="numeric"
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                  </div>
+                  <Button type="button" variant="outline" onClick={lookupCnpj} disabled={cnpjLoading}
+                    title="Consulta o regime na Receita (MEI/Simples/demais) pelo CNPJ"
+                    className="h-9 text-xs whitespace-nowrap gap-1">
+                    {cnpjLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    Consultar Receita
+                  </Button>
+                </div>
+                <FieldSelect
+                  label="Regime tributário"
+                  value={form.tax_regime || ''}
+                  onChange={v => setForm(f => ({ ...f, tax_regime: v }))}
+                  options={TAX_REGIME_OPTIONS}
+                />
                 <FieldSelect
                   label="Status"
                   value={form.payroll_status}
