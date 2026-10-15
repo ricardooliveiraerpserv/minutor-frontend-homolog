@@ -22,6 +22,7 @@ import { useNavConfig, type NavTreeNode } from '@/contexts/nav-config-context'
 import { useRouter } from 'next/navigation'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { UserFormModal } from '@/components/users/user-form-modal'
+import { MultiSelect } from '@/components/ui/multi-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ interface UserItem {
   // Folha de pagamento
   full_name?: string | null
   cpf?: string | null
+  cnpj?: string | null
+  razao_social?: string | null
+  tax_regime?: 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'nao_aplica' | null
   matricula?: string | null
   payroll_status?: string | null
   created_at: string
@@ -97,6 +101,16 @@ const CONTRACT_OPTIONS: { value: ContractType; label: string }[] = [
 
 const contractLabel = (v: string | null | undefined): string =>
   CONTRACT_OPTIONS.find(o => o.value === v)?.label ?? '—'
+
+const TAX_REGIME_OPTIONS: { value: string; label: string }[] = [
+  { value: 'mei',              label: 'MEI' },
+  { value: 'simples_nacional', label: 'Simples Nacional' },
+  { value: 'lucro_presumido',  label: 'Lucro Presumido' },
+  { value: 'lucro_real',       label: 'Lucro Real' },
+  { value: 'nao_aplica',       label: 'Não se aplica' },
+]
+const taxRegimeLabel = (v: string | null | undefined): string =>
+  TAX_REGIME_OPTIONS.find(o => o.value === v)?.label ?? '—'
 
 function resolveTypeForBackend(profile: ProfileType): string {
   if (profile === 'administrator') return 'admin'
@@ -210,15 +224,15 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
+  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', page: 1 } as any) }
   // Limpa TODOS os filtros (busca, aba, ativos, e os filtros específicos).
-  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterManager || filterBond || filterContract || filterConsultantType || filterSust)
-  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any)
+  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterManager || filterBond || filterContract || filterConsultantType || filterSust || filterTaxRegime)
+  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', page: 1 } as any)
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
   const setFilterManager  = (v: string) => setFilter({ filterManager: v, page: 1 } as any)
@@ -226,6 +240,7 @@ export default function UsersPage() {
   const setFilterContract      = (v: string) => setFilter({ filterContract: v, page: 1 } as any)
   const setFilterConsultantType= (v: string) => setFilter({ filterConsultantType: v, page: 1 } as any)
   const setFilterSust          = (v: string) => setFilter({ filterSust: v, page: 1 } as any)
+  const setFilterTaxRegime     = (v: string) => setFilter({ filterTaxRegime: v, page: 1 } as any)
 
   // ── Export de usuários (tela de perguntas: quais abas + aplicar filtro da tela) ──
   const EXPORT_SHEETS = ['Todos', 'Interno', 'Freelance', 'Parceiro', 'Cliente']
@@ -252,6 +267,7 @@ export default function UsersPage() {
         if (filterContract) p.set('contract_type', filterContract)
         if (filterConsultantType) p.set('consultant_type', filterConsultantType)
         if (filterSust) p.set('sustentacao', filterSust)
+        if (filterTaxRegime) p.set('tax_regime', filterTaxRegime)
       }
       const res = await fetch(`/api/v1/users/export?${p.toString()}`, { credentials: 'same-origin' })
       if (!res.ok) throw new Error()
@@ -265,7 +281,7 @@ export default function UsersPage() {
       setExportOpen(false)
     } catch { toast.error('Erro ao exportar usuários') }
     finally { setExporting(false) }
-  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust])
+  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime])
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -328,6 +344,7 @@ export default function UsersPage() {
       if (filterContract)      p.set('contract_type', filterContract)
       if (filterConsultantType) p.set('consultant_type', filterConsultantType)
       if (filterSust)          p.set('sustentacao', filterSust)
+      if (filterTaxRegime)     p.set('tax_regime', filterTaxRegime)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; total?: number; meta?: { last_page: number } }>(`/users?${p}`)
       setTotal(typeof r?.total === 'number' ? r.total : null)
@@ -337,7 +354,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime, sort, sortDir])
 
   // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
   const loadCounts = useCallback(() => {
@@ -576,6 +593,12 @@ export default function UsersPage() {
               <option value="1">Liberado</option>
               <option value="0">Bloqueado</option>
             </select>
+            <MultiSelect
+              placeholder="Regime: todos"
+              value={filterTaxRegime ? filterTaxRegime.split(',') : []}
+              onChange={arr => setFilterTaxRegime(arr.join(','))}
+              options={TAX_REGIME_OPTIONS.map(o => ({ id: o.value, name: o.label }))}
+            />
           </>
         )}
         {filterRole === 'cliente' && (
@@ -622,6 +645,12 @@ export default function UsersPage() {
               <option value="1">Liberado</option>
               <option value="0">Bloqueado</option>
             </select>
+            <MultiSelect
+              placeholder="Regime: todos"
+              value={filterTaxRegime ? filterTaxRegime.split(',') : []}
+              onChange={arr => setFilterTaxRegime(arr.join(','))}
+              options={TAX_REGIME_OPTIONS.map(o => ({ id: o.value, name: o.label }))}
+            />
           </>
         )}
         {hasActiveFilters && (
@@ -805,13 +834,14 @@ export default function UsersPage() {
               )}
               <th onClick={() => { setSort('type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Perfil<SortIcon active={sort === 'type'} dir={sortDir as 'asc' | 'desc'} /></th>
               <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('tax_regime'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Regime<SortIcon active={sort === 'tax_regime'} dir={sortDir as 'asc' | 'desc'} /></th>
               <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>
               <th onClick={() => { setSort('enabled'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium cursor-pointer hover:text-[var(--text)] select-none">Status<SortIcon active={sort === 'enabled'} dir={sortDir as 'asc' | 'desc'} /></th>
             </tr>
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 8 : 7) + (filterRole === 'parceiro_admin' ? 1 : 0) + (filterRole === 'cliente' ? 2 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={(canResetPwd ? 9 : 8) + (filterRole === 'parceiro_admin' ? 1 : 0) + (filterRole === 'cliente' ? 2 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
               <tr key={user.id} className={`border-b border-[var(--border)] transition-colors ${
                 selectedIds.has(user.id)
@@ -896,6 +926,11 @@ export default function UsersPage() {
                 <td className="px-3 py-2.5 hidden lg:table-cell">
                   {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
                     ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
+                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                </td>
+                <td className="px-3 py-2.5 hidden lg:table-cell">
+                  {user.tax_regime
+                    ? <span className="text-[10px] text-[var(--text)]">{taxRegimeLabel(user.tax_regime)}</span>
                     : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
                 </td>
                 <td className="px-3 py-2.5 hidden lg:table-cell">
