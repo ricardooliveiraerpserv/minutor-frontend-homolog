@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface CalEventoConvidado { nome: string; email?: string; resposta: string } // resposta: accepted|declined|tentativelyAccepted|notResponded|none
 export interface CalEvento {
-  tipo: 'birthday' | 'contract_expiration' | 'reajuste' | 'outlook' | 'task' | 'holiday'
+  tipo: 'birthday' | 'contract_expiration' | 'reajuste' | 'outlook' | 'task' | 'holiday' | 'meeting'
   data: string; titulo: string; is_today: boolean
   hora?: string | null; hora_fim?: string | null      // Outlook: início / fim
   local?: string; link?: string; organizador?: string // Outlook: local, link (Teams/web), quem convidou
@@ -19,6 +19,7 @@ export const DOT: Record<CalEvento['tipo'], { color: string; icon: string; label
   outlook:             { color: '#06b6d4', icon: '📅', label: 'Outlook' },         // ciano
   task:                { color: '#22c55e', icon: '📝', label: 'Tarefa' },          // verde
   holiday:             { color: '#f97316', icon: '🏖️', label: 'Feriado' },        // laranja
+  meeting:             { color: '#14b8a6', icon: '📹', label: 'Reunião' },        // teal
 }
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
