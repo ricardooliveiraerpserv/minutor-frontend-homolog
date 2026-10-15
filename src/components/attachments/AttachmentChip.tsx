@@ -5,7 +5,7 @@
 // Substitui as variantes paralelas de AttachmentChip que existiam em
 // ProjectMessages.tsx e ContractMessages.tsx (quase idênticas).
 
-import { Download, FileText, Image as ImageIcon, Paperclip, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, Image as ImageIcon, Paperclip, Trash2, X } from 'lucide-react'
 import { Attachment, downloadAttachment } from '@/lib/attachments'
 
 interface AttachmentChipProps {
@@ -25,13 +25,22 @@ function iconForMime(mime: string) {
 
 export function AttachmentChip({ attachment, onRemove, compact = false, className }: AttachmentChipProps) {
   const Icon = iconForMime(attachment.mime_type)
-  const handleDownload = async (e: React.MouseEvent) => {
+  const handleView = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     try {
       await downloadAttachment(attachment.id, { download: false })
     } catch (err) {
-      console.error('Falha download anexo', err)
+      console.error('Falha visualizar anexo', err)
+    }
+  }
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await downloadAttachment(attachment.id, { download: true })
+    } catch (err) {
+      console.error('Falha baixar anexo', err)
     }
   }
 
@@ -45,17 +54,22 @@ export function AttachmentChip({ attachment, onRemove, compact = false, classNam
     >
       <button
         type="button"
-        onClick={handleDownload}
+        onClick={handleView}
         className="inline-flex items-center gap-1 cursor-pointer hover:underline"
-        title={`Baixar ${attachment.original_name} (${attachment.human_size})`}
+        title={`Visualizar ${attachment.original_name} (${attachment.human_size})`}
       >
         <Icon size={compact ? 10 : 12} style={{ color: 'var(--text-muted)' }} />
         <span className="truncate max-w-[180px]">{attachment.original_name}</span>
-        <Download size={compact ? 9 : 10} style={{ color: 'var(--text-light)' }} />
       </button>
       <span className="ml-1" style={{ color: 'var(--text-light)' }}>
         {attachment.human_size}
       </span>
+      <button type="button" onClick={handleView} title="Visualizar" className="ml-1 hover:opacity-70">
+        <Eye size={compact ? 11 : 13} style={{ color: 'var(--text-light)' }} />
+      </button>
+      <button type="button" onClick={handleDownload} title="Baixar" className="hover:opacity-70">
+        <Download size={compact ? 11 : 13} style={{ color: 'var(--text-light)' }} />
+      </button>
       {onRemove && (
         <button
           type="button"

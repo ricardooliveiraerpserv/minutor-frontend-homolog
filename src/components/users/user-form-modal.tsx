@@ -51,6 +51,7 @@ interface UserData {
   full_name?: string | null
   cpf?: string | null
   cnpj?: string | null
+  razao_social?: string | null
   tax_regime?: string | null
   matricula?: string | null
   birth_date?: string | null
@@ -389,6 +390,7 @@ const EMPTY_FORM = {
   full_name: '',
   cpf: '',
   cnpj: '',
+  razao_social: '',
   tax_regime: '',
   matricula: '',
   birth_date: '',
@@ -633,6 +635,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           cnpj:                       item.cnpj ?? '',
+          razao_social:               item.razao_social ?? '',
           tax_regime:                 item.tax_regime ?? '',
           matricula:                  item.matricula ?? '',
           birth_date:                 (item.birth_date ?? '').slice(0, 10),
@@ -686,7 +689,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
     setCnpjLoading(true)
     try {
       const data = await api.get<{ tax_regime: string; razao_social?: string | null }>(`/users/cnpj-lookup/${d}`)
-      setForm(f => ({ ...f, tax_regime: data.tax_regime }))
+      setForm(f => ({ ...f, tax_regime: data.tax_regime, razao_social: data.razao_social || f.razao_social }))
       const nome = data.razao_social ? ` (${data.razao_social})` : ''
       toast.success(`Regime: ${TAX_REGIME_LABEL[data.tax_regime] ?? data.tax_regime}${nome}`)
     } catch (e) {
@@ -768,6 +771,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         payload.full_name      = form.full_name || null
         payload.cpf            = form.cpf || null
         payload.cnpj           = form.cnpj || null
+        payload.razao_social   = form.razao_social || null
         payload.tax_regime     = form.tax_regime || null
         payload.matricula      = form.matricula || null
         payload.birth_date     = form.birth_date || null
@@ -1346,6 +1350,12 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                       title="Usada na campanha de aniversário"
                       className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Razão Social</Label>
+                  <Input value={form.razao_social} onChange={e => setForm(f => ({ ...f, razao_social: e.target.value }))}
+                    placeholder="Preenchida ao consultar o CNPJ"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">

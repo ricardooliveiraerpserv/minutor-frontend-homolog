@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { X, Trash2, Paperclip, Download, Plus, Check, Square, CheckSquare, Send } from 'lucide-react'
+import { X, Trash2, Paperclip, Download, Eye, Plus, Check, Square, CheckSquare, Send } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { kanbanApi, PRIORITY_META, type KCardFull, type KLabel, type KUserRef, type KField, type KCardEvent } from '@/lib/client-kanban'
 import { uploadAttachment, downloadAttachment, deleteAttachment } from '@/lib/attachments'
@@ -272,8 +272,9 @@ export function KanbanCardModal({ cardId, columnId, boardLabels, fields, users, 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {card.attachments.map(a => (
                     <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, background: 'var(--field)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 9px', maxWidth: 240 }}>
-                      <button onClick={() => downloadAttachment(a.id, { download: true })} title={`Baixar ${a.name}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: 0, display: 'inline-flex' }}><Download size={12} /></button>
+                      <button onClick={() => downloadAttachment(a.id, { download: false })} title={`Visualizar ${a.name}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: 0, display: 'inline-flex' }}><Eye size={12} /></button>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>{a.name}</span>
+                      <button onClick={() => downloadAttachment(a.id, { download: true })} title={`Baixar ${a.name}`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: 0, display: 'inline-flex' }}><Download size={12} /></button>
                       <button onClick={() => delAttachment(a.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'inline-flex' }}><X size={12} /></button>
                     </span>
                   ))}
