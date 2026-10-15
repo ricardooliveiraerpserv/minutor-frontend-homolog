@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TicketTabs, addTicketTab } from '@/components/help-desk/ticket-tabs'
+import { HelpDeskGlobalSearch } from '@/components/help-desk/global-search'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useConfirm } from '@/components/ui/use-confirm'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -31,7 +32,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, Building2, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, XCircle, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Eye, Calendar, FileCode, Building2, Download, type LucideIcon } from 'lucide-react'
 import { useTicketPresence } from '@/hooks/use-ticket-presence'
 // Modais carregados sob demanda (lazy) — saem do bundle inicial, acelerando a 1ª abertura do ticket.
 const FinalizarAtendimentoModal = dynamic(() => import('@/components/help-desk/finalizar-atendimento-modal').then(m => m.FinalizarAtendimentoModal), { ssr: false })
@@ -312,6 +313,28 @@ function TicketDetailInner({ id }: { id: number }) {
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
       toast.dismiss(tid)
     } catch (e) { toast.dismiss(tid); toast.error((e as { message?: string })?.message ?? 'Erro ao gerar relatório') }
+  }
+  // Anexos: fetch autenticado (cookie + token por aba) p/ Visualizar (inline) ou Baixar.
+  const attFetch = (url: string) => {
+    const sToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+    return fetch(url, { credentials: 'same-origin', headers: sToken ? { Authorization: `Bearer ${sToken}` } : {} })
+  }
+  const viewAtt = async (url: string) => {
+    try {
+      const res = await attFetch(`${url}${url.includes('?') ? '&' : '?'}view=1`)
+      if (!res.ok) throw new Error()
+      const obj = URL.createObjectURL(await res.blob())
+      window.open(obj, '_blank')
+      setTimeout(() => URL.revokeObjectURL(obj), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
+  const downloadAtt = async (url: string, name: string) => {
+    try {
+      const res = await attFetch(url)
+      if (!res.ok) throw new Error()
+      const obj = URL.createObjectURL(await res.blob())
+      const a = document.createElement('a'); a.href = obj; a.download = name; a.click(); URL.revokeObjectURL(obj)
+    } catch { toast.error('Erro ao baixar arquivo') }
   }
   const [merged, setMerged] = useState<MergedRow[]>(c0?.merged ?? [])
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
@@ -897,7 +920,11 @@ function TicketDetailInner({ id }: { id: number }) {
   return (
     <AppLayout title={t.ticket_number ?? `Chamado #${t.id}`}>
       <div className="space-y-4">
-        <TicketTabs activeId={id} />
+        {/* Abas de chamados abertos + lupa da BUSCA GLOBAL (igual à fila: acha qualquer chamado e abre). */}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0"><TicketTabs activeId={id} /></div>
+          <HelpDeskGlobalSearch onOpen={(tid) => { if (tid !== id) router.push(`/help-desk/tickets/${tid}`) }} />
+        </div>
         {/* Modo Atendimento — barra de controles contínua */}
         {modoAtivo && final === null && <ModoAtendimentoBar currentId={id} onPrev={prevTicket} onSkip={skipTicket} onEnd={openFinal} />}
 
@@ -931,14 +958,14 @@ function TicketDetailInner({ id }: { id: number }) {
         )}
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="min-w-0">
               <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.ticket_number ?? `#${t.id}`}</span>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.subject}</h1>
+              <h1 className="text-lg font-semibold break-words" style={{ color: 'var(--text)' }}>{t.subject}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
             {/* Olho: quem está visualizando o chamado agora — só se o perfil de acesso permitir a colisão. */}
             {(t.can_see_collision !== false || user?.type === 'admin') && (
             <span
@@ -964,7 +991,7 @@ function TicketDetailInner({ id }: { id: number }) {
             <div className="flex flex-col items-start gap-1">
               <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
                 <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
-                {t.status?.label ?? '—'}
+                {t.status?.label ?? '—'}{t.justification?.name ? `/${t.justification.name}` : ''}
               </span>
               {/* Legenda: previsão de entrega em homologação (só em "Em Desenvolvimento"). */}
               {t.dev_delivery_at && t.status?.key === 'em_desenvolvimento' && (
@@ -1202,7 +1229,7 @@ function TicketDetailInner({ id }: { id: number }) {
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
                     timeMode={t.apontamento_time_mode ?? 'optional'}
-                    onApplyStatus={(sid, extra) => onStatusSelect(String(sid), extra)}
+                    onApplyStatus={(sid, extra) => changeStatus(String(sid), extra?.justification_id ?? null, extra)}
                     currentDevDelivery={t.dev_delivery_at}
                     /* Trava de classificação: Serviço/Urgência/Nível p/ TODOS; Categoria p/ agente sempre
                        e p/ gestor (admin/coord) só ao CONCLUIR (resolvido/terminal). A composer computa por status. */
@@ -1289,9 +1316,9 @@ function TicketDetailInner({ id }: { id: number }) {
                                     : <div className="whitespace-pre-wrap">{motivo}</div>}
                                 </div>
                               )}
-                              {c.attachments && c.attachments.length > 0 && (
+                              {(() => { const extraAtts = (c.attachments ?? []).filter(a => !(c.body ?? '').includes(`attachments/${a.id}/download`)); return extraAtts.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                  {c.attachments.map(a => {
+                                  {extraAtts.map(a => {
                                     const url = `/api/v1/help-desk/tickets/${id}/comments/${c.id}/attachments/${a.id}/download`
                                     const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                                     const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
@@ -1299,12 +1326,14 @@ function TicketDetailInner({ id }: { id: number }) {
                                       ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                           <img src={url} alt={nome} className="max-h-48 object-contain" />
                                         </button>
-                                      : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                                          <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
-                                        </a>
+                                      : <div key={a.id} className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                          <Paperclip size={15} /> <span className="truncate max-w-[180px]">{nome}</span>{a.human_size ? <span className="font-normal opacity-70">· {a.human_size}</span> : null}
+                                          <button type="button" onClick={() => viewAtt(url)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={15} /></button>
+                                          <button type="button" onClick={() => downloadAtt(url, nome)} title="Baixar" className="hover:opacity-70"><Download size={15} /></button>
+                                        </div>
                                   })}
                                 </div>
-                              )}
+                              ) })()}
                             </div>
                           </div>
                         </div>
@@ -1312,9 +1341,9 @@ function TicketDetailInner({ id }: { id: number }) {
                     }
                     return (
                     <div key={c.id} className={`hd-msg flex gap-2.5 ${right ? 'flex-row-reverse' : ''}`}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: right ? 'var(--primary)' : avatarColor(autor) }}>{iniciais(autor)}</div>
                       <div className={`flex flex-col min-w-0 ${editing ? 'w-full' : html ? 'max-w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${right ? 'items-end' : 'items-start'}`}>
-                        <div className={`flex items-center gap-2 mb-0.5 text-[11px] ${right ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center gap-2 mb-0.5 text-[13px] ${right ? 'flex-row-reverse' : ''}`}>
                           {c.seq != null && (
                             <span className="font-mono font-semibold px-1.5 rounded" title={`Interação #${c.seq}`} style={{ color: 'var(--primary)', background: 'var(--primary-soft)' }}>#{c.seq}</span>
                           )}
@@ -1394,10 +1423,11 @@ function TicketDetailInner({ id }: { id: number }) {
                                 : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
-                        {/* Anexos da interação — preview de imagem inline + arquivos */}
-                        {c.attachments && c.attachments.length > 0 && (
+                        {/* Anexos da interação — SÓ os que NÃO estão inline no corpo (evita duplicar
+                            imagem rehospedada do Movidesk, que já aparece dentro do balão). */}
+                        {(() => { const extraAtts = (c.attachments ?? []).filter(a => !(c.body ?? '').includes(`attachments/${a.id}/download`)); return extraAtts.length > 0 && (
                           <div className={`flex flex-wrap gap-2 mt-2 ${right ? 'justify-end' : ''}`}>
-                            {c.attachments.map(a => {
+                            {extraAtts.map(a => {
                               const url = `/api/v1/help-desk/tickets/${id}/comments/${c.id}/attachments/${a.id}/download`
                               const nome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
                               const isImg = a.category === 'image' || /\.(png|jpe?g|webp|gif)$/i.test(nome)
@@ -1405,12 +1435,14 @@ function TicketDetailInner({ id }: { id: number }) {
                                 ? <button key={a.id} type="button" onClick={() => openImg(url, nome)} className="block rounded-lg overflow-hidden cursor-zoom-in" style={{ border: '1px solid var(--border)' }}>
                                     <img src={url} alt={nome} className="max-h-48 object-contain" />
                                   </button>
-                                : <a key={a.id} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                                    <Paperclip size={15} /> {nome}{a.human_size ? ` · ${a.human_size}` : ''}
-                                  </a>
+                                : <div key={a.id} className="inline-flex items-center gap-2 text-sm font-semibold rounded-lg px-3 py-2" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
+                                    <Paperclip size={15} /> <span className="truncate max-w-[180px]">{nome}</span>{a.human_size ? <span className="font-normal opacity-70">· {a.human_size}</span> : null}
+                                    <button type="button" onClick={() => viewAtt(url)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={15} /></button>
+                                    <button type="button" onClick={() => downloadAtt(url, nome)} title="Baixar" className="hover:opacity-70"><Download size={15} /></button>
+                                  </div>
                             })}
                           </div>
-                        )}
+                        ) })()}
                       </div>
                     </div>
                     )
@@ -1464,11 +1496,17 @@ function TicketDetailInner({ id }: { id: number }) {
                         )}
                         {atts.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {atts.map(a => (
-                              <a key={a.id} href={`/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                                <Paperclip size={12} /> <span className="max-w-[180px] truncate">{a.original_name ?? a.file_name ?? `Anexo #${a.id}`}</span>{a.human_size ? ` · ${a.human_size}` : ''}
-                              </a>
-                            ))}
+                            {atts.map(a => {
+                              const aUrl = `/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`
+                              const aNome = a.original_name ?? a.file_name ?? `Anexo #${a.id}`
+                              return (
+                              <div key={a.id} className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                                <Paperclip size={12} /> <span className="max-w-[160px] truncate">{aNome}</span>{a.human_size ? <span className="opacity-70">· {a.human_size}</span> : null}
+                                <button type="button" onClick={() => viewAtt(aUrl)} title="Visualizar" className="ml-1 hover:opacity-70"><Eye size={13} /></button>
+                                <button type="button" onClick={() => downloadAtt(aUrl, aNome)} title="Baixar" className="hover:opacity-70"><Download size={13} /></button>
+                              </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -1860,12 +1898,12 @@ function TicketDetailInner({ id }: { id: number }) {
                   onClick={() => {
                     if (/totvs/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'totvs' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
                     else if (/terceir|fornecedor/i.test(j.name)) { setSupplier({ statusId: pendingStatus, justId: j.id, mode: 'other' }); setSupName(''); setSupNum(''); setPendingStatus(null) }
-                    else { changeStatus(pendingStatus, j.id, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }
+                    else { composerRef.current?.armStatus(Number(pendingStatus), { id: j.id, name: j.name }); setPendingStatus(null); setPendingExtra(null) }
                   }}>{j.name}</button>
               ))}
             </div>
             <div className="flex justify-between pt-1">
-              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { changeStatus(pendingStatus, null, pendingExtra ?? undefined); setPendingStatus(null); setPendingExtra(null) }}>Mudar sem justificativa</button>
+              <button className="text-xs" style={{ color: 'var(--text-muted)' }} onClick={() => { composerRef.current?.armStatus(Number(pendingStatus), null); setPendingStatus(null); setPendingExtra(null) }}>Mudar sem justificativa</button>
               <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setPendingStatus(null)}>Cancelar</button>
             </div>
           </div>

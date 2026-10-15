@@ -101,13 +101,18 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
   }, [open])
 
   const list = options.filter(o => o.toLowerCase().includes(q.trim().toLowerCase()))
+  const NONE = ' none'                                 // estado "nenhum selecionado" (distinto de [] = Todos)
+  const isAll = selected.length === 0
+  const isNone = selected.length === 1 && selected[0] === NONE
   const toggle = (o: string) => {
+    if (isNone) { onChange([o]); return }                   // saindo de "nenhum": inicia a seleção com este item
     // Modo "Todos" (selected vazio) mostra tudo marcado → clicar desmarca só o item (materializa todos menos ele).
-    if (selected.length === 0) { onChange(options.filter(x => x !== o)); return }
+    if (isAll) { onChange(options.filter(x => x !== o)); return }
     const next = selected.includes(o) ? selected.filter(x => x !== o) : [...selected, o]
+    if (next.length === 0) { onChange([NONE]); return }      // desmarcou o último → "nenhum" (não volta a "Todos")
     onChange(next.length === options.length ? [] : next)   // marcou todos manualmente → volta pra "Todos"
   }
-  const btn = selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
+  const btn = isNone ? `${allLabel} (0)` : selected.length === 0 ? allLabel : selected.length === 1 ? selected[0] : `${allLabel} (${selected.length})`
 
   return (
     <div ref={triggerRef} className="relative">
@@ -126,7 +131,7 @@ function MultiFilter({ allLabel, options, selected, onChange }: {
               className="text-sm bg-transparent outline-none w-full" style={{ color: 'var(--text)' }} />
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            <button type="button" onClick={() => onChange([])}
+            <button type="button" onClick={() => onChange(isAll ? [NONE] : [])}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-[var(--surface-hover)]"
               style={{ color: selected.length === 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
               <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center"

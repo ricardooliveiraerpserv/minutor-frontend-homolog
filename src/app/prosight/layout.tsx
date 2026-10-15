@@ -13,6 +13,7 @@ import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
 import { ProsightCompanyProvider, ProsightCompanySelect } from './_components/company-context'
+import { VaultProvider } from '@/contexts/vault-context'
 
 export default function ProsightLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ''
@@ -21,11 +22,13 @@ export default function ProsightLayout({ children }: { children: ReactNode }) {
   if (pathname.startsWith('/prosight/preview')) return <>{children}</>
 
   return (
-    <AppLayout>
-      <ProsightCompanyProvider>
-        <ProsightNav rightSlot={<ProsightCompanySelect />} />
-        {children}
-      </ProsightCompanyProvider>
-    </AppLayout>
+    <VaultProvider>
+      <AppLayout>
+        <ProsightCompanyProvider>
+          <ProsightNav rightSlot={<ProsightCompanySelect />} />
+          {children}
+        </ProsightCompanyProvider>
+      </AppLayout>
+    </VaultProvider>
   )
 }

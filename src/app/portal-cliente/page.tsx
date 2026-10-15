@@ -272,6 +272,14 @@ export default function PortalClientePage() {
   const isCoord   = user?.type === 'coordenador'
   const canPickCustomer = isAdmin || isCoord
 
+  // Home executivo é visão da EMPRESA — só gestor do cliente. Cliente comum
+  // (visibilidade por convite) é mandado p/ "Demandas e Projetos" (seus cards).
+  useEffect(() => {
+    if (isCliente && !(user as any)?.is_customer_manager) {
+      router.replace('/contratos/pipeline')
+    }
+  }, [isCliente, user, router])
+
   useEffect(() => {
     if (!user) return
     if (user.type === 'consultor' || (user.type === 'parceiro_admin' && !(user as any).is_executive)) {

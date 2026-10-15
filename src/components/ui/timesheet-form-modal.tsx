@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 
-interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null; is_rateio?: boolean }
+interface SelectOption { id: number; name: string; badge?: string | null; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null; is_rateio?: boolean }
 
 interface Props {
   open: boolean
@@ -42,6 +42,12 @@ function toHHMM(mins: number): string {
 
 // ─── SearchSelect ─────────────────────────────────────────────────────────────
 
+// Badge (pill) do parceiro, mostrada na frente do nome (igual ao cadastro de usuários).
+function PartnerBadge({ label }: { label?: string | null }) {
+  if (!label) return null
+  return <span className="inline-block align-middle px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
+}
+
 function SearchSelect({ value, onChange, options, placeholder, disabled }: {
   value: string; onChange: (v: string) => void
   options: SelectOption[]; placeholder: string; disabled?: boolean
@@ -52,7 +58,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = options.find(o => String(o.id) === value)
-  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
+  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()) || (o.badge ?? '').toLowerCase().includes(query.toLowerCase()))
 
   useEffect(() => {
     if (!open) return
@@ -78,7 +84,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        <span className="flex-1 min-w-0 text-sm break-words leading-snug" title={selected ? selected.name : undefined}>{selected ? selected.name : placeholder}</span>
+        <span className="flex-1 min-w-0 text-sm break-words leading-snug" title={selected ? selected.name : undefined}>{selected ? <>{selected.name}<PartnerBadge label={selected.badge} /></> : placeholder}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}/>
         </svg>
@@ -119,7 +125,7 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-hover)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
-                      {o.name}
+                      {o.name}<PartnerBadge label={o.badge} />
                     </button>
                   )
                 })
@@ -186,7 +192,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       api.get<any>('/users?pageSize=200&exclude_type=cliente')
         .then(r => {
           const items = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-          setConsultants(items)
+          // Usuário de parceiro: badge com o nome do parceiro (ex.: "[Raho] Thiago Reis"); nome fica puro.
+          setConsultants(items.map((u: any) => ({ ...u, badge: u.partner?.name ?? null })))
         })
         .catch(() => {})
     }

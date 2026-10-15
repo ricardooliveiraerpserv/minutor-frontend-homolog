@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, Search, Check } from 'lucide-react'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 
 // depth > 0 = projeto filho: indenta e prefixa com uma seta azul "↳".
-export interface MultiSelectOption { id: number | string; name: string; depth?: number; ondemand?: boolean }
+export interface MultiSelectOption { id: number | string; name: string; depth?: number; ondemand?: boolean; badge?: string | null }
 
 export function MultiSelect({
   label,
@@ -33,7 +34,7 @@ export function MultiSelect({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filtered = useMemo(
-    () => options.filter(o => o.name.toLowerCase().includes(query.toLowerCase())),
+    () => options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()) || (o.badge ?? '').toLowerCase().includes(query.toLowerCase())),
     [options, query]
   )
 
@@ -170,7 +171,7 @@ export function MultiSelect({
                           <span style={{ color: o.ondemand ? 'var(--warning)' : 'var(--primary)' }}>↳</span>
                           <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>
                         </span>
-                      ) : <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>}
+                      ) : <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}<PartnerBadge label={o.badge} /></span>}
                     </button>
                   )
                 })}

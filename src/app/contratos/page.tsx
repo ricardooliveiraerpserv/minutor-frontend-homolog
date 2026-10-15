@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2, Bell, ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { HoursAlertsModal } from '@/components/contracts/HoursAlertsModal'
 import { TransferHoursModal } from '@/components/contracts/TransferHoursModal'
@@ -143,14 +144,24 @@ export default function ContratosPage() {
       filterStatus:   '',
       filterCustomer: '',
       search:         '',
+      // Filtros multi (client-side, paridade com o Kanban de Contratos)
+      filterCustomers:    [] as string[],
+      filterExecutivos:   [] as string[],
+      filterProjectNames: [] as string[],
       listTab:        'contratos' as 'contratos' | 'projetos',
     },
   )
   const { page, filterStatus, filterCustomer, search, listTab } = flt
+  const filterCustomers    = (flt.filterCustomers    ?? []) as string[]
+  const filterExecutivos   = (flt.filterExecutivos   ?? []) as string[]
+  const filterProjectNames = (flt.filterProjectNames ?? []) as string[]
   const setPage           = (v: number)                           => setFilter('page', v)
   const setFilterStatus   = (v: string)                           => setFilter('filterStatus', v)
   const setFilterCustomer = (v: string)                           => setFilter('filterCustomer', v)
   const setSearch         = (v: string)                           => setFilter('search', v)
+  const setFilterCustomers    = (v: string[]) => setFilter('filterCustomers', v)
+  const setFilterExecutivos   = (v: string[]) => setFilter('filterExecutivos', v)
+  const setFilterProjectNames = (v: string[]) => setFilter('filterProjectNames', v)
   const setListTab        = (v: 'contratos' | 'projetos')         => setFilter('listTab', v)
 
   // Master data (apenas customers para filtro)
@@ -212,16 +223,16 @@ export default function ContratosPage() {
   const loadContracts = useCallback(async () => {
     setLoading(true)
     try {
-      const qp = new URLSearchParams({ page: String(page), per_page: '200' })
+      // Carrega o conjunto completo — busca por texto e filtros (clientes/executivos/
+      // projetos) são aplicados no client (paridade com o Kanban). Status segue no BE.
+      const qp = new URLSearchParams({ page: String(page), per_page: '1000' })
       if (filterStatus) qp.set('status', filterStatus)
-      if (filterCustomer) qp.set('customer_id', filterCustomer)
-      if (search) qp.set('search', search)
       const r = await api.get<any>(`/contracts?${qp}`)
       setContracts(r?.data ?? [])
       setTotal(r?.total ?? 0)
     } catch { toast.error('Erro ao carregar contratos') }
     finally { setLoading(false) }
-  }, [page, filterStatus, filterCustomer, search])
+  }, [page, filterStatus])
 
   useEffect(() => { loadContracts() }, [loadContracts])
 
@@ -313,6 +324,13 @@ export default function ContratosPage() {
     a.href = url; a.download = att.original_name; a.click()
     URL.revokeObjectURL(url)
   }
+  const viewAttachment = async (contractId: number, att: ContractAttachment) => {
+    try {
+      const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   // ─── Project menu items (aba Projetos, admin/coordenador) ────────────────
   const PROJECT_MENU_ITEMS = [
@@ -346,6 +364,34 @@ export default function ContratosPage() {
   const tabProjetos  = contracts.filter(c => !!c.project_id)
   const visibleContracts = listTab === 'projetos' ? tabProjetos : tabContratos
 
+  // ── Opções e aplicação dos filtros (client-side, paridade com o Kanban de Contratos)
+  const nameOf    = (c: Contract) => c.project?.name ?? (c as any).project_name ?? ''
+  const codeOf    = (c: Contract) => c.project?.code ?? (c as any).project_code_preview ?? ''
+  const allCustomers  = [...new Set(contracts.map(c => c.customer?.name).filter(Boolean) as string[])].sort()
+  const allExecutivos = [...new Set(contracts.map(c => c.executivo_conta?.name).filter(Boolean) as string[])].sort()
+  const allProjectNames = [...new Map(
+    (contracts
+      .filter(c => filterCustomers.length === 0 || filterCustomers.includes(c.customer?.name ?? ''))
+      .map(c => { const nm = nameOf(c); const cd = codeOf(c); return nm ? [nm, { id: nm, name: nm + (cd ? ` (${cd})` : '') }] as [string, { id: string; name: string }] : null })
+      .filter(Boolean) as [string, { id: string; name: string }][])
+  ).values()].sort((a, b) => a.name.localeCompare(b.name))
+
+  const filtered = visibleContracts.filter(c => {
+    const cn = c.customer?.name ?? ''
+    const ex = c.executivo_conta?.name ?? ''
+    const pn = nameOf(c)
+    const cd = codeOf(c)
+    if (filterCustomers.length    && !filterCustomers.includes(cn))    return false
+    if (filterExecutivos.length   && !filterExecutivos.includes(ex))   return false
+    if (filterProjectNames.length && !filterProjectNames.includes(pn)) return false
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      if (!(cn.toLowerCase().includes(q) || pn.toLowerCase().includes(q) || cd.toLowerCase().includes(q))) return false
+    }
+    return true
+  })
+  const anyFilter = !!(search.trim() || filterCustomers.length || filterExecutivos.length || filterProjectNames.length || filterStatus)
+
   const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
   const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)' }
 
@@ -374,20 +420,27 @@ export default function ContratosPage() {
       {/* ── Filters ── */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <input
-          type="text" placeholder="Buscar cliente..." value={search}
+          type="text" placeholder="Buscar nome, projeto ou cliente..." value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className={inputCls} style={{ ...inputStyle, width: 220 }}
+          className={inputCls} style={{ ...inputStyle, width: 260 }}
         />
         <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1) }}
           className={inputCls} style={{ ...inputStyle, width: 180 }}>
           <option value="">Todos os status</option>
           {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
-        <select value={filterCustomer} onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-          className={inputCls} style={{ ...inputStyle, width: 200 }}>
-          <option value="">Todos os clientes</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        <MultiSelect value={filterCustomers} onChange={v => { setFilterCustomers(v); setPage(1) }}
+          options={allCustomers.map(n => ({ id: n, name: n }))} placeholder="Todos os clientes" wide />
+        <MultiSelect value={filterExecutivos} onChange={v => { setFilterExecutivos(v); setPage(1) }}
+          options={allExecutivos.map(n => ({ id: n, name: n }))} placeholder="Todos os executivos" wide />
+        <MultiSelect value={filterProjectNames} onChange={v => { setFilterProjectNames(v); setPage(1) }}
+          options={allProjectNames} placeholder="Todos os projetos" wide />
+        {anyFilter && (
+          <button onClick={() => { setSearch(''); setFilterStatus(''); setFilterCustomers([]); setFilterExecutivos([]); setFilterProjectNames([]); setPage(1) }}
+            className="text-xs px-2 py-1 rounded-full flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+            <X size={12} /> Limpar
+          </button>
+        )}
       </div>
 
       {/* ── Tabs ── */}
@@ -433,7 +486,7 @@ export default function ContratosPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && visibleContracts.length === 0 && (
+            {loading && filtered.length === 0 && (
               Array.from({ length: 6 }).map((_, r) => (
                 <tr key={`sk-${r}`} style={{ borderTop: r > 0 ? '1px solid var(--border)' : undefined }}>
                   {Array.from({ length: listTab === 'projetos' ? 11 : 9 }).map((_, c) => (
@@ -442,10 +495,10 @@ export default function ContratosPage() {
                 </tr>
               ))
             )}
-            {!loading && visibleContracts.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum item encontrado.</td></tr>
             )}
-            {visibleContracts.length > 0 && visibleContracts.map((c, i) => (
+            {filtered.length > 0 && filtered.map((c, i) => (
               <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                 <td className="w-10 px-2 py-3 text-center relative">
                   <button
@@ -655,7 +708,8 @@ export default function ContratosPage() {
                               <p className="text-[10px] text-[var(--text-muted)]">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
                             </div>
                           </div>
-                          <button onClick={() => downloadAttachment(vc.id, att)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
+                          <button onClick={() => viewAttachment(vc.id, att)} title="Visualizar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Eye size={13} /></button>
+                          <button onClick={() => downloadAttachment(vc.id, att)} title="Baixar" className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
                         </div>
                       ))}
                     </div>

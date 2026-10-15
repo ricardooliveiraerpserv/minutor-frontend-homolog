@@ -17,6 +17,7 @@ import { ApprovalsScreen } from '@/components/screens/ApprovalsScreen'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { SearchSelect } from '@/components/ui/search-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { toast } from 'sonner'
 import type { LucideIcon } from 'lucide-react'
 
@@ -1050,7 +1051,7 @@ export default function InvestimentoComercialPage() {
 
       {/* Modal gerenciar equipe */}
       {modal.open && modal.project && (() => {
-        const userOpts = allUsers.map(u => ({ id: u.id, name: u.name }))
+        const userOpts = allUsers.map(u => ({ id: u.id, name: u.name, badge: (u as { partner?: { name?: string } }).partner?.name ?? null }))
         const groupOpts = groups.map(g => ({ id: g.id, name: `${g.name} (${g.users.length})` }))
 
         const addGroup = (groupId: string) => {
@@ -1111,7 +1112,7 @@ export default function InvestimentoComercialPage() {
                       return (
                         <span key={id} className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full"
                           style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
-                          {u.name}
+                          {u.name}<PartnerBadge label={(u as { partner?: { name?: string } }).partner?.name} />
                           <button onClick={() => removeUser(id)} className="hover:opacity-70 transition-opacity" aria-label="Remover">
                             <X size={11} style={{ color: 'var(--primary)' }} />
                           </button>
@@ -1136,7 +1137,7 @@ export default function InvestimentoComercialPage() {
                       if (!u) return null
                       return (
                         <div key={id} className="rounded-xl p-2.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                          <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--text)' }}>{u.name}</p>
+                          <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--text)' }}>{u.name}<PartnerBadge label={(u as { partner?: { name?: string } }).partner?.name} /></p>
                           <MultiSelect
                             fullWidth
                             value={(realByConsultant[id] ?? []).map(String)}

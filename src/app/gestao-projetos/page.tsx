@@ -19,6 +19,7 @@ import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { PageHeader } from '@/components/ds'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -643,6 +644,36 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               <p className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>
                 {project.code}
               </p>
+              {/* Vínculo: Pai / Filho (código+nome do pai) / Independente — vale em todas as abas */}
+              {(() => {
+                const parent = project.parent_project
+                const childCount = project.child_projects?.length ?? 0
+                if (project.parent_project_id) {
+                  return (
+                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}
+                       title={parent ? `Filho de ${parent.code} — ${parent.name}` : 'Projeto filho'}>
+                      <span style={{ color: 'var(--primary)' }}>↳</span>
+                      <span>Filho de</span>
+                      <span className="font-mono font-semibold" style={{ color: 'var(--text-muted)' }}>{parent?.code ?? '—'}</span>
+                      {parent?.name && <span className="truncate" style={{ maxWidth: 200 }}>· {parent.name}</span>}
+                    </p>
+                  )
+                }
+                if (childCount > 0) {
+                  return (
+                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--primary)' }} />
+                      Pai ({childCount} {childCount === 1 ? 'filho' : 'filhos'})
+                    </p>
+                  )
+                }
+                return (
+                  <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--border-strong)' }} />
+                    Independente
+                  </p>
+                )
+              })()}
             </div>
           </div>
         </td>
@@ -1057,6 +1088,13 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
     const blob = await res.blob(); const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = att.original_name; a.click(); URL.revokeObjectURL(url)
+  }
+  const viewProjAtt = async (att: any) => {
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
   }
   const deleteProjAtt = async (att: any) => {
     if (!confirm('Remover este anexo?')) return
@@ -1531,6 +1569,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          <button type="button" onClick={() => viewProjAtt(att)} title="Visualizar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                           {att.source !== 'contract' && (
                             <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>
@@ -1938,7 +1977,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                       <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--brand-purple)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                         {sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}
                       </div>
-                      <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}</span>
+                      <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                     </button>
                   )
                 })}
@@ -3690,7 +3729,7 @@ function GestaoProjetosInner() {
                           return (
                             <div key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--surface)]">
                               <span className="text-xs truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
-                                {c.name}
+                                {c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} />
                                 {viaGroup && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>via grupo</span>}
                               </span>
                               <button type="button" title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
@@ -3722,7 +3761,7 @@ function GestaoProjetosInner() {
                             style={{ border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, background: on ? 'var(--primary)' : 'transparent' }}>
                             {on && <Check size={11} style={{ color: '#fff' }} />}
                           </span>
-                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}</span>
+                          <span className="text-sm truncate flex-1" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                           {viaGroup && <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>via grupo</span>}
                         </button>
                       )
@@ -4435,7 +4474,7 @@ function GestaoProjetosInner() {
                     <input type="checkbox" checked={bulkAllocConsIds.has(c.id)}
                       onChange={() => setBulkAllocConsIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
                       className="w-4 h-4 rounded accent-[var(--primary)]" />
-                    <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
+                    <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </label>
                 ))}
               {bulkAllocTab === 'grupos' && consultantGroups
@@ -4513,7 +4552,7 @@ function GestaoProjetosInner() {
                       <input type="radio" name="byres-cons" checked={byResConsId === c.id}
                         onChange={() => setByResConsId(c.id)}
                         className="w-4 h-4 accent-[var(--primary)]" />
-                      <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
+                      <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                     </label>
                   ))}
                 {byResTab === 'grupo' && consultantGroups

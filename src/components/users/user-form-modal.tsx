@@ -36,14 +36,11 @@ interface UserData {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
-  company_ids?: number[]
-  allowed_modules?: string[] | null
+  is_customer_manager?: boolean | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
   is_executive?: boolean
   type?: string | null
-  helpdesk_access_profile_id?: number | null
-  helpdesk_team_ids?: number[]
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
@@ -53,6 +50,9 @@ interface UserData {
   is_bizify_coordinator?: boolean
   full_name?: string | null
   cpf?: string | null
+  cnpj?: string | null
+  razao_social?: string | null
+  tax_regime?: string | null
   matricula?: string | null
   birth_date?: string | null
   signature?: SignatureData | null
@@ -116,6 +116,28 @@ const formatCpf = (raw: string): string => {
 
 // Máscara de CEP 00000-000.
 const formatCep = (raw: string): string => raw.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2')
+
+// Máscara de CNPJ 00.000.000/0000-00.
+const formatCnpj = (raw: string): string => {
+  const d = raw.replace(/\D/g, '').slice(0, 14)
+  return d
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5')
+}
+
+// Regime tributário do consultor (PJ). Base do levantamento da Reforma Tributária.
+const TAX_REGIME_OPTIONS = [
+  { value: '',                 label: '— não informado —' },
+  { value: 'mei',              label: 'MEI' },
+  { value: 'simples_nacional', label: 'Simples Nacional' },
+  { value: 'lucro_presumido',  label: 'Lucro Presumido' },
+  { value: 'lucro_real',       label: 'Lucro Real' },
+  { value: 'nao_aplica',       label: 'Não se aplica (Pessoa Física)' },
+]
+const TAX_REGIME_LABEL: Record<string, string> =
+  Object.fromEntries(TAX_REGIME_OPTIONS.filter(o => o.value).map(o => [o.value, o.label]))
 
 function resolveTypeForBackend(profile: ProfileType): string {
   if (profile === 'administrator') return 'admin'
@@ -347,8 +369,6 @@ const EMPTY_FORM = {
   bank_hours_initial_balance: '',
   guaranteed_hours: '',
   profiles: [] as ProfileType[],
-  helpdesk_access_profile_id: '' as number | '',
-  helpdesk_team_ids: [] as number[],
   consultant_type: 'horista' as ConsultantType | '',
   work_bond: '' as '' | 'fixo' | 'freelance',
   contract_type: '' as ContractType | '',
@@ -356,10 +376,8 @@ const EMPTY_FORM = {
   is_partner_consultor: false,
   is_partner_adm: false,
   customer_id: '' as number | '',
-  // Empresas do grupo (ERPSERV/BIZIFY) vinculadas — define as abas do portal (cliente) / fila (agente).
-  company_ids: [] as number[],
-  // Acesso a módulos do cliente. null = todos (legado); [] ou lista = recorte explícito.
-  allowed_modules: null as string[] | null,
+  // Gestor do cliente: vê todos os projetos da empresa e pode convidar outros aos cards.
+  is_customer_manager: false,
   partner_id: '' as number | '',
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
@@ -371,6 +389,9 @@ const EMPTY_FORM = {
   // Folha de pagamento
   full_name: '',
   cpf: '',
+  cnpj: '',
+  razao_social: '',
+  tax_regime: '',
   matricula: '',
   birth_date: '',
   // Assinatura padrão (estruturada)
@@ -413,42 +434,37 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
-  // Perfis de acesso do Help Desk (por kind) — seletor no formulário.
-  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente'; is_default: boolean }[]>([])
-  const [hdTeams, setHdTeams] = useState<{ id: number; name: string }[]>([])
-  useEffect(() => {
-    if (!open) return
-    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean; is_default?: boolean }[] }>('/help-desk/access-profiles?all=1')
-      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind, is_default: !!p.is_default }))))
-      .catch(() => {})
-    api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1')
-      .then(r => setHdTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name }))))
-      .catch(() => {})
-  }, [open])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
-  // CLIENTE é OBRIGATÓRIO ter perfil HD → assim que os perfis carregam (ou ao abrir com cliente
-  // já selecionado), garante o perfil-padrão de cliente selecionado se estiver vazio.
-  useEffect(() => {
-    if (!open || hdProfiles.length === 0) return
-    setForm(f => {
-      if (!f.profiles.includes('cliente') || f.helpdesk_access_profile_id !== '') return f
-      const def = hdProfiles.find(hp => hp.kind === 'cliente' && hp.is_default) ?? hdProfiles.find(hp => hp.kind === 'cliente')
-      return def ? { ...f, helpdesk_access_profile_id: def.id } : f
-    })
-  }, [open, hdProfiles])
   // Usuário em edição (prefill) — equivale a `modal.item` da página de Usuários.
   const [editItem, setEditItem] = useState<UserData | null>(null)
   const [loadingItem, setLoadingItem] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [cepLoading, setCepLoading] = useState(false)
+  const [cnpjLoading, setCnpjLoading] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
-  // Vigência do novo valor-hora: quando o hourly_rate muda, perguntamos a partir de qual mês passa a valer.
+  // Vigência do novo valor-hora/tipo: quando o hourly_rate OU o tipo muda, perguntamos a partir de qual mês passa a valer.
   const [rateModalOpen, setRateModalOpen] = useState(false)
   const [rateEffectiveMonth, setRateEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  // Permite datar a vigência RETROATIVAMENTE (até 24 meses atrás) — ex.: a troca de tipo valeu desde um mês passado.
+  // Meses já fechados não mudam (snapshot do fechamento). Mesmo racional do cadastro de parceiro.
+  const minVigenciaMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 24); return d.toISOString().slice(0, 7) })()
   // Fluxo sensível: trocar o responsável pelos recebimentos do parceiro (1=pergunta, 2=confirmação).
   const [receiverConfirm, setReceiverConfirm] = useState<1 | 2 | null>(null)
   const receiverIntentRef = useRef(false)
+
+  // Janela de pagamento (folha/fechamentos): até qual mês pagar quando inativo; retomada ao reativar.
+  const curMonth = () => new Date().toISOString().slice(0, 7)
+  const [payrollEnd, setPayrollEnd] = useState<string>('')
+  const [payrollResume, setPayrollResume] = useState<boolean>(true)
+  const [payrollResumeFrom, setPayrollResumeFrom] = useState<string>('')
+  const [payrollSummary, setPayrollSummary] = useState<{ has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } | null>(null)
+  useEffect(() => {
+    if (!open || userId == null) { setPayrollSummary(null); return }
+    api.get<{ data: { has_windows: boolean; payable_now: boolean; paid_until: string | null; paid_from: string | null } }>(`/payroll-windows?holder_type=user&holder_id=${userId}`)
+      .then(r => { setPayrollSummary(r.data ?? null); setPayrollEnd(r.data?.paid_until ?? curMonth()); setPayrollResumeFrom(curMonth()) })
+      .catch(() => {})
+  }, [open, userId])
 
   // Histórico de valores-hora (somente leitura) — GET /users/{id}/hourly-rate-history
   const [rateHistoryOpen, setRateHistoryOpen] = useState(false)
@@ -466,6 +482,85 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       toast.error('Erro ao carregar histórico de valores')
     } finally {
       setRateHistoryLoading(false)
+    }
+  }
+  // Edição inline de uma linha do histórico de valor/tipo (corrigir vigência, valor ou tipo).
+  const [rateEditId, setRateEditId] = useState<number | null>(null)
+  const [rateEditMonth, setRateEditMonth] = useState('')
+  const [rateEditRate, setRateEditRate] = useState('')
+  const [rateEditType, setRateEditType] = useState<ConsultantType | ''>('')
+  const [rateEditSaving, setRateEditSaving] = useState(false)
+  const startRateEdit = (h: any) => {
+    setRateEditId(h.id)
+    setRateEditMonth(h.effective_from ? String(h.effective_from).slice(0, 7) : '')
+    setRateEditRate(h.new_hourly_rate != null ? String(Number(h.new_hourly_rate)) : '')
+    setRateEditType((h.new_consultant_type as ConsultantType) ?? '')
+  }
+  const saveRateEdit = async () => {
+    if (userId == null || rateEditId == null) return
+    setRateEditSaving(true)
+    try {
+      const rate_type = rateEditType === 'horista' ? 'hourly' : rateEditType ? 'monthly' : null
+      await api.put(`/users/${userId}/hourly-rate-history/${rateEditId}`, {
+        effective_from: rateEditMonth ? `${rateEditMonth}-01` : null,
+        new_hourly_rate: rateEditRate === '' ? null : Number(rateEditRate),
+        new_consultant_type: rateEditType || null,
+        new_rate_type: rate_type,
+      })
+      toast.success('Histórico atualizado')
+      setRateEditId(null)
+      await openRateHistory()
+    } catch { toast.error('Erro ao salvar') } finally { setRateEditSaving(false) }
+  }
+  // Rótulos amigáveis do tipo de consultor.
+  const TYPE_LABEL: Record<string, string> = { fixo: 'Fixo', horista: 'Horista', banco_de_horas: 'Banco de Horas' }
+
+  // Vigência das HORAS GARANTIDAS (piso) — mesma mecânica do valor/hora, independente dele.
+  const [ghModalOpen, setGhModalOpen] = useState(false)
+  const [ghEffectiveMonth, setGhEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  const pendingRateEffRef = useRef<string | undefined>(undefined)
+  const [ghHistoryOpen, setGhHistoryOpen] = useState(false)
+  const [ghHistory, setGhHistory] = useState<any[]>([])
+  const [ghHistoryLoading, setGhHistoryLoading] = useState(false)
+  const openGhHistory = async () => {
+    if (userId == null) return
+    setGhHistoryOpen(true)
+    setGhHistoryLoading(true)
+    try {
+      const res = await api.get<{ hasNext: boolean; items: any[] }>(`/users/${userId}/guaranteed-hours-history?pageSize=100`)
+      setGhHistory(Array.isArray(res?.items) ? res.items : [])
+    } catch {
+      setGhHistory([])
+      toast.error('Erro ao carregar histórico de horas garantidas')
+    } finally {
+      setGhHistoryLoading(false)
+    }
+  }
+  // Edição inline de uma linha do histórico — corrigir o valor ou a vigência já lançados.
+  const [ghEditId, setGhEditId] = useState<number | null>(null)
+  const [ghEditMonth, setGhEditMonth] = useState('')
+  const [ghEditHours, setGhEditHours] = useState('')
+  const [ghEditSaving, setGhEditSaving] = useState(false)
+  const startGhEdit = (h: any) => {
+    setGhEditId(h.id)
+    setGhEditMonth(h.effective_from ? String(h.effective_from).slice(0, 7) : '')
+    setGhEditHours(h.new_guaranteed_hours != null ? String(Number(h.new_guaranteed_hours)) : '')
+  }
+  const saveGhEdit = async (logId: number) => {
+    if (userId == null) return
+    setGhEditSaving(true)
+    try {
+      await api.put(`/users/${userId}/guaranteed-hours-history/${logId}`, {
+        new_guaranteed_hours: ghEditHours === '' ? null : Number(ghEditHours),
+        effective_from: ghEditMonth ? `${ghEditMonth}-01` : null,
+      })
+      toast.success('Histórico atualizado')
+      setGhEditId(null)
+      await openGhHistory()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar histórico')
+    } finally {
+      setGhEditSaving(false)
     }
   }
 
@@ -521,8 +616,6 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           bank_hours_initial_balance: item.bank_hours_initial_balance != null ? String(item.bank_hours_initial_balance) : '',
           guaranteed_hours:       item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
           profiles,
-          helpdesk_access_profile_id: item.helpdesk_access_profile_id ?? '',
-          helpdesk_team_ids: item.helpdesk_team_ids ?? [],
           consultant_type:      consultant_type as ConsultantType | '',
           work_bond:            (item.work_bond as '' | 'fixo' | 'freelance' | undefined) ?? '',
           contract_type:        (item.contract_type as ContractType | undefined) ?? '',
@@ -530,8 +623,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           is_partner_consultor: false,
           is_partner_adm:       item.is_executive ?? false,
           customer_id:          item.customer_id ?? '',
-          company_ids:          item.company_ids ?? [],
-          allowed_modules:      (item.allowed_modules ?? null) as string[] | null,
+          is_customer_manager:  item.is_customer_manager ?? false,
           partner_id:           item.partner_id  ?? '',
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
@@ -542,6 +634,9 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           is_bizify_coordinator:      item.is_bizify_coordinator ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
+          cnpj:                       item.cnpj ?? '',
+          razao_social:               item.razao_social ?? '',
+          tax_regime:                 item.tax_regime ?? '',
           matricula:                  item.matricula ?? '',
           birth_date:                 (item.birth_date ?? '').slice(0, 10),
           signature:                  (item.signature as SignatureData | undefined) ?? {},
@@ -587,18 +682,23 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
     } catch { toast.error('Não foi possível buscar o CEP') } finally { setCepLoading(false) }
   }
 
-  const save = async (hourlyRateEffectiveFrom?: string) => {
+  // Consulta o CNPJ na Receita (backend → BrasilAPI) e preenche o regime tributário.
+  const lookupCnpj = async () => {
+    const d = (form.cnpj || '').replace(/\D/g, '')
+    if (d.length !== 14) { toast.error('Informe um CNPJ com 14 dígitos'); return }
+    setCnpjLoading(true)
+    try {
+      const data = await api.get<{ tax_regime: string; razao_social?: string | null }>(`/users/cnpj-lookup/${d}`)
+      setForm(f => ({ ...f, tax_regime: data.tax_regime, razao_social: data.razao_social || f.razao_social }))
+      const nome = data.razao_social ? ` (${data.razao_social})` : ''
+      toast.success(`Regime: ${TAX_REGIME_LABEL[data.tax_regime] ?? data.tax_regime}${nome}`)
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível consultar o CNPJ')
+    } finally { setCnpjLoading(false) }
+  }
+
+  const save = async (hourlyRateEffectiveFrom?: string, guaranteedEffectiveFrom?: string) => {
     if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
-
-    // Agente de Help Desk (não-cliente com perfil de acesso) precisa de ao menos uma equipe.
-    const isAgentProfile = !form.profiles.includes('cliente') && form.helpdesk_access_profile_id !== ''
-    if (isAgentProfile && form.helpdesk_team_ids.length === 0) { toast.error('Selecione ao menos uma equipe de Help Desk para o agente.'); return }
-
-    // CLIENTE: perfil HD e empresa(s) do grupo (ERPSERV/BIZIFY) são OBRIGATÓRIOS.
-    if (form.profiles.includes('cliente')) {
-      if (form.helpdesk_access_profile_id === '') { toast.error('Selecione o Perfil de acesso do Help Desk do cliente.'); return }
-      if (form.company_ids.length === 0) { toast.error('Selecione ao menos uma empresa (ERPSERV / BIZIFY) para o cliente.'); return }
-    }
 
     // Empresa base OBRIGATÓRIA para consultor/parceiro — sem ela os apontamentos
     // que a pessoa lançar nascem sem empresa e somem das telas.
@@ -614,6 +714,11 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         name:        form.name,
         email:       form.email,
         enabled:     form.enabled,
+        // Janela de pagamento (só na edição): corte ao inativar / retomada ao reativar.
+        ...(isEdit && !form.enabled ? { payroll_end_month: payrollEnd || curMonth() } : {}),
+        ...(isEdit && form.enabled && editItem && !editItem.enabled
+          ? { payroll_resume: payrollResume, payroll_resume_from: payrollResume ? (payrollResumeFrom || curMonth()) : null }
+          : {}),
         can_use_bot: form.can_use_bot,
         bot_allowed_scopes: form.bot_allowed_scopes,
         bot_visibility: form.bot_visibility,
@@ -621,15 +726,12 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
-        // Acesso por módulo só faz sentido p/ cliente; null = todos (não restringe).
-        allowed_modules: form.profiles.includes('cliente') ? form.allowed_modules : null,
+        is_customer_manager: form.profiles.includes('cliente') ? form.is_customer_manager : false,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
         is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
         rate_type:    form.rate_type,
         set_as_partner_receiver: receiverIntentRef.current, // troca do responsável pelos recebimentos (confirmada)
       }
-      // Equipes de Help Desk (só p/ não-cliente); o BE sincroniza o pivot helpdesk_team_user.
-      if (!form.profiles.includes('cliente')) payload.helpdesk_team_ids = form.helpdesk_team_ids
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
       payload.home_company_id = form.home_company_id  // empresa da folha (o BE deriva is_bizify)
@@ -668,6 +770,9 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       if (payrollProfile) {
         payload.full_name      = form.full_name || null
         payload.cpf            = form.cpf || null
+        payload.cnpj           = form.cnpj || null
+        payload.razao_social   = form.razao_social || null
+        payload.tax_regime     = form.tax_regime || null
         payload.matricula      = form.matricula || null
         payload.birth_date     = form.birth_date || null
         payload.payroll_status = form.payroll_status || PAYROLL_STATUS_DEFAULT
@@ -690,7 +795,6 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         payload.smtp_app_password = form.smtp_app_password
       }
 
-      let savedUserId: number | undefined
       if (isEdit && editItem) {
         // Mudou o valor-hora OU o tipo do consultor (rate_type/consultant_type)? Abre o modal de
         // vigência antes de enviar — a alteração vale a partir do mês escolhido (passado não muda).
@@ -701,31 +805,20 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           || form.rate_type !== ((editItem.rate_type as string | undefined) ?? 'hourly')
         )
         const vigenciaChanged = rateChanged || typeChanged
+        // Horas garantidas (piso) — vigência PRÓPRIA, mesma mecânica do valor/hora.
+        // '' = apagado → sem piso a partir do mês escolhido (meses anteriores mantêm o valor).
+        const ghFormNum = form.guaranteed_hours === '' ? null : Number(form.guaranteed_hours)
+        const ghOrigNum = (editItem.guaranteed_hours === null || editItem.guaranteed_hours === undefined) ? null : Number(editItem.guaranteed_hours)
+        const ghChanged = isConsultorEdit && form.consultant_type === 'horista' && ghFormNum !== ghOrigNum
         if (vigenciaChanged && !hourlyRateEffectiveFrom) { setSaving(false); setRateModalOpen(true); return }
+        if (ghChanged && !guaranteedEffectiveFrom) { setSaving(false); pendingRateEffRef.current = hourlyRateEffectiveFrom; setGhModalOpen(true); return }
         if (vigenciaChanged && hourlyRateEffectiveFrom) { payload.hourly_rate_effective_from = hourlyRateEffectiveFrom }
+        if (ghChanged && guaranteedEffectiveFrom) { payload.guaranteed_hours_effective_from = guaranteedEffectiveFrom }
         await api.put(`/users/${editItem.id}`, payload)
-        savedUserId = editItem.id
         toast.success('Usuário atualizado')
       } else {
-        const created = await api.post<any>('/users', payload)
-        savedUserId = created?.id ?? created?.data?.id
+        await api.post('/users', payload)
         toast.success('Usuário criado — e-mail de boas-vindas enviado com a senha de acesso')
-      }
-      // Perfil de acesso do Help Desk: aplica quando escolhido explicitamente (ou em edição, p/
-      // respeitar limpar). Na criação sem escolha, mantém o default automático do BE. O endpoint
-      // valida kind×tipo (agente×cliente).
-      if (savedUserId && (form.helpdesk_access_profile_id !== '' || isEdit)) {
-        try {
-          await api.patch(`/help-desk/people/${savedUserId}/access-profile`, {
-            access_profile_id: form.helpdesk_access_profile_id === '' ? null : form.helpdesk_access_profile_id,
-          })
-        } catch { /* não bloqueia o cadastro principal */ }
-      }
-      // Empresas do grupo (ERPSERV/BIZIFY): sincroniza p/ cliente (portal) — mesmo endpoint da aba HD.
-      if (savedUserId && form.profiles.includes('cliente')) {
-        try {
-          await api.patch(`/help-desk/people/${savedUserId}/companies`, { company_ids: form.company_ids })
-        } catch { /* não bloqueia o cadastro principal */ }
       }
       onSaved()
       onClose()
@@ -798,17 +891,8 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
         contract_type:    (profiles.length && !profiles.includes('cliente')) ? f.contract_type : '',
         coordinator_type: profiles.includes('coordenador')  ? f.coordinator_type : '',
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
-        allowed_modules:  profiles.includes('cliente')      ? f.allowed_modules : null,
+        is_customer_manager: profiles.includes('cliente')   ? f.is_customer_manager : false,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
-        // Perfil HD só continua se o KIND continuar compatível (cliente↔cliente, agente↔agente).
-        // CLIENTE é OBRIGATÓRIO → se ficar sem perfil compatível, cai no padrão de cliente.
-        helpdesk_access_profile_id: (() => {
-          const isCli = profiles.includes('cliente')
-          const cur = hdProfiles.find(hp => hp.id === f.helpdesk_access_profile_id)
-          if (cur && (cur.kind === 'cliente') === isCli) return f.helpdesk_access_profile_id
-          if (isCli) return (hdProfiles.find(hp => hp.kind === 'cliente' && hp.is_default) ?? hdProfiles.find(hp => hp.kind === 'cliente'))?.id ?? ''
-          return ''
-        })(),
       }
     })
   }
@@ -861,52 +945,57 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           </div>
         </div>
 
-        {/* ── Perfil de acesso do Help Desk (kind conforme o perfil: cliente↔cliente, agente↔agente) ── */}
-        {form.profiles.length > 0 && hdProfiles.length > 0 && (() => {
-          const isCli = form.profiles.includes('cliente')
-          const opts = hdProfiles.filter(p => (p.kind === 'cliente') === isCli)
-          return (
-            <div>
-              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Perfil de acesso do Help Desk{isCli ? <span style={{ color: 'var(--danger-border)' }}> *</span> : ''}</Label>
-              <select value={form.helpdesk_access_profile_id === '' ? '' : String(form.helpdesk_access_profile_id)}
-                onChange={e => setForm(f => ({ ...f, helpdesk_access_profile_id: e.target.value ? Number(e.target.value) : '' }))}
-                className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] h-9 text-xs rounded-lg px-2 outline-none focus:border-[var(--border-strong)]">
-                {/* CLIENTE é obrigatório → sem opção "Sem perfil". */}
-                {!isCli && <option value="">Sem perfil</option>}
-                {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <p className="text-[10px] text-[var(--text-light)] mt-1">{isCli ? 'Perfis de CLIENTE (obrigatório) — todo cliente entra com um perfil do Help Desk.' : 'Perfis de AGENTE — só perfis compatíveis com o tipo do usuário.'}</p>
-              {!isCli && (
-                <div className="mt-3">
-                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">
-                    Equipe(s) do Help Desk{form.helpdesk_access_profile_id !== '' ? <span style={{ color: 'var(--danger-border)' }}> *</span> : ''}
-                  </Label>
-                  {hdTeams.length === 0 ? (
-                    <p className="text-[10px] text-[var(--text-light)]">Nenhuma equipe cadastrada.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto rounded-lg p-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
-                      {hdTeams.map(tm => {
-                        const checked = form.helpdesk_team_ids.includes(tm.id)
-                        return (
-                          <label key={tm.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
-                            <input type="checkbox" checked={checked}
-                              onChange={() => setForm(f => ({ ...f, helpdesk_team_ids: checked ? f.helpdesk_team_ids.filter(x => x !== tm.id) : [...f.helpdesk_team_ids, tm.id] }))} />
-                            <span style={{ color: 'var(--text)' }}>{tm.name}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <p className="text-[10px] text-[var(--text-light)] mt-1">Agente de Help Desk precisa estar em ao menos uma equipe.</p>
-                </div>
-              )}
-            </div>
-          )
-        })()}
-
         {/* ── Campos comuns ── */}
         {form.profiles.length > 0 && (
           <>
+            {/* ── STATUS (Ativo/Inativo) em destaque + janela de pagamento (no topo) ── */}
+            <div className="rounded-xl p-3 space-y-2" style={{ border: `1.5px solid ${form.enabled ? 'var(--success-border, #22c55e)' : 'var(--danger-border, #ef4444)'}`, background: form.enabled ? 'var(--success-bg, var(--surface-hover))' : 'var(--danger-bg, var(--surface-sunken))' }}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)' }}>
+                  <span style={{ width: 9, height: 9, borderRadius: 999, background: form.enabled ? 'var(--success, #16a34a)' : 'var(--danger, #dc2626)', display: 'inline-block' }} />
+                  {form.enabled ? 'Ativo' : 'Inativo'}
+                </span>
+                <button type="button" onClick={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shrink-0"
+                  style={form.enabled
+                    ? { background: 'transparent', border: '1.5px solid var(--danger, #dc2626)', color: 'var(--danger, #dc2626)' }
+                    : { background: 'var(--success, #16a34a)', border: '1.5px solid var(--success, #16a34a)', color: '#fff' }}>
+                  {form.enabled ? 'Inativar' : 'Ativar'}
+                </button>
+              </div>
+              {isEdit && !form.enabled && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--warning-border, var(--border))', background: 'var(--warning-bg, var(--surface))' }}>
+                  <label className="block text-xs font-medium" style={{ color: 'var(--text)' }}>Pagar folha/salário até o mês *</label>
+                  <input type="month" value={payrollEnd} onChange={e => setPayrollEnd(e.target.value)}
+                    className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    A partir do mês seguinte, o colaborador deixa de aparecer nos fechamentos e na folha. (o mês escolhido ainda é pago)
+                  </p>
+                </div>
+              )}
+              {isEdit && form.enabled && editItem && !editItem.enabled && (
+                <div className="rounded-lg p-2.5 space-y-1" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
+                  <label className="flex items-center gap-2 text-xs font-medium cursor-pointer" style={{ color: 'var(--text)' }}>
+                    <input type="checkbox" checked={payrollResume} onChange={e => setPayrollResume(e.target.checked)} /> Calcular folha ao reativar
+                  </label>
+                  {payrollResume && (
+                    <div>
+                      <label className="block text-[11px] mb-0.5" style={{ color: 'var(--text-muted)' }}>A partir do mês (pode ser retroativo)</label>
+                      <input type="month" value={payrollResumeFrom} onChange={e => setPayrollResumeFrom(e.target.value)}
+                        className="h-8 text-xs px-2 rounded-md w-44" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                    </div>
+                  )}
+                </div>
+              )}
+              {isEdit && payrollSummary?.has_windows && (
+                <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  {payrollSummary.payable_now
+                    ? `Folha ativa${payrollSummary.paid_from ? ` desde ${payrollSummary.paid_from}` : ''}.`
+                    : `Folha encerrada${payrollSummary.paid_until ? ` (pago até ${payrollSummary.paid_until})` : ''}.`}
+                </p>
+              )}
+            </div>
+
             <div>
               <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -1089,73 +1178,24 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               />
             )}
 
-            {/* ── Cliente: empresa(s) do grupo ERPSERV/BIZIFY — define as abas do portal (OBRIGATÓRIO) ── */}
-            {isCliente && companies.length > 0 && (() => {
-              const ordered = [...companies].sort((a, b) => (/erpserv/i.test(b.name) ? 1 : 0) - (/erpserv/i.test(a.name) ? 1 : 0))
-              const toggle = (id: number) => setForm(f => ({ ...f, company_ids: f.company_ids.includes(id) ? f.company_ids.filter(x => x !== id) : [...f.company_ids, id] }))
-              return (
-                <div>
-                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">Empresas (ERPSERV / BIZIFY)<span style={{ color: 'var(--danger-border)' }}> *</span></Label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {ordered.map(c => {
-                      const sel = form.company_ids.includes(c.id)
-                      return (
-                        <button key={c.id} type="button" onClick={() => toggle(c.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg border transition-colors"
-                          style={{ borderColor: sel ? 'var(--primary)' : 'var(--border)', background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)', color: sel ? 'var(--primary)' : 'var(--text-muted)' }}>
-                          {sel ? '✓ ' : ''}{c.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <p className="text-[10px] text-[var(--text-light)] mt-1">Define em quais empresas (abas do portal) o cliente abre e acompanha chamados. Escolha ao menos uma.</p>
-                </div>
-              )
-            })()}
-
-            {/* ── Cliente: o que o usuário acessa (Projetos / Help Desk) ── */}
-            {isCliente && (() => {
-              // null = todos (legado). Materializa em lista ao interagir.
-              const checked = (m: string) => form.allowed_modules === null || form.allowed_modules.includes(m)
-              const toggle = (m: string) => setForm(f => {
-                const cur = f.allowed_modules ?? ['projetos', 'help_desk']
-                const next = cur.includes(m) ? cur.filter(x => x !== m) : [...cur, m]
-                return { ...f, allowed_modules: next }
-              })
-              const MODS: { key: string; label: string }[] = [
-                { key: 'projetos',  label: 'Projetos' },
-                { key: 'help_desk', label: 'Help Desk' },
-              ]
-              return (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium" style={{ color: 'var(--text)' }}>Acesso</label>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    O que este usuário enxerga no portal. Sem seleção = acesso total (padrão).
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {MODS.map(m => (
-                      <label
-                        key={m.key}
-                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer"
-                        style={{
-                          border: '1px solid var(--border)',
-                          background: checked(m.key) ? 'var(--primary-soft)' : 'var(--surface)',
-                          color: 'var(--text)',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked(m.key)}
-                          onChange={() => toggle(m.key)}
-                          className="accent-[var(--primary)]"
-                        />
-                        {m.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
+            {/* ── Cliente: gestor do cliente (vê todos os projetos da empresa + convida outros) ── */}
+            {isCliente && (
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!!form.is_customer_manager}
+                  onChange={e => setForm(f => ({ ...f, is_customer_manager: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="text-sm text-[var(--text)]">Gestor do cliente</span>
+                  <span className="block text-[10px] text-[var(--text-light)]">
+                    Enxerga TODOS os projetos da empresa e pode convidar outros usuários para os cards.
+                    Clientes sem esta opção só veem os projetos em que foram convidados.
+                  </span>
+                </span>
+              </label>
+            )}
 
             {/* ── Consultor: tipo de consultor (colapsável) ── */}
             {isConsultor && (
@@ -1184,7 +1224,15 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
             {/* ── Horas garantidas (Horista apenas) ── */}
             {isConsultor && form.consultant_type === 'horista' && (
               <div>
-                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Horas garantidas / mês</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs text-[var(--text-muted)]">Horas garantidas / mês</Label>
+                  {isEdit && (
+                    <button type="button" onClick={openGhHistory}
+                      className="text-[10px] font-medium text-[var(--primary)] hover:underline">
+                      Histórico
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Input type="number" min="0" max="744" step="1"
                     value={form.guaranteed_hours}
@@ -1303,6 +1351,32 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                       className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                 </div>
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Razão Social</Label>
+                  <Input value={form.razao_social} onChange={e => setForm(f => ({ ...f, razao_social: e.target.value }))}
+                    placeholder="Preenchida ao consultar o CNPJ"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label className="text-xs text-[var(--text-muted)]">CNPJ</Label>
+                    <Input value={form.cnpj} onChange={e => setForm(f => ({ ...f, cnpj: formatCnpj(e.target.value) }))}
+                      placeholder="00.000.000/0000-00" inputMode="numeric"
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                  </div>
+                  <Button type="button" variant="outline" onClick={lookupCnpj} disabled={cnpjLoading}
+                    title="Consulta o regime na Receita (MEI/Simples/demais) pelo CNPJ"
+                    className="h-9 text-xs whitespace-nowrap gap-1">
+                    {cnpjLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                    Consultar Receita
+                  </Button>
+                </div>
+                <FieldSelect
+                  label="Regime tributário"
+                  value={form.tax_regime || ''}
+                  onChange={v => setForm(f => ({ ...f, tax_regime: v }))}
+                  options={TAX_REGIME_OPTIONS}
+                />
                 <FieldSelect
                   label="Status"
                   value={form.payroll_status}
@@ -1500,12 +1574,6 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               </div>
             )}
 
-            {/* ── Ativo ── */}
-            <Toggle
-              value={form.enabled}
-              onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
-              label="Ativo"
-            />
           </>
         )}
 
@@ -1527,14 +1595,14 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
           <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência da alteração</p>
             <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
-              A partir de qual mês essa alteração (valor hora / tipo) passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
+              A partir de qual mês essa alteração (valor hora / tipo de contratação) passa a valer? Pode ser um mês <b>passado</b> (retroativo). Meses já fechados não mudam.
             </p>
             <div className="mb-5">
               <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
               <Input
                 type="month"
                 value={rateEffectiveMonth}
-                min={new Date().toISOString().slice(0, 7)}
+                min={minVigenciaMonth}
                 onChange={e => setRateEffectiveMonth(e.target.value)}
                 className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
               />
@@ -1556,9 +1624,9 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
       {/* Histórico de valores-hora (somente leitura) */}
       {rateHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+          <div className="w-full max-w-3xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores</p>
+              <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores e tipo</p>
               <button onClick={() => setRateHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                 <X size={16} />
               </button>
@@ -1574,26 +1642,168 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
                     <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
                       <th className="text-left font-semibold px-3 py-2">Vigência</th>
                       <th className="text-left font-semibold px-3 py-2">Valor</th>
+                      <th className="text-left font-semibold px-3 py-2">Tipo</th>
                       <th className="text-left font-semibold px-3 py-2">Alterado por</th>
                       <th className="text-left font-semibold px-3 py-2">Em</th>
+                      <th className="text-right font-semibold px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
-                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
+                    {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => {
+                      const editing = rateEditId === h.id
+                      const typeChanged = (h.new_consultant_type ?? null) !== (h.old_consultant_type ?? null)
+                      return (
+                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)] align-top">
                         <td className="px-3 py-2 whitespace-nowrap">
-                          {h.effective_from
-                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
-                            : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
+                          {editing
+                            ? <Input type="month" min={minVigenciaMonth} value={rateEditMonth} onChange={e => setRateEditMonth(e.target.value)} className="h-7 text-xs w-[7.5rem] bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)]" />
+                            : (h.effective_from
+                              ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                              : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>)}
                         </td>
                         <td className="px-3 py-2 tabular-nums whitespace-nowrap">
-                          {h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-                          <span className="text-[var(--text-light)]"> → </span>
-                          {h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                          {editing
+                            ? <Input type="number" step="0.01" value={rateEditRate} onChange={e => setRateEditRate(e.target.value)} placeholder="valor hora" className="h-7 text-xs w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)]" />
+                            : <>{h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}<span className="text-[var(--text-light)]"> → </span>{h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</>}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {editing
+                            ? <select value={rateEditType} onChange={e => setRateEditType(e.target.value as ConsultantType | '')} className="h-7 text-xs rounded-md border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text)] px-1">
+                                <option value="">—</option>
+                                <option value="fixo">Fixo</option>
+                                <option value="horista">Horista</option>
+                                <option value="banco_de_horas">Banco de Horas</option>
+                              </select>
+                            : (typeChanged
+                              ? <><span className="text-[var(--text-light)]">{TYPE_LABEL[h.old_consultant_type] ?? '—'}</span><span className="text-[var(--text-light)]"> → </span><b>{TYPE_LABEL[h.new_consultant_type] ?? '—'}</b></>
+                              : <span className="text-[var(--text-muted)]">{TYPE_LABEL[h.new_consultant_type] ?? '—'}</span>)}
                         </td>
                         <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
                           {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                          {editing
+                            ? <span className="inline-flex gap-1">
+                                <button onClick={saveRateEdit} disabled={rateEditSaving} className="text-[var(--primary)] hover:underline disabled:opacity-50">{rateEditSaving ? '…' : 'Salvar'}</button>
+                                <button onClick={() => setRateEditId(null)} className="text-[var(--text-light)] hover:underline">Cancelar</button>
+                              </span>
+                            : <button onClick={() => startRateEdit(h)} className="text-[var(--primary)] hover:underline inline-flex items-center gap-1"><PenLine size={11} /> Editar</button>}
+                        </td>
+                      </tr>
+                    )})}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex items-center justify-end mt-5">
+              <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vigência das HORAS GARANTIDAS (piso) — mês a partir do qual o novo piso (ou a ausência dele) vale */}
+      {ghModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência das horas garantidas</p>
+            <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
+              {form.guaranteed_hours === ''
+                ? 'A partir de qual mês o piso de horas garantidas deixa de valer? Meses anteriores mantêm o piso vigente.'
+                : 'A partir de qual mês esse piso de horas garantidas passa a valer? Meses anteriores (fechamentos já feitos) não mudam.'}
+            </p>
+            <div className="mb-5">
+              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
+              <Input
+                type="month"
+                value={ghEffectiveMonth}
+                min={(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })()}
+                onChange={e => setGhEffectiveMonth(e.target.value)}
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => setGhModalOpen(false)}
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
+              <Button
+                onClick={() => { setGhModalOpen(false); save(pendingRateEffRef.current, `${ghEffectiveMonth}-01`) }}
+                disabled={!ghEffectiveMonth}
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de horas garantidas (somente leitura) */}
+      {ghHistoryOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-[var(--text)]">Histórico de horas garantidas</p>
+              <button onClick={() => setGhHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
+                <X size={16} />
+              </button>
+            </div>
+            {ghHistoryLoading ? (
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Carregando…</p>
+            ) : ghHistory.length === 0 ? (
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Nenhuma alteração registrada.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--border)]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
+                      <th className="text-left font-semibold px-3 py-2">Vigência</th>
+                      <th className="text-left font-semibold px-3 py-2">Horas / mês</th>
+                      <th className="text-left font-semibold px-3 py-2">Alterado por</th>
+                      <th className="text-left font-semibold px-3 py-2">Em</th>
+                      <th className="text-right font-semibold px-3 py-2">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ghHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
+                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {ghEditId === h.id ? (
+                            <Input type="month" value={ghEditMonth} onChange={e => setGhEditMonth(e.target.value)}
+                              className="w-32 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-7 text-xs" />
+                          ) : h.effective_from
+                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                            : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                          {ghEditId === h.id ? (
+                            <Input type="number" min="0" max="744" step="1" value={ghEditHours}
+                              onChange={e => setGhEditHours(e.target.value)} placeholder="sem piso"
+                              className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-7 text-xs" />
+                          ) : (<>
+                            {h.old_guaranteed_hours != null ? `${Number(h.old_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                            <span className="text-[var(--text-light)]"> → </span>
+                            {h.new_guaranteed_hours != null ? `${Number(h.new_guaranteed_hours)}h` : <span className="text-[var(--text-light)]">sem piso</span>}
+                          </>)}
+                        </td>
+                        <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
+                          {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-right">
+                          {ghEditId === h.id ? (
+                            <div className="flex items-center justify-end gap-3">
+                              <button type="button" disabled={ghEditSaving} onClick={() => saveGhEdit(h.id)}
+                                className="text-[11px] font-medium text-[var(--primary)] hover:underline disabled:opacity-50">
+                                {ghEditSaving ? 'Salvando…' : 'Salvar'}
+                              </button>
+                              <button type="button" onClick={() => setGhEditId(null)}
+                                className="text-[11px] text-[var(--text-light)] hover:underline">Cancelar</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => startGhEdit(h)}
+                              className="text-[11px] font-medium text-[var(--primary)] hover:underline">Editar</button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1602,7 +1812,7 @@ export function UserFormModal({ open, userId, onClose, onSaved, prefill }: UserF
               </div>
             )}
             <div className="flex items-center justify-end mt-5">
-              <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
+              <Button variant="outline" onClick={() => setGhHistoryOpen(false)}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
             </div>
           </div>

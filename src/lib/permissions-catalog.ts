@@ -97,6 +97,7 @@ export const SCREEN_ACTIONS_CATALOG: Record<string, ScreenActionOption[]> = {
     { label: 'Editar',              permission: 'users.update' },
     { label: 'Resetar senha',       permission: 'users.reset_password' },
     { label: 'Reenviar boas-vindas' },   // ação de UI — sem permissão dedicada
+    { label: 'Definir gestor do cliente' }, // ação de UI — marca/desmarca gestor (admin+coord)
     { label: 'Excluir',             permission: 'users.delete' },
   ],
   // "Ver como": cada bloco é uma ação liberável por perfil. Libere aqui quem pode ver
@@ -106,6 +107,18 @@ export const SCREEN_ACTIONS_CATALOG: Record<string, ScreenActionOption[]> = {
     { label: 'Ver como Cliente',   permission: 'ver_como.cliente' },
     { label: 'Ver como Consultor', permission: 'ver_como.consultor' },
     { label: 'Ver como Parceiro',  permission: 'ver_como.parceiro' },
+  ],
+  // Ações do card em Demandas e Projetos (⋮). São de UI — governáveis por perfil
+  // na CFG de menus. "Participantes" = convidar clientes a ver o card do projeto.
+  '/contratos/pipeline': [
+    { label: 'Visualizar' },
+    { label: 'Participantes' },
+    { label: 'Editar' },
+    { label: 'Alterar Status' },
+    { label: 'Apont. & Despesas' },
+    { label: 'Selecionar Equipe' },
+    { label: 'Comentários' },
+    { label: 'Excluir' },
   ],
 }
 

@@ -25,6 +25,7 @@ import { ExpensesScreen }              from '@/components/screens/ExpensesScreen
 import { ApprovalsScreen }             from '@/components/screens/ApprovalsScreen'
 import { AuditoriaApontamentosScreen } from '@/components/screens/AuditoriaApontamentosScreen'
 import RentabilidadePage              from '@/app/relatorios/rentabilidade/page'
+import { FaturamentoOnDemandPanel }   from '@/components/on-demand/faturamento-on-demand-panel'
 import { SkeletonTable, CardsSkeleton, InlineLoader } from '@/components/ui/loading'
 import { KpiAA, AgingBars, HBarTopN, DonutTipo, VariationBadge, SectionLabel, SlaGauge, RankBars, CompareRow } from '@/components/sustentacao/status-widgets'
 
@@ -239,6 +240,7 @@ const ROUTINE_TABS = [
   { id: 'auditoria',  label: 'Auditoria',    icon: FileText,       desc: 'Histórico de alterações de apontamentos'   },
   { id: 'triagem',    label: 'Lançamentos não identificados', icon: AlertTriangle, desc: 'Apontamentos atribuídos ao Usuário/Cliente/Projeto Padrão (revisão manual)' },
   { id: 'rentabilidade', label: 'Rentabilidade', icon: TrendingUp, desc: 'Receita, custo e margem por consultor × projeto' },
+  { id: 'faturamento_od', label: 'Faturamento On Demand', icon: DollarSign, desc: 'Liberação de faturamento dos contratos On Demand de sustentação' },
 ] as const
 
 type RoutineTabId = typeof ROUTINE_TABS[number]['id']
@@ -2553,6 +2555,7 @@ export function SustentacaoWorkspace({ show }: { show: 'central' | 'indicadores'
         {routineTab === 'auditoria'  && <AuditoriaApontamentosScreen scope="sustentacao" embedded extDate={portalDate} />}
         {routineTab === 'triagem'    && <TimesheetsScreen            scope="sustentacao" embedded triagemPadrao extDate={portalDate} />}
         {routineTab === 'rentabilidade' && <RentabilidadePage visaoForced="consultor" embedded periodo={rentabPeriodo} />}
+        {routineTab === 'faturamento_od' && <FaturamentoOnDemandPanel onlySustentacao />}
 
         {!routineTab && tab === 'debug' && (
           <DiagnosticoTab

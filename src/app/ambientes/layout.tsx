@@ -1,4 +1,7 @@
-// VaultProvider agora é app-wide (src/app/providers.tsx). Este layout só repassa os filhos.
+// VaultProvider escopado a /ambientes (área admin). O cofre só inicializa aqui
+// (evita disparar /vault/profile app-wide p/ todo usuário autenticado).
+import { VaultProvider } from '@/contexts/vault-context'
+
 export default function AmbientesLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return <VaultProvider>{children}</VaultProvider>
 }

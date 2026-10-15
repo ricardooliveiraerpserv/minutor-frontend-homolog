@@ -4,22 +4,25 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Headset, List } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { hdTabsKey, clearHdTabs } from '@/lib/hd-tabs'
 
 // Abas de chamados abertos (estilo Movidesk): alternar entre tickets sem voltar pra lista.
-// Estado persistido em localStorage POR USUÁRIO → cada login vê só as SUAS abas (não vaza entre perfis).
+// Estado em sessionStorage POR USUÁRIO → NÃO persiste "para sempre"; some ao fechar a aba do
+// navegador, ao deslogar e ao sair do Help Desk. (Antes era localStorage e ficava pra sempre.)
 
 export type TicketTab = { id: number; number: string | null; subject: string }
 const MAX = 12
-// Chave escopada pelo usuário logado (evita que outro perfil veja as abas de quem usou o navegador antes).
-const keyFor = (uid?: number | null) => `hd_open_tickets_${uid ?? 'anon'}`
 
 function read(uid?: number | null): TicketTab[] {
-  try { const v = JSON.parse(localStorage.getItem(keyFor(uid)) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] }
+  try { const v = JSON.parse(sessionStorage.getItem(hdTabsKey(uid)) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] }
 }
 function write(tabs: TicketTab[], uid?: number | null) {
-  localStorage.setItem(keyFor(uid), JSON.stringify(tabs.slice(-MAX)))
+  sessionStorage.setItem(hdTabsKey(uid), JSON.stringify(tabs.slice(-MAX)))
   window.dispatchEvent(new Event('hd-tabs-changed')) // avisa componentes na MESMA aba do navegador
 }
+
+/** Limpa TODAS as abas (logout / sair do Help Desk). Reexporta o util leaf. */
+export const clearTicketTabs = clearHdTabs
 
 /** Registra (ou atualiza) um chamado como aba aberta. Chamar quando o detalhe carrega. */
 export function addTicketTab(t: TicketTab, uid?: number | null) {
@@ -59,14 +62,17 @@ export function TicketTabs({ activeId }: { activeId?: number }) {
       router.push(next ? `/help-desk/tickets/${next.id}` : '/help-desk/fila')
     }
   }
+  // Fecha TODAS as abas de uma vez (botão "Fechar todas"). Permanece na tela atual.
+  const closeAll = () => clearTicketTabs()
 
   return (
-    <div className="flex items-stretch gap-1 overflow-x-auto pb-1 mb-2">
+    <div className="flex items-stretch gap-1 pb-1 mb-2">
       <button onClick={() => router.push('/help-desk/fila')} title="Voltar para os chamados"
         className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-t-lg shrink-0 ds-row-hover"
         style={{ border: '1px solid var(--border)', borderBottom: 'none', background: 'var(--surface)', color: 'var(--text-muted)' }}>
         <List size={13} /> Chamados
       </button>
+      <div className="flex items-stretch gap-1 overflow-x-auto flex-1 min-w-0">
       {tabs.map(t => {
         const active = t.id === activeId
         return (
@@ -85,6 +91,14 @@ export function TicketTabs({ activeId }: { activeId?: number }) {
           </button>
         )
       })}
+      </div>
+      {tabs.length > 1 && (
+        <button onClick={closeAll} title="Fechar todas as abas"
+          className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-t-lg shrink-0 ds-row-hover"
+          style={{ border: '1px solid var(--border)', borderBottom: 'none', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+          <X size={13} /> Fechar todas
+        </button>
+      )}
     </div>
   )
 }

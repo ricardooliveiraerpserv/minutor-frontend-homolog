@@ -3,8 +3,8 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
-import { MultiSelect } from '@/components/ui/multi-select'
 import { Badge } from '@/components/ui/badge'
+import { SearchSelect } from '@/components/ui/search-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,16 +12,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, Download
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, Download, UserCheck
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
-import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
+import { useNavConfig, type NavTreeNode } from '@/contexts/nav-config-context'
 import { useRouter } from 'next/navigation'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { UserFormModal } from '@/components/users/user-form-modal'
+import { MultiSelect } from '@/components/ui/multi-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ interface UserItem {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  is_customer_manager?: boolean | null
   customer?: { id: number; name: string } | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
@@ -47,13 +49,12 @@ interface UserItem {
   type?: string | null
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
-  helpdesk_access_profile_id?: number | null
-  helpdesk_department_id?: number | null
-  company_ids?: number[]
-  helpdesk_team_ids?: number[]
   // Folha de pagamento
   full_name?: string | null
   cpf?: string | null
+  cnpj?: string | null
+  razao_social?: string | null
+  tax_regime?: 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | 'nao_aplica' | null
   matricula?: string | null
   payroll_status?: string | null
   created_at: string
@@ -100,6 +101,16 @@ const CONTRACT_OPTIONS: { value: ContractType; label: string }[] = [
 
 const contractLabel = (v: string | null | undefined): string =>
   CONTRACT_OPTIONS.find(o => o.value === v)?.label ?? '—'
+
+const TAX_REGIME_OPTIONS: { value: string; label: string }[] = [
+  { value: 'mei',              label: 'MEI' },
+  { value: 'simples_nacional', label: 'Simples Nacional' },
+  { value: 'lucro_presumido',  label: 'Lucro Presumido' },
+  { value: 'lucro_real',       label: 'Lucro Real' },
+  { value: 'nao_aplica',       label: 'Não se aplica' },
+]
+const taxRegimeLabel = (v: string | null | undefined): string =>
+  TAX_REGIME_OPTIONS.find(o => o.value === v)?.label ?? '—'
 
 function resolveTypeForBackend(profile: ProfileType): string {
   if (profile === 'administrator') return 'admin'
@@ -155,14 +166,30 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 export default function UsersPage() {
   const { user: authUser } = useAuth()
   const { isDenied } = useDeniedActions()
+  const { modules, loading: navLoading } = useNavConfig()
   const router = useRouter()
 
+  // Liberação EXPLÍCITA da tela pelo Configurador de Menus: o admin adicionou este usuário no
+  // override users[] do nó /users (menu). É a fonte da verdade do acesso — permite abrir a lista
+  // mesmo sendo consultor. O BE remove os dados de folha do payload nesse caso.
+  const grantedByMenu = useMemo(() => {
+    const uid = authUser?.id
+    if (!uid) return false
+    const walk = (nodes?: NavTreeNode[]): boolean => (nodes ?? []).some(n =>
+      (n.screen === '/users' && !(n.deny_users ?? []).includes(uid) && (n.users ?? []).includes(uid))
+      || walk(n.children))
+    return modules.some(m => walk(m.items))
+  }, [modules, authUser?.id])
+
   // Consultor não acessa esta rotina, nem com extra_permissions — redireciona.
+  // EXCETO quando liberado explicitamente pelo Configurador de Menus (grantedByMenu).
+  // Só decide DEPOIS do nav-config carregar — senão, no 1º render (modules ainda vazio),
+  // grantedByMenu vem false e o consultor liberado é redirecionado antes do menu resolver.
   useEffect(() => {
-    if (authUser?.type === 'consultor') {
+    if (authUser?.type === 'consultor' && !navLoading && !grantedByMenu) {
       router.replace('/meu-painel')
     }
-  }, [authUser?.type, router])
+  }, [authUser?.type, navLoading, grantedByMenu, router])
 
   const isAdmin      = authUser?.type === 'admin'
   const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
@@ -175,99 +202,18 @@ export default function UsersPage() {
   const canEdit       = has('users.update')        && !isDenied('/users', 'edit')
   const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
+  // Definir gestores do cliente: admin E coordenador (escopo restrito — ação dedicada no BE).
+  // Governável na CFG de menus: o admin pode BLOQUEAR a ação 'set_manager' por perfil/usuário.
+  const canSetManager = (isAdmin || authUser?.type === 'coordenador') && !isDenied('/users', 'set_manager')
   // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
   // negado pelo Configurador na ação própria de reenviar.
   const canResendWelcome = canResetPwd && !isDenied('/users', 'resend_welcome')
-  // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
-  const canView       = has('users.view_all') || canResetPwd
+  // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only)
+  // OU quem foi liberado explicitamente pelo Configurador (grantedByMenu; sem dados de folha — o BE oculta).
+  const canView       = has('users.view_all') || canResetPwd || grantedByMenu || canSetManager
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
-  // Perfis de acesso do Help Desk (por kind) — atribuição inline na linha do usuário.
-  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string; kind: 'agent' | 'cliente' }[]>([])
-  // Aba "Help Desk": empresas do grupo (ERPSERV/BIZIFY) para vincular por usuário.
-  const [hdMode, setHdMode] = useState(false)
-  // Filtros da aba HD (client-side sobre a página carregada).
-  const [hdCompany, setHdCompany] = useState('')   // '' | id
-  const [hdTeam, setHdTeam] = useState('')          // '' | id | 'none' (sem equipe)
-  const [hdKind, setHdKind] = useState('')          // '' | 'agents' | 'clients'
-  const [hdManual, setHdManual] = useState('')      // '' | 'yes' | 'no' (aponta manual em sustentação)
-  const [hdDeptFilter, setHdDeptFilter] = useState('')  // '' | id | 'none' (sem departamento)
-  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
-  const [teams, setTeams] = useState<{ id: number; name: string }[]>([])
-  useEffect(() => {
-    api.get<{ data: { id: number; name: string; kind: 'agent' | 'cliente'; enabled: boolean }[] }>('/help-desk/access-profiles?all=1')
-      .then(r => setHdProfiles((r?.data ?? []).filter(p => p.enabled).map(p => ({ id: p.id, name: p.name, kind: p.kind }))))
-      .catch(() => {})
-    api.get<{ data: { id: number; name: string }[] }>('/companies').then(r => setCompanies(r?.data ?? [])).catch(() => {})
-    api.get<{ data: { id: number; name: string }[] }>('/help-desk/teams?all=1').then(r => setTeams((r?.data ?? []).map(t => ({ id: t.id, name: t.name })))).catch(() => {})
-  }, [])
-  const setUserTeams = async (u: UserItem, ids: number[]) => {
-    const prev = u.helpdesk_team_ids ?? []
-    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: ids } : x))
-    try { await api.patch(`/help-desk/people/${u.id}/teams`, { team_ids: ids }) }
-    catch (e) {
-      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_team_ids: prev } : x)) // reverte
-      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular equipe')
-    }
-  }
-  const setCanTimesheetSust = async (u: UserItem, value: boolean) => {
-    const prev = !!u.can_timesheet_sustentacao
-    setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: value } : x))
-    try { await api.patch(`/help-desk/people/${u.id}/can-timesheet-sustentacao`, { can_timesheet_sustentacao: value }) }
-    catch (e) {
-      setUsers(list => list.map(x => x.id === u.id ? { ...x, can_timesheet_sustentacao: prev } : x)) // reverte
-      toast.error((e as { message?: string })?.message ?? 'Erro ao alterar apontamento manual')
-    }
-  }
-  const setUserCompanies = async (u: UserItem, ids: number[]) => {
-    const prev = u.company_ids ?? []
-    setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: ids } : x))
-    try { await api.patch(`/help-desk/people/${u.id}/companies`, { company_ids: ids }) }
-    catch (e) {
-      setUsers(list => list.map(x => x.id === u.id ? { ...x, company_ids: prev } : x)) // reverte
-      toast.error((e as { message?: string })?.message ?? 'Erro ao vincular empresa')
-    }
-  }
-  const setHdProfile = async (u: UserItem, profileId: string) => {
-    const prev = u.helpdesk_access_profile_id ?? null
-    const next = profileId ? Number(profileId) : null
-    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: next } : x))
-    try {
-      await api.patch(`/help-desk/people/${u.id}/access-profile`, { access_profile_id: next })
-      // Sem perfil = não é agente → limpa empresas e equipes (campos ficam desabilitados).
-      if (next === null && u.type !== 'cliente') {
-        if ((u.company_ids ?? []).length) await setUserCompanies({ ...u, company_ids: u.company_ids }, [])
-        if ((u.helpdesk_team_ids ?? []).length) await setUserTeams({ ...u, helpdesk_team_ids: u.helpdesk_team_ids }, [])
-      }
-    } catch (e) {
-      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_access_profile_id: prev } : x))  // reverte
-      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o perfil de Help Desk')
-    }
-  }
-  // Departamentos do Help Desk por cliente (só p/ usuários cliente) — atribuição inline.
-  const [deptsByCustomer, setDeptsByCustomer] = useState<Record<number, { id: number; name: string }[]>>({})
-  useEffect(() => {
-    const cids = Array.from(new Set(users.filter(u => u.type === 'cliente' && u.customer_id).map(u => u.customer_id as number)))
-      .filter(cid => !(cid in deptsByCustomer))
-    if (cids.length === 0) return
-    Promise.all(cids.map(cid =>
-      api.get<{ data: { id: number; name: string; active: boolean }[] }>(`/help-desk/departments?customer_id=${cid}`)
-        .then(r => [cid, (r?.data ?? []).filter(d => d.active).map(d => ({ id: d.id, name: d.name }))] as const)
-        .catch(() => [cid, [] as { id: number; name: string }[]] as const)
-    )).then(pairs => setDeptsByCustomer(prev => ({ ...prev, ...Object.fromEntries(pairs) })))
-  }, [users])  // eslint-disable-line react-hooks/exhaustive-deps
-  const setHdDept = async (u: UserItem, deptId: string) => {
-    const prev = u.helpdesk_department_id ?? null
-    const next = deptId ? Number(deptId) : null
-    setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: next } : x))
-    try {
-      await api.patch(`/help-desk/people/${u.id}/department`, { helpdesk_department_id: next })
-    } catch (e) {
-      setUsers(list => list.map(x => x.id === u.id ? { ...x, helpdesk_department_id: prev } : x))
-      toast.error((e as { message?: string })?.message ?? 'Erro ao definir o departamento')
-    }
-  }
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -278,22 +224,23 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterHdProfile: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime, sort, sortDir, page } = flt
   const setSearch         = (v: string) => setFilter('search', v)
-  const setFilterHdProfile = (v: string) => setFilter({ filterHdProfile: v, page: 1 } as any)
   const setFilterEnabled  = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any) }
+  const setFilterRole     = (v: string) => { setFilter({ filterRole: v, filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', page: 1 } as any) }
   // Limpa TODOS os filtros (busca, aba, ativos, e os filtros específicos).
-  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterBond || filterContract || filterConsultantType || filterSust)
-  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', page: 1 } as any)
+  const hasActiveFilters = !!(search || filterEnabled || filterRole || filterPartner || filterCustomer || filterManager || filterBond || filterContract || filterConsultantType || filterSust || filterTaxRegime)
+  const clearFilters = () => setFilter({ search: '', filterEnabled: '', filterRole: '', filterPartner: '', filterCustomer: '', filterManager: '', filterBond: '', filterContract: '', filterConsultantType: '', filterSust: '', filterTaxRegime: '', page: 1 } as any)
   const setFilterPartner  = (v: string) => setFilter('filterPartner', v)
   const setFilterCustomer = (v: string) => setFilter('filterCustomer', v)
+  const setFilterManager  = (v: string) => setFilter({ filterManager: v, page: 1 } as any)
   const setFilterBond          = (v: string) => setFilter({ filterBond: v, page: 1 } as any)
   const setFilterContract      = (v: string) => setFilter({ filterContract: v, page: 1 } as any)
   const setFilterConsultantType= (v: string) => setFilter({ filterConsultantType: v, page: 1 } as any)
   const setFilterSust          = (v: string) => setFilter({ filterSust: v, page: 1 } as any)
+  const setFilterTaxRegime     = (v: string) => setFilter({ filterTaxRegime: v, page: 1 } as any)
 
   // ── Export de usuários (tela de perguntas: quais abas + aplicar filtro da tela) ──
   const EXPORT_SHEETS = ['Todos', 'Interno', 'Freelance', 'Parceiro', 'Cliente']
@@ -315,10 +262,12 @@ export default function UsersPage() {
         if (filterRole) p.set('type', filterRole)
         if (filterPartner) p.set('partner_id', filterPartner)
         if (filterCustomer) p.set('customer_id', filterCustomer)
+        if (filterManager) p.set('is_customer_manager', '1')
         if (filterBond) p.set('work_bond', filterBond)
         if (filterContract) p.set('contract_type', filterContract)
         if (filterConsultantType) p.set('consultant_type', filterConsultantType)
         if (filterSust) p.set('sustentacao', filterSust)
+        if (filterTaxRegime) p.set('tax_regime', filterTaxRegime)
       }
       const res = await fetch(`/api/v1/users/export?${p.toString()}`, { credentials: 'same-origin' })
       if (!res.ok) throw new Error()
@@ -332,7 +281,7 @@ export default function UsersPage() {
       setExportOpen(false)
     } catch { toast.error('Erro ao exportar usuários') }
     finally { setExporting(false) }
-  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterBond, filterContract, filterConsultantType, filterSust])
+  }, [exportSheets, exportApplyFilter, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime])
   const setSort = (field: string) => {
     if (sort === field) {
       setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
@@ -364,10 +313,10 @@ export default function UsersPage() {
   const [bulkResending,  setBulkResending]  = useState(false)
   const [bulkDeleting,   setBulkDeleting]   = useState(false)
   const [bulkSustLoading, setBulkSustLoading] = useState(false)
+  const [bulkMgrLoading, setBulkMgrLoading] = useState(false)
+  const [mgrToggling, setMgrToggling] = useState<number | null>(null)
   const [bulkContractLoading, setBulkContractLoading] = useState(false)
   const [bulkContractType, setBulkContractType] = useState<ContractType | ''>('')
-  const [bulkHdLoading, setBulkHdLoading] = useState(false)
-  const [bulkHdProfile, setBulkHdProfile] = useState('')
   const [bulkBondLoading, setBulkBondLoading] = useState(false)
   const [bulkBond, setBulkBond] = useState<'' | 'fixo' | 'freelance'>('')
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
@@ -390,11 +339,12 @@ export default function UsersPage() {
       if (filterRole)     p.set('role', filterRole)
       if (filterPartner)  p.set('partner_id', filterPartner)
       if (filterCustomer) p.set('customer_id', filterCustomer)
-      if (filterHdProfile) p.set('helpdesk_access_profile_id', filterHdProfile)
+      if (filterManager)  p.set('is_customer_manager', '1')
       if (filterBond)          p.set('work_bond', filterBond)
       if (filterContract)      p.set('contract_type', filterContract)
       if (filterConsultantType) p.set('consultant_type', filterConsultantType)
       if (filterSust)          p.set('sustentacao', filterSust)
+      if (filterTaxRegime)     p.set('tax_regime', filterTaxRegime)
       p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; total?: number; meta?: { last_page: number } }>(`/users?${p}`)
       setTotal(typeof r?.total === 'number' ? r.total : null)
@@ -404,7 +354,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterHdProfile, filterBond, filterContract, filterConsultantType, filterSust, sort, sortDir])
+  }, [page, search, filterEnabled, filterRole, filterPartner, filterCustomer, filterManager, filterBond, filterContract, filterConsultantType, filterSust, filterTaxRegime, sort, sortDir])
 
   // Contadores por perfil (abas) — seguem o filtro de ativos/inativos.
   const loadCounts = useCallback(() => {
@@ -516,6 +466,31 @@ export default function UsersPage() {
     finally { setBulkSustLoading(false) }
   }
 
+  // Gestor do cliente em massa (só faz sentido p/ perfil cliente; BE ignora nos demais).
+  const bulkSetCustomerManager = async (value: boolean) => {
+    if (selectedIds.size === 0) return
+    setBulkMgrLoading(true)
+    try {
+      await Promise.all([...selectedIds].map(id => api.patch(`/users/${id}/customer-manager`, { is_customer_manager: value })))
+      toast.success(`Gestor do cliente ${value ? 'marcado' : 'desmarcado'} para ${selectedIds.size} usuário(s)`)
+      setSelectedIds(new Set())
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar usuários') }
+    finally { setBulkMgrLoading(false) }
+  }
+
+  // Marca/desmarca gestor de UM cliente (pelo ⋮ da linha).
+  const toggleManager = async (u: UserItem) => {
+    setMgrToggling(u.id)
+    try {
+      const next = !u.is_customer_manager
+      await api.patch(`/users/${u.id}/customer-manager`, { is_customer_manager: next })
+      toast.success(next ? 'Marcado como gestor do cliente' : 'Gestor do cliente removido')
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar') }
+    finally { setMgrToggling(null) }
+  }
+
   const bulkSetBond = async () => {
     if (selectedIds.size === 0 || !bulkBond) return
     setBulkBondLoading(true)
@@ -548,21 +523,6 @@ export default function UsersPage() {
     finally { setBulkContractLoading(false) }
   }
 
-  // Aplica o Perfil HD aos selecionados. O BE pula os incompatíveis (agente×cliente).
-  const applyBulkHdProfile = async () => {
-    if (selectedIds.size === 0) return
-    setBulkHdLoading(true)
-    try {
-      const r = await api.patch<{ data: { applied: number; skipped: number } }>('/help-desk/people/access-profile/bulk', {
-        user_ids: [...selectedIds], access_profile_id: bulkHdProfile ? Number(bulkHdProfile) : null,
-      })
-      const applied = r?.data?.applied ?? 0, skipped = r?.data?.skipped ?? 0
-      toast.success(`Perfil HD aplicado a ${applied} usuário(s)${skipped ? ` — ${skipped} ignorado(s) por incompatibilidade de tipo` : ''}`)
-      setSelectedIds(new Set()); setBulkHdProfile(''); load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aplicar o perfil de Help Desk') }
-    finally { setBulkHdLoading(false) }
-  }
-
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -575,101 +535,10 @@ export default function UsersPage() {
     setSelectedIds(prev => prev.size === users.length ? new Set() : new Set(users.map(u => u.id)))
   }
 
-  // Filtro da aba HD (empresa / equipe / tipo) — client-side sobre a página carregada.
-  const displayUsers = useMemo(() => {
-    if (!hdMode) return users
-    // "Agente" = usuário com PERFIL HD de agente (independe do tipo de usuário). Sem perfil ≠ agente.
-    const hdProfileKind = (u: UserItem) => hdProfiles.find(p => p.id === u.helpdesk_access_profile_id)?.kind
-    return users.filter(u => {
-      if (hdCompany && !(u.company_ids ?? []).includes(Number(hdCompany))) return false
-      if (hdTeam === 'none' && (u.helpdesk_team_ids ?? []).length > 0) return false
-      if (hdTeam && hdTeam !== 'none' && !(u.helpdesk_team_ids ?? []).includes(Number(hdTeam))) return false
-      if (hdKind === 'clients' && u.type !== 'cliente') return false
-      if (hdKind === 'agents' && hdProfileKind(u) !== 'agent') return false // só quem tem perfil de agente
-      if (hdKind === 'no_profile' && u.helpdesk_access_profile_id) return false // só quem está SEM perfil HD
-      if (hdManual === 'yes' && !(u.type !== 'cliente' && u.can_timesheet_sustentacao)) return false
-      if (hdManual === 'no' && !(u.type !== 'cliente' && !u.can_timesheet_sustentacao)) return false
-      if (hdDeptFilter === 'none' && u.helpdesk_department_id) return false
-      if (hdDeptFilter && hdDeptFilter !== 'none' && Number(u.helpdesk_department_id) !== Number(hdDeptFilter)) return false
-      return true
-    })
-  }, [users, hdMode, hdCompany, hdTeam, hdKind, hdManual, hdDeptFilter, hdProfiles])
-
-  // Opções do filtro de departamento: agrega os departamentos de todos os clientes carregados
-  // (id é único por depto). Se um Cliente estiver selecionado, restringe a ele (sem sufixo).
-  const deptFilterOptions = useMemo(() => {
-    // Só lista departamentos quando um CLIENTE específico está selecionado (departamento é por cliente).
-    const selCust = filterRole === 'cliente' && filterCustomer ? Number(filterCustomer) : null
-    if (!selCust) return []
-    const out: { id: number | string; name: string }[] = []
-    ;(deptsByCustomer[selCust] ?? []).forEach(d => out.push({ id: d.id, name: d.name }))
-    out.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-    return [{ id: 'none', name: '— Sem departamento —' }, ...out]
-  }, [deptsByCustomer, filterRole, filterCustomer])
-  const deptFilterEnabled = filterRole === 'cliente' && !!filterCustomer
-
-  // Sem CLIENTE específico selecionado o departamento não se aplica → zera para não filtrar oculto.
-  useEffect(() => { if (!(filterRole === 'cliente' && filterCustomer)) setHdDeptFilter('') }, [filterRole, filterCustomer])
-
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <AppLayout title="Usuários">
-      {/* Abas: Cadastro geral × Help Desk (perfil HD + empresas vinculadas por linha). */}
-      <div className="inline-flex items-center gap-1 p-1 rounded-xl w-fit mb-4" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
-        {([['cadastro', 'Cadastro'], ['hd', 'Help Desk']] as const).map(([id, label]) => {
-          const active = (id === 'hd') === hdMode
-          return (
-            <button key={id} onClick={() => { setHdMode(id === 'hd'); if (id !== 'hd') setFilterHdProfile('') }}
-              className="text-sm font-semibold px-4 py-1.5 rounded-lg transition"
-              style={{ background: active ? 'var(--primary)' : 'transparent', color: active ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{label}</button>
-          )
-        })}
-      </div>
-      {/* Linha 1 (aba Help Desk): todos os dropdowns de filtro agrupados. */}
-      {hdMode && (
-        <div className="flex items-center gap-2 mb-2.5 flex-wrap px-3 py-2 rounded-lg" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-          <span className="text-[11px] font-semibold uppercase tracking-wide mr-0.5" style={{ color: 'var(--text-light)' }}>Filtros</span>
-          <SearchSelect value={hdCompany} onChange={setHdCompany} placeholder="Empresa (todas)"
-            options={companies.map(c => ({ id: c.id, name: c.name }))} />
-          <SearchSelect value={hdTeam} onChange={setHdTeam} placeholder="Equipe (todas)"
-            options={[{ id: 'none', name: '— Sem equipe —' }, ...teams.map(t => ({ id: t.id, name: t.name }))]} />
-          {hdProfiles.length > 0 && (
-            <SearchSelect value={filterHdProfile} onChange={setFilterHdProfile} placeholder="Perfil HD (todos)"
-              options={hdProfiles.map(p => ({ id: p.id, name: `${p.name} (${p.kind === 'cliente' ? 'cliente' : 'agente'})` }))} />
-          )}
-          {/* Departamento é por cliente → aparece quando a aba Cliente está ativa. */}
-          {filterRole === 'cliente' && (
-            <SearchSelect value={hdDeptFilter} onChange={setHdDeptFilter} disabled={!deptFilterEnabled}
-              placeholder={deptFilterEnabled ? 'Departamento (todos)' : 'Departamento (selecione o cliente)'}
-              options={deptFilterOptions} />
-          )}
-          <select value={hdKind} onChange={e => setHdKind(e.target.value)} title="Filtrar por tipo"
-            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
-            <option value="">Tipo (todos)</option>
-            <option value="agents">Só agentes</option>
-            <option value="clients">Só clientes</option>
-            <option value="no_profile">Sem perfil HD</option>
-          </select>
-          <select value={hdManual} onChange={e => setHdManual(e.target.value)} title="Filtrar por 'Apontar manual' em sustentação"
-            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
-            <option value="">Apontar manual (todos)</option>
-            <option value="yes">Aponta manual: Sim</option>
-            <option value="no">Aponta manual: Não</option>
-          </select>
-          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }} title="Situação"
-            className="bg-[var(--field)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-8 px-2 outline-none">
-            <option value="">Ativos e inativos</option>
-            <option value="1">Só ativos</option>
-            <option value="0">Só inativos</option>
-          </select>
-          {(hdCompany || hdTeam || filterHdProfile || hdKind || hdManual || hdDeptFilter || filterEnabled) && (
-            <button onClick={() => { setHdCompany(''); setHdTeam(''); setFilterHdProfile(''); setHdKind(''); setHdManual(''); setHdDeptFilter(''); setFilterEnabled('') }}
-              className="text-xs px-2.5 h-8 rounded-lg" style={{ border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>Limpar</button>
-          )}
-          <span className="ml-auto text-[11px] font-medium" style={{ color: 'var(--text-light)' }}>{displayUsers.length} de {users.length}</span>
-        </div>
-      )}
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
@@ -678,14 +547,12 @@ export default function UsersPage() {
             placeholder="Buscar por nome ou e-mail..."
             className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
-        {!hdMode && (
-          <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todos</option>
-            <option value="1">Ativos</option>
-            <option value="0">Inativos</option>
-          </select>
-        )}
+        <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
+          className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
+          <option value="">Todos</option>
+          <option value="1">Ativos</option>
+          <option value="0">Inativos</option>
+        </select>
         <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
@@ -726,16 +593,33 @@ export default function UsersPage() {
               <option value="1">Liberado</option>
               <option value="0">Bloqueado</option>
             </select>
+            <MultiSelect
+              placeholder="Regime: todos"
+              value={filterTaxRegime ? filterTaxRegime.split(',') : []}
+              onChange={arr => setFilterTaxRegime(arr.join(','))}
+              options={TAX_REGIME_OPTIONS.map(o => ({ id: o.value, name: o.label }))}
+            />
           </>
         )}
-        {filterRole === 'cliente' && customers.length > 0 && (
-          <select
-            value={filterCustomer}
-            onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
-            <option value="">Todos os clientes</option>
-            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </select>
+        {filterRole === 'cliente' && (
+          <>
+            {customers.length > 0 && (
+              <div style={{ minWidth: 200 }}>
+                <SearchSelect
+                  value={filterCustomer}
+                  onChange={v => { setFilterCustomer(v); setPage(1) }}
+                  options={[{ id: '', name: 'Todos os clientes' }, ...customers.map(c => ({ id: c.id, name: c.name }))]}
+                  placeholder="Buscar cliente…"
+                  wide
+                />
+              </div>
+            )}
+            <button type="button" onClick={() => setFilterManager(filterManager ? '' : '1')}
+              title="Mostrar apenas gestores do cliente"
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium border transition-colors ${filterManager ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]' : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
+              {filterManager ? '✓ ' : ''}Só gestores
+            </button>
+          </>
         )}
         {filterRole === 'consultor' && (
           <>
@@ -761,6 +645,12 @@ export default function UsersPage() {
               <option value="1">Liberado</option>
               <option value="0">Bloqueado</option>
             </select>
+            <MultiSelect
+              placeholder="Regime: todos"
+              value={filterTaxRegime ? filterTaxRegime.split(',') : []}
+              onChange={arr => setFilterTaxRegime(arr.join(','))}
+              options={TAX_REGIME_OPTIONS.map(o => ({ id: o.value, name: o.label }))}
+            />
           </>
         )}
         {hasActiveFilters && (
@@ -787,39 +677,64 @@ export default function UsersPage() {
       </div>
 
       {/* Barra de ação em massa */}
-      {selectedIds.size > 0 && canResetPwd && (
+      {selectedIds.size > 0 && (canResetPwd || canSetManager) && (
         <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg">
           <span className="text-xs text-[var(--text-muted)]">{selectedIds.size} usuário(s) selecionado(s)</span>
-          <button
-            type="button"
-            onClick={resendWelcomeBulk}
-            disabled={bulkResending}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            <Mail size={12} />
-            {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
-          </button>
+          {canResetPwd && (
+            <button
+              type="button"
+              onClick={resendWelcomeBulk}
+              disabled={bulkResending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <Mail size={12} />
+              {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
+            </button>
+          )}
+
+          {/* ── Gestor do cliente em massa — admin + coordenador, só no filtro Cliente ── */}
+          {filterRole === 'cliente' && canSetManager && (
+            <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+              <span className="text-[11px] text-[var(--text-light)]">Gestor do cliente:</span>
+              <button type="button" onClick={() => bulkSetCustomerManager(true)} disabled={bulkMgrLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50">
+                <Check size={12} />{bulkMgrLoading ? 'Salvando...' : 'Marcar'}
+              </button>
+              <button type="button" onClick={() => bulkSetCustomerManager(false)} disabled={bulkMgrLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50">
+                <X size={12} />{bulkMgrLoading ? 'Salvando...' : 'Desmarcar'}
+              </button>
+            </div>
+          )}
+
           {canEdit && (
             <>
-              <button
-                type="button"
-                onClick={() => bulkSetSustentacao(true)}
-                disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                <Check size={12} />
-                {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
-              </button>
-              <button
-                type="button"
-                onClick={() => bulkSetSustentacao(false)}
-                disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                <X size={12} />
-                {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
-              </button>
+              {/* Ações de consultor/interno — não aparecem no filtro Cliente. */}
+              {filterRole !== 'cliente' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => bulkSetSustentacao(true)}
+                    disabled={bulkSustLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Check size={12} />
+                    {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bulkSetSustentacao(false)}
+                    disabled={bulkSustLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    <X size={12} />
+                    {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
+                  </button>
+                </>
+              )}
 
+              {filterRole !== 'cliente' && (
+              <>
               {/* ── Tipo de contrato em massa ── */}
               <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
                 <span className="text-[11px] text-[var(--text-light)]">Tipo de contrato:</span>
@@ -864,29 +779,7 @@ export default function UsersPage() {
                   {bulkBondLoading ? 'Aplicando...' : 'Categorizar'}
                 </button>
               </div>
-
-              {/* ── Perfil de acesso do Help Desk em massa (BE pula incompatíveis) — só na aba HD ── */}
-              {hdMode && hdProfiles.length > 0 && (
-                <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
-                  <span className="text-[11px] text-[var(--text-light)]">Perfil HD:</span>
-                  <select
-                    value={bulkHdProfile}
-                    onChange={e => setBulkHdProfile(e.target.value)}
-                    className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-7 px-2 max-w-[170px]"
-                  >
-                    <option value="">Sem perfil</option>
-                    {hdProfiles.map(p => <option key={p.id} value={p.id}>{p.name} ({p.kind === 'cliente' ? 'cliente' : 'agente'})</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={applyBulkHdProfile}
-                    disabled={bulkHdLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-                  >
-                    <Check size={12} />
-                    {bulkHdLoading ? 'Aplicando...' : 'Aplicar'}
-                  </button>
-                </div>
+              </>
               )}
             </>
           )}
@@ -908,8 +801,8 @@ export default function UsersPage() {
       )}
 
       {/* Tabela */}
-      <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
-        <table className={`w-full text-xs ${hdMode ? 'min-w-[1260px]' : ''}`}>
+      <div className="rounded-lg border border-[var(--border)] overflow-clip">
+        <table className="w-full text-xs">
           <thead className="sticky top-0 z-10 bg-[var(--surface)]">
             <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               {canResetPwd && (
@@ -934,24 +827,29 @@ export default function UsersPage() {
                 </th>
               )}
               {filterRole === 'cliente' && (
-                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
+                <th onClick={() => { setSort('customer_name'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Cliente<SortIcon active={sort === 'customer_name'} dir={sortDir as 'asc' | 'desc'} /></th>
+              )}
+              {filterRole === 'cliente' && (
+                <th onClick={() => { setSort('is_customer_manager'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Gestor<SortIcon active={sort === 'is_customer_manager'} dir={sortDir as 'asc' | 'desc'} /></th>
               )}
               <th onClick={() => { setSort('type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">Perfil<SortIcon active={sort === 'type'} dir={sortDir as 'asc' | 'desc'} /></th>
-              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Perfil HD</th>}
-              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Departamento</th>}
-              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Empresas</th>}
-              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Equipe(s)</th>}
-              {hdMode && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium" title="Pode apontar manualmente em sustentação">Apontar manual</th>}
-              {!hdMode && <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>}
-              {!hdMode && <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>}
+              <th onClick={() => { setSort('contract_type'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Contrato<SortIcon active={sort === 'contract_type'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('tax_regime'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Regime<SortIcon active={sort === 'tax_regime'} dir={sortDir as 'asc' | 'desc'} /></th>
+              <th onClick={() => { setSort('can_timesheet_sustentacao'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell cursor-pointer hover:text-[var(--text)] select-none">Sustentação<SortIcon active={sort === 'can_timesheet_sustentacao'} dir={sortDir as 'asc' | 'desc'} /></th>
               <th onClick={() => { setSort('enabled'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium cursor-pointer hover:text-[var(--text)] select-none">Status<SortIcon active={sort === 'enabled'} dir={sortDir as 'asc' | 'desc'} /></th>
             </tr>
           </thead>
           <tbody>
-            {loading ? <TableSkeleton /> : displayUsers.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 8 : 7) + (hdMode ? 3 : 0) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
-            ) : displayUsers.map(user => (
-              <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
+            {loading ? <TableSkeleton /> : users.length === 0 ? (
+              <tr><td colSpan={(canResetPwd ? 9 : 8) + (filterRole === 'parceiro_admin' ? 1 : 0) + (filterRole === 'cliente' ? 2 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
+            ) : users.map(user => (
+              <tr key={user.id} className={`border-b border-[var(--border)] transition-colors ${
+                selectedIds.has(user.id)
+                  ? 'bg-[var(--primary-soft)]'
+                  : !user.enabled
+                    ? 'bg-[var(--surface-sunken)] opacity-60 hover:opacity-100 hover:bg-[var(--surface-hover)]'
+                    : 'hover:bg-[var(--surface-hover)]'
+              }`}>
                 {canResetPwd && (
                   <td className="px-3 py-2.5 w-8">
                     <button type="button" onClick={() => toggleSelect(user.id)} className="text-[var(--text-light)] hover:text-[var(--text)] flex items-center">
@@ -966,6 +864,10 @@ export default function UsersPage() {
                     ...(canViewDetail    ? [{ label: 'Visualizar',           icon: <Eye      size={12} />, onClick: () => setViewUser(user) }] : []),
                     ...(canEdit          ? [{ label: 'Editar',               icon: <Pencil   size={12} />, onClick: () => openEdit(user) }] : []),
                     ...(canResetPwd      ? [{ label: 'Resetar senha',        icon: <KeyRound size={12} />, onClick: () => resetPassword(user), disabled: resetting === user.id }] : []),
+                    ...(canSetManager && user.type === 'cliente'
+                      ? [{ label: user.is_customer_manager ? 'Remover gestor do cliente' : 'Marcar como gestor do cliente',
+                           icon: <UserCheck size={12} />, onClick: () => toggleManager(user), disabled: mgrToggling === user.id }]
+                      : []),
                     ...(canResendWelcome ? [{ label: 'Reenviar boas-vindas', icon: <Mail     size={12} />, onClick: () => resendWelcome(user), disabled: resending === user.id }] : []),
                     ...(canDelete        ? [{ label: 'Excluir',              icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
                   ]} />
@@ -983,6 +885,13 @@ export default function UsersPage() {
                   <td className="px-3 py-2.5 hidden sm:table-cell">
                     {user.customer?.name
                       ? <span className="text-xs font-medium text-[var(--text)]">{user.customer.name}</span>
+                      : <span className="text-xs text-[var(--text-muted)]">—</span>}
+                  </td>
+                )}
+                {filterRole === 'cliente' && (
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
+                    {user.is_customer_manager
+                      ? <Badge variant="outline" className="text-[10px] bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]">Gestor</Badge>
                       : <span className="text-xs text-[var(--text-muted)]">—</span>}
                   </td>
                 )}
@@ -1014,110 +923,23 @@ export default function UsersPage() {
                     )}
                   </div>
                 </td>
-                {hdMode && (
-                <td className="px-3 py-2.5 hidden md:table-cell">
-                  {(() => {
-                    // Cliente só recebe perfil de CLIENTE; demais (agentes) só perfil de AGENTE — sem cruzar.
-                    const kind = user.type === 'cliente' ? 'cliente' : 'agent'
-                    const opts = hdProfiles.filter(p => p.kind === kind)
-                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[170px]'
-                    return (
-                      <select value={user.helpdesk_access_profile_id ?? ''} onChange={e => setHdProfile(user, e.target.value)} className={selCls}
-                        title={kind === 'cliente' ? 'Perfis de acesso de CLIENTE' : 'Perfis de acesso de AGENTE'}>
-                        <option value="">Sem perfil</option>
-                        {opts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    )
-                  })()}
+                <td className="px-3 py-2.5 hidden lg:table-cell">
+                  {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
+                    ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
+                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
                 </td>
-                )}
-                {hdMode && (
-                <td className="px-3 py-2.5">
-                  {(() => {
-                    const selCls = 'text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] min-w-[220px]'
-                    // Departamento só para CLIENTE vinculado a uma empresa (customer) — usa os departamentos daquele cliente.
-                    if (user.type !== 'cliente') return <span className="text-[10px] text-[var(--text-muted)]" title="Departamento é só para usuário cliente">—</span>
-                    if (!user.customer_id) return <span className="text-[10px] text-[var(--text-muted)]" title="Vincule o cliente a uma empresa primeiro">—</span>
-                    const depts = deptsByCustomer[user.customer_id] ?? []
-                    if (depts.length === 0) return <span className="text-[10px] text-[var(--text-light)]">Empresa sem departamentos</span>
-                    return (
-                      <select value={user.helpdesk_department_id ?? ''} onChange={e => setHdDept(user, e.target.value)} className={selCls} title={depts.find(d => d.id === user.helpdesk_department_id)?.name || 'Departamento do Help Desk'}>
-                        <option value="">Sem departamento</option>
-                        {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    )
-                  })()}
+                <td className="px-3 py-2.5 hidden lg:table-cell">
+                  {user.tax_regime
+                    ? <span className="text-[10px] text-[var(--text)]">{taxRegimeLabel(user.tax_regime)}</span>
+                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
                 </td>
-                )}
-                {hdMode && (
-                  <td className="px-3 py-2.5">
-                    {companies.length === 0 || !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title={!user.helpdesk_access_profile_id ? 'Defina o Perfil HD primeiro' : undefined}>—</span> : (() => {
-                      const allIds = companies.map(c => c.id)
-                      const ids = (user.company_ids ?? []).filter(id => allIds.includes(id))
-                      const val = ids.length >= 2 ? 'ambos' : (ids.length === 1 ? String(ids[0]) : '')
-                      return (
-                        <select value={val}
-                          onChange={e => { const v = e.target.value; setUserCompanies(user, v === 'ambos' ? allIds : (v ? [Number(v)] : [])) }}
-                          className="text-[11px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-2 py-1 text-[var(--text)] outline-none focus:border-[var(--border-strong)] max-w-[150px]"
-                          title="Empresa(s) do grupo vinculada(s)">
-                          <option value="">— nenhuma —</option>
-                          {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          {companies.length >= 2 && <option value="ambos">Ambos</option>}
-                        </select>
-                      )
-                    })()}
-                  </td>
-                )}
-                {hdMode && (
-                  <td className="px-3 py-2.5">
-                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Cliente não entra em equipe de atendimento">—</span>
-                      : !user.helpdesk_access_profile_id ? <span className="text-[10px] text-[var(--text-muted)]" title="Defina o Perfil HD primeiro">—</span>
-                      : teams.length === 0 ? <span className="text-[10px] text-[var(--text-muted)]">—</span>
-                      : (
-                        <div className="min-w-[150px] max-w-[200px]">
-                          <MultiSelect value={(user.helpdesk_team_ids ?? []).map(String)}
-                            onChange={ids => setUserTeams(user, ids.map(Number))}
-                            options={teams.map(t => ({ id: t.id, name: t.name }))}
-                            placeholder="Selecionar equipe" />
-                        </div>
-                      )}
-                  </td>
-                )}
-                {hdMode && (
-                  <td className="px-3 py-2.5">
-                    {user.type === 'cliente' ? <span className="text-[10px] text-[var(--text-muted)]" title="Não se aplica a cliente">—</span>
-                      : (() => {
-                        const on = !!user.can_timesheet_sustentacao
-                        return (
-                          <button type="button" role="switch" aria-checked={on}
-                            onClick={() => setCanTimesheetSust(user, !on)}
-                            title={on ? 'Liberado — campo de horas OPCIONAL (não aparece obrigatório)' : 'Bloqueado — campo de horas OBRIGATÓRIO no chamado'}
-                            className="inline-flex items-center gap-2 group">
-                            <span className="relative shrink-0 rounded-full transition-colors" style={{ width: 38, height: 20, background: on ? 'var(--primary)' : 'var(--surface-hover)', border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border-strong)'}`, boxSizing: 'border-box' }}>
-                              <span className="absolute rounded-full transition-all" style={{ background: on ? 'var(--primary-fg)' : 'var(--text-light)', width: 14, height: 14, top: 1.5, left: on ? 19 : 2, boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }} />
-                            </span>
-                            <span className="text-[10px] font-medium" style={{ color: on ? 'var(--primary)' : 'var(--text-muted)' }}>{on ? 'Sim' : 'Não'}</span>
-                          </button>
-                        )
-                      })()}
-                  </td>
-                )}
-                {!hdMode && (
-                  <td className="px-3 py-2.5 hidden lg:table-cell">
-                    {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
-                      ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
-                      : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
-                  </td>
-                )}
-                {!hdMode && (
-                  <td className="px-3 py-2.5 hidden lg:table-cell">
-                    {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
-                      user.can_timesheet_sustentacao
-                        ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
-                        : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
-                    ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
-                  </td>
-                )}
+                <td className="px-3 py-2.5 hidden lg:table-cell">
+                  {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
+                    user.can_timesheet_sustentacao
+                      ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
+                      : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
+                  ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
+                </td>
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
                     ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'
@@ -1190,7 +1012,7 @@ export default function UsersPage() {
                   <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })}
                     className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
                   <Button onClick={confirmReset} disabled={resetting === resetModal.userId}
-                    className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] gap-1.5">
+                    className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-1.5">
                     <KeyRound size={12} />
                     {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
                   </Button>
@@ -1211,7 +1033,7 @@ export default function UsersPage() {
                   </p>
                 )}
                 <div className="flex items-center gap-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2.5">
-                  <code className="flex-1 text-sm text-[var(--text)] font-mono font-bold tracking-wider">
+                  <code className="flex-1 text-sm text-[var(--warning)] font-mono tracking-wider">
                     {resetModal.tempPassword}
                   </code>
                   <button onClick={copyPassword} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
@@ -1219,7 +1041,7 @@ export default function UsersPage() {
                   </button>
                 </div>
                 <Button onClick={() => setResetModal({ open: false, confirmed: false })}
-                  className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--text)]">
+                  className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--primary-fg)]">
                   Fechar
                 </Button>
               </>

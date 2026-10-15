@@ -4,9 +4,13 @@ export interface User {
   email: string
   profile_photo_url?: string | null
   modules?: string[] | null   // navegação modular: módulos liberados pro usuário
+  is_helpdesk_agent?: boolean  // Help Desk: usuário é agente (perfil de acesso agent ou membro de equipe)
+  helpdesk_access_profile_id?: number | null  // Help Desk: perfil de acesso (LGPD)
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null
+  // Gestor do cliente: vê TODOS os projetos da empresa e pode convidar.
+  is_customer_manager?: boolean | null
   partner_id?: number | null
   is_executive?: boolean | null
   extra_permissions?: string[] | null

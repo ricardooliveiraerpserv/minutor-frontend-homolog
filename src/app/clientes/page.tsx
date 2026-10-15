@@ -17,6 +17,7 @@ import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { useActiveCompany } from '@/hooks/use-active-company'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
+import { SourceReposSection } from '@/components/customers/source-repos-section'
 import type { CustomerFull, Executive } from '@/types'
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -70,9 +71,9 @@ export default function ClientesPage() {
   const [filterExecutive, setFilterExecutive] = useState('')
   const [filterStatus, setFilterStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos')
   const [executives, setExecutives] = useState<Executive[]>([])
-  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string }[]>([])
   const [modal, setModal] = useState<{ open: boolean; item?: CustomerFull }>({ open: false })
-  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
+  const [hdProfiles, setHdProfiles] = useState<{ id: number; name: string }[]>([])
+  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
   const [novoCgcCli, setNovoCgcCli] = useState('')
   const addCgcCli = () => {
     const c = novoCgcCli.replace(/\D/g, '')
@@ -156,7 +157,7 @@ export default function ClientesPage() {
   }
 
   const openCreate = () => {
-    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
+    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, has_contract: false, helpdesk_default_access_profile_id: '', executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
     setNovoEmailCli('')
     setModal({ open: true })
   }
@@ -168,6 +169,7 @@ export default function ClientesPage() {
       cgc: item.cgc ?? '',
       code_prefix: item.code_prefix ?? '',
       active: item.active,
+      has_contract: (item as CustomerFull & { has_contract?: boolean }).has_contract ?? false,
       helpdesk_default_access_profile_id: (item as CustomerFull & { helpdesk_default_access_profile_id?: number | null }).helpdesk_default_access_profile_id ? String((item as CustomerFull & { helpdesk_default_access_profile_id?: number | null }).helpdesk_default_access_profile_id) : '',
       executive_id: item.executive_id ? String(item.executive_id) : '',
       executive_bizify_id: item.executive_bizify_id ? String(item.executive_bizify_id) : '',
@@ -468,7 +470,19 @@ export default function ClientesPage() {
                   </button>
                   <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setForm(f => ({ ...f, has_contract: !f.has_contract }))}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${form.has_contract ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}
+                  >
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.has_contract ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                  <Label className="text-xs text-[var(--text-muted)]">Contrato{!form.has_contract && <span className="text-[var(--text-light)]"> (sem contrato → fontes são exemplo)</span>}</Label>
+                </div>
               </div>
+              {modal.item?.id && hasPermission('source_code.manage') && (
+                <SourceReposSection customerId={modal.item.id} />
+              )}
               <div className="flex gap-2 mt-5 justify-end">
                 <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                   Cancelar

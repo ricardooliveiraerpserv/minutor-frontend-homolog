@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X, Check, MessageSquare, Trash2, Search, Download, FileText } from 'lucide-react'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { PartnerBadge } from '@/components/ui/partner-badge'
 import { SustProjectsInline } from '@/components/dashboard/SustProjectsInline'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -396,7 +397,11 @@ function contractColumnId(card: ContractCard): string | null {
 }
 
 function isActiveProject(p: ProjectCard): boolean {
-  return ['awaiting_start', 'started', 'liberado_para_testes'].includes(p.status)
+  // Ativo = qualquer status NÃO-terminal, alinhado ao BE /contracts/kanban
+  // (whereNotIn status finished/cancelled/paused). Sem isso, projetos em
+  // 'planning'/'em_producao' vinham do BE mas o board os escondia (não caíam
+  // em nenhuma coluna de coordenador). Terminais têm suas próprias colunas.
+  return !['finished', 'paused', 'cancelled'].includes(p.status)
 }
 
 function statusBadge(card: ContractCard) {
@@ -547,7 +552,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   const allow = manualIds.has(c.id)
                   return (
                     <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}</span>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                       <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
                         title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                         className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
@@ -581,7 +586,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                       {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
                     </div>
-                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}</span>
+                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
                   </button>
                 )
               })}
@@ -1210,6 +1215,13 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
     a.href = url; a.download = att.original_name; a.click()
     URL.revokeObjectURL(url)
   }
+  const viewAttachment = async (att: any) => {
+    try {
+      const res = await fetch(`/api/v1/contracts/${card.id}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
+      if (!res.ok) throw new Error()
+      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch { toast.error('Erro ao abrir arquivo') }
+  }
 
   const fields: [string, string][] = full ? [
     ['Criado em',           fmtDateTime(card.created_at)],
@@ -1446,6 +1458,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                               <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{ATT_LABEL[att.type] ?? att.type}{att.size != null ? ` · ${fmtSize(att.size)}` : ''}</p>
                             </div>
                           </div>
+                          <button onClick={() => viewAttachment(att)} title="Visualizar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}>
                             <Download size={14} />
                           </button>
@@ -2759,7 +2772,7 @@ function KanbanContent() {
         const close = () => setProjectAction(null)
         const userType = (user as any)?.type
         if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="overview" />
-        if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
+        if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={() => { close(); load() }} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
         if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="cost" />
         if (action === 'timesheets') return <ProjectDataModal projectId={card.id} projectName={card.project_name} initialTab="timesheets" onClose={close} />

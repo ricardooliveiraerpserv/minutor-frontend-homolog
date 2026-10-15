@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { ApiError } from '@/lib/api'
+import { tenantSlugFromHost } from '@/lib/tenant'
 
 // Splash escuro fixo (tela de login não segue o tema light) — variant splash.
 import { MinutorIcon as SharedMinutorIcon } from '@/components/branding/MinutorIcon'
@@ -174,6 +175,11 @@ const ENV_BANNER =
     : null
 
 export default function LoginPage() {
+  // Marca por tenant (subdomínio): conecta.minutor.com.br → logo do CONECTA.
+  // Detectado no cliente p/ evitar mismatch de hidratação (splash mostra ERPServ até montar).
+  const [tenant, setTenant] = useState('')
+  useEffect(() => { setTenant(tenantSlugFromHost(window.location.host)) }, [])
+  const isConecta = tenant === 'conecta'
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#07090F', position: 'relative', overflow: 'hidden' }}>
 
@@ -205,32 +211,48 @@ export default function LoginPage() {
           {/* ── Cabeçalho de marca ── */}
           <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* ERPServ — logo centralizado */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
-              <Image
-                src="/logo.png"
-                alt="ERPServ"
-                width={96}
-                height={32}
-                className="login-erpserv-logo"
-                style={{ objectFit: 'contain' }}
-              />
-            </div>
+            {isConecta ? (
+              /* CONECTA — lockup OFICIAL (transparente, texto branco) direto no splash escuro */
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+                <Image
+                  src="/conecta-lockup-dark.png"
+                  alt="Conecta ERP"
+                  width={230}
+                  height={57}
+                  priority
+                  style={{ objectFit: 'contain', height: 56, width: 'auto' }}
+                />
+              </div>
+            ) : (
+              <>
+                {/* ERPServ — logo centralizado */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+                  <Image
+                    src="/logo.png"
+                    alt="ERPServ"
+                    width={96}
+                    height={32}
+                    className="login-erpserv-logo"
+                    style={{ objectFit: 'contain' }}
+                  />
+                </div>
 
-            {/* Minutor — produto */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
-              <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <MinutorIcon size={19} />
-              </div>
-              <div>
-                <h1 className="login-title" style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.05 }}>
-                  Minutor
-                </h1>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
-                  Controle de horas e contratos em um só lugar
-                </p>
-              </div>
-            </div>
+                {/* Minutor — produto */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
+                  <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <MinutorIcon size={19} />
+                  </div>
+                  <div>
+                    <h1 className="login-title" style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#FFFFFF', lineHeight: 1.05 }}>
+                      Minutor
+                    </h1>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
+                      Controle de horas e contratos em um só lugar
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
           </div>
 
@@ -247,7 +269,7 @@ export default function LoginPage() {
 
         {/* Rodapé discreto */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.02em' }}>
-          © {new Date().getFullYear()} ERPServ Consultoria · Todos os direitos reservados
+          © {new Date().getFullYear()} {isConecta ? 'Conecta ERP' : 'ERPServ Consultoria'} · Todos os direitos reservados
         </p>
       </div>
 

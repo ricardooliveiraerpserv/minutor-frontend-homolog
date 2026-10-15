@@ -5,23 +5,31 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock, ChevronsDown } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock, ChevronsDown, ClipboardList } from 'lucide-react'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
+import { SurveyAnswerModal, type SurveyData } from './survey-answer-modal'
 
 interface PollOpt { id: number; label: string }
-interface PollData { poll_id: number; question: string; multiple_choice: boolean; options: PollOpt[]; has_voted: boolean; my_option_ids: number[]; closed: boolean }
+interface PollData { poll_id: number; question: string; multiple_choice: boolean; options: PollOpt[]; has_voted: boolean; my_option_ids: number[]; closed: boolean; repop_at?: string | null }
 interface Notif {
-  id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll'
+  id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll' | 'survey'
   priority: 'low' | 'medium' | 'high' | 'critical'; requires_ack: boolean; pending_ack: boolean
-  cta_label: string | null; cta_url: string | null; viewed: boolean; poll: PollData | null
+  cta_label: string | null; cta_url: string | null; viewed: boolean; poll: PollData | null; survey?: SurveyData | null
   resent_at?: string | null; actions?: string[] | null   // botões de decisão personalizados
   expires_at?: string | null                              // prazo da decisão
   my_response?: string | null                             // botão de decisão já clicado (não re-perguntar)
   allow_guests?: boolean                                  // Confirmar presença: permite informar familiares
+  can_invite_other?: boolean                              // pode indicar acompanhante "Outro" (além da família)
 }
-interface GuestRow { nome: string; parentesco: string; idade: string }
+interface GuestRow { nome: string; parentesco: string; idade: string; is_child?: boolean }
+// Idade obrigatória p/ Filho(a) e p/ "Outro" marcado como criança.
+function needsAge(g: GuestRow): boolean { return g.parentesco === 'Filho(a)' || (g.parentesco === 'Outro' && !!g.is_child) }
 // chave de "já exibido": muda quando o aviso é reenviado (resent_at) → o pop-up reaparece.
-const keyOf = (n: Notif) => `${n.id}@${n.resent_at ?? ''}`
+// Para pesquisa/enquete inclui tb o repop_at (per-user): ao admin revogar, muda só p/ essa pessoa.
+const keyOf = (n: Notif) => {
+  const rp = n.survey?.repop_at ?? n.poll?.repop_at
+  return `${n.id}@${n.resent_at ?? ''}${rp ? '@' + rp : ''}`
+}
 
 const RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 const POLL_MS = 30000   // rede de segurança; o tempo real vem do SSE (/notifications/stream)
@@ -38,9 +46,10 @@ function headerFor(type: string, priority: string) {
   const p = PRIO_STYLE[priority] ?? PRIO_STYLE.medium
   const label = type === 'require_ack' ? 'Leitura obrigatória'
     : type === 'poll' ? 'Enquete'
+    : type === 'survey' ? 'Pesquisa'
     : type === 'action' ? 'Ação necessária'
     : p.label
-  return { bg: p.bg, fg: p.fg, label, icon: type === 'poll' ? BarChart3 : p.icon }
+  return { bg: p.bg, fg: p.fg, label, icon: type === 'poll' ? BarChart3 : type === 'survey' ? ClipboardList : p.icon }
 }
 
 // "Ver como" (impersonação, por aba): NÃO exibir pop-ups — senão o admin confirmaria a leitura
@@ -71,6 +80,8 @@ export function NotificationPopups({ userId }: { userId: number }) {
   // Modal de acompanhantes/familiares (Confirmar presença com allow_guests).
   const [guestModal, setGuestModal] = useState<{ n: Notif; action: string } | null>(null)
   const [guests, setGuests] = useState<GuestRow[]>([])
+  // Modal de resposta da PESQUISA (survey).
+  const [surveyModal, setSurveyModal] = useState<Notif | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [canOk, setCanOk] = useState(true)   // gate: só libera o OK após rolar até o fim quando há barra
   const popped = useRef<Set<string>>(new Set())
@@ -89,8 +100,14 @@ export function NotificationPopups({ userId }: { userId: number }) {
             // Não re-perguntar a cada navegação/refresh; e se já respondeu, nunca mais reabre.
             return !n.my_response && !popped.current.has(keyOf(n))
           }
-          // Leitura obrigatória pura: insiste até o aceite. Demais: só enquanto não exibida.
-          return n.pending_ack || !popped.current.has(keyOf(n))
+          if (n.type === 'survey') {
+            // Pesquisa: insiste até responder; quem já respondeu (ou encerrada) não reabre.
+            return !n.survey?.has_responded && !n.survey?.closed && !popped.current.has(keyOf(n))
+          }
+          // Leitura obrigatória: insiste ATÉ o aceite; quem já aceitou (pending_ack=false) NÃO
+          // reabre no reenvio/recorrência. Avisos SEM aceite (informativos): reaparecem a cada
+          // reenvio (resent_at muda a chave) como reforço.
+          return n.pending_ack || (!n.requires_ack && !popped.current.has(keyOf(n)))
         })
         .sort((a, b) => (RANK[b.priority] ?? 0) - (RANK[a.priority] ?? 0))
       setQueue(prev => {
@@ -169,7 +186,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
     try {
       const payload: { action: string; guests?: { nome: string; parentesco: string; idade: string }[] } = { action }
       if (guestList) payload.guests = guestList
-        .map(g => ({ nome: g.nome.trim(), parentesco: g.parentesco.trim(), idade: g.parentesco === 'Filho(a)' ? g.idade.trim() : '' }))
+        .map(g => ({ nome: g.nome.trim(), parentesco: g.parentesco.trim(), idade: needsAge(g) ? g.idade.trim() : '' }))
         .filter(g => g.nome)
       await api.post(`/notifications/${n.id}/respond`, payload)
       markSeen(n); setQueue(q => q.filter(x => x.id !== n.id))
@@ -198,6 +215,9 @@ export function NotificationPopups({ userId }: { userId: number }) {
       markSeen(n); setQueue(q => q.filter(x => x.id !== n.id)); toast.success('Voto registrado! 🎉')
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao votar') } finally { setBusy(false) }
   }
+
+  // ── Pesquisa (survey) ── respondida no <SurveyAnswerModal>; aqui só abrimos.
+  const openSurvey = (n: Notif) => setSurveyModal(n)
 
   const mandatory = current.type === 'require_ack' || current.pending_ack
 
@@ -271,6 +291,11 @@ export function NotificationPopups({ userId }: { userId: number }) {
               <button onClick={() => close(current)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Decidir depois</button>
               <button onClick={() => vote(current)} disabled={busy} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><BarChart3 size={15} /> Votar</button>
             </>
+          ) : current.type === 'survey' && current.survey ? (
+            <>
+              <button onClick={() => close(current)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Responder depois</button>
+              <button onClick={() => openSurvey(current)} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><ClipboardList size={15} /> Responder pesquisa</button>
+            </>
           ) : current.type === 'action' && current.cta_label && current.cta_url ? (
             <>
               <button onClick={() => close(current)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Ver depois</button>
@@ -297,16 +322,24 @@ export function NotificationPopups({ userId }: { userId: number }) {
           <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
             <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Informe o <b>nome completo</b> e o <b>parentesco</b> de cada familiar (idade obrigatória p/ filho). <b>Todos os campos são obrigatórios.</b> Vai levar mais? Use <b>+ Adicionar familiar</b>. Não vai levar ninguém? Clique em <b>Sem familiares</b>.</p>
             {guests.map((g, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="flex items-center gap-2 flex-wrap">
                 <input className="ds-input flex-1 min-w-0 text-sm" placeholder="Nome completo *" value={g.nome} maxLength={120}
                   onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, nome: e.target.value } : x))} />
                 <select className="ds-input w-32 text-sm" value={g.parentesco}
-                  onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: e.target.value === 'Filho(a)' ? x.idade : '' } : x))}>
+                  onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, parentesco: e.target.value, idade: '', is_child: false } : x))}>
                   <option value="">Parentesco *</option>
                   <option value="Cônjuge">Cônjuge</option>
                   <option value="Filho(a)">Filho(a)</option>
+                  {guestModal.n.can_invite_other && <option value="Outro">Outro</option>}
                 </select>
-                {g.parentesco === 'Filho(a)' && (
+                {g.parentesco === 'Outro' && (
+                  <label className="inline-flex items-center gap-1 text-[12px] whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                    <input type="checkbox" checked={!!g.is_child}
+                      onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, is_child: e.target.checked, idade: e.target.checked ? x.idade : '' } : x))} />
+                    é criança?
+                  </label>
+                )}
+                {needsAge(g) && (
                   <input className="ds-input w-24 text-sm" type="number" min={0} max={120} placeholder="Idade *" value={g.idade}
                     onChange={e => setGuests(gs => gs.map((x, idx) => idx === i ? { ...x, idade: e.target.value } : x))} />
                 )}
@@ -321,12 +354,22 @@ export function NotificationPopups({ userId }: { userId: number }) {
           <div className="px-5 py-3 flex items-center justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
             <button onClick={() => respond(guestModal.n, guestModal.action, [])} disabled={busy}
               className="ds-btn-secondary text-sm px-4 py-2 rounded-lg">Sem familiares</button>
-            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (g.parentesco === 'Filho(a)' && !g.idade.trim()))}
-              title={guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (g.parentesco === 'Filho(a)' && !g.idade.trim())) ? 'Preencha nome e parentesco (idade p/ filho) — ou use "Sem familiares"' : undefined}
+            <button onClick={() => respond(guestModal.n, guestModal.action, guests)} disabled={busy || guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (needsAge(g) && !g.idade.trim()))}
+              title={guests.length === 0 || guests.some(g => !g.nome.trim() || !g.parentesco || (needsAge(g) && !g.idade.trim())) ? 'Preencha nome, parentesco e a idade quando for criança — ou use "Sem familiares"' : undefined}
               className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Confirmar presença</button>
           </div>
         </div>
       </div>
+    )}
+
+    {/* Modal de resposta da PESQUISA (componente compartilhado com o Meu Dia) */}
+    {surveyModal?.survey && (
+      <SurveyAnswerModal
+        title={surveyModal.title}
+        survey={surveyModal.survey}
+        onClose={() => setSurveyModal(null)}
+        onSubmitted={() => { markSeen(surveyModal); setQueue(q => q.filter(x => x.id !== surveyModal.id)); setSurveyModal(null) }}
+      />
     )}
     </>
   )
