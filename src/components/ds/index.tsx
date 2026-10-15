@@ -613,3 +613,8 @@ export function Modal({
 // Help Desk / Código-Fonte — árvore de acervo (adicionado no port HD)
 export { Tree } from './tree'
 export type { TreeNode } from './tree'
+// DS do subsistema PROSIGHT/Central de Fontes (dev2) — preservados no merge prod→dev2.
+export { Accordion, AccordionItem } from './accordion'
+export { Breadcrumb } from './breadcrumb'
+export type { Crumb } from './breadcrumb'
+export { SplitPanel } from './split-panel'
