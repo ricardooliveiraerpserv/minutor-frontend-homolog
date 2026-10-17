@@ -18,10 +18,7 @@ import { api, ApiError } from '@/lib/api'
 import { useVault } from '@/contexts/vault-context'
 import { useAuth } from '@/hooks/use-auth'
 import { UnlockScreen } from '@/components/vault/unlock-screen'
-import { OnboardingWizard } from '@/components/vault/onboarding-wizard'
-import { BulkAllocationModal } from '@/components/environments/bulk-allocation-modal'
 import { generateKey32, rsaWrap } from '@/lib/vault-crypto'
-import { CofrePessoalInner } from './pessoal/page'
 
 interface ClientRow { customer_id: number; customer_name: string; vault_id: number; environments_count: number; role: string }
 interface CustomerOpt { id: number; name: string }
@@ -43,7 +40,6 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [favorites, setFavorites] = useState<FavRow[]>([])
   const [loading, setLoading] = useState(true)
   const [newOpen, setNewOpen] = useState(false)
-  const [bulkOpen, setBulkOpen] = useState(false)
   const [q, setQ] = useState('')
   const [results, setResults] = useState<SearchResult | null>(null)
   // Backfill: criar pastas (cofres) dos clientes que ainda não têm.
@@ -54,7 +50,6 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const [tab, setTab] = useState<'ativos' | 'inativos'>('ativos')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [filter, setFilter] = useState('')
-  const [pastaFilter, setPastaFilter] = useState<'todos' | 'com' | 'sem'>('todos')
   const [sortKey, setSortKey] = useState<'name' | 'env'>('name')
   const [sortAsc, setSortAsc] = useState(true)
   const [creatingId, setCreatingId] = useState<number | null>(null)
@@ -123,7 +118,6 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   const vaultByCustomer = new Map(clients.map(c => [c.customer_id, c]))
   const shownCustomers = (tab === 'ativos' ? activeCustomers : inactiveCustomers)
     .filter(c => !filter.trim() || c.name.toLowerCase().includes(filter.trim().toLowerCase()))
-    .filter(c => pastaFilter === 'todos' || (vaultByCustomer.has(c.id) ? pastaFilter === 'com' : pastaFilter === 'sem'))
   const sortedCustomers = [...shownCustomers].sort((a, b) => {
     const cmp = sortKey === 'name'
       ? a.name.localeCompare(b.name, 'pt-BR')
@@ -152,8 +146,7 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
         subtitle={subtitle}
         actions={status === 'unlocked' ? (
           <div className="flex gap-2">
-            <Button icon={Users} onClick={() => setBulkOpen(true)}>Alocar em massa</Button>
-            <Link href="/ambientes/configuracao"><Button icon={Settings}>Configuração</Button></Link>
+            <Link href="/cofre/configuracao"><Button icon={Settings}>Configuração</Button></Link>
             <Button icon={Lock} onClick={lock}>Travar</Button>
           </div>
         ) : undefined}
@@ -161,7 +154,20 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
 
       {status === 'loading' && <Skeleton className="h-64" />}
 
-      {status === 'unconfigured' && <OnboardingWizard />}
+      {status === 'unconfigured' && (
+        <Card className="max-w-md mx-auto text-center">
+          <div className="flex flex-col items-center gap-3 py-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
+              <KeyRound className="w-6 h-6" style={{ color: 'var(--primary)' }} />
+            </div>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Configure seu cofre primeiro</h2>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              O Cofre de Ambientes usa a mesma chave-mestra do Cofre de Senhas. Configure seu perfil lá uma vez.
+            </p>
+            <Link href="/cofre"><Button variant="primary">Ir para o Cofre</Button></Link>
+          </div>
+        </Card>
+      )}
 
       {status === 'locked' && <UnlockScreen />}
 
@@ -276,15 +282,6 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
               </div>
             </div>
             <div className="flex gap-2 items-center">
-              <div className="inline-flex rounded-lg overflow-hidden shrink-0" style={{ border: '1px solid var(--border)' }}>
-                {([['todos', 'Todas'], ['com', 'Com pasta'], ['sem', 'Sem pasta']] as const).map(([k, lbl]) => (
-                  <button key={k} type="button" onClick={() => setPastaFilter(k)}
-                    className="px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
-                    style={{ background: pastaFilter === k ? 'var(--primary-soft)' : 'transparent', color: pastaFilter === k ? 'var(--primary)' : 'var(--text-muted)' }}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
               <div className="w-44"><TextInput icon={Search} placeholder="Filtrar cliente…" value={filter} onChange={e => setFilter(e.target.value)} /></div>
               {isAdmin && <>
                 <Button icon={FolderPlus} onClick={openBackfill}>Criar pastas</Button>
@@ -368,7 +365,6 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
       )}
 
       <NewClientModal open={newOpen} onClose={() => setNewOpen(false)} publicKey={publicKey} existing={clients.map(c => c.customer_id)} onCreated={() => void load()} />
-      <BulkAllocationModal open={bulkOpen} onClose={() => setBulkOpen(false)} onChanged={() => void load()} />
 
       <Modal open={backfill !== null} onClose={() => { if (!backfill?.running) setBackfill(null) }} title="Criar pastas dos clientes existentes">
         <div className="flex flex-col gap-4">
@@ -400,33 +396,11 @@ export function CofreAmbientesInner({ title = 'Cofre de Ambientes', subtitle = '
   )
 }
 
-// Página do Cofre: duas seções sob o MESMO VaultProvider (sem re-unlock ao trocar) —
-// "Cofres de Cliente" (compartilhados) e "Cofre Pessoal" (privado), que fica DENTRO do Cofre.
+// Página standalone (fallback "de fora"): Cofre de Ambientes com seu próprio AppLayout.
 export default function AmbientesPage() {
-  // Padrão = Cofres de Cliente (o Cofre de Ambiente é a tela principal). ?tab=pessoal abre a aba Pessoal
-  // (usado pelo redirect da rota antiga /ambientes/pessoal).
-  const [section, setSection] = useState<'clientes' | 'pessoal'>('clientes')
-  useEffect(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'pessoal') setSection('pessoal')
-  }, [])
   return (
     <AppLayout>
-      <div className="mb-4 inline-flex items-center gap-1 p-1 rounded-xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        {([['clientes', 'Cofres de Cliente', Server], ['pessoal', 'Cofre Pessoal', KeyRound]] as const).map(([k, label, Icon]) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setSection(k)}
-            className="text-sm px-4 py-2 rounded-lg inline-flex items-center gap-2 transition-colors"
-            style={section === k
-              ? { background: 'var(--primary)', color: '#fff', fontWeight: 600, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }
-              : { background: 'transparent', color: 'var(--text-muted)', fontWeight: 500 }}
-          >
-            <Icon size={16} /> {label}
-          </button>
-        ))}
-      </div>
-      {section === 'clientes' ? <CofreAmbientesInner /> : <CofrePessoalInner />}
+      <CofreAmbientesInner />
     </AppLayout>
   )
 }

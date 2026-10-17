@@ -31,8 +31,6 @@ import {
 } from 'recharts'
 import { TimesheetConflictModal, type ConflictTimesheet } from '@/components/timesheet/TimesheetConflictModal'
 import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
-import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
-import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 
 // ─── Máscara de valores (privacidade) ──────────────────────────────────────────
 // Contexto que indica se os valores monetários da tela devem ficar ocultos.
@@ -195,13 +193,6 @@ interface MyClosing {
   adicional: number
   adicional_desc: string | null
   recebimento: number
-  // Horas APROVADAS (base do valor) + PENDENTES de aprovação (informativo, não pagas).
-  horas_trabalhadas?: number
-  horas_pendentes?: number
-  valor_pendente?: number
-  horas_ajuste?: number
-  valor_ajuste?: number
-  all_approved?: boolean
 }
 
 /**
@@ -1049,7 +1040,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function SummaryCard({
-  label, value, sub, icon: Icon, accent, onClick, featured = false, money = false, tone,
+  label, value, sub, icon: Icon, accent, onClick, featured = false, money = false,
 }: {
   label: string
   value: string
@@ -1059,27 +1050,18 @@ function SummaryCard({
   onClick?: () => void
   featured?: boolean
   money?: boolean
-  tone?: 'warning' | 'purple'
 }) {
-  const toneCard = tone === 'warning'
-    ? 'border-2 border-[color:var(--warning)]/40 bg-[var(--warning-bg)]'
-    : tone === 'purple'
-      ? 'border-2 border-[color:var(--purple)]/40 bg-[var(--purple-bg)]'
-      : ''
-  const toneLabel = tone === 'warning' ? 'text-[var(--warning)]' : tone === 'purple' ? 'text-[var(--purple)]' : 'text-[var(--text-light)]'
   return (
     <div
       onClick={onClick}
       className={`rounded-xl p-5 transition-colors ${
         featured
           ? 'border-2 border-[var(--primary)] bg-[var(--primary-soft)] shadow-[0_0_20px_var(--primary-soft)]'
-          : tone
-            ? `${toneCard} ${onClick ? 'cursor-pointer hover:brightness-95' : ''}`
-            : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
+          : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[var(--primary)]' : toneLabel}`}>{label}</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${featured ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : accent}`}>
           <Icon size={14} />
         </div>
@@ -1825,9 +1807,6 @@ export default function MeuPainelPage() {
   const [expPage,     setExpPage]    = useState(1)
   const [expHasNext,  setExpHasNext] = useState(false)
   const [expModal,    setExpModal]   = useState<{ open: boolean; item?: ExpenseItem }>({ open: false })
-  // Modais CANÔNICOS de criação (mesmos das demais telas): form completo + lista de projetos completa.
-  const [newTsOpen,  setNewTsOpen]  = useState(false)
-  const [newExpOpen, setNewExpOpen] = useState(false)
   const [expViewItem, setExpViewItem] = useState<ExpenseItem | null>(null)
   const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
   const [expSaving,   setExpSaving]  = useState(false)
@@ -2085,7 +2064,11 @@ export default function MeuPainelPage() {
 
   // ── Timesheet CRUD ─────────────────────────────────────────────────────────
 
-  const openCreateTs = () => setNewTsOpen(true)   // usa o modal canônico (mesmo das demais telas)
+  const openCreateTs = () => {
+    setTsForm({ ...EMPTY_TS, date: todayISO() })
+    setTsModeTotal(false)
+    setTsModal({ open: true })
+  }
 
   const openEditTs = (item: TimesheetItem) => {
     const proj = projects.find(p => p.id === item.project_id)
@@ -2186,7 +2169,12 @@ export default function MeuPainelPage() {
 
   // ── Expense CRUD ───────────────────────────────────────────────────────────
 
-  const openCreateExp = () => setNewExpOpen(true)   // usa o modal canônico (mesmo das demais telas)
+  const openCreateExp = () => {
+    setExpForm({ ...EMPTY_EXP, expense_date: todayISO() })
+    setExpFile(null)
+    setExpItems([emptyExpenseItem()])
+    setExpModal({ open: true })
+  }
 
   const openEditExp = (item: ExpenseItem) => {
     const proj = projects.find(p => p.id === item.project_id)
@@ -2298,16 +2286,7 @@ export default function MeuPainelPage() {
       ? Math.round(ts.effort_minutes * (ts.consultant_extra_pct / 100))
       : 0), 0),
   [timesheets])
-  // Horas base do VALOR = só APROVADAS (vêm do fechamento). As pendentes de aprovação
-  // ficam à parte (informativo) e só entram no valor após o coordenador aprovar.
-  const pendingHours    = myClosing?.horas_pendentes ?? 0
-  const pendingValue    = myClosing?.valor_pendente ?? 0
-  const ajusteHours     = myClosing?.horas_ajuste ?? 0
-  const ajusteValue     = myClosing?.valor_ajuste ?? 0
-  const workedHours     = myClosing?.horas_trabalhadas != null ? myClosing.horas_trabalhadas : tsTotalMin / 60
-  // Distribuição dos cards: 4 base + card de Ajuste (sempre) + Pendente (quando houver).
-  const nExtraStatusCards = 1 + (pendingHours > 0 ? 1 : 0)
-  const hoursGridCols = nExtraStatusCards === 2 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'
+  const workedHours     = tsTotalMin / 60
 
   // Proporcionalidade: se bank_hours_start_date cai no mês selecionado
   const consultantStartStr = (user as any)?.bank_hours_start_date as string | null | undefined
@@ -2725,11 +2704,11 @@ export default function MeuPainelPage() {
           )}
 
           {/* Linha 1 — Serviços (oculto para parceiro simples que já tem hero) */}
-          {!isParceiroSimples && <div className={`grid gap-3 grid-cols-2 sm:grid-cols-3 ${hoursGridCols} [&>*]:min-w-0`}>
+          {!isParceiroSimples && <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 [&>*]:min-w-0">
             <SummaryCard
-              label="Horas aprovadas"
-              value={`${workedHours.toFixed(1)}h`}
-              sub="aprovadas no período"
+              label="Horas no Período"
+              value={minutesToHours(tsTotalMin)}
+              sub={`${(tsTotalMin / 60).toFixed(1)}h apontadas`}
               icon={Clock}
               accent="bg-[var(--primary-soft)] text-[var(--primary)]"
               onClick={() => setActiveTab('timesheets')}
@@ -2813,28 +2792,6 @@ export default function MeuPainelPage() {
               icon={BarChart2}
               accent="bg-[var(--purple-bg)] text-[var(--purple)]"
               onClick={() => setActiveTab('timesheets')}
-            />
-            {pendingHours > 0 && (
-              <SummaryCard
-                label="Pendente de aprovação"
-                value={`${pendingHours.toFixed(1)}h`}
-                sub={pendingValue > 0 ? `≈ ${formatBRL(pendingValue)} · entra após aprovar` : 'entra no valor após aprovação'}
-                icon={Clock}
-                accent="bg-[var(--warning-bg)] text-[var(--warning)]"
-                tone="warning"
-                onClick={() => setActiveTab('timesheets')}
-              />
-            )}
-            <SummaryCard
-              label="Ajuste solicitado"
-              value={`${ajusteHours.toFixed(1)}h`}
-              sub={ajusteHours > 0
-                ? `≈ ${formatBRL(ajusteValue)} · clique para ajustar`
-                : 'nenhum ajuste solicitado'}
-              icon={AlertTriangle}
-              accent={ajusteHours > 0 ? 'bg-[var(--purple-bg)] text-[var(--purple)]' : 'bg-[var(--surface-hover)] text-[var(--text-light)]'}
-              tone={ajusteHours > 0 ? 'purple' : undefined}
-              onClick={ajusteHours > 0 ? () => setActiveTab('timesheets') : undefined}
             />
           </div>}
 
@@ -4681,10 +4638,6 @@ export default function MeuPainelPage() {
       )}
 
       {/* ── Modal de conflito ao salvar edição ────────────────────────── */}
-      {/* Modais CANÔNICOS de criação (mesmos das demais telas) — form completo + projetos completos */}
-      <TimesheetFormModal open={newTsOpen} onClose={() => setNewTsOpen(false)} onSaved={() => { setNewTsOpen(false); loadTimesheets() }} currentUser={user} />
-      <ExpenseQuickModal  open={newExpOpen} onClose={() => setNewExpOpen(false)} onSaved={() => { setNewExpOpen(false); loadExpenses() }} currentUser={user} />
-
       {tsEditConflict && (
         <ModalOverlay onClose={() => setTsEditConflict(null)}>
           <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">

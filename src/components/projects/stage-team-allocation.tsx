@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Plus, Pencil, Trash2, Users } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { PartnerBadge } from '@/components/ui/partner-badge'
 import { useStageAllocations } from '@/hooks/use-stage-allocations'
 import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
 import type { AllocationHealth, StageAllocationItem } from '@/lib/types/stage-allocation'
@@ -19,7 +18,6 @@ interface ConsultantOption {
   id: number
   name: string
   email?: string
-  partner?: { name?: string } | null
 }
 
 const HEALTH_COLOR: Record<AllocationHealth, string> = {
@@ -265,7 +263,7 @@ function AddAllocationForm({ projectId, stageId, existing, onClose, onAdded }: A
           <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Consultor</label>
           {selected ? (
             <div style={{ marginTop: 4, padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13 }}>
-              <span>{selected.name}<PartnerBadge label={selected.partner?.name} /></span>
+              <span>{selected.name}</span>
               <button type="button" onClick={() => { setSelected(null); setSearch(''); setResults([]) }}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16 }}>×</button>
             </div>
@@ -281,7 +279,7 @@ function AddAllocationForm({ projectId, stageId, existing, onClose, onAdded }: A
                   {results.map(u => (
                     <li key={u.id} onClick={() => { setSelected(u); setSearch(''); setResults([]) }}
                       style={{ padding: '6px 10px', fontSize: 13, cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
-                      {u.name}<PartnerBadge label={u.partner?.name} />
+                      {u.name}
                     </li>
                   ))}
                 </ul>

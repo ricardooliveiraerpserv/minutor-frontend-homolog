@@ -872,14 +872,6 @@ export default function FechamentoParceiroPage() {
   const ajusteAdicional    = ajuste.adicional === ''    ? 0 : Number(ajuste.adicional)    || 0
   const baseRecebimento    = consultores.length ? totalAPagar : (status?.total_a_pagar ?? 0)
   const recebimentoLive    = baseRecebimento - ajusteDesconto - ajusteAdiantamento + ajusteAdicional
-  // Total do box lateral do Relatório conforme o modo (mesma conta do relatório):
-  // serviços → serv; despesas → desp; ambos → serv + desp. Em todos (exceto só-despesa)
-  // aplica os ajustes do recebimento. Antes o box mostrava SEMPRE só serviços, ignorando
-  // despesa/adicional → divergia do RECEBIMENTO e do relatório.
-  const reportTotal = reportMode === 'despesa'
-    ? totalDespesas
-    : (reportMode === 'servicos' ? totalServicos : totalServicos + totalDespesas)
-      - ajusteDesconto - ajusteAdiantamento + ajusteAdicional
 
   const TABS = [
     { key: 'consultores',  label: 'Consultores' },
@@ -1588,7 +1580,7 @@ export default function FechamentoParceiroPage() {
                         <div className="pb-3 mb-1" style={{ borderBottom: '1px solid var(--border)' }}>
                           <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>{status?.nome}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{yearMonth ? fmtYearMonth(yearMonth) : ''}</p>
-                          <p className="text-lg font-bold mt-2" style={{ color: 'var(--primary)' }}>{formatBRL(reportTotal)}</p>
+                          <p className="text-lg font-bold mt-2" style={{ color: 'var(--primary)' }}>{formatBRL(totalServicos)}</p>
                         </div>
 
                         <Button

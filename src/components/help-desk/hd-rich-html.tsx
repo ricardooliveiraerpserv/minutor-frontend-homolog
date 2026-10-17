@@ -23,17 +23,6 @@ export function HdRichHtml({ html, className, onImageClick }: { html: string; cl
         img.onclick = (e) => { e.preventDefault(); onImageClick(img.currentSrc || img.src, img.alt || undefined) }
       })
     }
-    // Imagens do Movidesk re-hospedadas como <img src="/api/v1/.../download"> (sem data-att-id):
-    // a tag <img> não envia o token Bearer → a API responde 401 e a imagem fica "quebrada".
-    // Busca COM token (fetchAuthedObjectUrl) e troca o src por um object URL carregável.
-    root.querySelectorAll<HTMLImageElement>('img[src]').forEach((img) => {
-      if (img.hasAttribute('data-att-id')) return
-      const raw = img.getAttribute('src') || ''
-      if (!raw.startsWith('/api/')) return
-      img.style.maxWidth = '100%'
-      img.style.height = 'auto'
-      fetchAuthedObjectUrl(raw).then((u) => { if (alive) img.src = u }).catch(() => {})
-    })
     const els = root.querySelectorAll<HTMLElement>('[data-att-id]')
     els.forEach((el) => {
       const id = el.getAttribute('data-att-id')

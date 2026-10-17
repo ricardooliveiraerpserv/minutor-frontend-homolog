@@ -132,8 +132,6 @@ export const api = {
       ? { method: 'DELETE', body: serialize(body) }
       : { method: 'DELETE' }),
 }
-
-// Download autenticado (blob → <a download>). Usado pelo Prosight (pacote do Connector).
 export async function downloadFile(path: string, filename: string): Promise<void> {
   const sessionToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
   const res = await fetch(`${API_URL}${path}`, {

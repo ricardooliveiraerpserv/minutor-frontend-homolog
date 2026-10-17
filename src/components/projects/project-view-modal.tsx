@@ -9,7 +9,6 @@ import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText, Eye, SquarePen, Plus, Calculator } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
-import { PartnerBadge } from '@/components/ui/partner-badge'
 import { Skeleton } from '@/components/ui/loading'
 
 // ─── Types (duplicados da página do kanban — manter idênticos) ──────────────────
@@ -146,13 +145,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
     const blob = await res.blob(); const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url; a.download = att.original_name; a.click(); URL.revokeObjectURL(url)
-  }
-  const viewViewAtt = async (att: any) => {
-    try {
-      const res = await fetch(`/api/v1/projects/${projectId}/attachments/${att.id}?view=1`, { credentials: 'same-origin' })
-      if (!res.ok) throw new Error()
-      const url = URL.createObjectURL(await res.blob()); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    } catch { toast.error('Erro ao abrir arquivo') }
   }
 
   const reload = () => {
@@ -620,7 +612,6 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                               <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{att.type ?? 'anexo'}{att.source === 'contract' ? ' · do contrato' : ''}</p>
                             </div>
                           </div>
-                          <button type="button" onClick={() => viewViewAtt(att)} title="Visualizar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Eye size={13} /></button>
                           <button type="button" onClick={() => downloadViewAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                         </div>
                       ))}
@@ -1350,15 +1341,11 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
   // Pós-processamento compartilhado entre o fluxo normal e o de troca Movidesk.
   const finishAfterSave = async () => {
     if (pendingAttach.length > 0) {
-      // Anexos desta seção são de PROPOSTA/CONTRATO — devem ficar no CONTRATO (entity CONTRACT,
-      // "do contrato"), NÃO como anexo de projeto (que apareceria na aba Documentos p/ o
-      // coordenador). Quando o projeto tem contrato vinculado, sobe pro endpoint do contrato.
-      const contractId = (project as { contract_id?: number | null }).contract_id
       for (const { file, type } of pendingAttach) {
         const fd = new FormData()
         fd.append('file', file)
         fd.append('type', type)
-        await uploadDirect(contractId ? `/contracts/${contractId}/attachments` : `/projects/${project.id}/attachments`, fd)
+        await uploadDirect(`/projects/${project.id}/attachments`, fd)
       }
       setPendingAttach([])
     }
@@ -1435,11 +1422,10 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
               {/* Contatos do cliente */}
               <CustomerContactsSection customerId={d.customer_id} customerName={d.customer?.name} />
 
-              {/* Anexos — SOMENTE LEITURA após criação. Novos documentos do projeto entram
-                  pela aba Documentos; proposta/contrato são geridos na Gestão de Contratos. */}
+              {/* Anexos */}
               <div>
                 <label style={lStyle}>Anexos (aprovação do cliente / proposta, contrato, logo)</label>
-                {projAttachments.length > 0 ? (
+                {(projAttachments.length > 0 || pendingAttach.length > 0) ? (
                   <div className="space-y-1.5 mb-2">
                     {projAttachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
@@ -1452,16 +1438,33 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
+                          {att.source !== 'contract' && (
+                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>
+                          )}
                         </div>
+                      </div>
+                    ))}
+                    {pendingAttach.map((pf, i) => (
+                      <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
+                        <div className="min-w-0">
+                          <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{pf.file.name}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{pf.type} · aguardando salvar</p>
+                        </div>
+                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}><X size={12} /></button>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-[11px] italic mb-2" style={{ color: 'var(--text-light)' }}>Nenhum anexo</p>
                 )}
-                <p className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>
-                  Novos documentos do projeto: use a aba <b>Documentos</b>. Proposta/contrato: gerencie na <b>Gestão de Contratos</b>.
-                </p>
+                <input ref={attachFileRef} type="file" className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
+                <button type="button" onClick={() => attachFileRef.current?.click()}
+                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary)]"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
+                  Clique para adicionar anexo
+                </button>
               </div>
 
               <SecTitle>Financeiro</SecTitle>
@@ -1642,7 +1645,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                   const sel = form.consultant_ids.includes(c.id)
                   return <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>{sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}</div>
-                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}<PartnerBadge label={(c as { partner?: { name?: string } }).partner?.name} /></span>
+                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}</span>
                   </button>
                 })}
                 {teamTab === 'group' && filteredGroups.map(g => {

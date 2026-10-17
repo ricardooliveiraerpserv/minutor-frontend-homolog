@@ -19,29 +19,12 @@ export class StepUpCancelled extends Error {
 
 /** Abre o popup Microsoft e resolve quando o step-up é confirmado no servidor. */
 export async function requestMicrosoftStepUp(): Promise<void> {
+  const { authorize_url } = await api.post<{ authorize_url: string }>('/vault/ms/start', {})
+
   const left = window.screenX + (window.outerWidth - POPUP_W) / 2
   const top = window.screenY + (window.outerHeight - POPUP_H) / 2
-  // Abre o popup SÍNCRONO (no gesto do clique) p/ não ser bloqueado — navegamos
-  // depois de obter a authorize_url. `window.open` após `await` perde a ativação
-  // transitória do usuário e o navegador bloqueia o popup.
-  // Guardamos a referência só para abrir/navegar; nunca lemos .closed (COOP bloqueia).
-  const popup = window.open('about:blank', 'minutor-vault-ms', `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top}`)
-
-  let authorize_url: string
-  try {
-    const res = await api.post<{ authorize_url: string }>('/vault/ms/start', {})
-    authorize_url = res.authorize_url
-  } catch (e) {
-    popup?.close()
-    throw e
-  }
-
-  if (popup) {
-    popup.location.href = authorize_url
-  } else {
-    // Popup bloqueado mesmo assim: tenta abrir direto (último recurso).
-    window.open(authorize_url, 'minutor-vault-ms', `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top}`)
-  }
+  // Guardamos a referência só para abrir; nunca lemos .closed (COOP bloqueia).
+  window.open(authorize_url, 'minutor-vault-ms', `width=${POPUP_W},height=${POPUP_H},left=${left},top=${top}`)
 
   const started = Date.now()
   return new Promise<void>((resolve, reject) => {

@@ -12,7 +12,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
-interface SelectOption { id: number; name: string; badge?: string | null; service_type_code?: string | null }
+interface SelectOption { id: number; name: string; service_type_code?: string | null }
 interface PaginatedResponse<T> { items: T[] }
 
 const inputCls = `w-full px-3 py-2 rounded-xl text-sm outline-none`
@@ -64,8 +64,7 @@ export default function NewTimesheetPage() {
   useEffect(() => {
     if (!isAdmin) return
     api.get<any>('/users?pageSize=200')
-      // Usuário de parceiro: badge com o nome do parceiro; nome fica puro.
-      .then(r => setUsers((Array.isArray(r?.items) ? r.items : []).map((u: any) => ({ ...u, badge: u.partner?.name ?? null }))))
+      .then(r => setUsers(Array.isArray(r?.items) ? r.items : []))
       .catch(() => {})
   }, [isAdmin])
 

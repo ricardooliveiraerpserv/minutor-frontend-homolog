@@ -16,7 +16,6 @@ import { ProsightNav } from '@/components/prosight-shell/prosight-nav'
 import { OperacoesProvider, OperacoesEnvSelector } from './_components/operacoes-context'
 import { ProsightCompanyProvider, ProsightCompanySelect } from '@/app/prosight/_components/company-context'
 import { ProsightEnvSelectionProvider } from '@/app/prosight/_components/env-selection-context'
-import { VaultProvider } from '@/contexts/vault-context'
 
 export default function OperacoesLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() || ''
@@ -33,7 +32,6 @@ export default function OperacoesLayout({ children }: { children: ReactNode }) {
     || pathname.startsWith('/operacoes-protheus/configuracao')
 
   return (
-    <VaultProvider>
     <AppLayout>
       <ProsightCompanyProvider>
         <ProsightEnvSelectionProvider>
@@ -49,6 +47,5 @@ export default function OperacoesLayout({ children }: { children: ReactNode }) {
         </ProsightEnvSelectionProvider>
       </ProsightCompanyProvider>
     </AppLayout>
-    </VaultProvider>
   )
 }

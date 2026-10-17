@@ -102,21 +102,16 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
 
 // ─── SearchSelect ─────────────────────────────────────────────────────────────
 
-function OptBadge({ label }: { label?: string | null }) {
-  if (!label) return null
-  return <span className="inline-block align-middle px-1.5 py-0.5 ml-1.5 rounded text-[10px] font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{label}</span>
-}
-
 function SearchSelect({ value, onChange, options, placeholder }: {
   value: string; onChange: (v: string) => void
-  options: { id: number | string; name: string; badge?: string | null }[]; placeholder: string
+  options: { id: number | string; name: string }[]; placeholder: string
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
   const ref      = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const selected = options.find(o => String(o.id) === value)
-  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()) || (o.badge ?? '').toLowerCase().includes(query.toLowerCase()))
+  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
 
   useEffect(() => {
     if (!open) return
@@ -133,7 +128,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
       <button type="button" onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm outline-none text-left"
         style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: selected ? 'var(--text)' : 'var(--text-light)' }}>
-        <span className="truncate text-sm">{selected ? <>{selected.name}<OptBadge label={selected.badge} /></> : placeholder}</span>
+        <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
         <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
       {open && (
@@ -154,7 +149,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}>
-                  {o.name}<OptBadge label={o.badge} />
+                  {o.name}
                 </button>
               ))}
           </div>
@@ -179,7 +174,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 interface Category { id: number; name: string; parent_id?: number | null }
-interface SelectOption { id: number; name: string; badge?: string | null }
+interface SelectOption { id: number; name: string }
 
 function formatDateTime(d: string | null | undefined) {
   if (!d) return '—'
@@ -619,8 +614,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
         api.get<any>('/expense-credit-card-users').catch(() => null),
       ])
       setCategories(Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : [])
-      // Usuário de parceiro: badge com o nome do parceiro; nome fica puro.
-      if (u) setModalUsers((Array.isArray(u?.items) ? u.items : []).map((x: any) => ({ id: x.id, name: x.name, badge: x.partner?.name ?? null })))
+      if (u) setModalUsers(Array.isArray(u?.items) ? u.items : [])
       const ccList = Array.isArray(cc?.data) ? cc.data : Array.isArray(cc?.items) ? cc.items : []
       setCcUserIds(new Set(ccList.map((x: any) => Number(x.id))))
     } catch { /* silencioso */ }

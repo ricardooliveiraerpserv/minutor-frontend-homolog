@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ExpenseItemsEditor, ExpenseItemDraft, emptyExpenseItem, appendExpenseItems, expenseItemsValid } from '@/components/ui/expense-items-editor'
 
-interface Opt { id: number; name: string; badge?: string | null }
+interface Opt { id: number; name: string }
 interface Cat { id: number; name: string; parent_id?: number | null }
 
 /**
@@ -55,8 +55,7 @@ export function ExpenseQuickModal({ open, onClose, onSaved, currentUser }: {
         ])
         setCustomers(Array.isArray(cust?.items) ? cust.items : Array.isArray(cust?.data) ? cust.data : [])
         setCategories(Array.isArray(cat?.items) ? cat.items : Array.isArray(cat?.data) ? cat.data : [])
-        // Usuário de parceiro: badge com o nome do parceiro; nome fica puro.
-        if (us) setModalUsers((Array.isArray(us?.items) ? us.items : []).map((u: any) => ({ id: u.id, name: u.name, badge: u.partner?.name ?? null })))
+        if (us) setModalUsers(Array.isArray(us?.items) ? us.items : [])
       } catch { /* silencioso */ }
     })()
   }, [open, canActAsUser])

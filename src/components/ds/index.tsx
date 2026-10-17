@@ -7,7 +7,7 @@
 import React, { Children, isValidElement, cloneElement, Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Eye, EyeOff } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { ScrollableX } from '@/components/ui/scrollable-x'
 
 // ─── PAGE HEADER ─────────────────────────────────────────────────────────────
@@ -47,15 +47,14 @@ interface CardProps {
   children: React.ReactNode
   className?: string
   padding?: 'none' | 'sm' | 'md' | 'lg'
-  style?: React.CSSProperties
 }
 
-export function Card({ children, className, padding = 'md', style }: CardProps) {
+export function Card({ children, className, padding = 'md' }: CardProps) {
   const p = padding === 'none' ? '' : padding === 'sm' ? 'p-4' : padding === 'lg' ? 'p-8' : 'p-6'
   return (
     <div
       className={cn('rounded-2xl', p, className)}
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)', ...style }}
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
     >
       {children}
     </div>
@@ -367,12 +366,9 @@ export function Button({
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   icon?: LucideIcon
-  revealToggle?: boolean   // mostra um botão de olho p/ ver/esconder a senha (type=password)
 }
 
-export function TextInput({ label, icon: Icon, revealToggle, type, className, ...props }: InputProps) {
-  const [reveal, setReveal] = React.useState(false)
-  const effType = revealToggle ? (reveal ? 'text' : 'password') : type
+export function TextInput({ label, icon: Icon, className, ...props }: InputProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -389,12 +385,9 @@ export function TextInput({ label, icon: Icon, revealToggle, type, className, ..
           />
         )}
         <input
-          type={effType}
           className={cn(
             'w-full rounded-xl text-sm transition-colors outline-none',
-            Icon ? 'pl-9' : 'pl-4',
-            revealToggle ? 'pr-10' : 'pr-4',
-            'py-2.5',
+            Icon ? 'pl-9 pr-4 py-2.5' : 'px-4 py-2.5',
             className
           )}
           style={{
@@ -404,18 +397,6 @@ export function TextInput({ label, icon: Icon, revealToggle, type, className, ..
           }}
           {...props}
         />
-        {revealToggle && (
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={() => setReveal(r => !r)}
-            aria-label={reveal ? 'Esconder senha' : 'Mostrar senha'}
-            className="absolute right-3 top-1/2 -translate-y-1/2 hover:opacity-70"
-            style={{ color: 'var(--text-light)' }}
-          >
-            {reveal ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        )}
       </div>
     </div>
   )
@@ -610,11 +591,9 @@ export function Modal({
   )
 }
 
-// Help Desk / Código-Fonte — árvore de acervo (adicionado no port HD)
 export { Tree } from './tree'
 export type { TreeNode } from './tree'
-// DS do subsistema PROSIGHT/Central de Fontes (dev2) — preservados no merge prod→dev2.
-export { Accordion, AccordionItem } from './accordion'
 export { Breadcrumb } from './breadcrumb'
 export type { Crumb } from './breadcrumb'
+export { Accordion, AccordionItem } from './accordion'
 export { SplitPanel } from './split-panel'

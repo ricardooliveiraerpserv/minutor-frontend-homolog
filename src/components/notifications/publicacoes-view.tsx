@@ -16,10 +16,10 @@ interface Comunicado {
 interface NotifRow { id: number; type: string; title: string; message: string; expires_at: string | null; created_at: string | null; is_template?: boolean; acks_count?: number }
 const TIPO_L: Record<string, string> = {
   aviso: 'Aviso', formal: 'Comunicação formal', campanha: 'Campanha', marketing: 'Marketing',
-  info: 'Informativo', action: 'Ação', require_ack: 'Leitura/decisão', poll: 'Enquete', survey: 'Pesquisa',
+  info: 'Informativo', action: 'Ação', require_ack: 'Leitura/decisão', poll: 'Enquete',
 }
 // Urgência (p/ ordenar). Depois, por data (mais recente primeiro).
-const URG: Record<string, number> = { require_ack: 4, aviso: 3, action: 3, formal: 2, campanha: 1, poll: 1, survey: 1, info: 1, marketing: 0 }
+const URG: Record<string, number> = { require_ack: 4, aviso: 3, action: 3, formal: 2, campanha: 1, poll: 1, info: 1, marketing: 0 }
 const byUrgencyThenDate = (a: Comunicado, b: Comunicado) =>
   (URG[b.tipo] ?? 0) - (URG[a.tipo] ?? 0) || (b.created_at ?? '').localeCompare(a.created_at ?? '')
 

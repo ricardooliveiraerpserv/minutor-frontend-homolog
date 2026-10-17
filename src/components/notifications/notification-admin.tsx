@@ -8,9 +8,7 @@ import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
-import { PersonSelect } from '@/components/notifications/survey-answer-modal'
 import * as XLSX from 'xlsx-js-style'
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -109,18 +107,14 @@ interface PollData {
   poll_id: number; question: string; multiple_choice: boolean; allow_change_vote: boolean; show_results: boolean
   expires_at: string | null; closed: boolean; options: PollOpt[]; total_votes: number
 }
-// Pesquisa (survey): formulário com várias perguntas (texto/pessoa/escolha).
-type SurveyQType = 'text' | 'person' | 'choice'
-interface SurveyQ { id?: number; label: string; type: SurveyQType; required: boolean; multiple: boolean; options: string[] }
-interface SurveyData { survey_id?: number; anonymous?: boolean; has_responses?: boolean; questions?: SurveyQ[] }
 interface Notif {
   id: number; title: string; message: string; type: string; priority: string
   target_roles: string[] | null; target_contract_types: string[] | null
   target_customer_id: number | null; target_customer_ids: number[] | null
   send_email: boolean; visible: boolean; requires_ack: boolean; cta_label: string | null; cta_url: string | null
-  version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null; survey?: SurveyData | null
+  version: number; expires_at: string | null; acks_count?: number; poll?: PollData | null
   recurrence?: string; recurrence_value?: number | null; resent_at?: string | null
-  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean; guest_other_user_ids?: number[] | null
+  is_template?: boolean; template_name?: string | null; actions?: string[] | null; allow_guests?: boolean
   created_at?: string
 }
 // Avisos AUTO-GERADOS quando uma tarefa é concluída — separados das publicações reais.
@@ -202,17 +196,11 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   useEffect(() => { load() }, [load])
 
   const del = async (n: Notif) => { if (!confirm(`Excluir "${n.title}"?`)) return; try { await api.delete(`/notifications/${n.id}`); load(); onChanged?.() } catch { toast.error('Erro') } }
-  const resend = async (n: Notif, channel: 'email' | 'popup' | 'email_only') => {
+  const resend = async (n: Notif, channel: 'email' | 'popup') => {
     setResendMenu(null)
-    const desc = channel === 'popup' ? 'Reabre o pop-up para todos, SEM reenviar e-mail.'
-      : channel === 'email_only' ? 'Reenvia SÓ o e-mail — NÃO reabre o pop-up.'
-      : 'Reabre para todos E dispara o e-mail novamente.'
+    const desc = channel === 'popup' ? 'Reabre o pop-up para todos, SEM reenviar e-mail.' : 'Reabre para todos E dispara o e-mail novamente.'
     if (!confirm(`Reenviar "${n.title}" agora?\n\n${desc}`)) return
-    try {
-      await api.post(`/notifications/${n.id}/resend`, { channel })
-      toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : channel === 'email_only' ? 'E-mail reenviado (sem pop-up)' : 'Reenviado (e-mail + pop-up)')
-      load(); onChanged?.()
-    }
+    try { await api.post(`/notifications/${n.id}/resend`, { channel }); toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : 'Reenviado (e-mail + pop-up)'); load(); onChanged?.() }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao reenviar') }
   }
   // Encerra a campanha: para a recorrência e fecha o prazo (pop-up some, respostas bloqueadas). Não apaga.
@@ -256,7 +244,6 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
             actions: ['✅ Confirmo presença', '❌ Não poderei ir'],
           })}><CalendarCheck size={15} /> Confirmar presença</button>
           <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'poll', priority: 'medium', target_roles: [], version: 1 })}><BarChart3 size={15} /> Nova enquete</button>
-          <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'survey', priority: 'medium', target_roles: [], version: 1 })}><ClipboardList size={15} /> Nova pesquisa</button>
           <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'info', priority: 'medium', target_roles: [], version: 1 })}><Plus size={15} /> Novo Aviso</button>
         </div>
       </div>
@@ -271,7 +258,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
             {n.requires_ack && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.acks_count ?? 0} aceite(s)</span>}
             {n.type === 'poll' && n.poll && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.poll.total_votes} voto(s)</span>}
             {!!n.actions?.length && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.actions.length} botão(ões)</span>}
-            {(n.type === 'poll' || n.type === 'survey') && <button className="ml-2" title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--primary)' }} /></button>}
+            {n.type === 'poll' && <button className="ml-2" title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--primary)' }} /></button>}
             <button className={n.type === 'poll' ? '' : 'ml-2'} title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--primary)' }} /></button>
             <div className="relative">
               <button title="Reenviar agora" onClick={() => setResendMenu(resendMenu === n.id ? null : n.id)}><RefreshCw size={14} style={{ color: 'var(--primary)' }} /></button>
@@ -281,7 +268,6 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
                   <div className="absolute right-0 top-full mt-1 z-[61] rounded-lg p-1 shadow-xl min-w-[190px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="text-[10px] px-2.5 pt-1 pb-0.5 uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Reenviar como</div>
                     <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'email')}><Mail size={13} style={{ color: 'var(--primary)' }} /> E-mail + pop-up</button>
-                    <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'email_only')}><Mail size={13} style={{ color: 'var(--primary)' }} /> Somente e-mail</button>
                     <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'popup')}><Bell size={13} style={{ color: 'var(--primary)' }} /> Somente pop-up</button>
                   </div>
                 </>
@@ -311,7 +297,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
               <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface)', color: 'var(--text-light)' }}>{n.type}</span>
               {!!n.actions?.length && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.actions.length} botão(ões)</span>}
               {n.expires_at && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· encerrada {fmtDateTime(n.expires_at)}</span>}
-              {(n.type === 'poll' || n.type === 'survey') && <button title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--text-light)' }} /></button>}
+              {n.type === 'poll' && <button title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--text-light)' }} /></button>}
               <button title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--text-light)' }} /></button>
               <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
               <button title="Copiar — nova publicação a partir desta" onClick={() => copiar(n)}><Copy size={14} style={{ color: 'var(--primary)' }} /></button>
@@ -359,7 +345,6 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
       {/* Lembretes recorrentes das AÇÕES ficam só na aba "Ações" (acoes-view), não aqui. */}
 
       {results?.poll && <PollResults notif={results} onClose={() => setResults(null)} />}
-      {results?.type === 'survey' && results.survey && <SurveyResults notif={results} onClose={() => setResults(null)} />}
       {logTarget && <NotifLog notif={logTarget} onClose={() => setLogTarget(null)} />}
 
       {/* Prévia do modelo */}
@@ -444,156 +429,6 @@ function PollResults({ notif, onClose }: { notif: Notif; onClose: () => void }) 
   )
 }
 
-// ── Resultados da Pesquisa (admin): gráficos (escolha/pessoa) + texto + Excel ──
-interface SResQuestion { id: number; label: string; type: 'text' | 'person' | 'choice'; required: boolean; options?: { id: number; label: string; count: number; voters?: string[] }[]; people?: { user_id: number; name: string; count: number; voters?: string[] }[]; answers?: { text: string; respondent: string | null }[] }
-interface SResData { survey_id: number; anonymous: boolean; total: number; closed: boolean; questions: SResQuestion[]; respondents: { response_id: number; user_id: number | null; respondent: string | null; submitted_at: string | null; answers: Record<string, string> }[] }
-
-function SurveyResults({ notif, onClose }: { notif: Notif; onClose: () => void }) {
-  const [data, setData] = useState<SResData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [respFilter, setRespFilter] = useState('') // response_id (string) do respondente selecionado no topo, '' = visão geral
-  const surveyId = notif.survey?.survey_id
-  useEffect(() => {
-    if (!surveyId) { setLoading(false); return }
-    api.get<{ data: SResData }>(`/surveys/${surveyId}/results`).then(r => setData(r.data ?? null)).catch(() => {}).finally(() => setLoading(false))
-  }, [surveyId])
-  const fmt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
-
-  const exportXlsx = () => {
-    if (!data) return
-    const wb = XLSX.utils.book_new()
-    const header = ['Respondente', 'Enviado em', ...data.questions.map(q => q.label)]
-    const rows = data.respondents.map(r => [r.respondent || 'Anônimo', fmt(r.submitted_at), ...data.questions.map(q => r.answers[q.id] || '')])
-    const ws = XLSX.utils.aoa_to_sheet([header, ...rows])
-    ws['!cols'] = header.map(() => ({ wch: 24 }))
-    XLSX.utils.book_append_sheet(wb, ws, 'Respostas')
-    const sum: (string | number)[][] = [['Pergunta', 'Opção/Pessoa', 'Qtde']]
-    data.questions.forEach(q => {
-      if (q.type === 'choice') (q.options || []).forEach(o => sum.push([q.label, o.label, o.count]))
-      else if (q.type === 'person') (q.people || []).forEach(p => sum.push([q.label, p.name, p.count]))
-    })
-    if (sum.length > 1) { const ws2 = XLSX.utils.aoa_to_sheet(sum); ws2['!cols'] = [{ wch: 36 }, { wch: 28 }, { wch: 8 }]; XLSX.utils.book_append_sheet(wb, ws2, 'Resumo') }
-    XLSX.writeFile(wb, `Pesquisa_${(notif.title || 'pesquisa').replace(/[^\w]+/g, '_')}.xlsx`)
-  }
-
-  // Tooltip do gráfico: mostra quem votou (nomes). Lista grande → rola (maxHeight + overflow).
-  const VoterTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { name: string; value: number; voters?: string[] } }[] }) => {
-    if (!active || !payload?.length) return null
-    const d = payload[0].payload
-    const voters = d.voters ?? []
-    return (
-      <div className="rounded-lg shadow-lg text-[12px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', maxWidth: 240, padding: '8px 10px' }}>
-        <div className="font-semibold mb-1">{d.name} · {d.value} voto{d.value === 1 ? '' : 's'}</div>
-        {voters.length > 0
-          ? <div className="overflow-y-auto pr-1" style={{ maxHeight: 150 }}>{voters.map((v, i) => <div key={i} className="text-[11.5px] leading-snug" style={{ color: 'var(--text-muted)' }}>• {v}</div>)}</div>
-          : <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem identificação dos votantes.</div>}
-      </div>
-    )
-  }
-
-  const Chart = ({ rows }: { rows: { name: string; value: number; voters?: string[] }[] }) => (
-    <ResponsiveContainer width="100%" height={Math.max(70, rows.length * 34)}>
-      <BarChart data={rows} layout="vertical" margin={{ left: 0, right: 24, top: 2, bottom: 2 }}>
-        <XAxis type="number" allowDecimals={false} hide />
-        <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-        <RTooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<VoterTooltip />} wrapperStyle={{ pointerEvents: 'auto', zIndex: 50 }} />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 11 }}>
-          {rows.map((_, i) => <Cell key={i} fill="#0d9488" />)}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  )
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
-      <div className="ds-card w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="text-sm font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}><BarChart3 size={15} style={{ color: 'var(--primary)' }} /> {notif.title}</div>
-          <div className="flex items-center gap-2">
-            <button onClick={exportXlsx} disabled={!data} className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 text-xs whitespace-nowrap disabled:opacity-50"><Download size={12} /> Exportar Excel</button>
-            <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto p-4 space-y-5">
-          {loading ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : !data ? <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem dados.</p> : (
-            <>
-              <p className="text-[12px]" style={{ color: 'var(--text-light)' }}>
-                {data.total} resposta(s) · {data.anonymous ? 'anônima' : 'identificada'}{data.closed ? ' · encerrada' : ''}
-              </p>
-              {data.anonymous && (
-                <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-[11.5px]" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text)' }}>
-                  <Eye size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
-                  <span><b>Identificação interna (confidencial).</b> Esta pesquisa é anônima para quem responde — eles <b>não sabem</b> que conseguimos ver quem respondeu. Use com responsabilidade.</span>
-                </div>
-              )}
-              {/* Seletor no TOPO: ao escolher uma pessoa, mostra SÓ o resultado dela. */}
-              {data.respondents.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <PersonSelect
-                      placeholder="Ver resposta de uma pessoa…"
-                      people={data.respondents.map(r => ({ id: r.response_id, name: r.respondent || 'Anônimo' }))}
-                      value={respFilter}
-                      onChange={id => setRespFilter(id)}
-                    />
-                  </div>
-                  {respFilter && <button onClick={() => setRespFilter('')} className="text-xs whitespace-nowrap hover:underline" style={{ color: 'var(--primary)' }}>Ver todos</button>}
-                </div>
-              )}
-
-              {respFilter ? (() => {
-                // RESULTADO INDIVIDUAL de uma pessoa (formulário inteiro dela).
-                const r = data.respondents.find(x => String(x.response_id) === respFilter)
-                if (!r) return <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Resposta não encontrada.</p>
-                return (
-                  <div className="rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                    <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                      <span className="flex-1 truncate text-[13px] font-semibold" style={{ color: 'var(--text)' }}>{r.respondent || 'Anônimo'}{data.anonymous && r.respondent && <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}> (interno)</span>}</span>
-                      <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmt(r.submitted_at)}</span>
-                    </div>
-                    <div className="px-3 py-2.5 space-y-3">
-                      {data.questions.map((q, qi) => (
-                        <div key={q.id}>
-                          <p className="text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>{qi + 1}. {q.label}</p>
-                          <p className="text-[13px] whitespace-pre-wrap" style={{ color: (r.answers[q.id] ? 'var(--text)' : 'var(--text-light)') }}>{r.answers[q.id] || '— (sem resposta)'}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })() : (
-                // VISÃO GERAL (agregado por pergunta: gráficos + textos).
-                data.questions.map((q, qi) => (
-                  <div key={q.id} className="space-y-1.5">
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{qi + 1}. {q.label}</p>
-                    {q.type === 'choice' && ((q.options?.some(o => o.count > 0))
-                      ? <Chart rows={(q.options || []).map(o => ({ name: o.label, value: o.count, voters: o.voters }))} />
-                      : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
-                    {q.type === 'person' && ((q.people?.length)
-                      ? <Chart rows={(q.people || []).map(p => ({ name: p.name, value: p.count, voters: p.voters }))} />
-                      : <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>)}
-                    {q.type === 'text' && (
-                      <div className="space-y-1">
-                        {(q.answers?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem respostas.</p>}
-                        {(q.answers || []).map((a, i) => (
-                          <div key={i} className="text-[13px] rounded-lg px-2.5 py-1.5" style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                            {a.text}
-                            {a.respondent && <span className="block text-[10px]" style={{ color: 'var(--text-light)' }}>— {a.respondent}{data.anonymous && ' (interno)'}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; onSaved: () => void }) {
   const editingExisting = !!draft.id
   const [title, setTitle] = useState(draft.title ?? '')
@@ -631,8 +466,6 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const removeAction = (i: number) => setActions(a => a.filter((_, idx) => idx !== i))
   // Confirmar presença: permite ao respondente informar acompanhantes/familiares.
   const [allowGuests, setAllowGuests] = useState<boolean>((draft as { allow_guests?: boolean }).allow_guests ?? false)
-  // Usuários autorizados a indicar acompanhante "Outro" (além da família).
-  const [guestOtherUsers, setGuestOtherUsers] = useState<MSOpt[]>([])
 
   // enquete (type=poll)
   const [pollQuestion, setPollQuestion] = useState(draft.poll?.question ?? '')
@@ -642,26 +475,9 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const [pollShowResults, setPollShowResults] = useState<boolean>(draft.poll?.show_results ?? true)
   const pollHasVotes = (draft.poll?.total_votes ?? 0) > 0
 
-  // pesquisa (type=survey)
-  const draftSurvey = (draft as { survey?: SurveyData }).survey
-  const [surveyAnon, setSurveyAnon] = useState<boolean>(draftSurvey?.anonymous ?? false)
-  const [surveyQuestions, setSurveyQuestions] = useState<SurveyQ[]>(
-    draftSurvey?.questions?.length
-      ? draftSurvey.questions.map(q => ({ label: q.label, type: q.type, required: q.required ?? true, multiple: q.multiple ?? false, options: q.options ?? [] }))
-      : [{ label: '', type: 'text', required: true, multiple: false, options: ['', ''] }]
-  )
-  const surveyHasResponses = !!draftSurvey?.has_responses
-  const addQuestion = () => setSurveyQuestions(qs => [...qs, { label: '', type: 'text', required: true, multiple: false, options: ['', ''] }])
-  const removeQuestion = (i: number) => setSurveyQuestions(qs => qs.length <= 1 ? qs : qs.filter((_, idx) => idx !== i))
-  const updateQuestion = (i: number, patch: Partial<SurveyQ>) => setSurveyQuestions(qs => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q))
-  const addQOption = (qi: number) => setSurveyQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: [...q.options, ''] } : q))
-  const setQOption = (qi: number, oi: number, v: string) => setSurveyQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: q.options.map((o, j) => j === oi ? v : o) } : q))
-  const removeQOption = (qi: number, oi: number) => setSurveyQuestions(qs => qs.map((q, idx) => idx === qi ? { ...q, options: q.options.filter((_, j) => j !== oi) } : q))
-
   // meta (tipos de contratação)
   const [contractOpts, setContractOpts] = useState<Opt[]>([])
   const draftUserIds = draft.target_users ?? []
-  const draftOtherIds = (draft as { guest_other_user_ids?: number[] }).guest_other_user_ids ?? []
 
   // prévia
   const [preview, setPreview] = useState<{ html: string; recipients: number } | null>(null)
@@ -673,16 +489,11 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       .catch(() => {})
   }, [])
 
-  // hidrata os chips dos usuários já selecionados (edição) — destinatários e autorizados a "Outro"
+  // hidrata os chips dos usuários já selecionados (edição)
   useEffect(() => {
-    if (!draftUserIds.length && !draftOtherIds.length) return
+    if (!draftUserIds.length) return
     api.get<{ data: UserHit[] }>('/notifications/users')
-      .then(r => {
-        const all = r.data ?? []
-        const toOpt = (u: UserHit) => ({ id: u.id, name: u.name, sub: u.email })
-        if (draftUserIds.length) setPickedUsers(all.filter(u => draftUserIds.includes(u.id)).map(toOpt))
-        if (draftOtherIds.length) setGuestOtherUsers(all.filter(u => draftOtherIds.includes(u.id)).map(toOpt))
-      })
+      .then(r => setPickedUsers((r.data ?? []).filter(u => draftUserIds.includes(u.id)).map(u => ({ id: u.id, name: u.name, sub: u.email }))))
       .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -715,9 +526,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const buildBody = (): Record<string, unknown> | null => {
     const message = msgRef.current?.getHtml() ?? ''
     const isPoll = type === 'poll'
-    const isSurvey = type === 'survey'
     if (!title.trim()) { toast.error('Informe o título.'); return null }
-    if (!isPoll && !isSurvey && message.replace(/<[^>]*>/g, '').trim() === '') { toast.error('Informe a mensagem.'); return null }
+    if (!isPoll && message.replace(/<[^>]*>/g, '').trim() === '') { toast.error('Informe a mensagem.'); return null }
     if (!expires) { toast.error('Informe a data de expiração.'); return null }
     if (isPastDate(expires)) { toast.error('A data de expiração não pode ser anterior a hoje.'); return null }
 
@@ -733,21 +543,6 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
         multiple_choice: pollMultiple, allow_change_vote: pollAllowChange,
         show_results: pollShowResults,
         expires_at: expiresAt,
-      }
-    }
-
-    let survey: Record<string, unknown> | undefined
-    if (isSurvey) {
-      const qs = surveyQuestions
-        .map(q => ({ ...q, label: q.label.trim(), options: q.options.map(o => o.trim()).filter(Boolean) }))
-        .filter(q => q.label !== '')
-      if (qs.length === 0) { toast.error('Adicione ao menos uma pergunta.'); return null }
-      const badChoice = qs.find(q => q.type === 'choice' && q.options.length < 2)
-      if (badChoice) { toast.error('Perguntas de múltipla escolha precisam de ao menos 2 opções.'); return null }
-      survey = {
-        anonymous: surveyAnon,
-        expires_at: expiresAt,
-        questions: qs.map(q => ({ label: q.label, type: q.type, required: q.required, multiple: q.type === 'choice' ? q.multiple : false, options: q.type === 'choice' ? q.options : [] })),
       }
     }
 
@@ -768,13 +563,11 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       requires_ack: type === 'require_ack' || type === 'aviso',   // todo Aviso exige aceite (log de leitura)
       cta_label: type === 'action' ? (ctaLabel.trim() || null) : null,
       cta_url: type === 'action' ? (ctaUrl.trim() || null) : null,
-      actions: (type === 'poll' || type === 'survey') ? [] : actions.map(a => a.trim()).filter(Boolean),
+      actions: type === 'poll' ? [] : actions.map(a => a.trim()).filter(Boolean),
       // Acompanhantes: só faz sentido com botões de decisão (Confirmar presença).
-      allow_guests: (type !== 'poll' && type !== 'survey') && actions.map(a => a.trim()).filter(Boolean).length > 0 ? allowGuests : false,
-      guest_other_user_ids: ((type !== 'poll' && type !== 'survey') && actions.map(a => a.trim()).filter(Boolean).length > 0 && allowGuests) ? guestOtherUsers.map(u => u.id) : [],
+      allow_guests: type !== 'poll' && actions.map(a => a.trim()).filter(Boolean).length > 0 ? allowGuests : false,
       version: Number(version) || 1, expires_at: expiresAt,
       ...(poll ? { poll } : {}),
-      ...(survey ? { survey } : {}),
     }
   }
 
@@ -817,7 +610,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
     <div className="ds-card p-4 space-y-3 max-w-2xl">
       <button onClick={onBack} className="text-sm" style={{ color: 'var(--text-muted)' }}>← Voltar</button>
       <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Título</label><input className={`${fieldCls} w-full`} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} /></div>
-      <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Mensagem {(type === 'poll' || type === 'survey') && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>(opcional — introdução {type === 'survey' ? 'da pesquisa' : 'da enquete'})</span>} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>(cole prints direto aqui)</span></label><RichEditor ref={msgRef} initialHtml={draft.message ?? ''} minHeight={110} showAttach={false} /></div>
+      <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Mensagem {type === 'poll' && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>(opcional — introdução da enquete)</span>} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>(cole prints direto aqui)</span></label><RichEditor ref={msgRef} initialHtml={draft.message ?? ''} minHeight={110} showAttach={false} /></div>
       <div className="grid grid-cols-3 gap-3">
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Tipo</label>
           <select className={`${fieldCls} w-full`} style={inputStyle} value={type} onChange={e => setType(e.target.value)} disabled={editingExisting}>
@@ -829,7 +622,6 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
             <option value="action">Ação (com botão)</option>
             {type === 'require_ack' && <option value="require_ack">Obrigatória (exige aceite)</option>}
             {type === 'poll' && <option value="poll">Enquete</option>}
-            {type === 'survey' && <option value="survey">Pesquisa</option>}
           </select>
         </div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Prioridade</label>
@@ -874,17 +666,6 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
                 </span>
               </span>
             </label>
-          )}
-          {actions.length > 0 && allowGuests && (
-            <div className="pt-2">
-              <label className="block text-[13px] mb-1" style={{ color: 'var(--text)' }}>
-                Quem pode indicar acompanhante <b>“Outro”</b> (além da família)
-                <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>
-                  Só os escolhidos aqui poderão indicar não-familiares. Os demais ficam limitados a Cônjuge e Filho(a).
-                </span>
-              </label>
-              <MultiSelect placeholder="Buscar por nome ou e-mail…" selected={guestOtherUsers} onChange={setGuestOtherUsers} search={searchUsers} />
-            </div>
           )}
           {/* Limite da decisão + recorrência p/ re-perguntar (o usuário pode "Decidir depois" até o limite) */}
           {actions.length > 0 && (
@@ -966,61 +747,6 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
             A votação encerra na data de expiração definida abaixo.
             {!pollShowResults && ' Com "Acompanhar resultado" desligado, o usuário apenas vota e a enquete some pra ele (não vê os números).'}
           </div>
-        </div>
-      )}
-
-      {type === 'survey' && (
-        <div className="rounded-xl p-3 space-y-3" style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)' }}>
-          <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--primary)' }}><ClipboardList size={14} /> Pesquisa</div>
-          <label className="flex items-start gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--text)' }}>
-            <input type="checkbox" checked={surveyAnon} onChange={e => setSurveyAnon(e.target.checked)} disabled={surveyHasResponses} className="mt-0.5" />
-            <span>Respostas anônimas
-              <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>
-                Se <b>desligado</b>, a resposta é identificada e o nome vem do login (obrigatório). Se ligado, não registra quem respondeu.
-              </span>
-            </span>
-          </label>
-          {surveyHasResponses && <div className="text-[10px]" style={{ color: 'var(--warning-border)' }}>Esta pesquisa já tem respostas — as perguntas não podem ser alteradas.</div>}
-
-          <div className="space-y-3">
-            {surveyQuestions.map((q, qi) => (
-              <div key={qi} className="rounded-lg p-2.5 space-y-2" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                <div className="flex items-start gap-2">
-                  <span className="text-[12px] font-semibold mt-2" style={{ color: 'var(--text-muted)' }}>{qi + 1}.</span>
-                  <input className={`${fieldCls} flex-1`} style={inputStyle} value={q.label} onChange={e => updateQuestion(qi, { label: e.target.value })} placeholder="Enunciado da pergunta" disabled={surveyHasResponses} />
-                  {surveyQuestions.length > 1 && !surveyHasResponses && <button type="button" onClick={() => removeQuestion(qi)} title="Remover pergunta" className="mt-1.5"><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>}
-                </div>
-                <div className="flex flex-wrap items-center gap-3 pl-5">
-                  <select className={fieldCls} style={inputStyle} value={q.type} onChange={e => updateQuestion(qi, { type: e.target.value as SurveyQType, options: e.target.value === 'choice' && q.options.length < 2 ? ['', ''] : q.options })} disabled={surveyHasResponses}>
-                    <option value="text">Texto livre</option>
-                    <option value="person">Pessoa (usuário)</option>
-                    <option value="choice">Múltipla escolha</option>
-                  </select>
-                  <label className="flex items-center gap-1.5 text-[12px] cursor-pointer" style={{ color: 'var(--text)' }}>
-                    <input type="checkbox" checked={q.required} onChange={e => updateQuestion(qi, { required: e.target.checked })} /> Obrigatória
-                  </label>
-                  {q.type === 'choice' && (
-                    <label className="flex items-center gap-1.5 text-[12px] cursor-pointer" style={{ color: 'var(--text)' }}>
-                      <input type="checkbox" checked={q.multiple} onChange={e => updateQuestion(qi, { multiple: e.target.checked })} disabled={surveyHasResponses} /> Permite marcar várias
-                    </label>
-                  )}
-                </div>
-                {q.type === 'choice' && (
-                  <div className="pl-5 space-y-1.5">
-                    {q.options.map((o, oi) => (
-                      <div key={oi} className="flex items-center gap-1.5">
-                        <input className={`${fieldCls} flex-1`} style={inputStyle} value={o} onChange={e => setQOption(qi, oi, e.target.value)} placeholder={`Opção ${oi + 1}`} disabled={surveyHasResponses} />
-                        {q.options.length > 2 && !surveyHasResponses && <button type="button" onClick={() => removeQOption(qi, oi)} title="Remover"><X size={14} style={{ color: 'var(--danger-border)' }} /></button>}
-                      </div>
-                    ))}
-                    {!surveyHasResponses && <button type="button" onClick={() => addQOption(qi)} className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Plus size={12} /> Adicionar opção</button>}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          {!surveyHasResponses && <button type="button" onClick={addQuestion} className="text-sm inline-flex items-center gap-1 font-medium" style={{ color: 'var(--primary)' }}><Plus size={14} /> Adicionar pergunta</button>}
-          <div className="text-[10px]" style={{ color: 'var(--text-light)' }}>A pesquisa encerra na data de expiração definida abaixo.</div>
         </div>
       )}
 
@@ -1127,94 +853,27 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
 }
 
 interface Guest { nome: string; parentesco: string | null; idade?: number | null }
-interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; response_source?: string | null; responded_at: string | null; guests?: Guest[]; cancelled?: boolean; can_invite_other?: boolean; survey_responded?: boolean; poll_voted?: boolean }
-
-// Rótulo amigável da origem da resposta (e-mail × sistema).
-function sourceLabel(src?: string | null): string {
-  return src === 'email' ? 'e-mail' : src === 'app' ? 'sistema' : ''
-}
-interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number; is_survey?: boolean; survey_id?: number | null; survey_responded?: number; is_poll?: boolean; poll_id?: number | null; poll_voted?: number } }
+interface LogRow { user_id: number; user_name: string; user_email: string; viewed_at: string | null; response: string | null; responded_at: string | null; guests?: Guest[] }
+interface LogData { recipients: LogRow[]; summary: { total: number; viewed: number; responded: number; actions: string[]; by_action: Record<string, number>; allow_guests?: boolean; guests_total?: number } }
 
 /** Log de uma comunicação (admin): quem visualizou (e quando) + resultado dos botões de decisão. */
 function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
   const [data, setData] = useState<LogData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'viewed' | 'pending' | 'responded'>('all')
+  const [filter, setFilter] = useState<'all' | 'viewed' | 'pending'>('all')
   const [respFilter, setRespFilter] = useState<string>('all') // 'all' | 'none' | <rótulo da resposta>
-  // Modal de confirmação (revogar / cancelar convite / reativar) — substitui o confirm() nativo.
-  const [confirmAction, setConfirmAction] = useState<{ row: LogRow; mode: 'revoke' | 'cancel' | 'reactivate' | 'survey_revoke' | 'poll_revoke' } | null>(null)
-  const [busy, setBusy] = useState(false)
-  // "Pode convidar além da família (Outro)?" marcado no modal de revogar/reativar.
-  const [allowOther, setAllowOther] = useState(false)
-  const openConfirm = (row: LogRow, mode: 'revoke' | 'cancel' | 'reactivate' | 'survey_revoke' | 'poll_revoke') => {
-    setAllowOther(!!row.can_invite_other)
-    setConfirmAction({ row, mode })
-  }
-  // Reenviar o e-mail da comunicação só p/ UM destinatário (quem não respondeu/leu).
-  const [resendingId, setResendingId] = useState<number | null>(null)
-  const resendUser = async (row: LogRow) => {
-    setResendingId(row.user_id)
-    try {
-      const r = await api.post<{ data: { emailed: number } }>(`/notifications/${notif.id}/resend-user`, { user_id: row.user_id })
-      toast.success(r.data?.emailed ? `E-mail reenviado para ${row.user_name}.` : `Reenvio registrado — ${row.user_name} não tem e-mail para envio.`)
-    } catch { toast.error('Erro ao reenviar') } finally { setResendingId(null) }
-  }
 
-  const load = useCallback(() => {
-    setLoading(true)
+  useEffect(() => {
     api.get<{ data: LogData }>(`/notifications/${notif.id}/log`)
       .then(r => setData(r.data ?? null)).catch(() => {}).finally(() => setLoading(false))
   }, [notif.id])
-  useEffect(() => { load() }, [load])
-
-  const runAction = async () => {
-    if (!confirmAction) return
-    const { row, mode } = confirmAction
-    setBusy(true)
-    try {
-      if (mode === 'survey_revoke') {
-        const res = await api.post<{ data: { email_resent: boolean } }>(`/surveys/${data?.summary.survey_id}/revoke`, { user_id: row.user_id })
-        toast.success(`Resposta de ${row.user_name} apagada${res.data?.email_resent ? ' · e-mail reenviado' : ''} — o pop-up volta a aparecer para ela.`)
-      } else if (mode === 'poll_revoke') {
-        const res = await api.post<{ data: { email_resent: boolean } }>(`/polls/${data?.summary.poll_id}/revoke`, { user_id: row.user_id })
-        toast.success(`Voto de ${row.user_name} apagado${res.data?.email_resent ? ' · e-mail reenviado' : ''} — o pop-up volta a aparecer para ela.`)
-      } else if (mode === 'cancel') {
-        await api.post(`/notifications/${notif.id}/cancel-invite`, { user_id: row.user_id, cancel: true })
-        toast.success(`Convite de ${row.user_name} cancelado — não recebe mais.`)
-      } else {
-        // revoke e reactivate usam o mesmo endpoint (limpa resposta + reativa + reenvia e-mail).
-        const res = await api.post<{ data: { email_resent: boolean } }>(`/notifications/${notif.id}/revoke`, { user_id: row.user_id, can_invite_other: allowOther })
-        toast.success(mode === 'reactivate'
-          ? `Convite de ${row.user_name} reativado — voltará a receber.`
-          : `Resposta de ${row.user_name} revogada — voltará a receber${res?.data?.email_resent ? ' (e-mail reenviado)' : ''}.`)
-      }
-      setConfirmAction(null)
-      load()
-    } catch (e) {
-      toast.error((e as { message?: string })?.message || 'Erro na ação')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const dt = (s: string | null) => s ? new Date(s).toLocaleString('pt-BR') : '—'
-  const didRespond = (r: LogRow) => !!r.survey_responded || !!r.poll_voted
   const rows = (data?.recipients ?? []).filter(r => {
-    const okView = filter === 'all' ? true
-      : filter === 'viewed' ? !!r.viewed_at
-      : filter === 'responded' ? didRespond(r)
-      : !r.viewed_at
+    const okView = filter === 'all' ? true : filter === 'viewed' ? !!r.viewed_at : !r.viewed_at
     const okResp = respFilter === 'all' ? true : respFilter === 'none' ? !r.response : r.response === respFilter
     return okView && okResp
   })
-  // Contagem por aba (ignora convites cancelados).
-  const activeRecs = (data?.recipients ?? []).filter(r => !r.cancelled)
-  const tabCount = (k: string) => k === 'all' ? activeRecs.length
-    : k === 'viewed' ? activeRecs.filter(r => r.viewed_at).length
-    : k === 'responded' ? activeRecs.filter(didRespond).length
-    : activeRecs.filter(r => !r.viewed_at).length
-  const hasResponded = !!(data?.summary.is_survey || data?.summary.is_poll)
-  const tabs: [string, string][] = [['all', 'Todos'], ['viewed', 'Visualizaram'], ['pending', 'Não viram'], ...(hasResponded ? [['responded', 'Responderam'] as [string, string]] : [])]
 
   // Exporta as linhas FILTRADAS em Excel real (.xlsx). Quando há familiares: 1 linha por PESSOA
   // (titular + cada familiar abaixo) com coluna "Convidado de" indicando de quem o familiar é.
@@ -1224,7 +883,7 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
     const wb = XLSX.utils.book_new()
     if (withGuests) {
       const aff = data?.summary.actions[0]
-      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Confirmou por', 'Total do grupo']]
+      const aoa: (string | number)[][] = [['Pessoa', 'Vínculo', 'Parentesco', 'Idade', 'Classificação', 'Convidado de', 'E-mail', 'Visualizou', 'Resposta', 'Total do grupo']]
       let totalTitulares = 0
       let totalFamAdultos = 0
       let totalCriancas = 0
@@ -1236,11 +895,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
         const totalInd = (confirmou ? 1 : 0) + nGuests
         if (confirmou) totalTitulares += 1
         titularRows.push(aoa.length)
-        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', r.response ? sourceLabel(r.response_source) : '', confirmou ? totalInd : ''])
+        aoa.push([r.user_name, 'Titular', '', '', 'Adulto', '', r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', confirmou ? totalInd : ''])
         ;(r.guests ?? []).forEach(g => {
           const crianca = g.idade != null && g.idade <= 7
           if (crianca) { totalCriancas += 1; criancaRows.push(aoa.length) } else totalFamAdultos += 1
-          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', '', ''])
+          aoa.push([g.nome, 'Familiar', g.parentesco ?? '', g.idade != null ? g.idade : '', crianca ? 'Criança' : 'Adulto', r.user_name, '', '', '', ''])
         })
       })
       const totalGeral = totalTitulares + totalFamAdultos + totalCriancas
@@ -1252,9 +911,9 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       aoa.push(['Crianças (até 7 anos)', totalCriancas])
       aoa.push(['TOTAL GERAL', totalGeral])
       const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 14 }]
+      ws['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
       // Cores: cabeçalho (teal), linhas de TITULAR (destaque verde-claro), crianças (amarelo-claro)
-      const NCOLS = 11
+      const NCOLS = 10
       const styleRow = (rowIdx: number, style: Record<string, unknown>) => {
         for (let c = 0; c < NCOLS; c++) {
           const addr = XLSX.utils.encode_cell({ r: rowIdx, c })
@@ -1271,10 +930,10 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
       }
       XLSX.utils.book_append_sheet(wb, ws, 'Confirmações')
     } else {
-      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta', 'Confirmou por']]
-      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '', r.response ? sourceLabel(r.response_source) : '']))
+      const aoa: (string | number)[][] = [['Destinatário', 'E-mail', 'Visualizou', 'Resposta']]
+      rows.forEach(r => aoa.push([r.user_name, r.user_email, r.viewed_at ? dt(r.viewed_at) : '', r.response ?? '']))
       const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }, { wch: 14 }]
+      ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 20 }, { wch: 20 }]
       XLSX.utils.book_append_sheet(wb, ws, 'Log')
     }
     XLSX.writeFile(wb, fname)
@@ -1316,11 +975,11 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                 })()}
               </div>
 
-              {/* Filtro por visualização/resposta + exportar */}
-              <div className="flex items-center gap-1 text-[11px] flex-wrap">
-                {tabs.map(([k, l]) => (
-                  <button key={k} onClick={() => setFilter(k as 'all' | 'viewed' | 'pending' | 'responded')} className="px-2.5 py-1 rounded-md font-medium"
-                    style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l} ({tabCount(k)})</button>
+              {/* Filtro por visualização + exportar */}
+              <div className="flex items-center gap-1 text-[11px]">
+                {([['all', 'Todos'], ['viewed', 'Visualizaram'], ['pending', 'Não viram']] as const).map(([k, l]) => (
+                  <button key={k} onClick={() => setFilter(k)} className="px-2.5 py-1 rounded-md font-medium"
+                    style={{ background: filter === k ? 'var(--primary-soft)' : 'transparent', color: filter === k ? 'var(--primary)' : 'var(--text-muted)' }}>{l}</button>
                 ))}
                 <div className="flex-1" />
                 <button onClick={exportXlsx} title="Exportar em Excel (.xlsx)" className="ds-btn-secondary inline-flex items-center gap-1 px-2.5 py-1 whitespace-nowrap"><Download size={12} /> Exportar Excel</button>
@@ -1346,8 +1005,6 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Visualizou</th>
                       {data.summary.actions.length > 0 && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Resposta</th>}
                       {data.summary.allow_guests && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Familiares</th>}
-                      {data.summary.is_survey && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Pesquisa</th>}
-                      {data.summary.is_poll && <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Enquete</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1358,52 +1015,9 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                         <td className="px-3 py-2" style={{ color: r.viewed_at ? 'var(--text-muted)' : 'var(--text-light)' }}>{r.viewed_at ? dt(r.viewed_at) : '—'}</td>
                         {data.summary.actions.length > 0 && (
                           <td className="px-3 py-2">
-                            {r.cancelled ? (
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>🚫 Convite cancelado</span>
-                                <button
-                                  onClick={() => openConfirm(r, 'reactivate')}
-                                  className="inline-flex items-center gap-1 text-[10px] mt-0.5 hover:underline"
-                                  style={{ color: 'var(--primary)' }}
-                                  title="Reativar o convite — a pessoa volta a receber"
-                                >
-                                  <RefreshCw size={10} /> Reativar
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-start gap-0.5">
-                                {r.response
-                                  ? <>
-                                      <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
-                                      {sourceLabel(r.response_source) && (
-                                        <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
-                                          {r.response_source === 'email' ? '✉️ via e-mail' : '🖥️ via sistema'}
-                                        </span>
-                                      )}
-                                    </>
-                                  : <span style={{ color: 'var(--text-light)' }}>—</span>}
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {r.response && (
-                                    <button
-                                      onClick={() => openConfirm(r, 'revoke')}
-                                      className="inline-flex items-center gap-1 text-[10px] hover:underline"
-                                      style={{ color: 'var(--warning)' }}
-                                      title="Revogar resposta — a pessoa volta a receber o convite"
-                                    >
-                                      <RefreshCw size={10} /> Revogar
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => openConfirm(r, 'cancel')}
-                                    className="inline-flex items-center gap-1 text-[10px] hover:underline"
-                                    style={{ color: 'var(--danger, #dc2626)' }}
-                                    title="Cancelar convite — a pessoa não recebe mais"
-                                  >
-                                    <Ban size={10} /> Cancelar convite
-                                  </button>
-                                </div>
-                              </div>
-                            )}
+                            {r.response
+                              ? <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{r.response}</span>
+                              : <span style={{ color: 'var(--text-light)' }}>—</span>}
                           </td>
                         )}
                         {data.summary.allow_guests && (
@@ -1426,44 +1040,6 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
                             })()}
                           </td>
                         )}
-                        {data.summary.is_survey && (
-                          <td className="px-3 py-2">
-                            {r.survey_responded ? (
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>✓ Respondeu</span>
-                                <button onClick={() => openConfirm(r, 'survey_revoke')} className="inline-flex items-center gap-1 text-[10px] hover:underline" style={{ color: 'var(--warning)' }} title="Revogar: apaga a resposta e libera para responder de novo">
-                                  <RefreshCw size={10} /> Revogar
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Não respondeu</span>
-                                <button onClick={() => resendUser(r)} disabled={resendingId === r.user_id} className="inline-flex items-center gap-1 text-[10px] hover:underline disabled:opacity-50" style={{ color: 'var(--primary)' }} title="Reenviar o e-mail da pesquisa para esta pessoa">
-                                  <RefreshCw size={10} /> {resendingId === r.user_id ? 'Reenviando…' : 'Reenviar'}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        )}
-                        {data.summary.is_poll && (
-                          <td className="px-3 py-2">
-                            {r.poll_voted ? (
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="px-1.5 py-0.5 rounded-full text-[11px]" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>✓ Votou</span>
-                                <button onClick={() => openConfirm(r, 'poll_revoke')} className="inline-flex items-center gap-1 text-[10px] hover:underline" style={{ color: 'var(--warning)' }} title="Revogar: apaga o voto e libera para votar de novo">
-                                  <RefreshCw size={10} /> Revogar
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Não votou</span>
-                                <button onClick={() => resendUser(r)} disabled={resendingId === r.user_id} className="inline-flex items-center gap-1 text-[10px] hover:underline disabled:opacity-50" style={{ color: 'var(--primary)' }} title="Reenviar o e-mail da enquete para esta pessoa">
-                                  <RefreshCw size={10} /> {resendingId === r.user_id ? 'Reenviando…' : 'Reenviar'}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1473,48 +1049,6 @@ function NotifLog({ notif, onClose }: { notif: Notif; onClose: () => void }) {
           )}
         </div>
       </div>
-
-      {confirmAction && (() => {
-        const { row, mode } = confirmAction
-        const cfg = mode === 'cancel'
-          ? { title: 'Cancelar convite', color: 'var(--danger, #dc2626)', confirmLabel: 'Cancelar convite',
-              msg: <>O convite de <b>{row.user_name}</b> será cancelado: a pessoa <b>deixa de receber</b> (pop-up e e-mail) e sai da apuração. A resposta e os acompanhantes dela são apagados. Você pode <b>reativar</b> depois.</> }
-          : mode === 'reactivate'
-            ? { title: 'Reativar convite', color: 'var(--primary)', confirmLabel: 'Reativar',
-                msg: <>O convite de <b>{row.user_name}</b> será reativado: volta a aparecer como pendente e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
-            : mode === 'survey_revoke'
-              ? { title: 'Revogar resposta da pesquisa', color: 'var(--warning)', confirmLabel: 'Revogar',
-                  msg: <>A resposta de <b>{row.user_name}</b> será <b>apagada</b> e ela volta a <b>pendente</b>. O <b>e-mail é reenviado na hora</b> e o <b>pop-up reabre</b> para ela responder de novo.</> }
-              : mode === 'poll_revoke'
-                ? { title: 'Revogar voto da enquete', color: 'var(--warning)', confirmLabel: 'Revogar',
-                    msg: <>O voto de <b>{row.user_name}</b> será <b>apagado</b> e ela volta a <b>pendente</b>. O <b>e-mail é reenviado na hora</b> e o <b>pop-up reabre</b> para ela votar de novo.</> }
-              : { title: 'Revogar resposta', color: 'var(--warning)', confirmLabel: 'Revogar',
-                  msg: <>A resposta e os acompanhantes de <b>{row.user_name}</b> serão apagados. A pessoa volta a <b>pendente</b> e <b>recebe o convite de novo</b> (inclusive por e-mail).</> }
-        return (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.6)' }}
-            onClick={e => { e.stopPropagation(); if (!busy) setConfirmAction(null) }}>
-            <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-              onClick={e => e.stopPropagation()}>
-              <h3 className="text-base font-semibold mb-2" style={{ color: 'var(--text)' }}>{cfg.title}</h3>
-              <p className="text-sm mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{cfg.msg}</p>
-              {mode !== 'cancel' && data?.summary.allow_guests && (
-                <label className="flex items-start gap-2 text-[13px] mb-4 cursor-pointer p-2.5 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>
-                  <input type="checkbox" checked={allowOther} onChange={e => setAllowOther(e.target.checked)} className="mt-0.5" />
-                  <span>Esta pessoa pode <b>convidar além da família</b> (opção “Outro”)?
-                    <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>Se desmarcado, só poderá indicar Cônjuge e Filho(a).</span>
-                  </span>
-                </label>
-              )}
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setConfirmAction(null)} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm disabled:opacity-50" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>Fechar</button>
-                <button onClick={runAction} disabled={busy} className="px-3.5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50" style={{ background: cfg.color }}>
-                  {busy ? 'Processando…' : cfg.confirmLabel}
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
     </div>
   )
 }

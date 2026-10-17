@@ -615,13 +615,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const searchParams = useSearchParams()
   const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
-  // Grupos que o usuário FECHOU explicitamente (vence o auto-open do grupo da rota atual).
-  // Limpo ao navegar (muda pathname) — navegar reabre o grupo da página.
-  const [closedGroups, setClosedGroups] = useState<string[]>([])
   const [query, setQuery]             = useState('')
-  // Tenant CONECTA (data-tenant no <html>): usa a logo do Conecta e nunca a do Minutor.
-  const [isConecta, setIsConecta]     = useState(false)
-  useEffect(() => { setIsConecta(document.documentElement.getAttribute('data-tenant') === 'conecta') }, [])
   const searchRef = useRef<HTMLInputElement>(null)
   // Atalho Ctrl/Cmd+K foca a busca do menu de qualquer lugar
   useEffect(() => {
@@ -725,17 +719,6 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       ] as NavEntry[]
     }
     if (isCliente) {
-      // Cliente NÃO-gestor (visibilidade por convite): menu enxuto — só acompanha os
-      // cards em que foi convidado. Vê "Demandas e Projetos" (lista já escopada no
-      // backend) + "Meus Processos". Sem resumo executivo da empresa, dashboards de
-      // contrato, centros de custo ou indicadores. Gestor do cliente vê o menu completo.
-      if (!user?.is_customer_manager) {
-        return [
-          { type: 'item', label: 'Comunicados',          href: '/comunicados',           icon: Megaphone, badge: 'comunicados' },
-          { type: 'item', label: 'Meus Processos',       href: '/portal-cliente/kanban', icon: LayoutGrid },
-          { type: 'item', label: 'Demandas e Projetos',  href: '/contratos/pipeline',    icon: LayoutGrid },
-        ] as NavEntry[]
-      }
       // Filtra dashboards pelos tipos de contrato que o cliente realmente possui
       const DASH_MAP: Record<string, { label: string; href: string; icon: typeof BarChart2 }> = {
         'fixed_hours':   { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',   icon: BarChart2 },
@@ -831,13 +814,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
-    const finalNav = withProcessos([...home, ...built])
-    // Coordenador pode DEFINIR GESTORES do cliente → acesso à tela Usuários (aba Cliente),
-    // mesmo que a árvore do Configurador não traga o item. Injetado de forma idempotente.
-    if (isCoordenador && !finalNav.some(e => e.type === 'item' && e.href === '/users')) {
-      finalNav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
-    }
-    return finalNav
+    return withProcessos([...home, ...built])
   }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
@@ -870,30 +847,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     })
   }, [pathname, moduleNav])
 
-  // Ao navegar, zera os grupos fechados manualmente (a nova página reabre seu grupo).
-  useEffect(() => { setClosedGroups([]) }, [pathname])
-
   // First two letters of name for avatar
   const initials = user?.name
     ? user.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?'
   const avatarUrl = secureUrl(user?.profile_photo_url)
 
-  // Um grupo está aberto se: buscando, aberto manualmente, OU é o grupo da rota atual
-  // (active) E o usuário não o fechou explicitamente.
-  const isGroupOpen = (label: string, active: boolean) =>
-    query.trim().length > 0 || openGroups.includes(label) || (active && !closedGroups.includes(label))
-
-  const toggleGroup = (label: string, active: boolean) => {
-    const currentlyOpen = isGroupOpen(label, active)
-    if (currentlyOpen) {
-      setOpenGroups(prev => prev.filter(l => l !== label))
-      if (active) setClosedGroups(prev => prev.includes(label) ? prev : [...prev, label])
-    } else {
-      setOpenGroups(prev => prev.includes(label) ? prev : [...prev, label])
-      setClosedGroups(prev => prev.filter(l => l !== label))
-    }
-  }
+  const toggleGroup = (label: string) =>
+    setOpenGroups(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label])
 
   const isActive = (href: string, matchPaths?: string[], exactMatch?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
@@ -986,33 +947,18 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           const mod = navModules.find(m => m.key === selectedModule)
           // Minimizado: logo do Minutor + inicial do módulo. Expandido: logo + "Minutor",
           // e o nome do módulo ABAIXO (alinhado sob "Minutor"), sem deslocar o nome Minutor.
-          const brandIcon = (size: number) => isConecta
-            ? <Image src="/conecta-mark.png" alt="Conecta" width={size} height={size} className="object-contain" priority />
-            : <MinutorIcon size={size} />
           if (collapsed) {
             return (
               <div className="flex flex-col items-center gap-1 mx-auto">
-                {brandIcon(30)}
+                <MinutorIcon size={30} />
                 {mod && <span className="text-[10px] font-bold leading-none" title={mod.label} style={{ color: 'var(--primary)' }}>{mod.label.slice(0, 3)}</span>}
               </div>
-            )
-          }
-          if (isConecta) {
-            return (
-              <>
-                {/* CONECTA: lockup OFICIAL completo (ícone + nome + slogan), por tema */}
-                <div className="flex items-center">
-                  <Image src="/conecta-lockup-light.png" alt="Conecta ERP" width={168} height={42} priority className="brand-lockup-light object-contain" style={{ height: 40, width: 'auto' }} />
-                  <Image src="/conecta-lockup-dark.png"  alt="Conecta ERP" width={168} height={42} priority className="brand-lockup-dark object-contain" style={{ height: 40, width: 'auto' }} />
-                </div>
-                {mod && <span className="text-[15px] font-semibold truncate mt-0.5" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
-              </>
             )
           }
           return (
             <>
               <div className="flex items-center gap-3">
-                {brandIcon(34)}
+                <MinutorIcon size={34} />
                 <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
               </div>
               {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
@@ -1136,10 +1082,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           const group = entry as NavGroup
           const GroupIcon = group.icon
           const active = groupActive(group)
-          // Abre o grupo quando: aberto manualmente, buscando, OU é o grupo da rota atual (active).
-          // Sem o "|| active", se o auto-open não rodar a tempo (ex.: full reload + moduleNav async),
-          // o grupo da página atual aparecia COLAPSADO.
-          const open   = isGroupOpen(group.label, active)
+          const open   = openGroups.includes(group.label) || isSearching
 
           // Lista plana de links (descendo recursivamente em subgrupos) — usada no modo collapsed.
           const flatLinks = (entries: (NavLink | NavSubGroup)[]): NavLink[] =>
@@ -1174,7 +1117,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           return (
             <div key={group.label}>
               <button
-                onClick={() => toggleGroup(group.label, active)}
+                onClick={() => toggleGroup(group.label)}
                 className={cn('w-full', base)}
                 style={active ? { color: 'var(--text)' } : undefined}
               >
@@ -1192,12 +1135,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     if (!isNavLink(sub)) {
                       const subgroupKey = `${group.label}/${sub.label}`
                       const SubGroupIcon = sub.icon
+                      const sgOpen = openGroups.includes(subgroupKey) || isSearching
                       const sgActive = subGroupActive(sub)
-                      const sgOpen = isGroupOpen(subgroupKey, sgActive)
                       return (
                         <div key={sub.label}>
                           <button
-                            onClick={() => toggleGroup(subgroupKey, sgActive)}
+                            onClick={() => toggleGroup(subgroupKey)}
                             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium sidebar-item"
                             style={sgActive ? { color: 'var(--text)' } : undefined}
                           >
@@ -1270,9 +1213,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" data-brand-mark="minutor" />
           )}
           {/* Tenant CONECTA: logo oficial (CSS mostra só em data-tenant="conecta") */}
-          {/* CONECTA: SÓ o ícone (sem o nome), alta resolução */}
-          <div className="conecta-footer-logo items-center justify-center">
-            <Image src="/conecta-mark.png" alt="Conecta ERP" width={40} height={40} className="object-contain shrink-0" />
+          <div className="conecta-footer-logo items-center gap-2">
+            <Image src="/conecta-logo.jpg" alt="Conecta ERP" width={32} height={32} className="object-contain rounded-md shrink-0" />
+            <div className="flex flex-col leading-tight w-fit">
+              {/* "conecta" espalhado p/ ocupar a MESMA largura do slogan */}
+              <span className="font-bold text-[16px] flex justify-between" style={{ color: 'var(--text)' }} aria-label="conecta">
+                {'conecta'.split('').map((ch, i) => <span key={i}>{ch}</span>)}
+              </span>
+              <span className="text-[9px] font-semibold tracking-tight" style={{ color: 'var(--text-muted)' }}>ERP para a era digital.</span>
+            </div>
           </div>
         </div>
       )}

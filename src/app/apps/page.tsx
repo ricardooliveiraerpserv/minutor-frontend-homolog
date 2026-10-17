@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { useAuth } from '@/contexts/auth-context'
 import { MODULES, modulesForUser, writeStoredModule, type ModuleId } from '@/lib/modules'
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
@@ -33,14 +32,9 @@ export default function AppsLauncherPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: 'var(--bg)' }}>
-      <div data-brand-mark="minutor" className="flex items-center gap-3 mb-1">
+      <div className="flex items-center gap-3 mb-1">
         <MinutorIcon size={40} />
         <span className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
-      </div>
-      {/* CONECTA: ícone + nome (só no tenant, via CSS data-tenant) */}
-      <div className="brand-conecta-row items-center gap-3 mb-1">
-        <Image src="/conecta-mark.png" alt="Conecta" width={40} height={40} className="object-contain" />
-        <span className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Conecta ERP</span>
       </div>
       <p className="text-sm mb-10" style={{ color: 'var(--text-muted)' }}>Escolha um aplicativo</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl">

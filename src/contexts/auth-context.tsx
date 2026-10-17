@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api, ApiError } from '@/lib/api'
-import { clearHdTabs } from '@/lib/hd-tabs'
 import type { User, AuthResponse } from '@/types'
 
 interface AuthContextValue {
@@ -71,8 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.token && typeof window !== 'undefined') {
       try { window.sessionStorage.setItem('minutor_token', data.token) } catch { /* noop */ }
     }
-    // Sessão nova começa sem abas de chamados abertas (não herda da sessão anterior).
-    clearHdTabs()
     setUser(user)
     return { user, requiresPasswordChange: data.requires_password_change === true }
   }
@@ -82,8 +79,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // — assim deslogar aqui NÃO derruba as outras abas.
     const stoken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
     try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
-    // Abas de chamados abertos não persistem após deslogar.
-    clearHdTabs()
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',

@@ -160,7 +160,7 @@ export default function HelpDeskFilaPage() {
   const [listSort, setListSort] = useState<{ col: string; dir: 'asc' | 'desc' }>({ col: 'updated', dir: 'desc' }) // ordenação da Lista
   const [view, setView] = useState<'kanban' | 'lista'>('lista')          // visão do board: abre sempre em Lista
   const [queueTab, setQueueTab] = useState<'fila' | 'abri'>('fila')       // aba: fila da equipe × chamados que EU abri (não sou resp.)
-  const [f, setF] = useState({ search: '', ticket: '' })
+  const [f, setF] = useState({ search: '', ticket: '', totvs_ticket_number: '' })
   const [loaded, setLoaded] = useState('') // "<search> <ticket>" que o `local` já reflete (busca server-side concluída)
   const [mine, setMine] = useState(false)
   const [mobFiltros, setMobFiltros] = useState(false)   // no mobile os filtros rápidos ficam num painel colapsável
@@ -180,7 +180,7 @@ export default function HelpDeskFilaPage() {
   const setMulti = (k: keyof typeof mf, v: string[]) => setMf(s => ({ ...s, [k]: v }))
   // Limpar TODOS os filtros da página de uma vez.
   const clearAll = () => {
-    setF({ search: '', ticket: '' })
+    setF({ search: '', ticket: '', totvs_ticket_number: '' })
     setMf({ team: [], consultor: [], cliente: [], solicitante: [], priority: [] })
     setDateMode('month'); setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('')
     setSemInteracao([]); setPendFilter(''); setStatusSel([]); setMine(false)
@@ -509,6 +509,11 @@ export default function HelpDeskFilaPage() {
                 <Hash size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
                 <input className={`${fieldCls} pl-8 w-32`} style={inputStyle} placeholder="Nº do ticket" inputMode="numeric" value={f.ticket} onChange={e => set('ticket', e.target.value)} />
               </div>
+              {/* Filtro por NÚMERO do chamado na TOTVS (busca nas interações) */}
+              <div className="relative">
+                <Hash size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+                <input className={`${fieldCls} pl-8 w-36`} style={inputStyle} placeholder="Nº TOTVS" value={f.totvs_ticket_number} onChange={e => set('totvs_ticket_number', e.target.value)} />
+              </div>
               {/* Período (data de abertura): Mês/Ano ou intervalo */}
               <div className="inline-flex items-center gap-1.5">
                 <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
@@ -534,7 +539,7 @@ export default function HelpDeskFilaPage() {
                 </button>
               )}
               {/* Limpar TODOS os filtros — aparece quando há qualquer filtro ativo */}
-              {(f.search || f.ticket || mf.team.length || mf.consultor.length || mf.cliente.length || mf.solicitante.length || mf.priority.length || semInteracao.length || statusSel.length || pendFilter || mine || refMonth != null || dateFrom || dateTo) ? (
+              {(f.search || f.ticket || f.totvs_ticket_number || mf.team.length || mf.consultor.length || mf.cliente.length || mf.solicitante.length || mf.priority.length || semInteracao.length || statusSel.length || pendFilter || mine || refMonth != null || dateFrom || dateTo) ? (
                 <button onClick={clearAll} title="Limpar todos os filtros da página"
                   className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer shrink-0"
                   style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>

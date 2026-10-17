@@ -60,7 +60,6 @@ interface ClienteStatus {
   closed_by_name?: string
   envio_em?: string | null   // ISO do último envio por e-mail; null = não enviado
   envio_por?: string | null  // nome de quem enviou
-  on_demand_status?: 'liberado' | 'bloqueado' | null // liberação de faturamento On Demand
 }
 
 interface ApontamentoRow {
@@ -376,16 +375,13 @@ export default function FechamentoClientePage() {
     }
   }
 
-  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean, blocked = false) => {
+  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean) => {
     if (!isOd) return <span style={{ color: 'var(--text-muted)' }}>—</span>
-    const odBloqueado = blocked && !invoiced
     return (
-      <button type="button" disabled={!canInvoice || odBloqueado}
+      <button type="button" disabled={!canInvoice}
         onClick={e => { e.stopPropagation(); toggleInvoiced(projetoId, invoiced) }}
         className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-default"
-        title={odBloqueado
-          ? 'Faturamento On Demand não liberado pelo coordenador'
-          : (invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada')}
+        title={invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
         style={invoiced
           ? { background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }
           : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
@@ -813,8 +809,6 @@ export default function FechamentoClientePage() {
 
   // Status de envio por cliente (legenda nas listas) — do /fechamento-cliente.
   const enviadoMap = new Map(clientes.map(c => [c.customer_id, { envio_em: c.envio_em, envio_por: c.envio_por }]))
-  // Liberação de faturamento On Demand por cliente (liberado/bloqueado) — do /fechamento-cliente.
-  const odStatusMap = new Map(clientes.map(c => [c.customer_id, c.on_demand_status ?? null]))
 
   // Desconto por cliente (valor + descritivo) — do /fechamento-cliente.
   const descontoMap = new Map(clientes.map(c => [c.customer_id, { valor: c.desconto ?? 0, descricao: c.desconto_descricao ?? null }]))
@@ -1046,17 +1040,13 @@ export default function FechamentoClientePage() {
               <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-light)' }}>
                 Faturamento (NFS-e)
               </p>
-              {odProjetos.map(p => {
-                const odBloqueado = status?.on_demand_status === 'bloqueado' && !p.invoiced
-                return (
+              {odProjetos.map(p => (
                 <button
                   key={p.projeto_id}
                   type="button"
-                  disabled={!canInvoice || odBloqueado}
+                  disabled={!canInvoice}
                   onClick={() => toggleInvoiced(p.projeto_id, !!p.invoiced)}
-                  title={odBloqueado
-                    ? 'Faturamento On Demand não liberado pelo coordenador'
-                    : (p.invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada')}
+                  title={p.invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   style={p.invoiced
                     ? { background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }
@@ -1065,13 +1055,7 @@ export default function FechamentoClientePage() {
                   {p.invoiced ? <Check size={13} /> : null}
                   {odProjetos.length > 1 ? `${p.codigo}: ` : ''}{p.invoiced ? 'Faturado' : 'Marcar como faturado'}
                 </button>
-                )
-              })}
-              {status?.on_demand_status === 'bloqueado' && (
-                <p className="text-[11px]" style={{ color: 'var(--danger)' }}>
-                  Bloqueado — libere em “Faturamento On Demand” antes de faturar.
-                </p>
-              )}
+              ))}
             </div>
           )}
 
@@ -1086,28 +1070,15 @@ export default function FechamentoClientePage() {
           </Button>
 
           {canSendEmail && (
-            (!isDesp && status?.on_demand_status === 'bloqueado') ? (
-              <div
-                className="rounded-lg px-3 py-2 text-xs flex items-start gap-1.5"
-                style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
-              >
-                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                <span>
-                  Faturamento On Demand <strong>bloqueado</strong> — o coordenador responsável precisa liberar
-                  em “Faturamento On Demand” antes de enviar o fechamento ao cliente.
-                </span>
-              </div>
-            ) : (
-              <Button
-                size="sm"
-                icon={Mail}
-                className="w-full !justify-start"
-                title={`Enviar ${isDesp ? 'despesas' : 'fechamento'} de ${clienteNome} por e-mail`}
-                onClick={openCompose}
-              >
-                Enviar e-mail
-              </Button>
-            )
+            <Button
+              size="sm"
+              icon={Mail}
+              className="w-full !justify-start"
+              title={`Enviar ${isDesp ? 'despesas' : 'fechamento'} de ${clienteNome} por e-mail`}
+              onClick={openCompose}
+            >
+              Enviar e-mail
+            </Button>
           )}
 
           {canSendEmail && (
@@ -1435,17 +1406,10 @@ export default function FechamentoClientePage() {
                               </div>
                             </td>
                             <td className="px-5 py-3">
-                              <div className="flex flex-col gap-1 items-start">
-                                {st === 'closed'
-                                  ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
-                                  : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Aberto</span>
-                                }
-                                {odStatusMap.get(c.customer_id) === 'bloqueado'
-                                  ? <Badge variant="danger">On Demand bloqueado</Badge>
-                                  : odStatusMap.get(c.customer_id) === 'liberado'
-                                    ? <Badge variant="success">On Demand liberado</Badge>
-                                    : null}
-                              </div>
+                              {st === 'closed'
+                                ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
+                                : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Aberto</span>
+                              }
                             </td>
                             <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--text)' }}>
                               {c.total_horas.toFixed(2)}h
@@ -1466,7 +1430,7 @@ export default function FechamentoClientePage() {
                             </td>
                             <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
                               {!hasMult && c.projetos[0]
-                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand', odStatusMap.get(c.customer_id) === 'bloqueado')
+                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand')
                                 : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                             </td>
                           </tr>
@@ -1498,7 +1462,7 @@ export default function FechamentoClientePage() {
                                 {formatBRL(p.total_display)}
                               </td>
                               <td className="px-5 py-2.5">
-                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand', odStatusMap.get(c.customer_id) === 'bloqueado')}
+                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand')}
                               </td>
                             </tr>
                           ))}
@@ -1634,16 +1598,11 @@ export default function FechamentoClientePage() {
                               <Tr key={c.customer_id}>
                                 <Td className="text-sm font-medium">{c.nome}</Td>
                                 <Td>
-                                  <div className="flex flex-wrap gap-1 items-center">
+                                  <div className="flex flex-wrap gap-1">
                                     {Array.from(c.tipos).map(t => (
                                       <span key={t} className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap"
                                         style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{t}</span>
                                     ))}
-                                    {odStatusMap.get(c.customer_id) === 'bloqueado'
-                                      ? <Badge variant="danger">On Demand bloqueado</Badge>
-                                      : odStatusMap.get(c.customer_id) === 'liberado'
-                                        ? <Badge variant="success">On Demand liberado</Badge>
-                                        : null}
                                   </div>
                                 </Td>
                                 <Td right muted className="tabular-nums text-xs">{c.total_horas.toFixed(2)}h</Td>

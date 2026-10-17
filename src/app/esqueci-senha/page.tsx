@@ -58,15 +58,10 @@ export default function ForgotPasswordPage() {
 
           {/* Header */}
           <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <div data-brand-mark="minutor" style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
               <Image src="/logo.png" alt="ERPServ" width={96} height={32} style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.75 }} />
             </div>
-            {/* CONECTA: ícone + wordmark branco (só no tenant, via CSS data-tenant) */}
-            <div className="brand-conecta-row" style={{ alignItems: 'center', gap: 14, marginBottom: 24 }}>
-              <Image src="/conecta-mark.png" alt="Conecta" width={40} height={40} style={{ objectFit: 'contain' }} />
-              <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '0.10em', color: '#FFFFFF' }}>conecta</span>
-            </div>
-            <div data-brand-mark="minutor" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MinutorIcon size={19} />
               </div>
@@ -159,7 +154,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.02em' }}>
-          © {new Date().getFullYear()} <span data-brand-mark="minutor">ERPServ Consultoria</span><span data-brand-mark="conecta">Conecta ERP</span> · Todos os direitos reservados
+          © {new Date().getFullYear()} ERPServ Consultoria · Todos os direitos reservados
         </p>
       </div>
 

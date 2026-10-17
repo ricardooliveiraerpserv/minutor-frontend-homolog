@@ -46,7 +46,7 @@ export type VaultStatus = 'loading' | 'unconfigured' | 'locked' | 'unlocked'
 
 // Timeout do auto-lock (minutos). Só o NÚMERO persiste — nunca chaves.
 const LS_TIMEOUT_KEY = 'minutor_vault_lock_min'
-export const LOCK_TIMEOUT_OPTIONS = [1, 5, 10, 15, 30] as const
+export const LOCK_TIMEOUT_OPTIONS = [1, 5, 15, 30] as const
 const HIDDEN_LOCK_MS = 60_000
 
 interface VaultCtx {
@@ -253,6 +253,6 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 
 export function useVault(): VaultCtx {
   const ctx = useContext(VaultContext)
-  if (!ctx) throw new Error('useVault precisa do VaultProvider (layout do Cofre/Ambientes)')
+  if (!ctx) throw new Error('useVault precisa do VaultProvider (layout de /cofre)')
   return ctx
 }

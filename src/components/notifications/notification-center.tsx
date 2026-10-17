@@ -4,17 +4,16 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle2, ShieldAlert, Pencil, Megaphone, ChevronsDown, ClipboardList } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ShieldAlert, Pencil, Megaphone, ChevronsDown } from 'lucide-react'
 import { PollCard, type Poll } from '@/components/notifications/poll-card'
-import { SurveyAnswerModal, type SurveyData } from '@/components/notifications/survey-answer-modal'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 
 interface Notif {
-  id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll' | 'survey' | 'aviso' | 'formal'
+  id: number; title: string; message: string; type: 'info' | 'action' | 'require_ack' | 'poll' | 'aviso' | 'formal'
   priority: 'low' | 'medium' | 'high' | 'critical'; requires_ack: boolean
   cta_label: string | null; cta_url: string | null; version: number; expires_at: string | null
   viewed: boolean; acked: boolean; pending_ack: boolean; ack_at: string | null
-  poll: Poll | null; survey?: SurveyData | null; created_at?: string | null
+  poll: Poll | null; created_at?: string | null
   actions?: string[] | null; my_response?: string | null
 }
 interface ActionItem { key: string; title: string; message: string; cta_label: string; cta_url: string; priority: string; count: number }
@@ -32,7 +31,6 @@ export function NotificationCenter() {
   const [items, setItems] = useState<Notif[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
   const [ackTarget, setAckTarget] = useState<Notif | null>(null)
-  const [surveyTarget, setSurveyTarget] = useState<Notif | null>(null)
   const ackBodyRef = useRef<HTMLDivElement>(null)
   const [ackCanOk, setAckCanOk] = useState(true)
   useEffect(() => {
@@ -83,10 +81,6 @@ export function NotificationCenter() {
   // "Ação" só é "Para resolver" se tiver de fato o que fazer (um CTA/destino). Uma notificação
   // tipo 'action' SEM cta_url não tem botão nenhum → é informativo mal-tipado; não polui aqui.
   const acoes = items.filter(n => n.type === 'action' && !n.requires_ack && !!n.cta_url && !isAggregated(n.cta_url))
-  // PENDENTES ATÉ O PRAZO: enquete não votada e pesquisa não respondida ficam em "Para resolver"
-  // enquanto não encerram (expires_at do próprio poll/survey). Some ao votar/responder.
-  const enquetesPendentes = items.filter(n => n.type === 'poll' && n.poll && !n.poll.has_voted && !n.poll.closed)
-  const pesquisasPendentes = items.filter(n => n.type === 'survey' && !!n.survey && !n.survey.has_responded && !n.survey.closed)
 
   // NOTIFICAÇÕES DO DIA — informativos + enquetes criados/recebidos HOJE (inclui os criados por mim).
   // A lista completa de informativos continua no sino da topbar; aqui é só o do dia, com voto na enquete.
@@ -99,18 +93,15 @@ export function NotificationCenter() {
       || (n.type === 'action' && !n.cta_url))           // "Ação" sem CTA = informativo puro (não é "Para resolver")
     && (!n.requires_ack || n.acked)                     // fora os pendentes de aceite (esses em "Para resolver")
     && (isHoje(n) || (n.requires_ack && n.acked)))      // do dia OU leitura obrigatória já aceita (não some)
-  // Enquetes do dia JÁ votadas/encerradas (as pendentes ficam em "Para resolver", sem duplicar).
-  const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n) && (n.poll.has_voted || n.poll.closed))
+  const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n))
 
   return (
     <div className="space-y-5">
       {/* ── PARA RESOLVER — tudo que exige sua ação ── */}
-      <Block title="Para resolver" subtitle="O que exige sua ação agora" icon={<ShieldAlert size={16} style={{ color: 'var(--danger-border)' }} />} count={importantes.length + actions.length + acoes.length + enquetesPendentes.length + pesquisasPendentes.length} tone="danger">
+      <Block title="Para resolver" subtitle="O que exige sua ação agora" icon={<ShieldAlert size={16} style={{ color: 'var(--danger-border)' }} />} count={importantes.length + actions.length + acoes.length} tone="danger">
         {actions.map(a => <ActionCard key={a.key} a={a} router={router} />)}
         {importantes.map(n => <Card key={n.id} n={n} badge="Urgente" onAck={() => setAckTarget(n)} onRespond={a => respond(n, a)} router={router} />)}
         {acoes.map(n => <Card key={n.id} n={n} router={router} />)}
-        {pesquisasPendentes.map(n => <SurveyPendingCard key={n.id} n={n} onRespond={() => setSurveyTarget(n)} />)}
-        {enquetesPendentes.map(n => <PollCard key={n.id} title={n.title} priority={n.priority} poll={n.poll!} onVoted={load} />)}
       </Block>
 
       {/* ── NOTIFICAÇÕES DE HOJE — informativos + enquetes do dia (inclui as que você criou) ── */}
@@ -143,43 +134,11 @@ export function NotificationCenter() {
           </div>
         </div>
       )}
-
-      {surveyTarget?.survey && (
-        <SurveyAnswerModal
-          title={surveyTarget.title}
-          survey={surveyTarget.survey}
-          onClose={() => setSurveyTarget(null)}
-          onSubmitted={() => { setSurveyTarget(null); load() }}
-        />
-      )}
     </div>
   )
 }
 
 const ghostBtn = 'inline-flex items-center justify-center h-8 px-3 rounded-lg text-xs whitespace-nowrap'
-
-/** Card de pesquisa pendente no "Para resolver": abre o formulário até a data limite. */
-function SurveyPendingCard({ n, onRespond }: { n: Notif; onRespond: () => void }) {
-  const p = PRIO[n.priority] ?? PRIO.medium
-  const fmtPrazo = n.expires_at ? new Date(n.expires_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
-  return (
-    <div className="ds-card p-2.5 flex items-start gap-2.5" style={{ borderLeft: `3px solid ${p.color}` }}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <ClipboardList size={14} style={{ color: 'var(--primary)' }} />
-          <span className="text-[14px] font-semibold leading-tight" style={{ color: 'var(--text)' }}>{n.title}</span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: p.bg, color: p.color }}>Pesquisa</span>
-        </div>
-        <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          Aguardando sua resposta{fmtPrazo && <> · responda até <b>{fmtPrazo}</b></>}
-        </p>
-      </div>
-      <button onClick={onRespond} className="inline-flex items-center justify-center h-8 px-3 rounded-lg text-xs whitespace-nowrap font-medium shrink-0 gap-1" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-        <ClipboardList size={13} /> Responder
-      </button>
-    </div>
-  )
-}
 
 function ActionCard({ a, router }: { a: ActionItem; router: ReturnType<typeof useRouter> }) {
   const p = PRIO[a.priority] ?? PRIO.medium

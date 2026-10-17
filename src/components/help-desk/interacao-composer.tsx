@@ -12,7 +12,7 @@ import { EmailFrame } from './email-frame'
 
 // Macro (ex-playbook): só preenche o texto da interação.
 export interface MacroItem { id: number; name: string; color?: string | null; category?: string | null; reply?: string | null; internal?: string | null }
-export interface ComposerHandle { insertMacroReply: (text: string) => void; focusReply: (v: 'customer' | 'internal') => void; armStatus: (statusId: number, just?: { id: number; name: string } | null) => void }
+export interface ComposerHandle { insertMacroReply: (text: string) => void; focusReply: (v: 'customer' | 'internal') => void }
 
 // Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
 function localToday(): string {
@@ -40,7 +40,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   onSent: () => void
   statuses?: ComposerStatus[]
   currentStatusId?: number
-  onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string; justification_id?: number | null }) => void | Promise<void>
+  onApplyStatus?: (statusId: number, extra?: { dev_delivery_at?: string }) => void | Promise<void>
   currentDevDelivery?: string | null   // data de entrega já salva no chamado (Em Desenvolvimento)
   onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
@@ -62,10 +62,13 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
   const [sendStatus, setSendStatus] = useState<number | undefined>(undefined)
-  // Justificativa "armada" junto do status (ex.: Cancelado + motivo) — exibida como "Status/Motivo"
-  // e enviada no apply. Fica pendente até o envio do texto (não finaliza no clique do motivo).
-  const [armedJust, setArmedJust] = useState<{ id: number; name: string } | null>(null)
   const [stOpen, setStOpen] = useState(false)  // dropdown custom de status
+  // Pendente TOTVS: ao selecionar o status, pede SÓ o nº do chamado TOTVS; no OK insere um texto
+  // automático no topo da interação e devolve o foco p/ o consultor concluir. O nº vai gravado na
+  // interação enviada (totvs_ticket_number). Trocar de status limpa o nº.
+  const [totvsModalOpen, setTotvsModalOpen] = useState(false)
+  const [totvsInput, setTotvsInput] = useState('')
+  const [totvsNumber, setTotvsNumber] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
   const [sending, setSending] = useState(false)
@@ -152,7 +155,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (!window.confirm(msg)) return
     }
     setSendStatus(s.id)
-    setArmedJust(null)
+    // Trocar de status limpa o nº TOTVS pendente (só vale enquanto o status for Pendente TOTVS).
+    if (s.key !== 'pendente_totvs') setTotvsNumber('')
+    // Pendente TOTVS: abre modal pedindo SÓ o nº do chamado TOTVS (o texto é o consultor que escreve).
+    if (s.key === 'pendente_totvs') { setTotvsInput(''); setTotvsModalOpen(true) }
     // Em Desenvolvimento: pré-carrega a data já salva no chamado (se houver) e injeta o texto fixo
     // com essa data. Sem data ainda, o texto só entra quando o consultor escolher a previsão.
     if (s.key === 'em_desenvolvimento') {
@@ -237,9 +243,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     const ed = edRef.current
     if (ed) { ed.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => ed.focus(), 250) }
   }
-  // Arma um status + justificativa a partir do modal (não finaliza — espera o texto).
-  const armStatus = (statusId: number, just?: { id: number; name: string } | null) => { setSendStatus(statusId); setArmedJust(just ?? null) }
-  useImperativeHandle(ref, () => ({ insertMacroReply, focusReply, armStatus }), [sendStatus]) // eslint-disable-line react-hooks/exhaustive-deps
+  useImperativeHandle(ref, () => ({ insertMacroReply, focusReply }), [sendStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const insertImage = (dataUrl: string) => {
     const ed = edRef.current; if (!ed) return
@@ -301,6 +305,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     // Em Desenvolvimento: a previsão de entrega em homologação é OBRIGATÓRIA.
     if (isDevStatus && !devDelivery) {
       toast.error('Informe a data de previsão de entrega em homologação.'); return
+    }
+    // Pendente TOTVS: o nº do chamado TOTVS é obrigatório (coletado no modal ao selecionar o status).
+    if (selStatus?.key === 'pendente_totvs' && !totvsNumber.trim()) {
+      toast.error('Informe o número do chamado da TOTVS.'); setTotvsInput(''); setTotvsModalOpen(true); return
     }
     // Em Homologação: obrigatório anexar o código-fonte zipado (.zip) — e o zip PRECISA conter código-fonte.
     if (isHomologStatus && sendStatus !== currentStatusId) {
@@ -366,14 +374,14 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       // Aplica o status quando muda; em "Em Desenvolvimento" aplica também no "Manter" para
       // PERSISTIR a data de entrega (o backend faz early-return na transição de mesmo status).
       const applyStatus = !!sendStatus && (sendStatus !== currentStatusId || (isDevStatus && !!devDelivery))
-      const statusExtra = { ...(isDevStatus ? { dev_delivery_at: devDelivery } : {}), justification_id: armedJust?.id ?? null }
-      // Terminal (cancelado/fechado): posta o texto ANTES de encerrar — senão o chamado fecha e a interação é barrada.
-      if (onApplyStatus && applyStatus && !selStatus?.is_terminal) {
-        await onApplyStatus(sendStatus!, statusExtra)
+      if (onApplyStatus && applyStatus) {
+        await onApplyStatus(sendStatus!, isDevStatus ? { dev_delivery_at: devDelivery } : undefined)
       }
       const fd = new FormData()
       fd.append('body', hasText ? html : '')
       fd.append('visibility', vis)
+      // Pendente TOTVS: grava o nº do chamado TOTVS NESTA interação (pesquisável no filtro).
+      if (selStatus?.key === 'pendente_totvs' && totvsNumber.trim()) fd.append('totvs_ticket_number', totvsNumber.trim())
       fd.append('idempotency_key', idemRef.current)
       files.forEach(f => fd.append('files[]', f))
       // Tempo trabalhado. total_hours prevalece; senão o servidor deriva de início→fim.
@@ -386,10 +394,6 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         fd.append('no_charge', noCharge ? '1' : '0')
       }
       const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
-      // Terminal: encerra DEPOIS do texto postado (o chamado ainda estava aberto ao postar).
-      if (onApplyStatus && applyStatus && selStatus?.is_terminal) {
-        await onApplyStatus(sendStatus!, statusExtra)
-      }
       if (ed) ed.innerHTML = ''
       try { localStorage.removeItem(draftKey) } catch { /* ignore */ }
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
@@ -400,7 +404,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       if (canSchedule && schedDate && onSchedule) { await onSchedule(schedDate, schedTime); toast.success('Chamado agendado — SLA pausado') }
       setSchedDate(''); setSchedTime('')
       setDevDelivery(''); devTemplateRef.current = null
-      setSendStatus(undefined); setArmedJust(null) // volta a exigir escolha na próxima interação
+      setSendStatus(undefined) // volta a exigir escolha na próxima interação
+      setTotvsNumber('') // limpa o nº TOTVS pendente após enviar
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
     } finally { setSending(false) }
@@ -517,7 +522,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
                   Cores: terminal (Fechado/Cancelado) = danger; resolvido (Resolvido/GMUD) = warning. */}
               <button type="button" onClick={() => setStOpen(o => !o)} aria-label="Status ao enviar"
                 className="ds-input inline-flex items-center gap-1.5" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b', color: statusColor(selStatus), fontWeight: isCritical(selStatus) ? 700 : 400 }}>
-                {selStatus ? (selStatus.id === currentStatusId ? `Manter: ${selStatus.label}` : (armedJust ? `${selStatus.label}/${armedJust.name}` : selStatus.label)) : '— Selecione o status —'}
+                {selStatus ? (selStatus.id === currentStatusId ? `Manter: ${selStatus.label}` : selStatus.label) : '— Selecione o status —'}
                 <ChevronDown size={13} />
               </button>
               {stOpen && (<>
@@ -592,7 +597,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
             )
           })}
           {sendStatus && sendStatus !== currentStatusId && (
-            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ao enviar → <strong>{(statuses.find(s => s.id === sendStatus)?.label ?? '') + (armedJust ? `/${armedJust.name}` : '')}</strong></span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>ao enviar → <strong>{statuses.find(s => s.id === sendStatus)?.label ?? ''}</strong></span>
           )}
           <label className="inline-flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded-md" style={{ color: 'var(--text-muted)' }}>
             <Paperclip size={14} /> Anexar
@@ -629,6 +634,29 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
       </div>
     </div>
     {confirmDialog}
+    {/* Pendente TOTVS: modal só com o nº do chamado TOTVS. No OK insere o texto no topo da interação
+        e devolve o foco p/ o consultor concluir e enviar (o nº vai gravado na interação). */}
+    {totvsModalOpen && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => { setTotvsModalOpen(false); if (!totvsNumber) setSendStatus(undefined) }}>
+        <div className="ds-card max-w-sm w-full p-5 space-y-3" onClick={e => e.stopPropagation()}>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Pendente TOTVS</h2>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Informe o número do chamado aberto na TOTVS. Ele será registrado nesta interação e ficará pesquisável.</p>
+          <input autoFocus className="ds-input w-full" value={totvsInput} onChange={e => setTotvsInput(e.target.value)}
+            placeholder="Nº do chamado TOTVS *"
+            onKeyDown={e => { if (e.key === 'Enter' && totvsInput.trim()) (document.getElementById('totvs-ok') as HTMLButtonElement | null)?.click() }} />
+          <div className="flex justify-end gap-2 pt-1">
+            <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => { setTotvsModalOpen(false); if (!totvsNumber) setSendStatus(undefined) }}>Cancelar</button>
+            <button id="totvs-ok" className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg disabled:opacity-50" disabled={!totvsInput.trim()}
+              onClick={() => {
+                const n = totvsInput.trim()
+                setTotvsNumber(n)
+                setTotvsModalOpen(false)
+                insertMacroReply(`📞 Chamado TOTVS: #${n}`)
+              }}>OK</button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 })

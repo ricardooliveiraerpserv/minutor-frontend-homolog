@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
@@ -28,10 +28,6 @@ const shortSha = (s?: string | null) => (s ? s.slice(0, 7) : '—')
 const STEPS = ['Cliente', 'Chamado', 'Fontes', 'Confirmação']
 
 export default function CodigoFontePage() {
-  return <Suspense fallback={null}><CodigoFonteContent /></Suspense>
-}
-
-function CodigoFonteContent() {
   const searchParams = useSearchParams()
   const fromTicket = !!searchParams.get('ticket_id') // aberto de dentro de um chamado → cliente travado no do ticket
   const [hasSources, setHasSources] = useState<boolean | null>(null) // cliente tem fontes nos diretórios?

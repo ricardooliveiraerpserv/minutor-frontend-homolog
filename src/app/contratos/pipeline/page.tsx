@@ -4635,6 +4635,14 @@ function KanbanContent() {
   const [rowMenu, setRowMenu] = useState<{ card: ProjectCard; kind: 'primary' | 'secondary'; pos: MenuPos } | null>(null)
   const rowMenuRef = useRef<HTMLDivElement>(null)
   const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
+  // Alerta de consumo de horas apontáveis ≥ 80% (pop-up ao abrir a tela + botão para reabrir)
+  const [consumoAlertOpen, setConsumoAlertOpen] = useState(false)
+  const consumoAutoShownRef = useRef(false)
+  // Filtros do pop-up de consumo ('' = todos)
+  const [caCoord, setCaCoord] = useState('')
+  const [caExec, setCaExec] = useState('')
+  const [caCustomer, setCaCustomer] = useState('')
+  const [caProject, setCaProject] = useState('')
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
   const [contractAction,   setContractAction]   = useState<{ card: ContractCard; action: string } | null>(null)
@@ -4891,6 +4899,41 @@ function KanbanContent() {
       .filter(c => c.categoria === 'sustentacao')
       .map(c => c.id)
   )
+
+  // ── Alerta de consumo (horas APONTÁVEIS ≥ 80%) ────────────────────────────
+  // Mesma lente do card (linha ~854): quando há banco de coordenação, as horas apontáveis
+  // são as da coordenação; senão, as vendidas. NUNCA usa horas comerciais para o %.
+  const apontTotalH = (c: ProjectCard) =>
+    (!isCliente && Number(c.coordination_hours ?? 0) > 0) ? Number(c.coordination_hours ?? 0) : Number(c.sold_hours ?? 0)
+  const apontConsumedH = (c: ProjectCard) =>
+    (!isCliente && Number(c.coordination_hours ?? 0) > 0) ? Number(c.coordination_consumed_hours ?? 0) : Number(c.consumed_hours ?? 0)
+  const apontPct = (c: ProjectCard) => { const t = apontTotalH(c); return t > 0 ? Math.round((apontConsumedH(c) / t) * 100) : 0 }
+  const consumoAlertProjects = projectCards
+    .filter(p => !(p.contract_id != null && sustContractIds.has(p.contract_id)))
+    .filter(p => passesClientScope(p.customer_id, 'project'))
+    .filter(p => apontTotalH(p) > 0 && apontPct(p) >= 80)
+    .sort((a, b) => apontPct(b) - apontPct(a))
+
+  // Opções dos filtros do pop-up (derivadas da lista ≥80%)
+  const caCoordOptions = Array.from(new Set(consumoAlertProjects.flatMap(p => p.coordinators ?? []).filter(Boolean))).sort()
+  const caExecOptions = Array.from(new Set(consumoAlertProjects.map(p => p.executivo_conta_name).filter(Boolean) as string[])).sort()
+  const caCustomerOptions = Array.from(new Set(consumoAlertProjects.map(p => p.customer_name).filter(Boolean))).sort()
+  const caProjectOptions = Array.from(new Set(consumoAlertProjects.map(p => p.project_name).filter(Boolean))).sort()
+  const consumoAlertFiltered = consumoAlertProjects.filter(p =>
+    (!caCoord || (p.coordinators ?? []).includes(caCoord)) &&
+    (!caExec || p.executivo_conta_name === caExec) &&
+    (!caCustomer || p.customer_name === caCustomer) &&
+    (!caProject || p.project_name === caProject)
+  )
+
+  // Pop-up automático (1x por acesso) com os projetos ≥ 80% de consumo de horas apontáveis
+  useEffect(() => {
+    if (loading) return
+    if (consumoAutoShownRef.current) return
+    consumoAutoShownRef.current = true
+    if (consumoAlertProjects.length > 0) setConsumoAlertOpen(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, consumoAlertProjects.length])
 
   // IDs de contratos gerenciados por requisições — não exibir como card duplicado no pipeline
   const linkedContractIds = new Set(requestCards.map(r => r.linked_contract_id).filter(Boolean))
@@ -5394,6 +5437,25 @@ function KanbanContent() {
                 <Plus size={13} /> Nova Requisição
               </button>
             )}
+            {/* Consumo ≥ 80% — reabre o pop-up de projetos com horas apontáveis quase esgotadas */}
+            <button onClick={() => setConsumoAlertOpen(true)}
+              title="Consultar projetos com 80%+ de consumo de horas apontáveis"
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: consumoAlertProjects.length > 0 ? 'rgba(239,68,68,0.12)' : 'var(--surface)',
+                border: `1px solid ${consumoAlertProjects.length > 0 ? 'rgba(239,68,68,0.35)' : 'var(--border)'}`,
+                color: consumoAlertProjects.length > 0 ? '#ef4444' : 'var(--text)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = consumoAlertProjects.length > 0 ? 'rgba(239,68,68,0.35)' : 'var(--border)' }}>
+              <AlertTriangle size={13} /> Consumo 80%+
+              {consumoAlertProjects.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold"
+                  style={{ background: '#ef4444', color: '#fff' }}>
+                  {consumoAlertProjects.length}
+                </span>
+              )}
+            </button>
             {/* Exportar Excel — todos os perfis; exporta a lista de projetos com os filtros aplicados */}
             <button onClick={handleExportProjetos}
               title="Exportar projetos para Excel"
@@ -6139,6 +6201,140 @@ function KanbanContent() {
       )}
       {selectedProject && (
         <ProjectViewModal projectId={selectedProject.id} onClose={() => setSelectedProject(null)} userRole={userRole} initialTab="overview" />
+      )}
+      {/* Pop-up de consumo de horas apontáveis ≥ 80%. Fica oculto enquanto um projeto está aberto
+          (selectedProject) e reaparece ao fechá-lo — o consultor "volta ao modal" sem fechá-lo. */}
+      {consumoAlertOpen && !selectedProject && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => setConsumoAlertOpen(false)}>
+          <div className="w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85vh' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+                  style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                  <AlertTriangle size={18} />
+                </span>
+                <div>
+                  <h2 className="text-base font-bold leading-tight" style={{ color: 'var(--text)' }}>
+                    Consumo de horas apontáveis
+                  </h2>
+                  <p className="text-[11px] leading-tight" style={{ color: 'var(--text-light)' }}>
+                    {consumoAlertProjects.length > 0
+                      ? `${consumoAlertFiltered.length} de ${consumoAlertProjects.length} projeto${consumoAlertProjects.length > 1 ? 's' : ''} com 80% ou mais de consumo`
+                      : 'Nenhum projeto com 80% ou mais de consumo no momento'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setConsumoAlertOpen(false)} className="p-1 rounded-lg transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                <X size={18} />
+              </button>
+            </div>
+            {/* Filtros */}
+            {consumoAlertProjects.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+                {([
+                  { val: caCoord, set: setCaCoord, opts: caCoordOptions, ph: 'Coordenador' },
+                  { val: caExec, set: setCaExec, opts: caExecOptions, ph: 'Executivo' },
+                  { val: caCustomer, set: setCaCustomer, opts: caCustomerOptions, ph: 'Cliente' },
+                  { val: caProject, set: setCaProject, opts: caProjectOptions, ph: 'Projeto' },
+                ] as const).map(f => (
+                  <select key={f.ph} value={f.val} onChange={e => f.set(e.target.value)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs outline-none ds-input"
+                    style={{ background: 'var(--surface-sunken)', border: `1px solid ${f.val ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)', maxWidth: '170px' }}>
+                    <option value="">{f.ph}: todos</option>
+                    {f.opts.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ))}
+                {(caCoord || caExec || caCustomer || caProject) && (
+                  <button onClick={() => { setCaCoord(''); setCaExec(''); setCaCustomer(''); setCaProject('') }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                    <X size={11} /> Limpar
+                  </button>
+                )}
+              </div>
+            )}
+            {/* Body */}
+            <div className="overflow-y-auto px-5 py-3 flex flex-col gap-2">
+              {consumoAlertProjects.length === 0 && (
+                <div className="text-sm text-center py-8" style={{ color: 'var(--text-light)' }}>
+                  Tudo sob controle — nenhum projeto atingiu 80% de consumo das horas apontáveis.
+                </div>
+              )}
+              {consumoAlertProjects.length > 0 && consumoAlertFiltered.length === 0 && (
+                <div className="text-sm text-center py-8" style={{ color: 'var(--text-light)' }}>
+                  Nenhum projeto encontrado com os filtros aplicados.
+                </div>
+              )}
+              {consumoAlertFiltered.map(p => {
+                const pct = apontPct(p)
+                const total = apontTotalH(p)
+                const cons = apontConsumedH(p)
+                // Percentual REAL (sem arredondar) para exibição formatada pt-BR (ex.: 3.687,5%).
+                // pct arredondado segue governando cor/barra/ordenação (comportamento inalterado).
+                const pctRaw = total > 0 ? (cons / total) * 100 : 0
+                const remainingH = total - cons                 // saldo de horas (pode ser negativo = estourou)
+                const remainingPct = total > 0 ? (remainingH / total) * 100 : 0
+                const barColor = pct >= 100 ? '#ef4444' : pct >= 90 ? '#f97316' : '#eab308'
+                return (
+                  <div key={p.id} className="rounded-xl px-3.5 py-3 flex items-center gap-3"
+                    style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                          {p.customer_name}
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                          style={{ background: `${barColor}22`, color: barColor }}>
+                          {pctRaw.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%
+                        </span>
+                      </div>
+                      <div className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                        {p.code ? `${p.code} · ` : ''}{p.project_name}
+                      </div>
+                      <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface)' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: barColor }} />
+                      </div>
+                      <div className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                        {Math.round(cons)}h / {Math.round(total)}h apontáveis
+                      </div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
+                        ✅ Consumo do projeto: {pctRaw.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%
+                      </div>
+                      <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
+                        ⏳ Saldo restante: {remainingH.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h ({remainingPct.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%)
+                      </div>
+                    </div>
+                    {/* Vai direto para o CRONOGRAMA do projeto. Ao voltar (back), a página
+                        remonta e o pop-up reabre automaticamente (auto-open no mount). */}
+                    <button onClick={() => router.push(isCliente ? `/portal-cliente/projetos/${p.id}` : `/projetos/${p.id}/cronograma`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-colors"
+                      style={{ background: 'var(--primary)', border: '1px solid var(--primary)', color: 'var(--primary-fg)' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)' }}>
+                      <Eye size={13} /> Visualizar projeto
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Footer */}
+            <div className="px-5 py-3 border-t shrink-0 flex justify-end" style={{ borderColor: 'var(--border)' }}>
+              <button onClick={() => setConsumoAlertOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {stagesPanelProject && (
         <ProjectStagesSidePanel

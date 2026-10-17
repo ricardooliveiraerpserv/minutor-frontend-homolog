@@ -12,7 +12,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { useConfirm } from '@/components/ui/use-confirm'
 import { Plus, Trash2, Split, Save, Server, X, UserPlus, Users, CalendarRange, ListChecks, Pencil } from 'lucide-react'
 
-interface TeamMember { id: number; name: string; badge?: string | null }
+interface TeamMember { id: number; name: string }
 interface RateioProject { id: number; name: string; code: string | null; cliente: string | null; plans_count?: number; consultants?: TeamMember[]; coordinator?: TeamMember | null }
 interface ProjOpt { id: number; name: string; code?: string | null; customer_id?: number | null }
 interface TargetRow { target_project_id: number | ''; projeto?: string; percentual: number }
@@ -73,7 +73,7 @@ export default function RateioHorasPage() {
       .then(r => { const list = (r as any).data ?? (r as any).items ?? []; const m: Record<number, string> = {}; list.forEach((c: any) => { if (c.id) m[c.id] = c.name }); setCustomers(m) })
       .catch(() => {})
     // Consultores que podem apontar + coordenadores que podem aprovar.
-    const asList = (r: any): TeamMember[] => ((r?.data ?? r?.items ?? r ?? []) as any[]).filter(u => u?.id).map(u => ({ id: u.id, name: u.name, badge: u.partner?.name ?? null }))
+    const asList = (r: any): TeamMember[] => ((r?.data ?? r?.items ?? r ?? []) as any[]).filter(u => u?.id).map(u => ({ id: u.id, name: u.name }))
     api.get<any>('/users?type=consultor,parceiro_admin&pageSize=500').then(r => setConsultantOpts(asList(r))).catch(() => {})
     api.get<any>('/users?type=coordenador&pageSize=500').then(r => setCoordOpts(asList(r))).catch(() => {})
   }, [])
