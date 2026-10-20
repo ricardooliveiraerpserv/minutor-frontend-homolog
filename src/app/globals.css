@@ -324,6 +324,106 @@ tbody tr + tr > td {
   border-top: 1px solid var(--brand-table-divider);
 }
 
+/* ── Light mode: override de zinc-* hardcoded → brand tokens ──
+ * Vários componentes usam classes Tailwind tipo bg-zinc-900 / border-zinc-800
+ * porque o tema original é dark. No light essas cores deixam o conteúdo
+ * preto enquanto a sidebar fica branca. Esta camada redireciona essas
+ * classes pras --brand-* APENAS quando :root NÃO tem .dark.
+ *
+ * Escopo: html:not(.dark) — só light. No dark, as classes zinc continuam
+ * aplicando seus valores originais (visual idêntico ao anterior).
+ */
+
+/* Backgrounds escuros → surface */
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) .bg-zinc-800,
+html:not(.dark) .bg-neutral-900,
+html:not(.dark) .bg-neutral-800,
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-800,
+html:not(.dark) .bg-gray-900,
+html:not(.dark) .bg-gray-800,
+html:not(.dark) .bg-black {
+  background-color: var(--brand-surface) !important;
+}
+
+/* Backgrounds escuros transparentes (hover/overlay) → tom claro neutro */
+html:not(.dark) .bg-zinc-800\/60,
+html:not(.dark) .bg-zinc-800\/40,
+html:not(.dark) .bg-zinc-700\/60,
+html:not(.dark) .bg-zinc-700\/40 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Bordas escuras → border tokens */
+html:not(.dark) .border-zinc-900,
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-700,
+html:not(.dark) .border-neutral-800,
+html:not(.dark) .border-neutral-700,
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-gray-800,
+html:not(.dark) .border-gray-700 {
+  border-color: var(--brand-border) !important;
+}
+
+/* Texto claro (escolhido pra contrastar com bg escuro) → brand-text */
+html:not(.dark) .text-zinc-100,
+html:not(.dark) .text-zinc-200,
+html:not(.dark) .text-zinc-300,
+html:not(.dark) .text-neutral-100,
+html:not(.dark) .text-neutral-200,
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200,
+html:not(.dark) .text-gray-100,
+html:not(.dark) .text-gray-200 {
+  color: var(--brand-text) !important;
+}
+
+/* Texto cinza médio → brand-muted (mantém hierarquia) */
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-zinc-500,
+html:not(.dark) .text-neutral-400,
+html:not(.dark) .text-neutral-500,
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-gray-500 {
+  color: var(--brand-muted) !important;
+}
+
+/* Texto cinza fraco → brand-subtle */
+html:not(.dark) .text-zinc-600,
+html:not(.dark) .text-neutral-600,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-gray-600 {
+  color: var(--brand-subtle) !important;
+}
+
+/* Hovers escuros → tom claro neutro */
+html:not(.dark) .hover\:bg-zinc-800:hover,
+html:not(.dark) .hover\:bg-zinc-700:hover,
+html:not(.dark) .hover\:bg-zinc-800\/60:hover,
+html:not(.dark) .hover\:bg-zinc-700\/60:hover,
+html:not(.dark) .hover\:bg-neutral-800:hover,
+html:not(.dark) .hover\:bg-slate-800:hover,
+html:not(.dark) .hover\:bg-gray-800:hover {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+html:not(.dark) .hover\:text-zinc-100:hover,
+html:not(.dark) .hover\:text-zinc-200:hover,
+html:not(.dark) .hover\:text-zinc-300:hover {
+  color: var(--brand-text) !important;
+}
+
+html:not(.dark) .hover\:border-zinc-700:hover,
+html:not(.dark) .hover\:border-zinc-600:hover,
+html:not(.dark) .hover\:border-zinc-500:hover {
+  border-color: var(--brand-primary) !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
