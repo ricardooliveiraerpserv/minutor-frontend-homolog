@@ -13,7 +13,26 @@ Aplicação:
 - Componentes **existentes** → migração progressiva: ao tocar para qualquer outro motivo, refatore as cores afetadas.
 - Reviewer rejeita PR que introduza `#xxxxxx`, `rgba(...)`, `bg-zinc-9XX`, `border-zinc-7/8XX`, `text-zinc-XXX` (entre outras famílias `neutral|slate|gray`).
 
-Detecção automática: o workflow `.github/workflows/design-system-check.yml` adiciona warnings inline em PRs que violem a regra. Warnings **não bloqueiam o merge** — servem como guia para o reviewer.
+Detecção automática: o workflow `.github/workflows/design-system-check.yml` adiciona warnings inline em PRs que violem a regra. Em caso de violações, o bot também:
+- Adiciona o label `design-system-warning` no PR
+- Posta/atualiza um comentário único com lista de arquivos afetados e contagem
+
+Warnings **não bloqueiam o merge** — servem como guia para o reviewer. Quando o PR é corrigido, o label é removido e o comentário do bot é apagado automaticamente.
+
+### Suprimir warning em linha legítima
+
+Se a cor é intencional e correta (ex: badge de identidade externa, logo de terceiro), adicione `// ds-ignore` na própria linha ou na linha anterior:
+
+```tsx
+// ds-ignore — cor oficial da marca terceira
+<span style={{ background: '#FF7A00' }}>Parceiro</span>
+```
+
+```tsx
+<div style={{ background: '#FF7A00' /* ds-ignore */ }}>Parceiro</div>
+```
+
+Use com parcimônia — exceções devem ser raras.
 
 ---
 
