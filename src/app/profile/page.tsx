@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check, PenLine, Camera, Trash2 } from 'lucide-react'
+import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check, PenLine, Camera, Trash2, Smartphone } from 'lucide-react'
 import { Skeleton } from '@/components/ui/loading'
 import { SignatureEditor, type SignatureData } from '@/components/users/signature-editor'
 
@@ -45,6 +45,9 @@ export default function ProfilePage() {
   const [name,       setName]       = useState('')
   const [email,      setEmail]      = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
+  const [phone,      setPhone]      = useState('')
+  const [savedPhone, setSavedPhone] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
 
   // Assinatura + foto de perfil
   const [signature,  setSignature]  = useState<SignatureData>({})
@@ -53,6 +56,8 @@ export default function ProfilePage() {
   const [photoUrl,   setPhotoUrl]   = useState<string | null>(null)
   const [photoBusy,  setPhotoBusy]  = useState(false)
   const userType = user?.type
+  // Admin edita tudo; demais perfis: só foto, celular e senha (nome/e-mail ficam só leitura).
+  const isAdmin = userType === 'admin'
 
   useEffect(() => {
     if (user) {
@@ -64,8 +69,11 @@ export default function ProfilePage() {
 
   // Carrega a assinatura salva. O cargo vem do vínculo Cargo × Perfil (admin) — não é editável aqui.
   useEffect(() => {
-    api.get<{ signature?: SignatureData | null; default_cargo?: string; profile_photo_url?: string | null }>('/users/profile')
+    api.get<{ signature?: SignatureData | null; default_cargo?: string; profile_photo_url?: string | null; phone?: string | null }>('/users/profile')
       .then(p => {
+        // Sem celular no cadastro → sugere o da assinatura (se houver); o botão salvar fica ativo.
+        setPhone(p.phone || (p.signature as SignatureData | null)?.mobile || '')
+        setSavedPhone(p.phone ?? '')
         const sig = (p.signature as SignatureData | null) ?? {}
         // Foto na assinatura: ligada por padrão quando há foto de perfil (a menos que já tenha sido desmarcada).
         const dc = p.default_cargo || 'Consultor'
@@ -149,6 +157,35 @@ export default function ProfilePage() {
     } finally {
       setSavingInfo(false)
     }
+  }
+
+  // ── Celular (todos os perfis) — o backend espelha no celular da assinatura de e-mail.
+  const savePhone = async () => {
+    const digits = phone.replace(/\D/g, '')
+    if (phone.trim() && (digits.length < 10 || digits.length > 13)) {
+      toast.error('Informe o celular com DDD (ex.: (11) 91234-5678)')
+      return
+    }
+    setSavingPhone(true)
+    try {
+      await api.put('/users/profile', { phone: phone.trim() || null })
+      setSavedPhone(phone.trim())
+      setSignature(s => ({ ...s, mobile: phone.trim() }))
+      toast.success('Celular salvo')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar o celular')
+    } finally {
+      setSavingPhone(false)
+    }
+  }
+
+  // Máscara simples BR: (11) 91234-5678 / (11) 1234-5678
+  const maskPhone = (v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 11)
+    if (d.length <= 2) return d ? `(${d}` : ''
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
   }
 
   // ── Auto-generate password
@@ -266,27 +303,48 @@ export default function ProfilePage() {
 
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
-                <Input value={name} onChange={e => setName(e.target.value)}
-                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                <Input value={name} onChange={e => setName(e.target.value)} readOnly={!isAdmin}
+                  className={`mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
               </div>
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
-                <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} readOnly={!isAdmin}
+                  className={`mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs ${!isAdmin ? 'opacity-70 cursor-not-allowed' : ''}`} />
+                {!isAdmin && (
+                  <p className="text-[10px] text-[var(--text-light)] mt-1">Nome e e-mail só podem ser alterados por um administrador.</p>
+                )}
               </div>
 
-              <div className="flex justify-end">
-                <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
-                  className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                  {savingInfo ? 'Salvando...' : 'Salvar dados'}
-                </Button>
+              {isAdmin && (
+                <div className="flex justify-end">
+                  <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
+                    className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                    {savingInfo ? 'Salvando...' : 'Salvar dados'}
+                  </Button>
+                </div>
+              )}
+
+              {/* ── Celular — todos os perfis ── */}
+              <div className="pt-2 border-t border-[var(--border)]">
+                <Label className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
+                  <Smartphone size={12} /> Celular
+                </Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input type="tel" inputMode="tel" placeholder="(11) 91234-5678" value={phone}
+                    onChange={e => setPhone(maskPhone(e.target.value))}
+                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                  <Button onClick={savePhone} disabled={savingPhone || phone.trim() === savedPhone.trim()}
+                    className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                    {savingPhone ? 'Salvando...' : 'Salvar celular'}
+                  </Button>
+                </div>
               </div>
             </>
           )}
         </section>
 
         {/* ── Assinatura de e-mail ── */}
-        {userType !== 'cliente' && (
+        {isAdmin && (
           <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--purple-bg)]">

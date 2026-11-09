@@ -45,6 +45,15 @@ interface Notification {
 export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth()
   const router = useRouter()
+  // "Meu Perfil": com o sistema de ABAS (prod/base teste) a casca externa não renderiza a rota —
+  // só os iframes das abas. router.push trocava a URL e nada aparecia → abre/foca uma aba.
+  const openProfile = () => {
+    if (['teste', 'production'].includes(process.env.NEXT_PUBLIC_APP_ENV ?? '')) {
+      window.dispatchEvent(new CustomEvent('minutor:open-tab', { detail: { path: '/profile', title: 'Meu Perfil' } }))
+    } else {
+      router.push('/profile')
+    }
+  }
   const [unread, setUnread] = useState(0)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [bellOpen, setBellOpen] = useState(false)
@@ -298,7 +307,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => router.push('/profile')}>
+            <DropdownMenuItem onClick={openProfile}>
               <User size={14} className="mr-2" />
               Meu Perfil
             </DropdownMenuItem>
